@@ -1,0 +1,312 @@
+#!/usr/bin/env python3
+"""
+DXN1 STUDIO - Custom IDE GUI
+A lightweight desktop IDE built with Python and Tkinter
+"""
+
+import tkinter as tk
+from tkinter import ttk, filedialog, messagebox
+import os
+import sys
+import json
+import keyword
+import re
+from pathlib import Path
+
+# Theme colors
+DARK_BG = "#1e1e1e"
+DARK_SIDEBAR = "#252526"
+DARK_HEADER = "#2d2d30"
+DARK_EDITOR = "#1e1e1e"
+DARK_TERMINAL = "#1e1e1e"
+ACCENT = "#007acc"
+TEXT_COLOR = "#d4d4d4"
+TEXT_SECONDARY = "#cccccc"
+BORDER = "#3e3e42"
+
+class FileTree(tk.Frame):
+    def __init__(self, parent, on_file_select=None):
+        super().__init__(parent, bg=DARK_SIDEBAR)
+        self.on_file_select = on_file_select
+        self.current_dir = os.path.expanduser("~")
+        
+        # Header
+        header = tk.Frame(self, bg=DARK_HEADER, height=40)
+        header.pack(fill=tk.X)
+        header.pack_propagate(False)
+        
+        tk.Label(header, text="📁 PROJECT", bg=DARK_HEADER, fg=TEXT_SECONDARY,
+                font=('Segoe UI', 10, 'bold')).pack(side=tk.LEFT, padx=15, pady=10)
+        
+        # Scrollable file tree
+        self.canvas = tk.Canvas(self, bg=DARK_SIDEBAR, highlightthickness=0)
+        self.scrollbar = ttk.Scrollbar(self, orient=tk.VERTICAL, command=self.canvas.yview)
+        self.tree_frame = tk.Frame(self.canvas, bg=DARK_SIDEBAR)
+        
+        self.tree_frame.bind(
+            "<Configure>",
+            lambda e: self.canvas.configure(scrollregion=self.canvas.bbox("all"))
+        )
+        
+        self.canvas.create_window((0, 0), window=self.tree_frame, anchor="nw", width=230)
+        self.canvas.configure(yscrollcommand=self.scrollbar.set)
+        
+        self.canvas.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
+        self.scrollbar.pack(side=tk.RIGHT, fill=tk.Y)
+        
+        self.load_directory(self.current_dir)
+    
+    def load_directory(self, path):
+        for widget in self.tree_frame.winfo_children():
+            widget.destroy()
+        
+        try:
+            entries = sorted(os.listdir(path), key=lambda x: (not os.path.isdir(os.path.join(path, x)), x.lower()))
+            
+            for entry in entries:
+                full_path = os.path.join(path, entry)
+                is_dir = os.path.isdir(full_path)
+                
+                item_frame = tk.Frame(self.tree_frame, bg=DARK_SIDEBAR)
+                item_frame.pack(fill=tk.X, pady=1)
+                
+                icon = "📁" if is_dir else "📄"
+                label = tk.Label(item_frame, text=f"{icon} {entry}", 
+                               bg=DARK_SIDEBAR, fg=TEXT_COLOR,
+                               font=('Consolas', 9), anchor='w')
+                label.pack(fill=tk.X, padx=15, pady=3)
+                
+                if not is_dir and self.on_file_select:
+                    label.bind('<Button-1>', lambda e, p=full_path: self.on_file_select(p))
+                    label.bind('<Enter>', lambda e: label.config(bg="#2a2d2e"))
+                    label.bind('<Leave>', lambda e: label.config(bg=DARK_SIDEBAR))
+        except PermissionError:
+            pass
+
+
+class CodeEditor(tk.Frame):
+    def __init__(self, parent):
+        super().__init__(parent, bg=DARK_EDITOR)
+        self.file_path = None
+        self.modified = False
+        
+        # Line numbers + Text widget
+        self.text_frame = tk.Frame(self, bg=DARK_EDITOR)
+        self.text_frame.pack(fill=tk.BOTH, expand=True)
+        
+        self.line_numbers = tk.Text(self.text_frame, width=4, padx=10, pady=5,
+                                   bg=DARK_SIDEBAR, fg="#858585",
+                                   font=('Consolas', 11), state='disabled',
+                                   relief=tk.FLAT)
+        self.line_numbers.pack(side=tk.LEFT, fill=tk.Y)
+        
+        self.text = tk.Text(self.text_frame, bg=DARK_EDITOR, fg=TEXT_COLOR,
+                           insertbackground=TEXT_COLOR, selectbackground=ACCENT,
+                           font=('Consolas', 11), padx=15, pady=5,
+                           relief=tk.FLAT, undo=True)
+        self.text.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
+        
+        self.text.bind('<KeyRelease>', self.update_line_numbers)
+        self.text.bind('<MouseWheel>', self.update_line_numbers)
+        self.update_line_numbers()
+    
+    def update_line_numbers(self, event=None):
+        lines = self.text.get('1.0', tk.END).count('\n')
+        self.line_numbers.config(state='normal')
+        self.line_numbers.delete('1.0', tk.END)
+        for i in range(1, lines + 1):
+            self.line_numbers.insert(tk.END, f"{i}\n")
+        self.line_numbers.config(state='disabled')
+    
+    def set_content(self, content):
+        self.text.delete('1.0', tk.END)
+        self.text.insert('1.0', content)
+        self.update_line_numbers()
+
+
+class Terminal(tk.Frame):
+    def __init__(self, parent):
+        super().__init__(parent, bg=DARK_TERMINAL)
+        
+        header = tk.Frame(self, bg=DARK_HEADER, height=30)
+        header.pack(fill=tk.X)
+        header.pack_propagate(False)
+        
+        tk.Label(header, text="TERMINAL", bg=DARK_HEADER, fg=TEXT_SECONDARY,
+                font=('Segoe UI', 9, 'bold')).pack(side=tk.LEFT, padx=15)
+        
+        self.output = tk.Text(self, bg=DARK_TERMINAL, fg=TEXT_COLOR,
+                             font=('Consolas', 10), state='disabled',
+                             relief=tk.FLAT, padx=10, pady=5)
+        self.output.pack(fill=tk.BOTH, expand=True)
+        
+        self.log("Welcome to DXN1 STUDIO v1.0.0")
+        self.log("Ready")
+    
+    def log(self, message):
+        self.output.config(state='normal')
+        self.output.insert(tk.END, f"> {message}\n")
+        self.output.see(tk.END)
+        self.output.config(state='disabled')
+
+
+class DXND1Studio:
+    def __init__(self):
+        self.root = tk.Tk()
+        self.root.title("DXN1 STUDIO")
+        self.root.geometry("1200x800")
+        self.root.configure(bg=DARK_BG)
+        
+        self.open_files = {}
+        self.active_file = None
+        
+        self.setup_ui()
+        self.setup_menu()
+    
+    def setup_ui(self):
+        # Main container
+        main_container = tk.PanedWindow(self.root, orient=tk.HORIZONTAL, 
+                                        bg=DARK_BORDER, sashwidth=3)
+        main_container.pack(fill=tk.BOTH, expand=True)
+        
+        # Sidebar
+        self.sidebar = FileTree(main_container, on_file_select=self.open_file)
+        main_container.add(self.sidebar, width=250)
+        
+        # Right panel (editor + terminal)
+        right_panel = tk.PanedWindow(self.root, orient=tk.VERTICAL,
+                                     bg=DARK_BORDER, sashwidth=3)
+        main_container.add(right_panel)
+        
+        # Tabs + Editor
+        editor_container = tk.Frame(right_panel, bg=DARK_EDITOR)
+        
+        tabs_frame = tk.Frame(editor_container, bg=DARK_HEADER, height=35)
+        tabs_frame.pack(fill=tk.X)
+        tabs_frame.pack_propagate(False)
+        self.tabs_frame = tabs_frame
+        
+        self.editor = CodeEditor(editor_container)
+        self.editor.pack(fill=tk.BOTH, expand=True)
+        
+        right_panel.add(editor_container)
+        
+        # Terminal
+        self.terminal = Terminal(right_panel)
+        right_panel.add(self.terminal, height=200)
+    
+    def setup_menu(self):
+        menubar = tk.Menu(self.root)
+        
+        file_menu = tk.Menu(menubar, tearoff=0, bg=DARK_SIDEBAR, fg=TEXT_COLOR)
+        file_menu.add_command(label="New File", command=self.new_file, accelerator="Ctrl+N")
+        file_menu.add_command(label="Open File", command=self.open_file_dialog, accelerator="Ctrl+O")
+        file_menu.add_separator()
+        file_menu.add_command(label="Save", command=self.save_file, accelerator="Ctrl+S")
+        file_menu.add_command(label="Save As", command=self.save_file_as)
+        file_menu.add_separator()
+        file_menu.add_command(label="Exit", command=self.root.quit)
+        menubar.add_cascade(label="File", menu=file_menu)
+        
+        edit_menu = tk.Menu(menubar, tearoff=0, bg=DARK_SIDEBAR, fg=TEXT_COLOR)
+        edit_menu.add_command(label="Undo", accelerator="Ctrl+Z")
+        edit_menu.add_command(label="Redo", accelerator="Ctrl+Y")
+        edit_menu.add_separator()
+        edit_menu.add_command(label="Cut", accelerator="Ctrl+X")
+        edit_menu.add_command(label="Copy", accelerator="Ctrl+C")
+        edit_menu.add_command(label="Paste", accelerator="Ctrl+V")
+        menubar.add_cascade(label="Edit", menu=edit_menu)
+        
+        view_menu = tk.Menu(menubar, tearoff=0, bg=DARK_SIDEBAR, fg=TEXT_COLOR)
+        view_menu.add_command(label="Toggle Terminal", command=self.toggle_terminal)
+        view_menu.add_command(label="Toggle Sidebar", command=self.toggle_sidebar)
+        menubar.add_cascade(label="View", menu=view_menu)
+        
+        help_menu = tk.Menu(menubar, tearoff=0, bg=DARK_SIDEBAR, fg=TEXT_COLOR)
+        help_menu.add_command(label="About DXN1 STUDIO", command=self.show_about)
+        menubar.add_cascade(label="Help", menu=help_menu)
+        
+        self.root.config(menu=menubar)
+        
+        # Keyboard shortcuts
+        self.root.bind('<Control-n>', lambda e: self.new_file())
+        self.root.bind('<Control-o>', lambda e: self.open_file_dialog())
+        self.root.bind('<Control-s>', lambda e: self.save_file())
+    
+    def new_file(self):
+        self.editor.set_content("")
+        self.editor.file_path = None
+        self.terminal.log("Created new file")
+    
+    def open_file_dialog(self):
+        filepath = filedialog.askopenfilename(
+            title="Open File",
+            filetypes=[("All Files", "*.*"), ("Python", "*.py"), ("JavaScript", "*.js"), 
+                      ("HTML", "*.html"), ("CSS", "*.css"), ("Text", "*.txt")]
+        )
+        if filepath:
+            self.open_file(filepath)
+    
+    def open_file(self, filepath):
+        try:
+            with open(filepath, 'r', encoding='utf-8') as f:
+                content = f.read()
+            
+            self.editor.set_content(content)
+            self.editor.file_path = filepath
+            self.terminal.log(f"Opened: {filepath}")
+            self.add_tab(os.path.basename(filepath))
+        except Exception as e:
+            messagebox.showerror("Error", f"Failed to open file:\n{e}")
+    
+    def save_file(self):
+        if self.editor.file_path:
+            try:
+                with open(self.editor.file_path, 'w', encoding='utf-8') as f:
+                    f.write(self.editor.text.get('1.0', tk.END))
+                self.terminal.log(f"Saved: {self.editor.file_path}")
+            except Exception as e:
+                messagebox.showerror("Error", f"Failed to save file:\n{e}")
+        else:
+            self.save_file_as()
+    
+    def save_file_as(self):
+        filepath = filedialog.asksaveasfilename(
+            title="Save As",
+            defaultextension=".txt"
+        )
+        if filepath:
+            self.editor.file_path = filepath
+            self.save_file()
+    
+    def add_tab(self, filename):
+        tab = tk.Frame(self.tabs_frame, bg=DARK_HEADER)
+        tk.Label(tab, text=filename, bg=DARK_HEADER, fg=TEXT_COLOR,
+                font=('Segoe UI', 9)).pack(side=tk.LEFT, padx=10, pady=8)
+        tk.Label(tab, text="✕", bg=DARK_HEADER, fg="#858585",
+                font=('Segoe UI', 9)).pack(side=tk.RIGHT, padx=8)
+        tab.pack(side=tk.LEFT)
+    
+    def toggle_terminal(self):
+        pass  # Implementation for toggling terminal visibility
+    
+    def toggle_sidebar(self):
+        pass  # Implementation for toggling sidebar
+    
+    def show_about(self):
+        messagebox.showinfo("About DXN1 STUDIO", 
+                           "DXN1 STUDIO v1.0.0\n\n"
+                           "A custom IDE GUI built with Python\n"
+                           "© 2024 DXN1")
+    
+    def run(self):
+        self.root.mainloop()
+
+
+def main():
+    app = DXND1Studio()
+    app.run()
+
+
+if __name__ == "__main__":
+    main()
