@@ -1,0 +1,83 @@
+"""DXN1 STUDIO — configuration persistence.
+
+All user preferences (display name, theme, accent colour, onboarding state)
+live in a single JSON file under ~/.dxn1-studio/config.json so the IDE can
+detect a first launch and personalise every session after it.
+"""
+
+import json
+import os
+from datetime import datetime
+
+CONFIG_DIR = os.path.join(os.path.expanduser("~"), ".dxn1-studio")
+CONFIG_PATH = os.path.join(CONFIG_DIR, "config.json")
+
+DEFAULTS = {
+    "version": "2.0.0",
+    "onboarded": False,      # has the welcome wizard been completed?
+    "tour_done": False,      # has the interactive tour been finished/skipped?
+    "name": "",              # display name used in greetings
+    "theme": "dark",         # "dark" | "light"
+    "accent": "violet",      # violet | cyan | green | orange
+    "launch_count": 0,
+    "first_launch": None,    # ISO timestamp of first run
+    "last_launch": None,     # ISO timestamp of most recent run
+}
+
+
+class Config:
+    """Tiny JSON-backed key/value store with safe defaults."""
+
+    def __init__(self):
+        self._data = dict(DEFAULTS)
+        self.load()
+
+    # ------------------------------------------------------------------ io
+    def load(self):
+        try:
+            if os.path.exists(CONFIG_PATH):
+                with open(CONFIG_PATH, "r", encoding="utf-8") as fh:
+                    stored = json.load(fh)
+                if isinstance(stored, dict):
+                    self._data.update(stored)
+        except (OSError, json.JSONDecodeError):
+            # Corrupt config -> fall back to defaults, never crash the IDE.
+            self._data = dict(DEFAULTS)
+
+    def save(self):
+        try:
+            os.makedirs(CONFIG_DIR, exist_ok=True)
+            with open(CONFIG_PATH, "w", encoding="utf-8") as fh:
+                json.dump(self._data, fh, indent=2)
+        except OSError:
+            pass  # read-only home etc. — IDE keeps running with defaults
+
+    # ------------------------------------------------------------- access
+    def get(self, key, default=None):
+        return self._data.get(key, DEFAULTS.get(key, default))
+
+    def set(self, key, value, save=True):
+        self._data[key] = value
+        if save:
+            self.save()
+
+    # --------------------------------------------------------- session mgmt
+    def register_launch(self):
+        """Update launch bookkeeping. Returns True when this is the first run."""
+        now = datetime.now().isoformat(timespec="seconds")
+        first = self.get("first_launch") is None
+        if first:
+            self.set("first_launch", now, save=False)
+        self.set("last_launch", now, save=False)
+        self.set("launch_count", self.get("launch_count", 0) + 1, save=False)
+        self.save()
+        return first
+
+    def reset(self):
+        """Wipe all preferences (used by --reset-config)."""
+        self._data = dict(DEFAULTS)
+        self.save()
+
+    @property
+    def needs_onboarding(self):
+        return not bool(self.get("onboarded"))
