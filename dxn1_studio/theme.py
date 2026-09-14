@@ -117,4 +117,18 @@ class Theme:
 
 
 def from_config(config):
-    return Theme(config.get("theme", "dark"), config.get("accent", "violet"))
+    theme = Theme(config.get("theme", "dark"), config.get("accent", "violet"))
+    # DS2: community/custom theme support — a stored palette override
+    # is applied at resolution time, so it survives restarts and never
+    # breaks the base engine (missing keys fall back to the palette).
+    try:
+        custom = config.get("custom_theme") if config is not None else None
+        if custom and isinstance(custom, dict):
+            base = dict(theme._p)
+            for key, value in custom.items():
+                if key in base and isinstance(value, str) and value:
+                    base[key] = value
+            theme._p = base
+    except Exception:
+        pass
+    return theme

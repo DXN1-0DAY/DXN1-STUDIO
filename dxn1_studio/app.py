@@ -2206,7 +2206,23 @@ class DXN1Studio:
                          _open_pair))
         except Exception:  # pragma: no cover — palette stays alive
             pass
+        # DS2: theme gallery (defensive)
+        def _open_themes():
+            from .community_themes import open_gallery
+            open_gallery(self.root, self.theme, self.config,
+                         on_log=lambda m: self.terminal.log(m),
+                         restart=self._ds2_restart)
+        try:
+            cmds.append(("Theme gallery — 12 community palettes…", "DS2",
+                         _open_themes))
+        except Exception:  # pragma: no cover — palette stays alive
+            pass
         return cmds
+
+    def _ds2_restart(self):
+        """DS2: restart into a new theme — mirrors switch_theme."""
+        self.restart_requested = True
+        self.root.after(120, self.root.destroy)
 
     def _ds2_tick(self, step_id):
         """DS2: tick a first-run checklist step (defensive, idempotent)."""
