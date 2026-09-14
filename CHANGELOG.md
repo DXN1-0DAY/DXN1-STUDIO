@@ -4,6 +4,38 @@ All notable changes to DXN1 STUDIO. Format based on
 [Keep a Changelog](https://keepachangelog.com/); versioning is
 `MAJOR.MINOR.PATCH` while in **beta**.
 
+## [1.6.0] — 2026-09-14 · beta · "the assistant gets superpowers"
+
+### Added
+- **AI quick actions** (`quick_actions.py`) — select code, get seven
+  streamed superpowers: **Explain, Refactor, Add docstring, Write
+  tests, Fix bugs, Add type hints, Optimize**. Answers stream into a
+  themed result window; code blocks are detected and can be inserted
+  below the cursor or swapped straight into the selection. A launcher
+  menu (one palette entry) keeps all seven one click away. Worker
+  threads + queue marshalling — the editor never blocks.
+- **AI commit messages** (`commit_msg.py`) — a **✨ AI msg** chip in the
+  Source Control panel drafts a Conventional Commits message from the
+  staged diff (falls back to working tree + untracked files), streams
+  it into the commit box, and never commits on its own. You edit
+  everything before it lands.
+- **AI review — gutter eyes** (`ai_lint.py`) — the brain reviews the
+  whole file and returns structured findings (bug / smell / perf /
+  clarity / praise); the findings panel maps severity to colour and
+  jumps to the line on double-click. Robust JSON extraction survives
+  chatty models.
+- **Pair mode — plan, agree, build** (`pair.py`) — two-phase pair
+  programming: the agent writes a numbered plan (no code), you edit or
+  approve it, then execution runs through the real sandboxed
+  AgentEngine with the same approval gates as the agent panel. Plan
+  first kills the sprint-off-in-the-wrong-direction failure mode.
+- **Editor power tools** (`macros.py`, `multicursor.py`,
+  `snippets2.py`) — action-level macro recorder with cancellable
+  playback and a persisted library; an emulated multi-caret engine
+  (add-next / select-all occurrences, bottom-up stable edits); and a
+  snippet engine with tabstops, `${name:default}` variables, builtin
+  variables, four language packs and a user snippet store.
+
 ## [1.5.0] — 2026-09-14 · beta · "the assistant gets a memory"
 
 ### Added
