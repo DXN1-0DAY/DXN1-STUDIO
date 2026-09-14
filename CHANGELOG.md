@@ -4,6 +4,55 @@ All notable changes to DXN1 STUDIO. Format based on
 [Keep a Changelog](https://keepachangelog.com/); versioning is
 `MAJOR.MINOR.PATCH` while in **beta**.
 
+## [1.1.5] — 2026-09-14 · beta
+
+### Added
+- **The Update Portal** — detecting a new GitHub release now opens a
+  full-screen, cinematic takeover (built around new portal art):
+  *"We have detected a new version"* with the detected version number,
+  release highlights, and one big **Install update & restart** button.
+  Installing streams the new build from GitHub (or `git pull --ff-only`
+  in clones), verifies every module with `compileall`, shows honest
+  progress for **at least 3 seconds**, then restarts the studio into
+  the fresh build. Decline and the portal answers: *"You cannot
+  continue on this version — for security and for your own experience
+  reasons."* (new `updater.py`; checks run at launch and via
+  Help → Check for Updates)
+- **Agents 2.0 — the chat, rebuilt.** Streaming answers with a live
+  **■ stop** button; markdown chat rendering (headings, bullets, code
+  cards with **Copy · To editor · Save as…** + language chip); **6
+  personas** (Balanced, Concise, Senior dev, Architect, Debugger,
+  Teacher) with a one-tap persona bar; **17 slash commands** (`/help`,
+  `/new`, `/tests`, `/bugs`, `/explain`, `/run`, `/persona`,
+  `/sessions`, …) with an arrow-key palette; **@-mentions** that attach
+  workspace files to any prompt; **per-workspace session history** that
+  survives restarts (`/sessions` to reopen)
+- **`search_code` agent tool** — regex grep across the workspace, so
+  the agent finds things itself instead of asking
+- **Editor Pro.** Regex find & replace with `\\1`-style template
+  expansion (the `.*` toggle in the find bar, "bad regex" surfaced
+  inline); block indent/outdent (Tab / Shift+Tab, Ctrl+] / Ctrl[)
+  across selections as single undo steps; word-under-cursor spotlight
+  (3+ chars, suppressed while selecting or finding); **10 new
+  languages**: Go, Rust, Java, C, C++, C#, Kotlin, PHP, Ruby, Shell
+  (plus `.cc/.cxx/.hpp/.h/.bash/.zsh/.kts/.phtml/...` aliases)
+- Chat code blocks drop straight into a fresh editor tab (**To editor**)
+- The installer now ships every module from a list kept in sync with
+  the package (including `gitpanel.py` and `updater.py`) and pins the
+  installed copy's version to the installer's own
+
+### Fixed
+- **The installer lied about versions.** It still announced 1.1.3
+  while the latest release was 1.1.4 — the version is now a single
+  `INSTALLER_VERSION` constant, printed correctly and stamped into the
+  downloaded copy so the IDE never claims an older number than what it
+  ships
+- The installer's module list had drifted from the package (new
+  modules were missing from fresh installs); the update portal mirrors
+  the exact same list, so an in-place update can never strand a file
+- Update notices were easy to miss (a small toast); the portal replaces
+  them and is impossible to overlook
+
 ## [1.1.4] — 2026-09-14 · beta
 
 ### Fixed

@@ -40,6 +40,7 @@ from .search import SearchPanel
 from .gitpanel import GitPanel
 from .agent import DXN1AgentPanel, AgentSettingsDialog, ConnectDialog, \
     AGENTS_NAME
+from . import updater
 
 FONT_SIZES = (("small", 10), ("medium", 11), ("large", 13))
 
@@ -1592,6 +1593,14 @@ class DXN1Studio:
                            cursor="hand2", padx=8)
             btn.pack(side=tk.LEFT)
             btn.bind("<Button-1>", lambda e, d=delta: self._find_next(d))
+        self.find_regex = False
+        self.regex_btn = tk.Label(row, text=".*", bg=t["header"],
+                                  fg=t["text_muted"],
+                                  font=(FONT_MONO, 9, "bold"),
+                                  cursor="hand2", padx=7)
+        self.regex_btn.pack(side=tk.LEFT)
+        self.regex_btn.bind("<Button-1>",
+                            lambda e: self._toggle_find_regex())
         self.replace_chevron = tk.Label(row, text="⌄ replace", bg=t["header"],
                                         fg=t["text_secondary"],
                                         font=(FONT_UI, 9), cursor="hand2",
@@ -1661,7 +1670,8 @@ class DXN1Studio:
         needle, repl = self.find_var.get(), self.replace_var.get()
         if not needle:
             return
-        if self.editor.replace_current(needle, repl):
+        if self.editor.replace_current(needle, repl,
+                                       regex=self.find_regex):
             self.replace_status.config(text="replaced 1",
                                        fg=self.theme.accent)
         else:
@@ -1673,7 +1683,11 @@ class DXN1Studio:
         needle, repl = self.find_var.get(), self.replace_var.get()
         if not needle:
             return
-        count = self.editor.replace_all(needle, repl)
+        count = self.editor.replace_all(needle, repl,
+                                        regex=self.find_regex)
+        if count < 0:
+            self.replace_status.config(text="bad regex", fg="#f87171")
+            return
         self.replace_status.config(
             text=(f"replaced {count}" if count else "no hits"),
             fg=(self.theme.accent if count else self.theme["text_muted"]))
@@ -1699,6 +1713,14 @@ class DXN1Studio:
             self.findbar.pack_forget()
             self.editor.text.focus_set()
 
+    def _toggle_find_regex(self):
+        """Flip the find bar into regex mode (.*) and re-run live."""
+        self.find_regex = not self.find_regex
+        self.regex_btn.config(
+            fg=self.theme.accent if self.find_regex
+            else self.theme["text_muted"])
+        self._find_live()
+
     def _find_live(self, event=None):
         if event and event.keysym in ("Return", "Escape", "Up", "Down"):
             return
@@ -1707,15 +1729,20 @@ class DXN1Studio:
             self.editor.clear_find()
             self.find_count.config(text="")
             return
-        count = self.editor.find(needle)
+        count = self.editor.find(needle, regex=self.find_regex)
+        if count < 0:
+            self.find_count.config(text="bad regex", fg="#f87171")
+            return
         self.find_count.config(
             text=f"{count} hit{'s' if count != 1 else ''}"
-            if count else "no hits")
+            if count else "no hits",
+            fg=self.theme["text_muted"])
 
     def _find_next(self, delta):
         needle = self.find_var.get()
         if needle:
-            self.editor.find(needle, backwards=delta < 0)
+            self.editor.find(needle, backwards=delta < 0,
+                             regex=self.find_regex)
 
     # ------------------------------------------------------------- packages
     def open_packages(self, autostart=None):
@@ -1874,6 +1901,14 @@ class DXN1Studio:
             tail if tail else f"(exit {code}, no output)"))
         return code, out
 
+    def chat_code_to_editor(self, code):
+        """Drop an agent code block into a fresh untitled editor tab."""
+        self.new_file()
+        if code:
+            self.editor.set_content(code if code.endswith("\n")
+                                    else code + "\n")
+            self._update_cursor_pos()
+
     def agent_on_written(self, path):
         """Agent touched a file — refresh explorer, reload if it's open."""
         def ui():
@@ -1985,7 +2020,7 @@ class DXN1Studio:
             return
         if low.startswith("agent "):
             if self.agent_panel is not None:
-                self.agent_panel.handle(text[6:].strip())
+                self.agent_panel.route(text[6:].strip())
             else:
                 self.terminal.log("DXN1 Agents is disabled — enable it in "
                                   "Settings → DXN1 Agents.")
@@ -2442,13 +2477,14 @@ class DXN1Studio:
     # ------------------------------------------------------------- updater
     def check_for_updates(self, manual=False):
         """GitHub releases check — stdlib only, never blocks the UI."""
-        if self._updater_shown:
-            if manual:
-                self.toast("Update check already running", "info")
+        if self._updater_shown or self.smoke_test:
+            if manual and self.smoke_test:
+                self.toast("Update checks are off in smoke-test mode", "info")
             return
 
         def worker():
-            result = {"state": "error", "latest": "", "url": ""}
+            result = {"state": "error", "latest": "", "url": "",
+                      "notes": []}
             try:
                 req = urllib.request.Request(
                     "https://api.github.com/repos/DXN1-termux/DXN1-STUDIO/"
@@ -2458,7 +2494,10 @@ class DXN1Studio:
                 with urllib.request.urlopen(req, timeout=10) as resp:
                     data = json.loads(resp.read().decode("utf-8", "replace"))
                 tag = (data.get("tag_name") or "").lstrip("v")
-                result = {"state": "ok", "latest": tag,
+                lines = [ln.lstrip("-* ").strip() for ln in
+                         (data.get("body") or "").splitlines()
+                         if ln.strip().startswith(("-", "*"))][:3]
+                result = {"state": "ok", "latest": tag, "notes": lines,
                           "url": data.get("html_url") or REPO_URL}
             except Exception:
                 pass
@@ -2471,13 +2510,13 @@ class DXN1Studio:
                                    "error")
                     return
                 try:
-                    newer = self._ver_tuple(result["latest"]) > \
-                        self._ver_tuple(APP_VERSION)
+                    newer = updater.is_newer(result["latest"], APP_VERSION)
                 except ValueError:
                     newer = False
                 if newer:
-                    self.toast(f"Update available: v{result['latest']} — "
-                               f"Help → About", "info")
+                    # the full-screen Update Portal — no sneaky toasts
+                    updater.UpdatePortal(self, result["latest"],
+                                         result["url"], result["notes"])
                     self.terminal.log(f"Update available: v{APP_VERSION} → "
                                       f"v{result['latest']} — {result['url']}")
                 elif manual:
@@ -2645,7 +2684,7 @@ class DXN1Studio:
                         '</tool>Wrote the file. <done>done</done>'
                     ]),
                     sb, self.config, name="Smoke",
-                    emit=lambda s: None, approve=lambda *a, **k: True,
+                    emit=lambda *a, **k: None, approve=lambda *a, **k: True,
                     execute_command=lambda c: (0, "ok"),
                     on_written=lambda p: None)
                 eng.run("write engine_demo.py")
@@ -2867,9 +2906,128 @@ class DXN1Studio:
                 from .llm import PollinationsBackend
                 pb = PollinationsBackend(self.config)
                 self.terminal.log("v1.1.4 checks passed")
-                self.root.after(400, step10)
+                self.root.after(400, step9k)
             except Exception:
                 bail("step9j-v114")
+
+        def step9k():
+            # --- v1.1.5: agents 2.0 — markdown chat, personas, sessions
+            try:
+                from .agent import (parse_chat_blocks, SessionStore,
+                                    PERSONAS, SLASH_COMMANDS)
+                blocks = parse_chat_blocks(
+                    "# Plan\n- one\n- two\n\nPlain para.\n"
+                    "```python\nprint('hi')\n```\ntail line")
+                kinds = [k for k, _ in blocks]
+                assert kinds[0] == "h" and kinds[1] == "li", kinds
+                assert ("code", ) == (kinds[4],), kinds
+                assert blocks[4][1][0] == "python", blocks[4]
+                ap = self.agent_panel
+                assert ap is not None, "agents panel missing"
+                ap.set_persona("senior")
+                assert ap._persona()[0] == "senior", "persona switch failed"
+                ap.set_persona("default")
+                assert len(PERSONAS) >= 6 and len(SLASH_COMMANDS) >= 12
+                store = SessionStore()
+                store.save(self.project_dir, "smoke-1", "Smoke chat",
+                           [{"role": "user", "text": "hi"},
+                            {"role": "agent", "text": "hello"}], stats="3 tok")
+                got = store.load(self.project_dir, "smoke-1")
+                assert got and got["messages"][-1]["text"] == "hello"
+                # slash dispatch must not crash offline (local quickies only)
+                ap.route("/help")
+                self.root.update()
+                # search_code tool through the engine's tool host
+                sb = WorkspaceSandbox(self.project_dir)
+                eng = AgentEngine(
+                    FakeBackend(["ok <done>done</done>"]),
+                    sb, self.config, name="Smoke",
+                    emit=lambda *a, **k: None, approve=lambda *a, **k: True,
+                    execute_command=lambda c: (0, "ok"),
+                    on_written=lambda p: None)
+                res = eng._exec_tool("search_code",
+                                     {"pattern": "SMOKE", "max": 5})
+                assert isinstance(res, str) and "error" not in res[:20], res
+                self.terminal.log("v1.1.5 agents checks passed")
+                self.root.after(400, step9l)
+            except Exception:
+                bail("step9k-agents2")
+
+        def step9l():
+            # --- v1.1.5: update portal — logic + every phase paints
+            try:
+                from .updater import (ver_tuple, is_newer, UpdatePortal,
+                                      MIN_SHOW_SECONDS)
+                assert ver_tuple("1.1.5") == (1, 1, 5)
+                assert is_newer("1.1.5", "1.1.4") and not is_newer(
+                    "1.1.4", "1.1.4")
+                assert MIN_SHOW_SECONDS >= 3
+                portal = UpdatePortal(self, "9.9.9",
+                                      notes=["smoke note one",
+                                             "smoke note two"])
+                self.root.update()
+                assert portal._phase == "offer"
+                portal._paint()                      # offer phase renders
+                portal.decline()                     # security goodbye screen
+                self.root.update()
+                assert portal._phase == "declined"
+                portal._draw_progress(self.root.winfo_width(),
+                                      self.root.winfo_height())
+                portal._draw_restarting(self.root.winfo_width(),
+                                        self.root.winfo_height())
+                portal._target = 0.42
+                portal._animate()
+                self.root.update()
+                portal.after_cancel(portal._restart_job) \
+                    if portal._restart_job else None
+                portal.grab_release()
+                portal.destroy()
+                self._updater_shown = False
+                self.terminal.log("v1.1.5 update portal checks passed")
+                self.root.after(400, step9m)
+            except Exception:
+                bail("step9l-updater")
+
+        def step9m():
+            # --- v1.1.5: editor pro — indent, regex find/replace, word hl
+            try:
+                from .widgets import language_for, LANG_RULES
+                ed = self.editor
+                # block indent / outdent over a selection
+                ed.set_content("alpha bravo\ngamma delta\n", "pro.py")
+                ed.text.tag_add("sel", "1.0", "end")
+                ed._on_tab()
+                assert ed.text.get("1.0", "1.end").startswith("    alpha"), \
+                    ed.text.get("1.0", "1.end")
+                ed._on_outdent()
+                assert not ed.text.get("1.0", "1.end").startswith(" "), \
+                    "outdent failed"
+                # regex find: both two-word pairs light up
+                n = ed.find(r"(\w+) (\w+)", regex=True)
+                assert n == 2, n
+                # regex replace_all with template expansion
+                n = ed.replace_all(r"(\w+) (\w+)", r"\2-\1", regex=True)
+                assert n == 2, n
+                body = ed.get_content()
+                assert "bravo-alpha" in body and "delta-gamma" in body, body
+                # bad regex is surfaced, never crashes
+                assert ed.find("([unclosed", regex=True) == -1
+                assert ed.replace_all("([bad", "x", regex=True) == -1
+                # word-under-cursor highlight: two "needle" occurrences
+                ed.set_content("needle here\nneedle there\n", "pro2.py")
+                ed.text.mark_set("insert", "1.2")
+                ed._word_hl()
+                tags = ed.text.tag_ranges("word_hl")
+                assert tags and len(tags) == 4, tags
+                # new language rules are live
+                assert language_for("main.go") is LANG_RULES[".go"]
+                assert language_for("lib.rs") is LANG_RULES[".rs"]
+                assert language_for("App.java") is LANG_RULES[".java"]
+                assert language_for("run.sh") is LANG_RULES[".sh"]
+                self.terminal.log("v1.1.5 editor pro checks passed")
+                self.root.after(400, step10)
+            except Exception:
+                bail("step9m-editorpro")
 
         def step10():
             try:

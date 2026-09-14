@@ -67,6 +67,81 @@ _PY_BUILTIN = (r"\b(?:print|len|range|str|int|float|bool|list|dict|set|"
                r"min|max|abs|round|sorted|reversed|any|all|super|type|"
                r"repr|hash|iter|next|getattr|setattr|hasattr)\b")
 
+_GO_KW = (r"\b(?:break|case|chan|const|continue|default|defer|else|"
+          r"fallthrough|for|func|go|goto|if|import|interface|map|package|"
+          r"range|return|select|struct|switch|type|var|nil|true|false)\b")
+_GO_BUILTIN = (r"\b(?:append|cap|close|complex|copy|delete|imag|len|make|"
+               r"new|panic|print|println|real|recover)\b")
+_RS_KW = (r"\b(?:as|async|await|break|const|continue|crate|dyn|else|enum|"
+          r"extern|false|fn|for|if|impl|in|let|loop|match|mod|move|mut|pub|"
+          r"ref|return|self|Self|static|struct|super|trait|true|type|unsafe|"
+          r"use|where|while)\b")
+_JAVA_KW = (r"\b(?:abstract|assert|boolean|break|byte|case|catch|char|"
+            r"class|const|continue|default|do|double|else|enum|extends|"
+            r"final|finally|float|for|goto|if|implements|import|instanceof|"
+            r"int|interface|long|native|new|package|private|protected|"
+            r"public|record|return|short|static|strictfp|super|switch|"
+            r"synchronized|this|throw|throws|transient|try|var|void|"
+            r"volatile|while|true|false|null)\b")
+_CS_KW = (r"\b(?:abstract|as|async|await|base|bool|break|byte|case|catch|"
+          r"char|checked|class|const|continue|decimal|default|delegate|do|"
+          r"double|else|enum|event|explicit|extern|false|finally|fixed|"
+          r"float|for|foreach|get|goto|if|implicit|in|int|interface|"
+          r"internal|is|lock|long|namespace|new|null|object|operator|out|"
+          r"override|params|private|protected|public|readonly|ref|return|"
+          r"sbyte|sealed|set|short|sizeof|stackalloc|static|string|struct|"
+          r"switch|this|throw|true|try|typeof|uint|ulong|unchecked|unsafe|"
+          r"ushort|using|var|virtual|void|volatile|when|where|while|yield)"
+          r"\b")
+_KT_KW = (r"\b(?:as|break|catch|class|constructor|continue|do|else|false|"
+          r"final|finally|for|fun|if|in|init|interface|is|null|object|"
+          r"package|private|protected|public|return|super|this|throw|true|"
+          r"try|typealias|val|var|when|while)\b")
+_PHP_KW = (r"\b(?:abstract|and|array|as|break|callable|case|catch|class|"
+           r"clone|const|continue|declare|default|do|echo|else|elseif|"
+           r"empty|endswitch|endwhile|extends|final|finally|fn|for|foreach|"
+           r"function|global|goto|if|implements|include|include_once|"
+           r"instanceof|insteadof|interface|isset|list|match|namespace|new|"
+           r"or|print|private|protected|public|readonly|require|require_once|"
+           r"return|static|switch|throw|trait|try|unset|use|var|while|xor|"
+           r"yield|true|false|null)\b")
+_RB_KW = (r"\b(?:alias|and|begin|break|case|class|def|defined|do|else|"
+          r"elsif|end|ensure|false|for|if|in|module|next|nil|not|or|raise|"
+          r"redo|rescue|retry|return|self|super|then|true|undef|unless|"
+          r"until|when|while|yield|require|attr_accessor|attr_reader|"
+          r"attr_writer|puts|print|p)\b")
+_SH_KW = (r"\b(?:if|then|else|elif|fi|for|while|until|do|done|case|esac|"
+          r"function|in|select|time|coproc|break|continue|return|exit|"
+          r"local|export|readonly|declare|typeset|unset|shift|source|alias|"
+          r"eval|exec|trap|set|true|false|echo|cd|pwd)\b")
+
+
+def _c_rule(kw, extras=()):
+    """Shared rule shape for the C family: // and /* */ comments,
+    three string flavors, optional language extras, annotations and
+    preprocessor lines, keywords, numbers."""
+    parts = [r"(?P<comment>//[^\n]*|/\*.*?\*/)",
+             r"(?P<string>`(?:[^`\\]|\\.)*`|\"(?:[^\"\\\n]|\\.)*\""
+             r"|'(?:[^'\\\n]|\\.)*')"]
+    parts.extend(extras)
+    parts.append(r"(?P<decorator>@\w+|\#[A-Za-z_]\w*)")
+    parts.append(r"(?P<keyword>" + kw + r")")
+    parts.append(r"(?P<number>\b\d+(?:\.\d+)?\b)")
+    return re.compile("|".join(parts), re.X | re.S)
+
+
+def _generic_rule(comment, kw, extras=(), deco=r"@[A-Za-z_]\w*"):
+    """#-comment family (shell, ruby, python-ish shapes)."""
+    parts = [r"(?P<comment>%s)" % comment,
+             r"(?P<string>\"(?:[^\"\\]|\\.)*\"|'[^'\n]*')"]
+    parts.extend(extras)
+    if deco:
+        parts.append(r"(?P<decorator>%s)" % deco)
+    parts.append(r"(?P<keyword>" + kw + r")")
+    parts.append(r"(?P<number>\b\d+(?:\.\d+)?\b)")
+    return re.compile("|".join(parts), re.X | re.S)
+
+
 LANG_RULES = {
     ".py": re.compile(
         r"(?P<comment>\#[^\n]*)"
@@ -116,10 +191,31 @@ LANG_RULES = {
         r"|(?P<decorator>\*\*[^*\n]+\*\*)"
         r"|(?P<comment>\[[^\]]+\]\([^)]+\))",
         re.X | re.M),
+    ".go": _c_rule(_GO_KW, (r"(?P<builtin>" + _GO_BUILTIN + r")",)),
+    ".rs": _c_rule(_RS_KW, (r"(?P<builtin>\b[a-z_]\w*!)",
+                            r"(?P<self>\b[a-z_]\w*!\s*\[)")),
+    ".java": _c_rule(_JAVA_KW),
+    ".c": _c_rule(_JAVA_KW),
+    ".cpp": _c_rule(_JAVA_KW, (r"(?P<self>\bstd::\w+)",)),
+    ".cs": _c_rule(_CS_KW),
+    ".kt": _c_rule(_KT_KW),
+    ".php": _c_rule(_PHP_KW),
+    ".rb": _generic_rule("#[^\n]*", _RB_KW,
+                         (r"(?P<tag>:[a-zA-Z_]\w*)",
+                          r"(?P<self>@[A-Za-z_]\w*)")),
+    ".sh": _generic_rule("#[^\n]*", _SH_KW,
+                         (r"(?P<decorator>\$\{?[A-Za-z_]\w*\}?)",),
+                         deco=None),
 }
 
 EXT_ALIAS = {".pyw": ".py", ".pyi": ".py", ".htm": ".html", ".xml": ".html",
-             ".jsx": ".js", ".ts": ".js", ".tsx": ".js", ".markdown": ".md"}
+             ".jsx": ".js", ".ts": ".js", ".tsx": ".js", ".markdown": ".md",
+             ".cc": ".cpp", ".cxx": ".cpp", ".hpp": ".cpp", ".hh": ".cpp",
+             ".h": ".c", ".hpp": ".cpp", ".bash": ".sh",
+             ".zsh": ".sh", ".ksh": ".sh", ".kts": ".kt", ".scala": ".kt",
+             ".php3": ".php", ".php4": ".php", ".php5": ".php",
+             ".phtml": ".php", ".rake": ".rb", ".gemspec": ".rb",
+             ".erb": ".rb", ".bashrc": ".sh", ".profile": ".sh"}
 
 
 def language_for(path):
@@ -394,8 +490,11 @@ class CodeEditor(tk.Frame):
         self.text.tag_configure("bracket",
                                 background=self.theme["hover"],
                                 foreground=self.theme.accent)
+        self.text.tag_configure("word_hl",
+                                background=self.theme["hover"])
 
         self.highlighter = Highlighter(self.text, theme)
+        self._word_job = None
 
         # typing helpers (flipped from Settings / app config)
         self.auto_indent = True
@@ -407,6 +506,11 @@ class CodeEditor(tk.Frame):
         self.text.bind("<Return>", self._on_return)
         self.text.bind("<Key>", self._on_typing)
         self.text.bind("<Tab>", self._on_tab)
+        self.text.bind("<Shift-Tab>", self._on_outdent)
+        self.text.bind("<ISO_Left_Tab>", self._on_outdent)
+        self.text.bind("<Control-bracketright>",
+                       lambda e: self._indent_selection())
+        self.text.bind("<Control-bracketleft>", self._on_outdent)
 
         # bookmarks: line numbers kept in-session, shown in the gutter
         self.bookmarks = set()
@@ -429,10 +533,12 @@ class CodeEditor(tk.Frame):
         self.update_line_numbers()
         self.highlighter.schedule()
         self._decorate_cursor()
+        self._schedule_word_hl()
 
     def _on_cursor(self, event=None):
         self.update_line_numbers()
         self._decorate_cursor()
+        self._schedule_word_hl()
 
     # ---------------------------------------------------- cursor decoration
     def _decorate_cursor(self):
@@ -450,6 +556,119 @@ class CodeEditor(tk.Frame):
 
     _PAIRS = {"(": ")", "[": "]", "{": "}",
               ")": "(", "]": "[", "}": "{"}
+
+    # ------------------------------------------------ Editor Pro (v1.1.5)
+    def _schedule_word_hl(self, delay=420):
+        """Debounced highlight of the word under the cursor."""
+        if self._word_job is not None:
+            try:
+                self.text.after_cancel(self._word_job)
+            except Exception:
+                pass
+        self._word_job = self.text.after(delay, self._word_hl)
+
+    def _word_hl(self):
+        self._word_job = None
+        t = self.text
+        try:
+            t.tag_remove("word_hl", "1.0", "end")
+            if t.tag_ranges("sel") or t.tag_ranges("find_all"):
+                return                     # selection / active find wins
+            word = self._word_under_cursor()
+            if not word or len(word) < 3:
+                return
+            content = t.get("1.0", "end-1c")
+            if len(content) > 200_000:
+                return
+            rx = re.compile(r"\b" + re.escape(word) + r"\b")
+            hits = list(rx.finditer(content))
+            if len(hits) > 200:
+                return
+            for m in hits:
+                t.tag_add("word_hl", f"1.0+{m.start()}c",
+                          f"1.0+{m.end()}c")
+        except tk.TclError:
+            pass
+
+    def _word_under_cursor(self):
+        t = self.text
+        try:
+            line, col = t.index("insert").split(".")
+            line_text = t.get(f"{line}.0", f"{line}.end")
+            col = int(col)
+            if col >= len(line_text) or not (
+                    line_text[col].isalnum() or line_text[col] == "_"):
+                if col == 0 or not (line_text[col - 1].isalnum()
+                                    or line_text[col - 1] == "_"):
+                    return ""
+                col -= 1
+            start = end = col
+            while start > 0 and (line_text[start - 1].isalnum()
+                                 or line_text[start - 1] == "_"):
+                start -= 1
+            while end < len(line_text) - 1 and (
+                    line_text[end + 1].isalnum()
+                    or line_text[end + 1] == "_"):
+                end += 1
+            return line_text[start:end + 1]
+        except tk.TclError:
+            return ""
+
+    def _sel_lines(self):
+        """First/last line of the selection (or just the cursor line)."""
+        t = self.text
+        rng = t.tag_ranges("sel")
+        if rng:
+            first = int(str(rng[0]).split(".")[0])
+            last = int(str(rng[1]).split(".")[0])
+            # a selection that ends at column 0 doesn't own that line
+            if str(rng[1]).split(".")[1] == "0" and last > first:
+                last -= 1
+        else:
+            first = last = int(t.index("insert").split(".")[0])
+        return first, last
+
+    def _indent_selection(self, event=None):
+        """Tab / Ctrl+] with a selection — shift every line right."""
+        t = self.text
+        try:
+            first, last = self._sel_lines()
+            t.configure(autoseparators=False)
+            t.edit_separator()
+            for i in range(first, last + 1):
+                if t.get(f"{i}.0", f"{i}.end").strip():
+                    t.insert(f"{i}.0", "    ")
+            t.edit_separator()
+            t.configure(autoseparators=True)
+            t.tag_remove("sel", "1.0", "end")
+            t.tag_add("sel", f"{first}.0", f"{last}.end")
+            self._on_key()
+        except tk.TclError:
+            pass
+        return "break"
+
+    def _on_outdent(self, event=None):
+        """Shift+Tab / Ctrl+[ — shift the selected lines left."""
+        t = self.text
+        try:
+            first, last = self._sel_lines()
+            t.configure(autoseparators=False)
+            t.edit_separator()
+            for i in range(first, last + 1):
+                ln = t.get(f"{i}.0", f"{i}.end")
+                strip = len(ln) - len(ln.lstrip(" "))
+                if strip == 0 and ln.startswith("\t"):
+                    strip = 1
+                if strip:
+                    t.delete(f"{i}.0", f"{i}.{min(4, strip)}")
+            t.edit_separator()
+            t.configure(autoseparators=True)
+            t.tag_remove("sel", "1.0", "end")
+            t.tag_add("sel", f"{first}.0", f"{last}.end")
+            self._on_key()
+        except tk.TclError:
+            pass
+        return "break"
 
     # Tab-expandable typing helpers (per language, stdlib-first)
     SNIPPETS = {
@@ -779,7 +998,7 @@ class CodeEditor(tk.Frame):
         """Tab expands a snippet when the word before the cursor matches;
         otherwise a plain indent is inserted (never moves focus)."""
         if self.text.tag_ranges("sel"):
-            return None                      # indent the selection as usual
+            return self._indent_selection()   # Editor Pro: block indent
         t = self.text
         try:
             word = t.get("insert linestart", "insert")
@@ -876,22 +1095,37 @@ class CodeEditor(tk.Frame):
         return self.text.get("1.0", tk.END)
 
     # --------------------------------------------------------------- find
-    def find(self, needle, backwards=False):
+    def find(self, needle, backwards=False, regex=False):
         """Highlight all matches; move selection to next/prev. Returns
-        match count (0 when needle is empty)."""
+        match count, -1 for a bad regex (0 when needle is empty)."""
         self.clear_find()
+        self.text.tag_remove("word_hl", "1.0", "end")
         if not needle:
             return 0
         content = self.text.get("1.0", "end-1c")
-        count = content.count(needle)
-        if not count:
-            return 0
-        pos = 0
-        for _ in range(count):
-            idx = content.find(needle, pos)
-            self.text.tag_add("find_all", f"1.0+{idx}c",
-                              f"1.0+{idx + len(needle)}c")
-            pos = idx + max(1, len(needle))
+        if regex:
+            try:
+                rx = re.compile(needle)
+            except re.error:
+                return -1
+            spans = [(m.start(), m.end()) for m in rx.finditer(content)
+                     if m.end() > m.start()]
+            count = len(spans)
+            if not count:
+                return 0
+            for start, end in spans:
+                self.text.tag_add("find_all", f"1.0+{start}c",
+                                  f"1.0+{end}c")
+        else:
+            count = content.count(needle)
+            if not count:
+                return 0
+            pos = 0
+            for _ in range(count):
+                idx = content.find(needle, pos)
+                self.text.tag_add("find_all", f"1.0+{idx}c",
+                                  f"1.0+{idx + len(needle)}c")
+                pos = idx + max(1, len(needle))
         try:
             rng = self.text.tag_prevrange(
                 "find_all", "end") if backwards else \
@@ -924,7 +1158,7 @@ class CodeEditor(tk.Frame):
             self.text.tag_remove(tag, "1.0", "end")
 
     # ------------------------------------------------------------- replace
-    def replace_current(self, needle, repl):
+    def replace_current(self, needle, repl, regex=False):
         """Replace the currently highlighted find_cur match. Returns
         True when a match was replaced."""
         if not needle:
@@ -935,20 +1169,53 @@ class CodeEditor(tk.Frame):
             rng = None
         if not rng:
             return False
+        newtext = repl
+        if regex:
+            try:
+                m = re.compile(needle).search(self.text.get(rng[0], rng[1]))
+            except re.error:
+                return False
+            if m:
+                newtext = m.expand(repl)
         self.text.tag_remove("find_cur", "1.0", "end")
         self.text.delete(rng[0], rng[1])
-        self.text.insert(rng[0], repl)
-        self.text.mark_set("insert", f"{rng[0]}+{len(repl)}c")
+        self.text.insert(rng[0], newtext)
+        self.text.mark_set("insert", f"{rng[0]}+{len(newtext)}c")
         self.text.see(rng[0])
         self.modified = True
         return True
 
-    def replace_all(self, needle, repl):
-        """Replace every literal occurrence of needle. Runs as one
-        undoable edit. Returns the number of replacements."""
+    def replace_all(self, needle, repl, regex=False):
+        """Replace every occurrence of needle (literal or regex — regex
+        replacements expand \\1 templates). One undoable edit. Returns
+        the replacement count, -1 for a bad regex."""
         if not needle:
             return 0
         content = self.text.get("1.0", "end-1c")
+        if regex:
+            try:
+                rx = re.compile(needle)
+            except re.error:
+                return -1
+            spans = [(m.start(), m.end(), m.expand(repl))
+                     for m in rx.finditer(content)
+                     if m.end() > m.start()]
+            if not spans:
+                return 0
+            self.text.configure(autoseparators=False)
+            try:
+                self.text.edit_separator()
+                for start, end, newtext in reversed(spans):
+                    s, e = f"1.0+{start}c", f"1.0+{end}c"
+                    self.text.delete(s, e)
+                    self.text.insert(s, newtext)
+                self.text.edit_separator()
+            finally:
+                self.text.configure(autoseparators=True)
+            self.modified = True
+            self.update_line_numbers()
+            self.highlighter.schedule(delay=0)
+            return len(spans)
         count = content.count(needle)
         if not count:
             return 0

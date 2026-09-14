@@ -1,15 +1,19 @@
 #!/bin/bash
-# DXN1 STUDIO Installer v1.1.3
+# DXN1 STUDIO Installer
 # Usage: curl -fsSL https://raw.githubusercontent.com/DXN1-termux/DXN1-STUDIO/master/install.sh | bash
 
 set -e
+
+# One source of truth for the version this installer ships. The IDE itself
+# reads its real version from dxn1_studio/__init__.py after download.
+INSTALLER_VERSION="1.1.5"
 
 INSTALL_DIR="$HOME/.local/share/dxn1-studio"
 BIN_DIR="$HOME/.local/bin"
 REPO="https://raw.githubusercontent.com/DXN1-termux/DXN1-STUDIO/master"
 
 echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-echo "   DXN1 STUDIO Installer v1.1.3 (beta)"
+echo "   DXN1 STUDIO Installer v$INSTALLER_VERSION (beta)"
 echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
 echo ""
 
@@ -64,15 +68,28 @@ download "$INSTALL_DIR/dxn1" "dxn1" required
 download "$INSTALL_DIR/DXN1 STUDIO" "DXN1%20STUDIO" required
 download "$INSTALL_DIR/README.md" "README.md" required
 
-# package modules
+# package modules — keep in sync with dxn1_studio/*.py in the repo
 for f in __init__.py app.py config.py theme.py widgets.py onboarding.py \
          tour.py projects.py hub.py splash.py packages.py export.py agent.py \
-         sandbox.py llm.py search.py errors.py; do
+         sandbox.py llm.py search.py errors.py gitpanel.py updater.py; do
     download "$INSTALL_DIR/dxn1_studio/$f" "dxn1_studio/$f" required
 done
 
+# the installed copy must never claim an older version than what it ships
+python3 - "$INSTALL_DIR" "$INSTALLER_VERSION" <<'PYEOF'
+import os, re, sys
+root, ver = sys.argv[1], sys.argv[2]
+init = os.path.join(root, "dxn1_studio", "__init__.py")
+try:
+    src = open(init, encoding="utf-8").read()
+    src = re.sub(r'APP_VERSION\s*=\s*"[^"]+"', f'APP_VERSION = "{ver}"', src)
+    open(init, "w", encoding="utf-8").write(src)
+except OSError:
+    pass
+PYEOF
+
 # art assets (optional — the IDE falls back to geometric art without them)
-for f in logo.png welcome_hero.png hub_hero.png agents_hero.png; do
+for f in logo.png welcome_hero.png hub_hero.png agents_hero.png update_hero.png; do
     download "$INSTALL_DIR/assets/$f" "assets/$f" optional
 done
 

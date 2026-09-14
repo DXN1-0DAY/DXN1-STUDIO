@@ -14,7 +14,7 @@ CONFIG_DIR = os.path.join(os.path.expanduser("~"), ".dxn1-studio")
 CONFIG_PATH = os.path.join(CONFIG_DIR, "config.json")
 
 DEFAULTS = {
-    "version": "1.1.3",
+    "version": "1.1.5",
     "onboarded": False,      # has the welcome wizard been completed?
     "tour_done": False,      # has the interactive tour been finished/skipped?
     "name": "",              # display name used in greetings
@@ -48,6 +48,7 @@ DEFAULTS = {
     "agents_kilo_key": "",        # Kilo token
     "agents_system_prompt": "",   # extra persona instructions
     "agents_prompt_preset": "default",  # default | concise | senior | custom
+    "agents_persona": "default",  # one-click persona (see agent.PERSONAS)
     "agents_max_steps": 12,       # tool-loop steps per message
     "agents_setup_pending": "",   # "" | "kilo" | "byok" — show Connect card
     "agents_tokens_used": 0,      # lifetime total reported by providers

@@ -24,6 +24,8 @@ import os
 import re
 import subprocess
 
+from .llm import StopGeneration, stream_from_backend
+
 # ------------------------------------------------------------- dangerous ops
 DANGEROUS_PATTERNS = [
     (r"\brm\s+(-[a-zA-Z]*\s+)*-[a-zA-Z]*[rfRF][a-zA-Z]*\s+(/|~|\$HOME|\*)",
@@ -262,12 +264,15 @@ TOOLS — act by emitting tool calls, exactly one JSON object each:
 <tool name="read_file">{{"path": "app.py"}}</tool>
 <tool name="write_file">{{"path": "app.py", "content": "…full file…"}}</tool>
 <tool name="edit_file">{{"path": "app.py", "find": "exact text", "replace": "new text"}}</tool>
+<tool name="search_code">{{"pattern": "regex", "max": 30}}</tool>
 <tool name="run_command">{{"command": "python main.py"}}</tool>
 
 Tool rules:
 - write_file creates or overwrites with the FULL content.
 - edit_file is surgical: "find" must match exactly once; prefer it for
   small changes, write_file for new files or big rewrites.
+- search_code greps the whole workspace with a regex — use it before
+  asking the user where something lives.
 - After each tool you receive a TOOL RESULT message; keep working until
   the task is complete, then finish with: <done>one-line summary</done>
 - Writes and commands need the user's approval unless they enabled full
@@ -298,23 +303,24 @@ class AgentEngine:
 
     def __init__(self, backend, sandbox, config, name="DXN1 Agents",
                  emit=None, approve=None, execute_command=None,
-                 on_written=None):
+                 on_written=None, style=None, extra_prompt=None):
         self.backend = backend
         self.sandbox = sandbox
         self.config = config
         self.name = name
-        self.emit = emit or (lambda text: None)
+        self.emit = emit or (lambda *a, **k: None)
         self.approve = approve or (lambda *a, **k: True)
         self.execute_command = execute_command or (lambda cmd: (1, "(no runner)"))
         self.on_written = on_written or (lambda path: None)
         self.stop_flag = False
         self.busy = False
-        self.style = (config.get("agents_prompt_preset") or "default") \
-            if config else "default"
+        self.style = style or \
+            ((config.get("agents_prompt_preset") or "default")
+             if config else "default")
+        if extra_prompt is None:
+            extra_prompt = (config.get("agents_system_prompt") or "").strip()
         self.system_prompt = build_system_prompt(
-            sandbox, name,
-            (config.get("agents_system_prompt") or "").strip(),
-            style=self.style)
+            sandbox, name, extra_prompt, style=self.style)
         self.history = []
         self.tokens_used = 0      # total tokens reported by the backend
         self.steps_used = 0       # tool-loop turns taken this session
@@ -343,21 +349,16 @@ class AgentEngine:
             max_steps = max(2, int(self.config.get("agents_max_steps", 12) or 12))
             for _ in range(max_steps):
                 if self.stop_flag:
-                    self.emit("Stopped.")
+                    self.emit("say", "Stopped.")
                     return
-                try:
-                    reply = self.backend.chat(self._messages())
-                except Exception as exc:  # BackendError and friends
-                    self.emit(f"⚠ Backend trouble: {exc}\n\n"
-                              f"Falling back to my built-in offline skills — "
-                              f"try again, or check Settings → DXN1 Agents.")
-                    return
-                usage = getattr(self.backend, "last_usage", None)
-                if isinstance(usage, dict):
-                    self.tokens_used += int(usage.get("total_tokens") or 0)
+                reply = self._think()
+                if reply is None:
+                    return          # _think already reported the problem
                 clean, tools = parse_tools(reply)
                 if clean:
-                    self.emit(clean)
+                    self.emit("finalize", clean)
+                elif tools:
+                    self.emit("finalize", "")   # close any open stream card
                 self.history.append({"role": "assistant", "content": reply})
                 if not tools:
                     return
@@ -366,9 +367,12 @@ class AgentEngine:
                 m = DONE_RE.search(reply)
                 if m:
                     done_summary = m.group(1).strip()
+                tool_names = [n for n, _ in tools]
+                if tool_names:
+                    self.emit("tools", tool_names)
                 for tool_name, args in tools:
                     if self.stop_flag:
-                        self.emit("Stopped mid-task.")
+                        self.emit("say", "Stopped mid-task.")
                         return
                     outcome = self._exec_tool(tool_name, args)
                     results.append(f"TOOL RESULT ({tool_name}): {outcome}")
@@ -377,10 +381,32 @@ class AgentEngine:
                                      "content": "\n\n".join(results)})
                 if done_summary:
                     return
-            self.emit("Reached my step limit for this turn — say \"continue\" "
-                      "if you want me to keep going.")
+            self.emit("say", "Reached my step limit for this turn — say "
+                             "\"continue\" if you want me to keep going.")
         finally:
             self.busy = False
+
+    def _think(self):
+        """One model round-trip, streamed when possible. None on failure."""
+
+        def on_delta(full):
+            self.emit("delta", full)
+
+        try:
+            return stream_from_backend(
+                self.backend, self._messages(), on_delta,
+                should_stop=lambda: self.stop_flag)
+        except StopGeneration:
+            self.emit("finalize", "")
+            self.emit("say", "Stopped — say the word when you want me "
+                             "to pick it back up.")
+            return None
+        except Exception as exc:  # BackendError and friends
+            self.emit("finalize", "")
+            self.emit("say", f"⚠ Backend trouble: {exc}\n\n"
+                             f"Falling back to my built-in offline skills — "
+                             f"try again, or check Settings → DXN1 Agents.")
+            return None
 
     # ---------------------------------------------------------- tool exec
     def _exec_tool(self, name, args):
@@ -398,6 +424,9 @@ class AgentEngine:
 
             if name == "edit_file":
                 return self._tool_edit(args)
+
+            if name == "search_code":
+                return self._tool_search(args)
 
             if name == "run_command":
                 return self._tool_command(args)
@@ -455,6 +484,38 @@ class AgentEngine:
         self.on_written(path)
         return f"ok — edited {rel}"
 
+    def _tool_search(self, args):
+        """Regex grep across the workspace — capped, sandbox-aware."""
+        pat = str(args.get("pattern") or "").strip()
+        if not pat:
+            return 'error: search_code needs a "pattern" (regex)'
+        try:
+            rx = re.compile(pat)
+        except re.error as exc:
+            return f"error: bad regex: {exc}"
+        cap = max(1, min(60, int(args.get("max") or 30)))
+        root = self.sandbox.root
+        hits = []
+        for dirpath, dirnames, filenames in os.walk(root):
+            dirnames[:] = [d for d in dirnames if d not in SKIP_TREE_DIRS]
+            for fn in filenames:
+                if len(hits) >= cap:
+                    break
+                p = os.path.join(dirpath, fn)
+                try:
+                    if os.path.getsize(p) > 400_000:
+                        continue
+                    with open(p, encoding="utf-8", errors="replace") as fh:
+                        for i, line in enumerate(fh, 1):
+                            if rx.search(line):
+                                hits.append(f"{self.sandbox.rel(p)}:{i}: "
+                                            f"{line.strip()[:160]}")
+                                if len(hits) >= cap:
+                                    break
+                except OSError:
+                    continue
+        return "\n".join(hits) or f"no matches for {pat!r}"
+
     def _tool_command(self, args):
         cmd = str(args.get("command") or "").strip()
         if not cmd:
@@ -491,3 +552,14 @@ class FakeBackend:
         resp = self.script[min(self.i, len(self.script) - 1)]
         self.i += 1
         return resp
+
+    def chat_stream(self, messages, on_delta, should_stop=None,
+                    max_tokens=2048, temperature=0.3):
+        """Pretend to stream — deterministic, instant, CI-friendly."""
+        text = self.chat(messages, max_tokens=max_tokens,
+                         temperature=temperature)
+        if should_stop and should_stop():
+            from .llm import StopGeneration as _SG
+            raise _SG()
+        on_delta(text)
+        return text

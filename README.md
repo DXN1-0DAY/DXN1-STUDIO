@@ -13,7 +13,7 @@ with `@` symbol jump, sandboxed AI agents on a **resilient free cloud stack**
 frameworks. ~10 MB of Python.
 
 [![CI](https://github.com/DXN1-termux/DXN1-STUDIO/actions/workflows/ci.yml/badge.svg)](https://github.com/DXN1-termux/DXN1-STUDIO/actions/workflows/ci.yml)
-[![Version](https://img.shields.io/badge/version-1.1.4--beta-7c3aed?style=flat-square)](CHANGELOG.md)
+[![Version](https://img.shields.io/badge/version-1.1.5--beta-7c3aed?style=flat-square)](CHANGELOG.md)
 [![Python](https://img.shields.io/badge/python-3.8%2B-3776ab?style=flat-square&logo=python&logoColor=white)](https://www.python.org)
 [![Platform](https://img.shields.io/badge/platform-Linux%20%7C%20Termux%20%7C%20macOS%20%7C%20Windows-24292f?style=flat-square)](#requirements)
 [![License](https://img.shields.io/badge/license-MIT-3fb950?style=flat-square)](LICENSE)
@@ -42,6 +42,7 @@ Xvfb — nothing is mocked.*
 - [The IDE](#the-ide)
 - [Source Control — Git without leaving the studio](#source-control--git-without-leaving-the-studio)
 - [DXN1 Agents](#dxn1-agents)
+- [The Update Portal](#the-update-portal)
 - [Packages — lightweight by default](#packages--lightweight-by-default)
 - [Export](#export)
 - [Keyboard & terminal](#keyboard--terminal)
@@ -104,6 +105,12 @@ Xvfb — nothing is mocked.*
 <td colspan="2" align="center">
 <img src="assets/screens/12_replace_bar.png" alt="Find and replace" width="100%"/><br/>
 <b>Find &amp; Replace</b> — Ctrl+H, live hits, Replace all as one undo step
+</td>
+</tr>
+<tr>
+<td colspan="2" align="center">
+<img src="assets/screens/13_update_portal.png" alt="The Update Portal" width="100%"/><br/>
+<b>The Update Portal</b> — a new release opens a full-screen takeover: install &amp; restart in one click, with honest progress
 </td>
 </tr>
 <tr>
@@ -228,18 +235,25 @@ Reopen via **File → Project Hub**.
 ## The IDE
 
 **Editing**
-- Syntax highlighting for Python, HTML/CSS/JS, JSON, Markdown and more —
-  regex-based, zero dependencies, theme-aware
+- Syntax highlighting for Python, HTML/CSS/JS/TS, JSON, Markdown, **Go,
+  Rust, Java, C/C++, C#, Kotlin, PHP, Ruby and Shell** — regex-based,
+  zero dependencies, theme-aware
 - Tab buffers with unsaved ● markers, Ctrl+W close, Ctrl+Tab cycle,
   right-click tabs for *close others / close all / copy path / reveal*
 - Auto-indent (deeper after `:`), auto-close brackets and quotes with
   type-over, matching-bracket spotlight, current-line wash
 - **Line ops** — toggle comment (Ctrl+/), duplicate, delete, move lines
+- **Block indent / outdent** — Tab and Shift+Tab (or Ctrl+] / Ctrl+[)
+  shift the whole selection; brackets stay one undo step
+- **Word spotlight** — pause on any identifier and every occurrence
+  lights up softly (3+ characters, never while you're mid-selection)
 - **Bookmarks** — click a line number or Ctrl+F2; F2 / Shift+F2 walk them
 - **Snippets** — Tab expands `ifmain`, `pdb`, `smain`; plain indent otherwise
-- In-file find bar (Ctrl+F) with hit counting and prev/next, **Find &
-  Replace** (Ctrl+H) with Replace all as one undoable step, Go to Line
-  (Ctrl+G), word wrap toggle, Ctrl+ +/− text size, auto-save option
+- In-file find bar (Ctrl+F) with hit counting and prev/next, **regex
+  mode** via the `.*` toggle — patterns in, `\1`-style templates out —
+  **Find & Replace** (Ctrl+H) with Replace all as one undoable step, Go
+  to Line (Ctrl+G), word wrap toggle, Ctrl+ +/− text size, auto-save
+  option
 - Full undo/redo history; word/selection/line counts in the status bar
 
 **Moving around**
@@ -264,7 +278,7 @@ Reopen via **File → Project Hub**.
 **Quality of life**
 - Themed in-app menu bar — dark mode never flashes a system-white strip
 - Toasts for saves, exports, errors; session restore reopens your tabs
-- Update checker against GitHub releases (Help → Check for Updates)
+- **The Update Portal** — full-screen, cinematic update experience (below)
 - Uncaught exceptions land in `~/.dxn1-studio/logs/studio.log` with a
   friendly toast instead of a dead window
 
@@ -300,8 +314,28 @@ shell python -V             → proposes raw commands (you approve)
 ```
 
 Plus **quick actions** — one tap above the input:
-`✦ Explain` · `✦ Tests` · `✦ Bugs` · `✦ Docs` fire crafted prompts at the
-open file.
+`✦ Explain` · `✦ Tests` · `✦ Bugs` · `✦ Docs` · `✦ Refactor` fire
+crafted prompts at the open file.
+
+And a **`search_code` tool** — the agent greps the whole workspace with
+a regex before asking you where something lives.
+
+### Agents 2.0 — the chat, rebuilt
+
+- **Streaming answers** — tokens land live with a working **■ stop**
+  button; interrupt any run, keep the partial answer
+- **Markdown chat** — headings, bullets and fenced code render as real
+  cards; every code block ships **Copy · To editor · Save as…** and a
+  language chip
+- **6 personas** — Balanced · Concise · Senior dev · Architect ·
+  Debugger · Teacher — one tap swaps the system prompt
+- **Slash commands** — `/help`, `/new`, `/tests`, `/bugs`, `/explain`,
+  `/run`, `/persona senior`, `/brain`, `/stop`… with an arrow-key
+  palette right in the input
+- **@-mentions** — type `@` to attach any workspace file to the prompt;
+  it rides along with the next message
+- **Session history** — chats auto-save per workspace and survive
+  restarts (including update restarts); `/sessions` reopens any of them
 
 ### Model brains — pick one in Settings → DXN1 Agents
 
@@ -351,6 +385,29 @@ The agent cannot see or touch your machine. Only your open workspace:
 - **Full access** — turn both prompts off in agent settings and it stops
   asking; edits apply and commands run immediately (dangerous ones still ask)
 - Disable the assistant entirely and the panel disappears
+
+## The Update Portal
+
+When a new release lands on GitHub, the studio doesn't whisper in a
+toast — it opens the **Update Portal**: a full-screen, cinematic
+takeover built around the studio's portal art. The detected version
+sits front and centre — *"We have detected a new version v1.1.5 of
+DXN1 STUDIO"* — alongside the release highlights and one big button:
+**Install update & restart**.
+
+Installing streams the new build straight from GitHub (or `git pull`
+when you cloned), verifies every module with `compileall`, and shows
+honest progress for at least three seconds — then the studio restarts
+itself into the fresh build. Your projects, chats, sessions and
+settings stay exactly as they are.
+
+You can still say *"I'll stay on this version"* — but the portal
+answers honestly: **"You cannot continue on this version — for
+security and for your own experience reasons."** Old builds miss
+security fixes and polish; the studio would rather say goodbye than
+leave you exposed. Exit, or think better of it and install on the
+spot. (Checks happen at launch, and manually any time via
+**Help → Check for Updates**.)
 
 ## Packages — lightweight by default
 
@@ -429,6 +486,7 @@ DXN1-STUDIO/
 │   ├── agent.py             # DXN1 Agents panel, brain settings, Connect flow
 │   ├── sandbox.py           # Workspace jail, tool protocol, agent engine
 │   ├── llm.py               # Backends: free stack, BYOK, GitHub Models, Kilo
+│   ├── updater.py           # The Update Portal — detect, install, restart
 │   └── errors.py            # Global error logging + toasts
 ├── assets/                  # Logo, banner, real UI screenshots
 ├── install.sh               # Curl-based installer

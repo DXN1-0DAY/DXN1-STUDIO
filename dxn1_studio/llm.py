@@ -31,7 +31,7 @@ import urllib.error
 import urllib.parse
 import urllib.request
 
-UA = "DXN1-Studio/1.1.4 (agents)"
+UA = "DXN1-Studio/1.1.5 (agents)"
 TIMEOUT = 120
 # Pollinations' anonymous tier checks that requests come from a web
 # origin — an https Referer keeps the keyless route open (plain API
@@ -194,9 +194,40 @@ class AutoFreeBackend:
             # one every user can act on without any account)
             raise poll_exc
 
+    def chat_stream(self, messages, on_delta, should_stop=None,
+                    max_tokens=2048, temperature=0.3):
+        """Stream from the keyless cloud first, then GitHub Models.
+
+        Any BackendError bubbles up so the caller can retry with the
+        plain (non-streaming) chat — which carries the full fallback
+        chain, including the GET route.
+        """
+        try:
+            text = self._poll.chat_stream(
+                messages, on_delta, should_stop, max_tokens=max_tokens,
+                temperature=temperature)
+            self._active = self._poll
+            return text
+        except BackendError as poll_exc:
+            gh = self._github()
+            if gh is not None:
+                try:
+                    text = gh.chat_stream(
+                        messages, on_delta, should_stop,
+                        max_tokens=max_tokens, temperature=temperature)
+                    self._active = gh
+                    return text
+                except BackendError:
+                    pass
+            raise poll_exc
+
 
 class BackendError(Exception):
     """Raised with a human-friendly message when a chat call fails."""
+
+
+class StopGeneration(Exception):
+    """Raised inside a stream when the user presses ■ stop."""
 
 
 # Providers under load sometimes answer HTTP 200 with boilerplate error
@@ -223,7 +254,6 @@ def _looks_like_provider_error(text):
     return any(mark in low for mark in _PROVIDER_ERROR_MARKS)
 
 
-# ------------------------------------------------------------------ plumbing
 def _host(url):
     """Short host label for error messages."""
     for sep in ("/api", "/v1"):
@@ -269,6 +299,82 @@ def _post_json(url, payload, headers, timeout=TIMEOUT):
                                      .startswith(("{", "["))):
             return {"choices": [{"message": {"content": raw}}]}
         raise BackendError("provider sent a response I couldn't parse") from None
+
+
+def _sse_post(url, payload, headers, on_delta, should_stop,
+              timeout=TIMEOUT):
+    """POST with "stream": true and read the answer as server-sent events.
+
+    ``on_delta(full_text_so_far)`` fires as tokens land; raising
+    :class:`StopGeneration` from ``should_stop``-driven checks aborts the
+    read and the partial answer is lost on purpose. Returns the full text.
+    """
+    body = json.dumps(payload).encode("utf-8")
+    req = urllib.request.Request(url, data=body, method="POST")
+    req.add_header("Content-Type", "application/json")
+    req.add_header("User-Agent", UA)
+    req.add_header("Accept", "text/event-stream")
+    for k, v in headers.items():
+        if v:
+            req.add_header(k, v)
+    chunks = []
+    try:
+        resp = urllib.request.urlopen(req, timeout=timeout)
+    except urllib.error.HTTPError as exc:
+        try:
+            detail = exc.read().decode("utf-8", "replace")[:400]
+        except Exception:
+            detail = ""
+        try:
+            j = json.loads(detail)
+            detail = j.get("error", {}).get("message") or detail
+        except Exception:
+            pass
+        raise BackendError(f"HTTP {exc.code} from {_host(url)}: "
+                           f"{detail or exc.reason}") from exc
+    except urllib.error.URLError as exc:
+        raise BackendError(f"can't reach {_host(url)} ({exc.reason}) — "
+                           f"check your connection") from exc
+    except TimeoutError:
+        raise BackendError("the provider took too long to answer") from None
+    with resp:
+        ctype = (resp.headers.get("Content-Type") or "").lower()
+        if "text/event-stream" not in ctype:
+            # provider ignored the stream flag — parse as a plain answer
+            raw = resp.read().decode("utf-8", "replace")
+            try:
+                data = json.loads(raw)
+                text = data["choices"][0]["message"]["content"] or ""
+            except Exception:
+                text = raw
+            if should_stop():
+                raise StopGeneration()
+            if text.strip():
+                chunks.append(text)
+                on_delta(text)
+            return "".join(chunks)
+        for raw_line in resp:
+            if should_stop():
+                raise StopGeneration()
+            line = raw_line.decode("utf-8", "replace").strip()
+            if not line.startswith("data:"):
+                continue
+            data = line[5:].strip()
+            if data == "[DONE]":
+                break
+            try:
+                obj = json.loads(data)
+            except json.JSONDecodeError:
+                continue
+            try:
+                delta = obj["choices"][0].get("delta", {}).get("content") \
+                    or ""
+            except (KeyError, IndexError, TypeError):
+                delta = ""
+            if delta:
+                chunks.append(delta)
+                on_delta("".join(chunks))
+    return "".join(chunks)
 
 
 def _get_json(url, api_key="", timeout=20):
@@ -363,6 +469,33 @@ class OpenAICompatBackend:
             self.total_tokens += int(self.last_usage.get("total_tokens") or 0)
         return self._content_of(data)
 
+    def chat_stream(self, messages, on_delta, should_stop=None,
+                    max_tokens=2048, temperature=0.3):
+        """SSE streaming variant of :meth:`chat`.
+
+        Returns the complete answer; raises StopGeneration when the user
+        aborts. Falls back to the plain request when the endpoint refuses
+        to stream.
+        """
+        if not self.base_url:
+            raise BackendError("no endpoint configured")
+        payload = {
+            "model": self.model or "default",
+            "messages": messages,
+            "max_tokens": max_tokens,
+            "temperature": temperature,
+            "stream": True,
+        }
+        headers = {"Authorization": f"Bearer {self.api_key}"}
+        headers.update(self.extra_headers)
+        text = _sse_post(f"{self.base_url}/chat/completions", payload,
+                         headers, on_delta, should_stop or (lambda: False))
+        if not text.strip():
+            raise BackendError("the provider streamed an empty answer")
+        self.last_usage = None          # streams rarely report usage
+        self.total_tokens += max(1, len(text) // 4)   # ~4 chars per token
+        return text
+
 
 # ------------------------------------------------------------- Pollinations
 class PollinationsBackend(OpenAICompatBackend):
@@ -422,6 +555,17 @@ class PollinationsBackend(OpenAICompatBackend):
                     + "). It's rate-limited per IP — try again shortly, or "
                       "switch to a free Google-login brain (Kilo / GitHub "
                       "Models) or BYOK in Settings → DXN1 Agents.") from None
+
+    def chat_stream(self, messages, on_delta, should_stop=None,
+                    max_tokens=2048, temperature=0.3):
+        """Streamed free-cloud call with the same boilerplate guard."""
+        text = super().chat_stream(messages, on_delta, should_stop,
+                                   max_tokens=max_tokens,
+                                   temperature=temperature)
+        if _looks_like_provider_error(text):
+            raise BackendError("provider answered with an out-of-budget "
+                               "notice")
+        return text
 
     @staticmethod
     def _flatten(messages):
@@ -597,6 +741,10 @@ class BrokenBackend:
     def chat(self, messages, max_tokens=2048, temperature=0.3):
         raise BackendError(self.reason)
 
+    def chat_stream(self, messages, on_delta, should_stop=None,
+                    max_tokens=2048, temperature=0.3):
+        raise BackendError(self.reason)
+
 
 def describe_backend(config):
     """Short status-bar description of the active brain."""
@@ -627,3 +775,31 @@ def test_backend(backend):
         return (False, str(exc))
     except Exception as exc:  # noqa: BLE001 — the test button never crashes
         return (False, f"unexpected error: {exc}")
+
+
+# ------------------------------------------------------- streaming shim
+def stream_from_backend(backend, messages, on_delta, should_stop=None,
+                        max_tokens=2048, temperature=0.3):
+    """Stream if the backend can, else answer in one piece.
+
+    Returns the full reply text. Raises StopGeneration when aborted,
+    BackendError when the brain can't be reached at all. Never raises
+    for "backend simply can't stream" — that path is invisible.
+    """
+    stop = should_stop or (lambda: False)
+    fn = getattr(backend, "chat_stream", None)
+    if fn is not None:
+        try:
+            return fn(messages, on_delta, stop, max_tokens=max_tokens,
+                      temperature=temperature)
+        except StopGeneration:
+            raise
+        except BackendError:
+            pass                       # fall through to the plain call
+    text = backend.chat(messages, max_tokens=max_tokens,
+                        temperature=temperature)
+    if stop():
+        raise StopGeneration()
+    if text.strip():
+        on_delta(text)
+    return text
