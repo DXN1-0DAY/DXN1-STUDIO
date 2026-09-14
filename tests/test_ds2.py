@@ -486,3 +486,29 @@ def test_prompt_library_engine(tmp_path):
     assert filter_prompts(lib, "zzz") == []
 
     assert delete_user_prompt(ws, "Explain this file") is True
+
+
+# --------------------------------------------------------- what's new
+def test_whatsnew_parser_and_upgrade_gate():
+    from dxn1_studio.whatsnew import (
+        parse_changelog, load_entries, new_entries, plain_bullet,
+        find_changelog)
+
+    sample = (
+        "# Changelog\n\nintro\n"
+        "## [2.4.0] — 2026-09-14 · beta\n\n"
+        "### Added\n- **Feature A** — does things\n  wrapped line\n"
+        "### Fixed\n- a fix\n"
+        "## [2.3.0] — 2026-09-13 · beta\n\n"
+        "### Added\n- older\n")
+    es = parse_changelog(sample)
+    assert [e["version"] for e in es] == ["2.4.0", "2.3.0"]
+    added = [s for s in es[0]["sections"] if s["title"] == "Added"][0]
+    assert len(added["items"]) == 1 and "wrapped line" in added["items"][0]
+
+    assert find_changelog().endswith("CHANGELOG.md")
+    real = load_entries()
+    assert real and real[0]["version"] >= "2.4.0"
+    assert new_entries(real, None) == real[:1]
+    assert new_entries(real, "99.0.0") == []
+    assert plain_bullet("**b** `c`") == "b c"

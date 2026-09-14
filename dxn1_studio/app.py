@@ -963,6 +963,12 @@ class DXN1Studio:
             open_cheatsheet(self.root, self.theme)
         help_menu.add_command(label="DS2 Cheat Sheet…",
                               command=_open_cheatsheet)
+        # DS2: the release notes, rendered (also auto-opens once per tag)
+        def _open_whatsnew():
+            from .whatsnew import open_whatsnew
+            open_whatsnew(self.root, self.theme,
+                          on_log=lambda m: self.terminal.log(m))
+        help_menu.add_command(label="What's New…", command=_open_whatsnew)
         help_menu.add_command(label="Replay Welcome & Tour",
                               command=self.start_wizard)
         help_menu.add_separator()
@@ -1197,6 +1203,29 @@ class DXN1Studio:
         self.root.deiconify()
         if not self.config.get("tour_done"):
             self.root.after(800, self.start_tour)
+        self.root.after(1600, self._maybe_show_whatsnew)   # DS2: once/tag
+
+    def _maybe_show_whatsnew(self):
+        """DS2: announce each new version exactly once after an upgrade."""
+        try:
+            if self.smoke_test or self.config.needs_onboarding:
+                return
+            from . import whatsnew
+            if whatsnew.find_changelog() == "":
+                return
+            last_seen = self.config.get("last_seen_version") or ""
+            from . import APP_VERSION as _ver
+            if last_seen == _ver:
+                return
+            entries = whatsnew.load_entries()
+            if whatsnew.new_entries(entries, last_seen):
+                whatsnew.open_whatsnew(
+                    self.root, self.theme,
+                    highlight=entries[0]["version"] if entries else _ver,
+                    on_log=lambda m: self.terminal.log(m))
+            self.config.set("last_seen_version", _ver)
+        except Exception:           # noqa: BLE001 — boot flow must survive
+            pass
 
     def _restore_session_tabs(self, project_path):
         """Reopen the tabs (and active file) saved for this workspace."""
