@@ -3646,8 +3646,12 @@ def test_deps_watch(tmp_path):
             # absent: a quiet "deps —" placeholder, click-worthy
             app._update_depswatch(force=True)
             assert app.status_deps.cget("text") == "deps —"
+            # the engine-section cache was removed, so this scan sees
+            # main.py AND late.py: uvicorn is imported but unpinned —
+            # v2.40 severity shows it red, not a fake "ok"
             app.handle_terminal_command("deps")
-            assert app.status_deps.cget("text") == "deps ok"
+            assert app.status_deps.cget("text") == "● deps 1 missing"
+            assert app.status_deps.cget("fg") == "#f85149"
             # drift: a new file turns the chip amber without a scan
             (ws / "late2.py").write_text("import httpx\n",
                                          encoding="utf-8")
@@ -3655,11 +3659,20 @@ def test_deps_watch(tmp_path):
             assert app.status_deps.cget("text") == "● deps drift"
             assert app.status_deps.cget("fg") == "#f59e0b"
             logs.clear()
-            # clicking the chip rescans and calms it back down
+            # clicking the chip rescans; now both imports are unpinned
             app._deps_chip_click()
-            assert app.status_deps.cget("text") == "deps ok"
+            assert app.status_deps.cget("text") == "● deps 2 missing"
             assert any("file(s) scanned" in s for s in logs), logs
             logs.clear()
+            # pin both: sig moves (stale → amber), a click rescans and
+            # the cache now reports zero missing → back to ok
+            with open(str(ws / "requirements.txt"), "a",
+                      encoding="utf-8") as fh:
+                fh.write("httpx\nuvicorn\n")
+            app._update_depswatch(force=True)
+            assert app.status_deps.cget("text") == "● deps drift"
+            app._deps_chip_click()
+            assert app.status_deps.cget("text") == "deps ok"
             # toggle off: chip hides, config remembers
             app.handle_terminal_command("deps watch off")
             assert app.config.get("deps_watch", True) is False
@@ -3773,6 +3786,131 @@ def test_verbs_window(tmp_path):
         # Enter still runs it — the user stays in charge
         app._prefill_terminal("deps fix")
         assert app.terminal.input.get() == "deps fix"
+    finally:
+        try:
+            root.destroy()
+        except tk.TclError:
+            pass
+        monkeypatch.undo()
+
+
+def test_git_chip(tmp_path):
+    """DS2 v2.40 — the git lane chip: repo_state's honest probe
+    (non-repo / fresh / dirty / detached), the chip's text+colour for
+    each state, click opens Source Control, the `git watch [on|off]`
+    toggle with config persistence, its usage line, the shared 30s
+    poll, and the TERMINAL_HELP + verbs-browser rows."""
+    import tkinter as tk
+    try:
+        root = tk.Tk(); root.withdraw()
+    except tk.TclError:
+        return
+    import subprocess
+    import dxn1_studio.config as cfgmod
+    from dxn1_studio.gitpanel import repo_state
+    from dxn1_studio.app import TERMINAL_HELP
+
+    def _git(*args, cwd):
+        subprocess.run(["git", *args], cwd=str(cwd),
+                       capture_output=True, text=True)
+
+    # engine: the honest probe, no UI
+    plain = tmp_path / "plain"
+    plain.mkdir()
+    assert repo_state(str(plain))["repo"] is False
+    assert repo_state(str(tmp_path / "nope"))["repo"] is False
+    ws = tmp_path / "repo"
+    ws.mkdir()
+    _git("init", "-q", cwd=ws)
+    st = repo_state(str(ws))
+    assert st["repo"] is True and st["dirty"] == 0
+    (ws / "a.txt").write_text("one\n", encoding="utf-8")
+    assert repo_state(str(ws))["dirty"] == 1          # untracked counts
+    _git("add", ".", cwd=ws)
+    assert repo_state(str(ws))["dirty"] == 1          # staged counts too
+    _git("-c", "user.email=t@t", "-c", "user.name=t",
+         "commit", "-qm", "one", cwd=ws)
+    st = repo_state(str(ws))
+    assert st["dirty"] == 0 and st["branch"], st
+    _git("checkout", "-q", "--detach", "HEAD", cwd=ws)
+    assert repo_state(str(ws))["branch"] == "(detached)"
+    # the TERMINAL_HELP row + verbs flattening know the verb
+    git_rows = [r for r in TERMINAL_HELP if r[0].startswith("git watch")]
+    assert git_rows and "amber" in git_rows[0][1], git_rows
+
+    import pytest
+    monkeypatch = pytest.MonkeyPatch()
+    monkeypatch.setattr(cfgmod, "CONFIG_DIR", str(tmp_path))
+    monkeypatch.setattr(cfgmod, "CONFIG_PATH",
+                        str(tmp_path / "config.json"))
+    monkeypatch.setenv("HOME", str(tmp_path))
+    from dxn1_studio.app import DXN1Studio
+    app = DXN1Studio(cfgmod.Config(), smoke_test=True, no_splash=True)
+    try:
+        logs = []
+        real_log = app.terminal.log
+        app.terminal.log = lambda s, *a, **k: logs.append(str(s))
+        opened = []
+        real_view = app.show_sidebar_view
+        app.show_sidebar_view = lambda name, *a, **k: opened.append(name)
+        try:
+            # no workspace: the chip sits quietly
+            app._update_gitchip(force=True)
+            assert app.status_git.cget("text") == ""
+            # a plain folder: still quiet — no nagging non-repos
+            app.project_dir = str(plain)
+            app._update_gitchip(force=True)
+            assert app.status_git.cget("text") == ""
+            # a repo, clean: the muted branch name
+            app.project_dir = str(ws)
+            app._update_gitchip(force=True)
+            branch = repo_state(str(ws))["branch"]
+            assert app.status_git.cget("text") == branch
+            assert "bold" not in str(app.status_git.cget("font"))
+            # a saved-but-uncommitted file: amber, bold, ●N
+            (ws / "b.txt").write_text("two\n", encoding="utf-8")
+            app._update_gitchip(force=True)
+            assert app.status_git.cget("text") == "%s ●1" % branch
+            assert app.status_git.cget("fg") == "#f59e0b"
+            assert "bold" in str(app.status_git.cget("font"))
+            # clicking opens Source Control and redraws
+            app._git_chip_click()
+            assert "git" in opened, opened
+            # toggle off: chip hides, config remembers
+            app.handle_terminal_command("git watch off")
+            assert app.config.get("git_watch", True) is False
+            assert app.status_git.cget("text") == ""
+            logs.clear()
+            # junk argument: honest usage, config untouched
+            app.handle_terminal_command("git watch maybe")
+            assert any("usage: git watch" in s for s in logs), logs
+            assert app.config.get("git_watch", True) is False
+            logs.clear()
+            # bare `git watch` flips back on; explicit `git watch on`
+            # is accepted too — and plain `git status` still passes
+            # through to the shell runner (the intercept is
+            # prefix-exact; run_command is stubbed — it is a worker
+            # thread + after-loop, which the harness has no mainloop for)
+            app.handle_terminal_command("git watch")
+            assert app.config.get("git_watch", True) is True
+            assert "●1" in app.status_git.cget("text")
+            app.handle_terminal_command("git watch on")
+            assert app.config.get("git_watch", True) is True
+            ran = []
+            app.run_command = lambda cmd: ran.append(cmd)
+            app.handle_terminal_command("git status --short")
+            assert ran == ["git status --short"], ran
+            # commit calms the chip within one poll tick
+            _git("add", ".", cwd=ws)
+            _git("-c", "user.email=t@t", "-c", "user.name=t",
+                 "commit", "-qm", "two", cwd=ws)
+            app._update_gitchip(force=True)
+            assert app.status_git.cget("text") == branch
+            # the shared poll runs both chips without raising
+            app._deps_watch_poll()
+        finally:
+            app.terminal.log = real_log
+            app.show_sidebar_view = real_view
     finally:
         try:
             root.destroy()

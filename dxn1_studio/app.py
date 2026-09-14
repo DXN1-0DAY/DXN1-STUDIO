@@ -126,6 +126,8 @@ TERMINAL_HELP = (
     ("explain", "hand the last error to the agent"),
     ("git <args>", "run git in the workspace (status, add,"),
     ("", "commit, log… output streams below"),
+    ("git watch [on|off]", "statusbar branch chip — amber when files "
+                           "wait to be committed, ↑/↓ on divergence"),
     ("split", "toggle split editor view"),
     ("zen", "toggle zen mode"),
     ("goto <line>", "jump to a line"),
@@ -732,6 +734,26 @@ class DXN1Studio:
                               lambda _e: self._deps_chip_click())
         self._deps_sig_state = ""   # last state the chip was drawn for
         self._deps_probed_at = 0.0  # throttle for the cheap-but-not-free probe
+        # DS2 v2.40: git lane chip — the branch name sits quietly in the
+        # statusbar, turns amber with a ● N when files are uncommitted,
+        # and gains ↑/↓ arrows when the branch diverges from upstream;
+        # click it to open Source Control
+        self.status_git = tk.Label(right, text="", bg=t["statusbar"],
+                                   fg=t["text_muted"],
+                                   font=(FONT_UI, 9), cursor="hand2")
+        self.status_git.pack(side=tk.RIGHT, padx=(0, 12))
+        self.status_git.bind("<Button-1>",
+                             lambda _e: self._git_chip_click())
+        self._git_sig_state = ""    # last state the git chip was drawn for
+        self._git_probed_at = 0.0   # throttle — one git call max per 3s
+        self._chip_tip(self.status_git,
+                       "Source control — click to open the git panel")
+        self._chip_tip(self.status_deps,
+                       "Dependency watch — click to rescan deps")
+        self._chip_tip(self.status_sesave,
+                       "Session autosave — click to snapshot now")
+        self._chip_tip(self.status_scribe,
+                       "Scribe meter — click to open the writing panel")
 
         # toast layer (placed above the status bar, right aligned)
         self.toast_layer = tk.Frame(self.root, bg=t["bg"])
@@ -1917,6 +1939,7 @@ class DXN1Studio:
         self.root.after(60000, self._autosave_session)   # DS2 v2.32
         self.root.after(9000, self._deps_watch_poll)   # DS2 v2.39 drift
         self._update_depswatch()                       #   chip first draw
+        self._update_gitchip()                         # DS2 v2.40 git chip
 
     def _clip_poll(self):
         """DS2: background clipboard watcher (never raises)."""
@@ -2541,6 +2564,9 @@ class DXN1Studio:
                 # DS2 v2.39: a saved file is the classic deps drift —
                 # the throttle keeps this free for rapid saves
                 self._update_depswatch()
+                # DS2 v2.40: a saved file is also a git event —
+                # the branch chip notices within its throttle
+                self._update_gitchip()
             except Exception as e:
                 errors.log_exception(f"save {self.editor.file_path}")
                 messagebox.showerror("Error", f"Failed to save file:\n{e}")
@@ -3583,6 +3609,9 @@ class DXN1Studio:
         if low.startswith("export"):
             self.export_project_zip()
             return
+        if low.startswith("git watch"):
+            self._git_watch_toggle(text[9:].strip())
+            return
         if low.startswith("git ") or low == "git":
             self.run_command(text.strip())
             return
@@ -4316,6 +4345,14 @@ class DXN1Studio:
                          "browsable…", "DS2", _verbs_palette))
         except Exception:  # pragma: no cover — palette stays alive
             pass
+        # DS2 v2.40: git lane chip toggle (defensive)
+        def _git_watch_palette():
+            self._git_watch_toggle()
+        try:
+            cmds.append(("Source control watch on/off — statusbar "
+                         "branch chip…", "DS2", _git_watch_palette))
+        except Exception:  # pragma: no cover — palette stays alive
+            pass
         # DS2 v2.36: what's new on demand (defensive)
         def _whatsnew_palette():
             self.show_whatsnew()
@@ -4903,38 +4940,49 @@ class DXN1Studio:
         nows — no workspace open
         absent — never scanned here (no usable cached report)
         cached — the stored deps report matches the workspace
-        stale — the workspace moved since the report was stored"""
+        stale — the workspace moved since the report was stored
+        Returns ``(state, missing_n)`` — v2.40 severity: the stored
+        report's missing-import count rides along for the cached
+        state so the chip can turn red, not just amber."""
         if not self.config.get("deps_watch", True):
-            return "off"
+            return ("off", 0)
         if not self.project_dir:
-            return "nows"
+            return ("nows", 0)
         try:
             from . import depcheck as _dc
-            return _dc.cache_state(self.project_dir).get("state",
-                                                         "absent")
+            st = _dc.cache_state(self.project_dir)
+            return (st.get("state", "absent"),
+                    len(st.get("missing") or []))
         except Exception:  # noqa: BLE001 — the chip never raises
-            return "absent"
+            return ("absent", 0)
 
     def _update_depswatch(self, force=False):
         """Redraw the dependency watch chip for the current state.
 
         The probe stats every scanned file, so it is throttled to one
         pass per 3 seconds unless ``force`` (a deps run or a click —
-        both just changed the world themselves). Never raises."""
+        both just changed the world themselves). v2.40 severity:
+        amber for drift, red for missing imports, muted when happy.
+        Never raises."""
         import time as _time
         try:
             now = _time.time()
             if not force and (now - self._deps_probed_at) < 3.0:
                 return
             self._deps_probed_at = now
-            state = self._deps_watch_state()
-            if state == self._deps_sig_state:
+            state, missing_n = self._deps_watch_state()
+            sig = "%s:%d" % (state, missing_n)
+            if sig == self._deps_sig_state:
                 return
-            self._deps_sig_state = state
+            self._deps_sig_state = sig
             chip = self.status_deps
             t = self.theme
             if state == "stale":
                 chip.config(text="● deps drift", fg="#f59e0b",
+                            font=(FONT_UI, 9, "bold"))
+            elif state == "cached" and missing_n:
+                chip.config(text="● deps %d missing" % missing_n,
+                            fg="#f85149",
                             font=(FONT_UI, 9, "bold"))
             elif state == "cached":
                 chip.config(text="deps ok", fg=t["text_muted"],
@@ -4966,8 +5014,9 @@ class DXN1Studio:
         elif arg == "":
             new = not cur
         else:
-            self.terminal.log("usage: deps watch [on|off] — the chip "
-                              "turns amber when imports drift")
+            self.terminal.log("usage: deps watch [on|off] — amber when "
+                              "imports drift, red when they are missing "
+                              "from requirements")
             return
         self.config.set("deps_watch", new)
         self._deps_sig_state = ""      # force a redraw
@@ -4975,21 +5024,164 @@ class DXN1Studio:
         self.terminal.log(
             "deps watch %s — %s" % (
                 "on" if new else "off",
-                "the statusbar chip turns amber when the workspace "
-                "drifts from the last deps report"
+                "the chip turns amber when the workspace drifts and "
+                "red when imports are missing from requirements"
                 if new else "the drift chip is hidden; `deps` still "
                             "works exactly as before"))
 
     def _deps_watch_poll(self):
         """Every 30s: notice silent drift (files changed outside the
-        studio) and light the chip. Never raises, never stacks."""
+        studio) and light the deps chip, then give the git lane chip
+        the same courtesy (v2.40 — one poll, both lanes). Never
+        raises, never stacks."""
         try:
             self._update_depswatch()
         except Exception:  # noqa: BLE001 — polling must stay quiet
             pass
         try:
+            self._update_gitchip()
+        except Exception:  # noqa: BLE001 — polling must stay quiet
+            pass
+        try:
             self.root.after(30000, self._deps_watch_poll)
         except Exception:  # noqa: BLE001 — dying root is fine
+            pass
+
+    # ----------------------------------------------- DS2 v2.40 git chip
+    def _git_watch_state(self):
+        """Honest state for the git lane chip (one cheap `git status`
+        call, throttled by the caller): ``None`` when the chip should
+        sit quiet (watcher off, no workspace, or the folder is not a
+        repository — plain folders deserve no nagging), else the
+        ``repo_state`` dict."""
+        if not self.config.get("git_watch", True):
+            return None
+        if not self.project_dir:
+            return None
+        try:
+            from .gitpanel import repo_state
+            st = repo_state(self.project_dir)
+            return st if st.get("repo") else None
+        except Exception:  # noqa: BLE001 — the chip never raises
+            return None
+
+    def _update_gitchip(self, force=False):
+        """Redraw the git lane chip: the branch name in muted text when
+        everything is committed and in sync, amber ``branch ●N`` when
+        N files wait to be committed (plus ↑/↓ arrows when the branch
+        diverges from upstream), amber arrows alone when the branch is
+        clean but ahead/behind. One git subprocess max per 3 seconds
+        unless ``force``. Never raises."""
+        import time as _time
+        try:
+            now = _time.time()
+            if not force and (now - self._git_probed_at) < 3.0:
+                return
+            self._git_probed_at = now
+            st = self._git_watch_state()
+            sig = ("", 0, 0, 0) if st is None else (
+                st.get("branch", ""), st.get("dirty", 0),
+                st.get("ahead", 0), st.get("behind", 0))
+            if sig == self._git_sig_state:
+                return
+            self._git_sig_state = sig
+            chip = self.status_git
+            t = self.theme
+            if st is None:
+                chip.config(text="", fg=t["text_muted"],
+                            font=(FONT_UI, 9))
+                return
+            branch = st.get("branch") or "(detached)"
+            dirty, ahead, behind = (st.get("dirty", 0),
+                                    st.get("ahead", 0),
+                                    st.get("behind", 0))
+            arrows = (" ↑%d" % ahead if ahead else "") + \
+                     (" ↓%d" % behind if behind else "")
+            if dirty:
+                chip.config(text="%s ●%d%s" % (branch, dirty, arrows),
+                            fg="#f59e0b", font=(FONT_UI, 9, "bold"))
+            elif ahead or behind:
+                chip.config(text="%s%s" % (branch, arrows),
+                            fg="#f59e0b", font=(FONT_UI, 9))
+            else:
+                chip.config(text=branch, fg=t["text_muted"],
+                            font=(FONT_UI, 9))
+        except Exception:  # noqa: BLE001 — a chip must never break typing
+            pass
+
+    def _git_chip_click(self):
+        """Click the git chip: open Source Control (the actionable
+        surface for whatever the chip is pointing at) and redraw."""
+        try:
+            self.show_sidebar_view("git")
+        except Exception:  # noqa: BLE001 — the panel may be absent
+            pass
+        self._update_gitchip(force=True)
+
+    def _git_watch_toggle(self, arg=""):
+        """``git watch [on|off]`` — the statusbar branch chip and its
+        30s probe. Bare ``git watch`` flips the switch."""
+        arg = str(arg or "").strip().lower()
+        cur = bool(self.config.get("git_watch", True))
+        if arg in ("on", "1", "true"):
+            new = True
+        elif arg in ("off", "0", "false"):
+            new = False
+        elif arg == "":
+            new = not cur
+        else:
+            self.terminal.log("usage: git watch [on|off] — the chip "
+                              "shows the branch, turns amber when "
+                              "files wait to be committed")
+            return
+        self.config.set("git_watch", new)
+        self._git_sig_state = ""      # force a redraw
+        self._update_gitchip(force=True)
+        self.terminal.log(
+            "git watch %s — %s" % (
+                "on" if new else "off",
+                "the statusbar chip shows the branch, amber with ●N "
+                "when files wait to be committed, ↑/↓ when the "
+                "branch diverges"
+                if new else "the branch chip is hidden; the Source "
+                            "Control panel still works as always"))
+
+    def _chip_tip(self, widget, text):
+        """DS2 v2.40 polish — a quiet tooltip for statusbar chips:
+        hover explains what the chip is and what clicking it does.
+        Best-effort, never raises."""
+        try:
+            tip = {"win": None}
+
+            def enter(_e):
+                if tip["win"] is not None:
+                    return
+                x = widget.winfo_rootx() + 8
+                y = widget.winfo_rooty() - 30
+                tw = tk.Toplevel(widget)
+                tw.wm_overrideredirect(True)
+                try:
+                    tw.attributes("-topmost", True)
+                except Exception:  # noqa: BLE001 — X11 quirk tolerance
+                    pass
+                tw.wm_geometry("+%d+%d" % (x, y))
+                tk.Label(tw, text=text, bg=self.theme["header"],
+                         fg=self.theme["text"],
+                         font=(FONT_UI, 8), padx=8,
+                         pady=3).pack()
+                tip["win"] = tw
+
+            def leave(_e):
+                if tip["win"] is not None:
+                    try:
+                        tip["win"].destroy()
+                    except Exception:  # noqa: BLE001 — already gone
+                        pass
+                    tip["win"] = None
+
+            widget.bind("<Enter>", enter)
+            widget.bind("<Leave>", leave)
+        except Exception:  # noqa: BLE001 — tooltips are garnish
             pass
 
     # ------------------------------------------------- DS2 v2.39 verbs win

@@ -53,6 +53,53 @@ def _run_git(repo, *args, timeout=15):
     return proc.returncode == 0, proc.stdout, proc.stderr.strip()
 
 
+def repo_state(workspace):
+    """DS2 v2.40 — cheap repo probe for the statusbar git chip.
+
+    One ``git status --porcelain -b`` call, no UI, never raises.
+    Returns ``{"repo": bool, "branch": str, "dirty": int,
+    "ahead": int, "behind": int}`` where ``dirty`` counts every
+    porcelain row (staged, unstaged and untracked alike) and
+    ``ahead``/``behind`` come from the branch line's tracking
+    summary. A missing workspace, a non-repo, or any git trouble
+    reads as ``repo: False`` — the chip stays quiet for plain
+    folders instead of nagging."""
+    ws = str(workspace or "")
+    out = {"repo": False, "branch": "", "dirty": 0, "ahead": 0,
+           "behind": 0}
+    if not ws or not os.path.isdir(ws):
+        return out
+    ok, text, _err = _run_git(ws, "status", "--porcelain", "-b",
+                              "--untracked-files=normal", timeout=8)
+    if not ok:
+        return out                       # not a repo / git missing
+    out["repo"] = True
+    for i, line in enumerate(text.splitlines()):
+        if i == 0 and line.startswith("##"):
+            body = line[2:].strip()
+            low = body.lower()
+            if "no branch" in low:       # detached HEAD
+                out["branch"] = "(detached)"
+                continue
+            if low.startswith("no commits yet on "):
+                out["branch"] = body.rsplit(" ", 1)[-1]
+                continue
+            head, _, rest = body.partition("...")
+            out["branch"] = head.strip()
+            if "[" in rest and "]" in rest:
+                flags = rest[rest.index("[") + 1:rest.index("]")]
+                for part in flags.split(","):
+                    bits = part.strip().split()
+                    if len(bits) == 2 and bits[1].isdigit():
+                        if bits[0] == "ahead":
+                            out["ahead"] = int(bits[1])
+                        elif bits[0] == "behind":
+                            out["behind"] = int(bits[1])
+        elif line.strip():
+            out["dirty"] += 1
+    return out
+
+
 class GitPanel(tk.Frame):
     """'Source Control' sidebar — the studio's view over your repo."""
 

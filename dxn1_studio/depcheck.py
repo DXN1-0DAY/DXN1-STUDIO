@@ -416,15 +416,22 @@ def _store_cache(root, rep):
 
 
 def cache_state(root):
-    """DS2 v2.39: cheap drift probe for the statusbar watch chip.
+    """DS2 v2.39/v2.40: cheap drift+severity probe for the statusbar
+    watch chip.
 
     Reads only the stored cache and the current fingerprint — never a
     full scan. Returns one of three honest states:
       ``{"state": "absent"}``  nothing stored yet (never scanned here)
-      ``{"state": "cached"}``  a stored report matches the workspace
-                               as it looks right now
+      ``{"state": "cached", "missing": [...]}``
+                               a stored report matches the workspace
+                               as it looks right now; ``missing`` is
+                               the report's imported-but-unpinned list
+                               (v2.40 severity: the chip turns red on
+                               it instead of staying muted)
       ``{"state": "stale"}``   a stored report exists but files moved
-                               since it was written
+                               since it was written — its ``missing``
+                               list describes a workspace that no
+                               longer exists, so it is not reported
     Never raises — any trouble reads as ``absent``."""
     root = str(root)
     try:
@@ -433,7 +440,11 @@ def cache_state(root):
             data = json.load(fh)
         if isinstance(data, dict) and isinstance(data.get("report"), dict):
             if data.get("sig") == cache_sig(root):
-                return {"state": "cached"}
+                rep = data["report"]
+                miss = rep.get("missing")
+                return {"state": "cached",
+                        "missing": list(miss) if isinstance(miss, list)
+                        else []}
             return {"state": "stale"}
     except Exception:  # noqa: BLE001 — no/trouble cache = never scanned
         pass

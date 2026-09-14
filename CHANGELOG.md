@@ -4,6 +4,48 @@ All notable changes to DXN1 STUDIO. Format based on
 [Keep a Changelog](https://keepachangelog.com/); versioning is
 `MAJOR.MINOR.PATCH` while in **beta**.
 
+## [2.40.0] — 2026-09-15 · beta · "the lanes have eyes" (git lane chip + deps severity)
+
+### Added
+- **Git lane chip** — the statusbar now has a branch indicator that
+  earns its place: the branch name sits quietly in muted text while
+  everything is committed and in sync, and turns **amber and bold —
+  `branch ●N`** the moment N files wait to be committed (staged,
+  unstaged and untracked all count). `↑N` / `↓K` arrows ride along
+  when the branch diverges from the locally-known upstream — honest
+  by design: git only knows what it has fetched, so the chip never
+  silently networks; `behind` appears after a fetch, `ahead` the
+  moment you commit. Plain folders and non-repos stay silent — no
+  nagging for workspaces that are not repositories.
+- **One probe, both lanes** — the drift poll that watches deps every
+  30 s now watches the git lane in the same pass; each chip probes
+  at most once per 3 s (`git status --porcelain -b` is one cheap
+  subprocess), forced redraws on saves, clicks and boot. Clicking
+  the git chip opens Source Control — the chip points at work, the
+  panel is where it gets done.
+- **`git watch [on|off]`** — bare `git watch` flips the branch chip,
+  `on`/`off` are explicit, junk gets an honest usage line, and the
+  preference persists (`git_watch`, default on). The intercept is
+  prefix-exact: plain `git <args>` commands still pass through to
+  the shell untouched. Palette entry: *Source control watch on/off…*;
+  `TERMINAL_HELP` and the verbs browser gained the row.
+- **Deps severity** — the dependency watch chip no longer says "ok"
+  when the cached report found unpinned imports: a cached workspace
+  whose imports are missing from requirements lights the chip **red
+  — `● deps N missing`**. Amber means drift (rescan to learn), red
+  means missing (run `deps fix`); `depcheck.cache_state()` now
+  returns the stored report's missing list alongside the state.
+  The `deps watch` usage line explains both severities.
+- **Chip tooltips** — hovering any statusbar chip (git, deps,
+  session autosave, scribe) shows a quiet themed tooltip explaining
+  what it is and what clicking it does.
+
+### Changed
+- v2.39's chip flow expectations updated to the honest ladder: a
+  drift-click rescan with unpinned imports now shows red, not a
+  fake "ok" (tests/smoke assert the full
+  amber → red → pinned → ok sequence).
+
 ## [2.39.0] — 2026-09-15 · beta · "the drift you can see" (deps watch chip + terminal verbs browser)
 
 ### Added

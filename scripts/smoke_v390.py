@@ -106,8 +106,9 @@ try:
     check("chip: absent shows the quiet placeholder",
           app.status_deps.cget("text") == "deps —")
     app.handle_terminal_command("deps")
-    check("chip: a deps run anchors it to ok",
-          app.status_deps.cget("text") == "deps ok")
+    # v2.40 severity: the fresh scan sees late.py's unpinned uvicorn
+    check("chip: a deps run with an unpinned import lights it red",
+          app.status_deps.cget("text") == "● deps 1 missing")
     with open(os.path.join(ws, "late2.py"), "w", encoding="utf-8") as fh:
         fh.write("import httpx\n")
     app._update_depswatch(force=True)
@@ -116,7 +117,16 @@ try:
           and app.status_deps.cget("fg") == "#f59e0b")
     logs.clear()
     app._deps_chip_click()
-    check("chip: clicking rescans and calms it",
+    # v2.40 severity: the rescan finds both imports unpinned
+    check("chip: clicking rescans; unpinned imports light it red",
+          app.status_deps.cget("text") == "● deps 2 missing"
+          and any("file(s) scanned" in s for s in logs))
+    with open(os.path.join(ws, "requirements.txt"), "a",
+              encoding="utf-8") as fh:
+        fh.write("httpx\nuvicorn\n")
+    logs.clear()
+    app._deps_chip_click()
+    check("chip: pinned import calms it back to ok",
           app.status_deps.cget("text") == "deps ok"
           and any("file(s) scanned" in s for s in logs))
     logs.clear()

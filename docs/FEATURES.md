@@ -444,8 +444,8 @@
 | Per-workspace cache | terminal `deps`, `deps fresh`, `depcheck.check_cached()` | Repeat reports are instant: the verdict is stored in `<ws>/.dxn1/depcheck_cache.json` with a change-sensitive fingerprint (every scanned file's mtime + size, plus the root listing); any edit invalidates honestly, a corrupt cache falls back to a real scan, the cache's own `.dxn1` write never self-invalidates, and `deps fix` always works from a fresh scan |
 | Per-verb help | terminal `help <verb>`, `matching_help_rows()` | Exact command match, then substring over commands/descriptions, then the three closest fuzzy hits — `help dps` finds `deps`; unknown verbs get an honest "No help for" line |
 | Palette help fallback | terminal `help <query>`, `palette_help_rows()` | When no terminal row matches, `help` searches the palette's own command registry — `help duplicate` finds *Duplicate line — Ctrl+Shift+D*; the Ctrl+K vocabulary is discoverable without opening the palette |
-| Dependency watch chip | statusbar, `depcheck.cache_state()` | A quiet `deps ok` sits in the statusbar and turns **amber — `● deps drift`** the moment the workspace fingerprint moves past the last deps report (a saved file, a file added outside the studio, a requirements edit). The probe is cheap (no scan — signature compare only, throttled to one pass per 3 s) and a 30 s poll catches silent drift. Click the chip to rescan; `deps —` means never scanned here |
-| Watch toggle | terminal `deps watch [on|off]`, palette *Dependency watch on/off…* | Bare `deps watch` flips the statusbar drift chip on/off (default on, persisted as `deps_watch`); junk arguments get an honest usage line; `deps fix` / `deps fresh` keep working exactly as before |
+| Dependency watch chip | statusbar, `depcheck.cache_state()` | A quiet `deps ok` sits in the statusbar and turns **amber — `● deps drift`** the moment the workspace fingerprint moves past the last deps report (a saved file, a file added outside the studio, a requirements edit). v2.40 severity: a cached report whose imports are missing from requirements lights the chip **red — `● deps N missing`** — drift (amber) asks for a rescan, missing imports (red) ask for `deps fix`. The probe is cheap (no scan — signature compare only, throttled to one pass per 3 s) and a 30 s poll catches silent drift. Click the chip to rescan; `deps —` means never scanned here |
+| Watch toggle | terminal `deps watch [on|off]`, palette *Dependency watch on/off…* | Bare `deps watch` flips the statusbar drift chip on/off (default on, persisted as `deps_watch`); junk arguments get an honest usage line explaining both severities; `deps fix` / `deps fresh` keep working exactly as before |
 | Commands listing | terminal `commands [filter]`, app `_list_palette_commands()` | Every palette command (109+) listed in the terminal with its shortcut; a filter tail narrows by substring then fuzzy (`commands line`, `commands sve fil` → *Save file*), capped at 24 rows with an honest "+N more — narrow the filter" |
 
 ## Terminal Verbs Browser
@@ -455,6 +455,18 @@
 | Verbs window | Workshop → *Terminal Verbs…*, palette, terminal `verbs` / `verb`, `verbs.open_verbs()` | Every verb the terminal speaks (55+), browsable in one themed window: live search box (substring over verb + description, same first pass as `help <q>`), count label, scrollable rows, honest "nothing matches — try a shorter filter" |
 | Click to prefill | `verbs.open_verbs(on_insert=…)`, app `_prefill_terminal()` | Clicking a row drops the verb into the terminal input and focuses it — Enter runs it, so nothing fires by accident; multi-line `help` rows are merged back into one complete description per verb |
 | One data source | `verbs.verb_rows()` | Flattens the same `TERMINAL_HELP` tuple used by `help` and the cheat-sheet exporter (continuation lines folded into the previous row) — the terminal, the cheat sheet and the browser can never disagree about what the studio can do |
+
+## Git Lane Chip (v2.40.0 lane)
+
+| Feature | Where | What it does |
+|---|---|---|
+| Branch chip | statusbar, `gitpanel.repo_state()` | The branch name sits quietly in the statusbar in muted text while everything is committed and in sync — plain folders and non-repos stay silent (no nagging), as does a missing workspace |
+| Uncommitted attention | `git status --porcelain -b` probe | Any uncommitted change (staged, unstaged or untracked) turns the chip **amber and bold — `branch ●N`** with the count of waiting files; arrows ride along when the branch also diverges (`branch ●2 ↑1`) |
+| Divergence arrows | branch-line tracking summary | `↑N` / `↓K` show ahead/behind vs the locally-known upstream — honest by design: git only knows what it has fetched, so the chip never silently networks; behind shows after a fetch, ahead the moment you commit |
+| One cheap probe | 3 s throttle + shared 30 s poll | One `git status` call max per 3 s (forced on saves, clicks and boot); the drift poll that watches deps now watches the git lane in the same pass — one timer, both lanes |
+| Click opens Source Control | app `_git_chip_click()` | The chip points at work; the Source Control panel is where it gets done — click opens the panel and redraws the chip in one gesture |
+| Watch toggle | terminal `git watch [on|off]`, palette *Source control watch on/off…* | Bare `git watch` flips the branch chip (default on, persisted as `git_watch`); junk gets an honest usage line; plain `git <args>` commands still pass through to the shell untouched (the intercept is prefix-exact) |
+| Chip tooltips | app `_chip_tip()` | Hover any statusbar chip (git, deps, session autosave, scribe) and a quiet themed tooltip explains what it is and what clicking it does |
 
 ## Session Restore
 
