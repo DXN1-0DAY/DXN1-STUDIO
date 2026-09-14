@@ -86,3 +86,16 @@
 | Next.js + Svelte scaffolds | `projects.py` | Real package.json/pages/API route and App.svelte/vite starters — 14 templates |
 | Zen writing stats | `zen.py` | Paste-spike-filtered WPM, session peak, word-goal HUD — memory only |
 | Plugin API | `plugins.py` | Hooks, command registration, manager UI |
+
+## Knowing Your Workspace (v2.4.0)
+
+| Feature | Where | What it does |
+|---|---|---|
+| File statistics | `filestats.py`, palette → *File statistics*, terminal `stats` | Read-only scan: per-extension counts/bytes, largest files, skipped-dirs report; clickable bar chart filters the largest-files table; copy report, export `.dxn1/filestats.md`, CLI `python3 -m dxn1_studio.filestats` |
+| Recent-files picker | `recents.py`, Ctrl+R, File menu | Quick-Open-style fuzzy popup over the existing recents list — basename prefix beats path substring beats subsequence |
+| Plugin status items | `app.py` statusbar | Plugin-registered status text now appears in the bar (5 s refresh, capped at 3, broken plugins can't hurt it) |
+| Persistent bookmarks | `bookmarks.py`, palette → *Bookmarks — browse all…* | The old gutter bookmarks now survive restarts: `.dxn1/bookmarks.json` per workspace, restored on open, split-view aware, with a workspace-wide browser (snippet previews, jump/remove/clear) |
+| Prompt library | `prompts.py`, palette → *Prompt library* | Saved reusable asks with `{file}/{selection}/{lang}…` auto-fill, 6 starters, save-from-input, inserts straight into the agent chat |
+| Line tools | `widgets.py`, Edit menu | Sort lines (A→Z / numeric / Z→A) and Remove Duplicate Lines on the selection |
+| Error explainer | `app.py`, terminal `explain`, palette | Nonzero exit + traceback detected → one command hands the block to the agent with a fix-me prompt (clipboard fallback) |
+| What's New | `whatsnew.py`, Help → *What's New…* | The changelog rendered as a release rail + notes pane; auto-opens exactly once after each upgrade (`last_seen_version`) |
