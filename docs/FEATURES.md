@@ -64,3 +64,25 @@
 - `remember: <fact>` in the agent chat
 - `@symbol` jump, bookmarks, snippets — unchanged, now documented in
   the cheat sheet
+
+## i18n & Sync (v2.1.0)
+
+| Feature | Where | What it does |
+|---|---|---|
+| Localization | `i18n.py` | 8 language packs (en/es/fr/de/pt/zh/hi/ja), dotted keys, graceful fallback, community packs as JSON |
+| Settings sync | `sync.py` | Private-gist sync of the safe settings subset via the GitHub CLI login — secrets never travel |
+
+## Seeing & Doing (v2.2.0)
+
+| Feature | Where | What it does |
+|---|---|---|
+| Editor minimap | `minimap.py`, palette toggle | Role-coloured line blocks with a draggable viewport; hides for short files |
+| Task runner | `term.py`, palette → *Task runner* | `.dxn1/tasks.json` named commands with per-kind defaults, run through the studio's process runner |
+
+## Starting & Measuring (v2.3.0)
+
+| Feature | Where | What it does |
+|---|---|---|
+| Next.js + Svelte scaffolds | `projects.py` | Real package.json/pages/API route and App.svelte/vite starters — 14 templates |
+| Zen writing stats | `zen.py` | Paste-spike-filtered WPM, session peak, word-goal HUD — memory only |
+| Plugin API | `plugins.py` | Hooks, command registration, manager UI |
