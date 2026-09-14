@@ -86,8 +86,10 @@ geometry memory).
 
 | Harness | What it proves |
 |---|---|
-| `python3 -m pytest tests/` | 53 unit groups over every pure engine |
+| `python3 -m pytest tests/` | 72 unit groups over every pure engine |
 | `scripts/smoke_v290.py` (Xvfb) | 155 live-window checks across 26 feature windows |
+| `scripts/smoke_v310.py` (Xvfb) | 20 checks: fuzzy highlight runs, per-buffer cursor memory, session cursor merge |
+| `scripts/smoke_v320.py` (Xvfb) | 18 checks: autosave write/switch gates, crash simulation + engine recovery boot, installer `--version` |
 | `scripts/boot_qa.py` (Xvfb) | 20 checks booting the real studio: menus bound, palette entries live, modules import, scribe chip wired |
 | `python3 -m compileall -q dxn1_studio` | The tree always compiles — the gate before every tag |
 

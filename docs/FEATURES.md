@@ -435,6 +435,8 @@
 | Feature | Where | What it does |
 |---|---|---|
 | Close-hook snapshot | `session.py`, app close | Every close saves open tabs, the active file and the cursor position (line + column) to `~/.dxn1-studio/sessions/<workspace-hash>.json` — atomic write, up to 50 tabs |
+| Crash-safe autosave | app `_autosave_session()` | While you work, the same snapshot is silently rewritten every 60 s (Settings ▸ *Autosave the session*; interval clamped 15–600 s) — a crash, kill or battery death now costs at most a minute of workspace state instead of everything since the last clean exit |
+| Crash recovery | app `_restore_engine_session()` | Open a workspace with no clean-exit record (i.e. after a crash) and the last autosaved snapshot becomes the recovery point: tabs reopen, the active file refocuses at its saved cursor spot, and every other buffer keeps its position for the tab switch |
 | Session manager | Workshop → *Session Restore — pick up where you left off…*, palette, terminal `session` / `sessions` / `resume` | Browse every saved workspace (tabs count + saved time), preview its files with the active one marked, restore with one click — files reopen and the cursor jumps back to its line |
 | Cursor memory | `snapshot()` / `restore_plan()` | `{path: (line, col)}` per session; only the position is restored that files still exist — ghost files are filtered, never error |
 | Durable store | engine | Corrupt JSON reads back as empty; save returns honest `(ok, error)`; up to 40 sessions kept, newest first; `base=` override makes the whole store testable |

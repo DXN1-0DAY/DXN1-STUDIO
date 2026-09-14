@@ -2,12 +2,13 @@
 # DXN1 STUDIO Installer
 # Usage: curl -fsSL https://raw.githubusercontent.com/DXN1-termux/DXN1-STUDIO/master/install.sh | bash
 # Re-run any time to update in place.  Uninstall: install.sh --uninstall
+# Check the installer version without installing: install.sh --version
 
 set -e
 
 # Bumped with releases; the app's real version always comes from the
 # downloaded dxn1_studio/__init__.py (never stamped over it).
-INSTALLER_VERSION="2.31.0"
+INSTALLER_VERSION="2.32.0"
 
 INSTALL_DIR="$HOME/.local/share/dxn1-studio"
 BIN_DIR="$HOME/.local/bin"
@@ -21,6 +22,12 @@ if [ "$1" = "--uninstall" ] || [ "$1" = "-u" ]; then
           "$BIN_DIR/DXN1-STUDIO" "$BIN_DIR/DXN1 STUDIO"
     echo "Removed $INSTALL_DIR and the CLI links."
     echo "(Your settings and projects in ~/.dxn1-studio were kept.)"
+    exit 0
+fi
+
+# ---- version probe ---------------------------------------------------------
+if [ "$1" = "--version" ] || [ "$1" = "-V" ]; then
+    echo "dxn1-studio installer $INSTALLER_VERSION"
     exit 0
 fi
 

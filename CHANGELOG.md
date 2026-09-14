@@ -4,6 +4,33 @@ All notable changes to DXN1 STUDIO. Format based on
 [Keep a Changelog](https://keepachangelog.com/); versioning is
 `MAJOR.MINOR.PATCH` while in **beta**.
 
+## [2.32.0] — 2026-09-14 · beta · "even a crash comes back" (session autosave)
+
+### Added
+- **Crash-safe session autosave** — the rich session snapshot (tabs +
+  active file + per-buffer cursor spots) used to be written only on a
+  clean close, so a crash, `kill -9` or battery death lost the whole
+  workspace state. A silent autosave now rewrites the identical
+  snapshot once a minute (`_autosave_session`, interval clamped
+  15–600 s, `session_autosave_secs` config key), so the worst case is
+  one minute of state instead of everything.
+- **Crash recovery** — open a workspace with no clean-exit record and
+  `_restore_engine_session` picks up the last autosaved snapshot
+  automatically: tabs reopen, the active file refocuses at its exact
+  saved cursor spot, and every other buffer keeps its position for the
+  first tab switch (the v2.31 per-buffer cursor map is seeded from the
+  snapshot). Ghost files are filtered by the existing `restore_plan`.
+- **Installer `--version` / `-V`** — `install.sh --version` prints the
+  installer version and exits, without touching the install; handy for
+  support triage and scripts.
+- Settings ▸ Boot behaviour gained an *Autosave the session* switch
+  (default on) next to *Restore last session*; both switches gate the
+  autosave, and junk interval values can never break the reschedule.
+
+### Changed
+- Close-hook and autosave now share one `_save_session_snapshot()`
+  code path — identical data, same file, one less drift risk.
+
 ## [2.31.0] — 2026-09-14 · beta · "never miss a module again" (installer fix + polish round)
 
 ### Fixed

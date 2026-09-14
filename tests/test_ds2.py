@@ -2658,3 +2658,130 @@ def test_buffer_cursor_memory(monkeypatch, tmp_path):
             root.destroy()
         except tk.TclError:
             pass
+
+
+def test_session_autosave(monkeypatch, tmp_path):
+    """DS2 v2.32 — crash-safe session autosave: _autosave_session writes
+    the same rich snapshot as close (tabs + active + cursors merged) and
+    always reschedules; the switches silence the write itself."""
+    import tkinter as tk
+    try:
+        root = tk.Tk(); root.withdraw()
+    except tk.TclError:
+        return
+    # hermetic config AND hermetic session store (~ expands at call time)
+    import dxn1_studio.config as cfgmod
+    monkeypatch.setattr(cfgmod, "CONFIG_DIR", str(tmp_path))
+    monkeypatch.setattr(cfgmod, "CONFIG_PATH",
+                        str(tmp_path / "config.json"))
+    monkeypatch.setenv("HOME", str(tmp_path))
+    from dxn1_studio.app import DXN1Studio
+    app = DXN1Studio(cfgmod.Config(), smoke_test=True, no_splash=True)
+    try:
+        proj = tmp_path / "proj"
+        proj.mkdir(exist_ok=True)
+        f1 = proj / "alpha.py"
+        f1.write_text("def gmm(x):\n    return x\n" + "".join(
+            f"line {i}\n" for i in range(3, 13)), encoding="utf-8")
+        app.project_dir = str(proj)
+        app.open_file(str(f1))
+        root.update()
+        app.editor.text.mark_set("insert", "7.3")
+
+        from dxn1_studio import session as sess
+        spath = sess.session_path(str(proj))
+        if os.path.exists(spath):        # clean slate
+            os.remove(spath)
+
+        app._autosave_session()          # direct call — must not raise
+        assert os.path.isfile(spath), "autosave wrote no session file"
+        data = sess.load(str(proj))
+        assert str(f1) in data.get("tabs", [])
+        assert data.get("active") == str(f1)
+        curs = data.get("cursor") or {}
+        assert curs.get(str(f1), {}).get("line") == 7, \
+            "current insert position must land in the autosaved snapshot"
+        # always reschedules while the root lives
+        assert getattr(app, "_session_autosave_job", None)
+
+        # switch off → the next call must NOT write (or wipe) anything
+        before = open(spath, "r", encoding="utf-8").read()
+        app.config.set("session_autosave", False)
+        app._autosave_session()
+        assert open(spath, "r", encoding="utf-8").read() == before, \
+            "disabled autosave must leave the snapshot untouched"
+
+        # restore_session off → also silent
+        app.config.set("session_autosave", True)
+        app.config.set("restore_session", False)
+        app._autosave_session()
+        assert open(spath, "r", encoding="utf-8").read() == before
+
+        # junk interval never breaks the reschedule
+        app.config.set("restore_session", True)
+        for junk in ("0", "", "nonsense", 99999):
+            app.config.set("session_autosave_secs", junk)
+            app._autosave_session()
+        assert getattr(app, "_session_autosave_job", None)
+    finally:
+        try:
+            root.destroy()
+        except tk.TclError:
+            pass
+
+
+def test_restore_engine_session(monkeypatch, tmp_path):
+    """DS2 v2.32 — crash recovery: with no clean-exit record,
+    _restore_engine_session reopens the autosaved tabs and cursor."""
+    import tkinter as tk
+    try:
+        root = tk.Tk(); root.withdraw()
+    except tk.TclError:
+        return
+    import dxn1_studio.config as cfgmod
+    monkeypatch.setattr(cfgmod, "CONFIG_DIR", str(tmp_path))
+    monkeypatch.setattr(cfgmod, "CONFIG_PATH",
+                        str(tmp_path / "config.json"))
+    monkeypatch.setenv("HOME", str(tmp_path))
+    from dxn1_studio.app import DXN1Studio
+    app = DXN1Studio(cfgmod.Config(), smoke_test=True, no_splash=True)
+    try:
+        proj = tmp_path / "proj"
+        proj.mkdir(exist_ok=True)
+        fa = proj / "alpha.py"
+        fa.write_text("def gmm(x):\n    return x\n" + "".join(
+            f"line {i}\n" for i in range(3, 13)), encoding="utf-8")
+        fb = proj / "beta.py"
+        fb.write_text("beta one\nbeta two\n", encoding="utf-8")
+        app.project_dir = str(proj)
+
+        # simulate the autosaved snapshot from a past life
+        from dxn1_studio import session as sess
+        sess.save(str(proj), sess.snapshot(
+            [str(fa), str(fb)], active=str(fa),
+            cursor={str(fa): (7, 3), str(fb): (2, 0)},
+            workspace=str(proj)))
+
+        app._restore_engine_session(str(proj))   # must not raise
+        root.update()
+        assert str(fa) in app._tab_frames
+        assert str(fb) in app._tab_frames
+        assert app.editor.file_path == str(fa), \
+            "active file from the snapshot must be focused"
+        assert app.editor.text.index("insert") == "7.3", \
+            "active file cursor must be restored"
+        # per-buffer map seeded so tab switches keep the other spot too
+        assert app._buffer_cursors[str(fb)] == "2.0"
+        app._activate_tab(str(fb))
+        root.update()
+        assert app.editor.text.index("insert") == "2.0"
+
+        # ghost workspace → returns silently, opens nothing
+        app2_tabs_before = dict(app._tab_frames)
+        app._restore_engine_session(str(tmp_path / "nowhere"))
+        assert dict(app._tab_frames) == app2_tabs_before
+    finally:
+        try:
+            root.destroy()
+        except tk.TclError:
+            pass

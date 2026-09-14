@@ -30,6 +30,9 @@ DEFAULTS = {
     # --- hub, splash ------------------------------------------------------
     "splash_enabled": True,  # boot splash (logo card) before launch
     "hub_on_startup": True,  # start every session at the Project Hub
+    # --- DS2 v2.32: crash-safe session autosave ---------------------------
+    "session_autosave": True,      # snapshot tabs+cursors every interval
+    "session_autosave_secs": 60,   # interval, clamped 15..600 at runtime
     "recent_projects": [],   # [{path, kind, opened}] — hub recents
     "last_project": "",      # most recently opened workspace path
     # --- wizard -----------------------------------------------------------

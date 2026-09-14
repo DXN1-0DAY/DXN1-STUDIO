@@ -1822,6 +1822,7 @@ class DXN1Studio:
             self.root.after(800, self.start_tour)
         self.root.after(1600, self._maybe_show_whatsnew)   # DS2: once/tag
         self.root.after(2500, self._clip_poll)   # DS2: clipboard history
+        self.root.after(60000, self._autosave_session)   # DS2 v2.32
 
     def _clip_poll(self):
         """DS2: background clipboard watcher (never raises)."""
@@ -2041,6 +2042,9 @@ class DXN1Studio:
         sessions = self.config.get("session_tabs") or {}
         data = sessions.get(os.path.abspath(project_path))
         if not data:
+            # DS2 v2.32: no clean-exit record (crash / kill / power loss)
+            # — fall back to the crash-safe autosave snapshot instead.
+            self._restore_engine_session(project_path)
             return
         for path in data.get("tabs", []):
             if os.path.isfile(path) and path != self.editor.file_path:
@@ -4709,27 +4713,13 @@ class DXN1Studio:
         y = self.root.winfo_rooty() + 120
         win.geometry(f"+{x}+{y}")
 
-    # ------------------------------------------------------------------ run
-    def _on_close(self):
-        """WM_DELETE_WINDOW — save session, then quit cleanly."""
-        try:
-            self.stop_run(silent=True)
-            if self.config.get("restore_session", True) and \
-                    self.project_dir:
-                sessions = dict(self.config.get("session_tabs") or {})
-                sessions[os.path.abspath(self.project_dir)] = {
-                    "tabs": list(self._tab_frames),
-                    "active": self.editor.file_path or "",
-                }
-                # keep sessions for workspaces that still exist, max 20
-                kept = {p: v for p, v in sessions.items()
-                        if os.path.isdir(p)}
-                self.config.set(
-                    "session_tabs",
-                    dict(list(kept.items())[-20:]))
-        except Exception:
-            errors.log_exception("save session", quiet=True)
-        # DS2 v2.30: richer session snapshot with cursor position
+    # ------------------------------------------------ DS2 v2.32: autosave
+    def _save_session_snapshot(self):
+        """Write the rich session snapshot (tabs + active + cursors).
+
+        Shared by the close hook and the periodic autosave — identical
+        data, same file, so a hard crash costs at most one interval of
+        workspace state. Never raises."""
         try:
             from . import session as _ds2_session
             _cur = {}
@@ -4751,6 +4741,95 @@ class DXN1Studio:
                 cursor=_cur, workspace=_ws))
         except Exception:
             errors.log_exception("session snapshot", quiet=True)
+
+    def _autosave_session(self):
+        """DS2 v2.32: crash-safe session autosave (default every 60s).
+
+        Until now the session snapshot was only written on a clean
+        close — a crash or battery death lost everything since the
+        last exit. Autosave writes the same snapshot once a minute,
+        silently. Respects both the autosave and the restore switches;
+        always reschedules while the root is alive."""
+        try:
+            if self.config.get("session_autosave", True) and \
+                    self.config.get("restore_session", True) and \
+                    self.project_dir:
+                self._save_session_snapshot()
+        except Exception:
+            errors.log_exception("session autosave", quiet=True)
+        try:
+            _secs = int(self.config.get("session_autosave_secs", 60)
+                        or 60)
+            _secs = max(15, min(600, _secs))
+            self._session_autosave_job = self.root.after(
+                _secs * 1000, self._autosave_session)
+        except Exception:  # noqa: BLE001 — dying root is fine
+            pass
+
+    def _restore_engine_session(self, project_path):
+        """DS2 v2.32: reopen tabs from the autosave engine snapshot.
+
+        Runs when no clean-exit record exists for this workspace — the
+        last autosaved snapshot (at most one minute old) becomes the
+        recovery point, cursors included. Best effort, never raises."""
+        try:
+            from . import session as _ds2_session
+            _ws = os.path.abspath(project_path)
+            tabs, active, cursor = _ds2_session.restore_plan(
+                _ds2_session.load(_ws))
+            if not tabs and not active:
+                return
+            for path in tabs:
+                if path != self.editor.file_path:
+                    try:
+                        self.open_file(path)
+                    except Exception:
+                        pass
+            if active and os.path.isfile(active):
+                try:
+                    self.open_file(active)
+                except Exception:
+                    pass
+            if cursor and active == self.editor.file_path:
+                try:
+                    self.editor.text.mark_set(
+                        "insert", f"{int(cursor[0])}.{int(cursor[1])}")
+                    self.editor.text.see("insert")
+                except Exception:
+                    pass
+            try:  # seed the per-buffer map so tab switches keep spots
+                data = _ds2_session.load(_ws)
+                for _p, _c in (data.get("cursor") or {}).items():
+                    self._buffer_cursors[_p] = \
+                        f"{int(_c.get('line', 1))}.{int(_c.get('col', 0))}"
+            except Exception:
+                pass
+        except Exception:
+            errors.log_exception("engine session restore", quiet=True)
+
+    # ------------------------------------------------------------------ run
+    def _on_close(self):
+        """WM_DELETE_WINDOW — save session, then quit cleanly."""
+        try:
+            self.stop_run(silent=True)
+            if self.config.get("restore_session", True) and \
+                    self.project_dir:
+                sessions = dict(self.config.get("session_tabs") or {})
+                sessions[os.path.abspath(self.project_dir)] = {
+                    "tabs": list(self._tab_frames),
+                    "active": self.editor.file_path or "",
+                }
+                # keep sessions for workspaces that still exist, max 20
+                kept = {p: v for p, v in sessions.items()
+                        if os.path.isdir(p)}
+                self.config.set(
+                    "session_tabs",
+                    dict(list(kept.items())[-20:]))
+        except Exception:
+            errors.log_exception("save session", quiet=True)
+        # DS2 v2.30/v2.32: richer session snapshot with cursor position
+        # (shared with the periodic autosave — same data, same file)
+        self._save_session_snapshot()
         # DS2: remember window geometry for this screen shape
         try:
             from .geom import remember_root
@@ -5237,6 +5316,8 @@ class SettingsDialog(tk.Toplevel):
         self.hub_v = tk.BooleanVar(value=bool(cfg.get("hub_on_startup", True)))
         self.session_v = tk.BooleanVar(
             value=bool(cfg.get("restore_session", True)))
+        self.sesauto_v = tk.BooleanVar(
+            value=bool(cfg.get("session_autosave", True)))
         self.updates_v = tk.BooleanVar(
             value=bool(cfg.get("check_updates", True)))
 
@@ -5333,6 +5414,9 @@ class SettingsDialog(tk.Toplevel):
                  "Create or reopen a workspace every launch."),
                 (self.session_v, "Restore last session",
                  "Reopen your tabs when you dive back into a workspace."),
+                (self.sesauto_v, "Autosave the session",
+                 "Snapshots tabs and cursor spots every minute, so even "
+                 "a crash comes back."),
                 (self.updates_v, "Check for updates",
                  "Quietly ask GitHub on boot; toast when a new release is up.")):
             row = tk.Frame(sec2, bg=t["card"])
@@ -5479,6 +5563,7 @@ class SettingsDialog(tk.Toplevel):
         cfg.set("splash_enabled", bool(self.splash_v.get()))
         cfg.set("hub_on_startup", bool(self.hub_v.get()))
         cfg.set("restore_session", bool(self.session_v.get()))
+        cfg.set("session_autosave", bool(self.sesauto_v.get()))
         cfg.set("check_updates", bool(self.updates_v.get()))
         # editor changes apply live; colours need the rebuild
         self.app.editor.set_font_size(cfg.get("editor_font_size", 11))
