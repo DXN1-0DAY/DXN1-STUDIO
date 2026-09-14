@@ -2046,6 +2046,11 @@ class DXN1Studio:
                     self.terminal.log(f"Process finished with exit code {code}")
                     self.status_ready.config(text="● Ready",
                                              fg=self.theme["success"])
+                    # DS2: a crash is a question — offer the answer
+                    if code != 0 and self._last_error_text():
+                        self.terminal.log(
+                            "stuck? type \u0060explain\u0060 and the agent "
+                            "will walk through that traceback")
                     done = True
                     continue
                 self.terminal.log_raw(item.rstrip("\n"))
@@ -2053,6 +2058,53 @@ class DXN1Studio:
             pass
         if not done:
             self.root.after(120, self._poll_process)
+
+    def _last_error_text(self, max_lines=60):
+        """The most recent traceback/error block in the terminal, or ''."""
+        try:
+            out = self.terminal.output
+            text = out.get("end-%dc" % 20000, "end-1c")   # cheap tail window
+            lines = text.split("\n")
+        except Exception:           # noqa: BLE001 — terminal stays alive
+            return ""
+        start = None
+        for i in range(len(lines) - 1, -1, -1):
+            low = lines[i].lower()
+            if ("traceback (most recent call last)" in low
+                    or low.rstrip().endswith("error:")
+                    or (": error" in low) or ("syntaxerror" in low)):
+                start = i
+                break
+        if start is None:
+            return ""
+        block = lines[start:start + max_lines]
+        return "\n".join(block).strip()
+
+    def explain_last_error(self):
+        """DS2: hand the last traceback to the agent chat (or clipboard)."""
+        err = self._last_error_text()
+        if not err:
+            self.terminal.log("no recent error found in the terminal")
+            return
+        prompt = ("This traceback just happened in my terminal. Explain "
+                  "the root cause in plain words, point at the exact "
+                  "line to change, and give a minimal fix:\n\n" + err)
+        try:
+            from .prompts import insert_into_agent
+            if self.agent_panel is not None and \
+                    insert_into_agent(self.agent_panel, prompt):
+                self.terminal.log(
+                    "traceback sent to the agent — press Enter to ask")
+                return
+        except Exception:           # noqa: BLE001 — fall through
+            pass
+        try:
+            self.root.clipboard_clear()
+            self.root.clipboard_append(prompt)
+            self.terminal.log(
+                "no agent panel open — explain-prompt copied to clipboard")
+        except Exception:           # noqa: BLE001
+            pass
 
     def stop_run(self, silent=False):
         if self.proc is not None and self.proc.poll() is None:
@@ -2172,6 +2224,10 @@ class DXN1Studio:
                 self.terminal.log("No recent files yet.")
             for i, r in enumerate(recents, 1):
                 self.terminal.log(f"  {i}. {r}")
+            return
+        if low == "explain":
+            # DS2: hand the last traceback to the agent chat
+            self.explain_last_error()
             return
         if low == "stats":
             # DS2: one-line file summary in the terminal, window via palette
@@ -2484,6 +2540,12 @@ class DXN1Studio:
         try:
             from .prompts import open_picker as _open_prompts
             from .prompts import insert_into_agent as _prompt_to_agent
+
+            def _explain_error_cmd():
+                self.explain_last_error()
+
+            cmds.append(("Explain the last error with the agent…", "DS2",
+                         _explain_error_cmd))
 
             def _prompt_ctx():
                 try:
