@@ -93,6 +93,14 @@ class InteractiveTour:
             "word-level diff viewer. All in the palette.",
             "center"))
         self.steps.append(TourStep(
+            None, "DS2: the developer pocket knife",
+            "Help → Developer Tools (or type 'tools' in the terminal): a "
+            "regex tester with live matches and replace preview, a JSON "
+            "fixer that points at the broken byte, a text transformer "
+            "(cases, base64, hashes) and a color lab with WCAG contrast "
+            "grades — all in one window.",
+            "center"))
+        self.steps.append(TourStep(
             None, "You're ready",
             "That's the studio — clean, fast and already yours. Start a new "
             "workspace from File → Project Hub anytime, and replay this tour "
