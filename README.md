@@ -1,30 +1,148 @@
+<div align="center">
+
+<img src="assets/logo.png" width="110" alt="DXN1 STUDIO logo"/>
+
 # DXN1 STUDIO
 
-A clean, modern IDE built from scratch with Python & Tkinter. Boot splash,
-Project Hub, workspaces (Python / Flask / Tkinter / empty), syntax
-highlighting, find-in-files, a command palette, one-click Run, optional
-dependency manager, project export, and **DXN1 Agents** — the sandboxed
-assistant that asks before it touches anything and can run on free cloud
-models (no account needed), a Google login, or your own API key.
+**The clean, modern IDE. Built for flow.**
 
-## Installation
+A from-scratch desktop IDE in pure Python + Tkinter — boot splash, Project Hub,
+workspaces, syntax highlighting, command palette, sandboxed AI agents on
+**free cloud models** (no account, no API key) or your own key. No Electron.
+No Node. No frameworks. ~10 MB of Python.
 
-Install globally with a single curl command:
+[![CI](https://github.com/DXN1-termux/DXN1-STUDIO/actions/workflows/ci.yml/badge.svg)](https://github.com/DXN1-termux/DXN1-STUDIO/actions/workflows/ci.yml)
+[![Version](https://img.shields.io/badge/version-1.1.2--beta-7c3aed?style=flat-square)](CHANGELOG.md)
+[![Python](https://img.shields.io/badge/python-3.8%2B-3776ab?style=flat-square&logo=python&logoColor=white)](https://www.python.org)
+[![Platform](https://img.shields.io/badge/platform-Linux%20%7C%20Termux%20%7C%20macOS%20%7C%20Windows-24292f?style=flat-square)](#requirements)
+[![License](https://img.shields.io/badge/license-MIT-3fb950?style=flat-square)](LICENSE)
+[![Stars](https://img.shields.io/github/stars/DXN1-termux/DXN1-STUDIO?style=flat-square&color=f1c232)](https://github.com/DXN1-termux/DXN1-STUDIO/stargazers)
+[![Issues](https://img.shields.io/github/issues/DXN1-termux/DXN1-STUDIO?style=flat-square&color=d9534f)](https://github.com/DXN1-termux/DXN1-STUDIO/issues)
+[![PRs welcome](https://img.shields.io/badge/PRs-welcome-7c3aed?style=flat-square)](CONTRIBUTING.md)
+[![Made with Tkinter](https://img.shields.io/badge/made%20with-Tkinter-ffde57?style=flat-square&labelColor=1c1a26)](https://docs.python.org/3/library/tkinter.html)
+
+<img src="assets/banner.png" alt="DXN1 STUDIO banner" width="100%"/>
+
+*Every screenshot in this README is the real app, captured headlessly with
+Xvfb — nothing is mocked.*
+
+</div>
+
+---
+
+## Table of contents
+
+- [Screenshots](#screenshots)
+- [Why DXN1 STUDIO](#why-dxn1-studio)
+- [Install](#install)
+- [Launch](#launch)
+- [First launch](#first-launch)
+- [Project Hub](#project-hub)
+- [The IDE](#the-ide)
+- [DXN1 Agents](#dxn1-agents)
+- [Packages — lightweight by default](#packages--lightweight-by-default)
+- [Export](#export)
+- [Keyboard & terminal](#keyboard--terminal)
+- [Requirements](#requirements)
+- [Project structure](#project-structure)
+- [Roadmap](#roadmap)
+- [Contributing](#contributing)
+- [License](#license)
+
+## Screenshots
+
+<table>
+<tr>
+<td width="50%" align="center">
+<img src="assets/screens/01_project_hub.png" alt="Project Hub" width="100%"/><br/>
+<b>Project Hub</b> — scaffold, open, clone from GitHub, or jump back into a recent workspace
+</td>
+<td width="50%" align="center">
+<img src="assets/screens/02_ide_agents.png" alt="IDE with DXN1 Agents" width="100%"/><br/>
+<b>The IDE + DXN1 Agents</b> — every agent edit arrives as a diff card with Accept / Decline
+</td>
+</tr>
+<tr>
+<td width="50%" align="center">
+<img src="assets/screens/04_command_palette.png" alt="Command palette" width="100%"/><br/>
+<b>Command palette</b> — Ctrl+K, fuzzy over every studio command
+</td>
+<td width="50%" align="center">
+<img src="assets/screens/07_light_theme.png" alt="Light theme" width="100%"/><br/>
+<b>Light theme</b> — dark & light, six accent colours, editor text size to taste
+</td>
+</tr>
+</table>
+
+<details>
+<summary><b>More screenshots</b> — wizard, agent skills, packages</summary>
+
+<table>
+<tr>
+<td width="50%" align="center">
+<img src="assets/screens/06_wizard.png" alt="Welcome wizard" width="100%"/><br/>
+<b>Welcome wizard</b> — name, theme, first project, optional agents — five steps
+</td>
+<td width="50%" align="center">
+<img src="assets/screens/03_agent_skills.png" alt="Agent skills" width="100%"/><br/>
+<b>Agent skills</b> — offline helpers that work with zero setup
+</td>
+</tr>
+<tr>
+<td colspan="2" align="center">
+<img src="assets/screens/05_packages.png" alt="Packages view" width="72%"/><br/>
+<b>Packages view</b> — the one opt-in place for the heavy stuff
+</td>
+</tr>
+</table>
+
+</details>
+
+## Why DXN1 STUDIO
+
+| | DXN1 STUDIO | Typical Electron IDE |
+|---|---|---|
+| RAM at idle | ~60–90 MB (it's Tkinter) | 400 MB – 1.5 GB |
+| Install size | ~10 MB, one curl command | 300+ MB |
+| Startup | instant, logo splash 2s | spinner city |
+| AI agents | free cloud brain, **no account needed**, sandboxed to your workspace | BYOK only, often cloud-tied |
+| Dependencies | Python 3.8 + Tkinter. That's the list | ships a browser |
+| Network stack | stdlib `urllib` | bundled Chromium |
+
+Built to run beautifully everywhere Python runs — including **Termux on
+Android**, old laptops, and Raspberry Pi boards that would melt under
+Electron.
+
+## Install
+
+One command — global install, launcher on your PATH:
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/DXN1-termux/DXN1-STUDIO/master/install.sh | bash
 ```
 
-After installation, add `~/.local/bin` to your PATH if not already present:
+<details>
+<summary><b>Manual install</b> (no curl-pipe-bash, we respect that)</summary>
+
+```bash
+git clone https://github.com/DXN1-termux/DXN1-STUDIO.git
+cd DXN1-STUDIO
+./install.sh            # same installer, local copy
+# or run straight from the tree:
+python3 dxn1-studio
+```
+
+</details>
+
+If `dxn1` isn't found afterwards:
 
 ```bash
 export PATH="$HOME/.local/bin:$PATH"
 ```
 
-## Launching
+## Launch
 
-The boot sequence: you get the logo card for ~2 seconds, then the studio
-rises. Any of these work:
+The boot sequence: logo card for ~2 seconds, then the studio rises.
 
 ```bash
 dxn1 studio          # the classic way
@@ -42,7 +160,7 @@ dxn1 studio --no-splash       # skip the boot splash this once
 dxn1 studio --smoke-test      # headless self-check (CI-safe, temp config)
 ```
 
-## First Launch
+## First launch
 
 1. **Boot splash** — the logo card, two seconds, done
 2. **Welcome wizard** — hero splash + your display name
@@ -58,137 +176,157 @@ Replay the wizard or tour anytime from the **Help** menu.
 
 Every session starts at the Hub:
 
-- **New Python Script** — ready-to-run `main.py`
-- **New Flask Web App** — `app.py` + template + `requirements.txt`
-- **New Tkinter App** — native desktop starter
-- **Empty Workspace** — a clean folder
-- **Open existing folder** — any folder becomes a tracked workspace
-- **Clone from GitHub** — paste `owner/repo` or a URL, watch `git clone`
-  live in the Hub, land in the cloned workspace
-- **Recent workspaces** — one click back into your latest work
-  (with relative timestamps, per-row remove, clear-all)
+| | |
+|---|---|
+| **New Python Script** | ready-to-run `main.py`, zero dependencies |
+| **New Flask Web App** | `app.py` + template + `requirements.txt` |
+| **New Tkinter App** | native desktop starter |
+| **Empty Workspace** | a clean folder, your ideas |
+| **Open existing folder** | any folder becomes a tracked workspace |
+| **Clone from GitHub** | paste `owner/repo` or a URL, watch `git clone` live |
+| **Recent workspaces** | one click back in, relative timestamps, per-row remove |
 
-Workspaces can live anywhere; DXN1 keeps track of them in
-`~/.dxn1-studio/config.json`. Reopen the Hub anytime via **File → Project Hub**.
+Workspaces can live anywhere; DXN1 keeps track in `~/.dxn1-studio/config.json`.
+Reopen via **File → Project Hub**.
 
 ## The IDE
 
-- Modern dark & light themes with **6 accent colours** (violet, cyan, green,
-  orange, rose, blue)
-- **Activity bar** — slim icon rail switching the sidebar between Explorer,
-  Search and Packages, plus Hub and Agents shortcuts
-- **Syntax highlighting** — regex-based, zero dependencies, theme-aware
-  (Python, HTML/CSS/JS, JSON, Markdown, and more)
-- **File explorer** — expandable folders, click to open
-- **Tab buffers** — unsaved ● markers, Ctrl+W close, Ctrl+Tab cycle,
-  middle-click close
-- **Find bar** — Ctrl+F in-file find with hit counting and prev/next
-- **Find-in-files** — workspace-wide search with grouped results, click to
-  jump to the exact line
-- **Command palette** — Ctrl+K / Ctrl+Shift+P, fuzzy over every studio command
-- **Toasts** — small notifications for saves, exports and errors
-- **Editor extras** — word wrap toggle, Ctrl+ +/− text size, auto-save option
-- **Run system** — F5 executes the active file (or your workspace's
-  `app.py`/`main.py`) and streams output live into the terminal
-- **Interactive terminal** — type `help` for studio commands:
-  `run`, `stop`, `clear`, `packages`, `search <query>`, `find <text>`,
-  `palette`, `hub`, `export`, `agent <request>`, `settings` — and the
-  classic `dxn1 studio` replays the boot splash
-- **Git branch** in the status bar when the workspace is a repo
-- **Error log** — uncaught exceptions land in `~/.dxn1-studio/logs/studio.log`
-  with a friendly toast instead of a dead window
-- Keyboard: Ctrl+N/O/S/W/K/F, Ctrl+Tab, F5 run, Ctrl+, settings
+**Editing**
+- Syntax highlighting for Python, HTML/CSS/JS, JSON, Markdown and more —
+  regex-based, zero dependencies, theme-aware
+- Tab buffers with unsaved ● markers, Ctrl+W close, Ctrl+Tab cycle
+- In-file find bar (Ctrl+F) with hit counting and prev/next
+- Word wrap toggle, Ctrl+ +/− editor text size, auto-save option
+- Full undo/redo history
 
-## Optional Packages (lightweight by default)
+**Moving around**
+- **Activity bar** — slim icon rail: Explorer, Search, Packages + Hub and
+  Agents shortcuts
+- **Command palette** — Ctrl+K / Ctrl+Shift+P, fuzzy over every command
+- **Find-in-files** — workspace-wide search, grouped results, click to jump
+  to the exact line
 
-DXN1 installs **nothing** behind your back. The **Packages** sidebar view
-(or Tools → Manage Packages) is the one opt-in place for the heavy stuff:
+**Running**
+- **F5** executes the active file (or the workspace's `app.py`/`main.py`)
+  and streams output live into the terminal
+- **Interactive terminal** with studio commands: `run`, `stop`, `clear`,
+  `packages`, `search`, `find`, `palette`, `hub`, `export`, `agent`, `settings`
+- Git branch shown in the status bar when the workspace is a repo
+
+**Quality of life**
+- Toasts for saves, exports, errors
+- Uncaught exceptions land in `~/.dxn1-studio/logs/studio.log` with a
+  friendly toast instead of a dead window
+
+## DXN1 Agents
+
+The built-in copilot. Two layers:
+
+### Instant skills — offline, always available
+
+No key, no network, no setup:
+
+```text
+create file utils.py        → starter template, created in your workspace
+new flask app               → complete scaffold, wired and ready
+run                         → executes your project
+install flask               → pip, streamed into the terminal
+open app.py                 → opens any workspace file
+explain                     → analyzes the editor buffer
+shell python -V             → proposes raw commands (you approve)
+```
+
+### Model brains — pick one in Settings → DXN1 Agents
+
+| Brain | What it is | Cost |
+|-------|------------|------|
+| **Local skills** | The offline rule engine | free, no setup |
+| **Free cloud** | Pollinations — no account, no API key, **no login at all**; anonymous usage tracked per IP | free, rate-limited |
+| **BYOK** | Your key on any OpenAI-compatible provider — OpenRouter, Groq, Google AI Studio, Mistral, OpenAI, Ollama (local), custom endpoint | your key; OpenRouter `:free` models cost nothing |
+| **GitHub Models** | Free tier tracked via your GitHub login | free, rate-limited |
+| **Kilo gateway** | Free-model routing through an in-studio HTTP client — deliberately *not* a bundled Kilo instance, so it adds near-zero RAM instead of hundreds of MB | your Kilo token |
+
+The whole backend layer is standard-library `urllib` — no SDKs, no Node, no
+helper processes. Backends that report usage feed a live `steps · tokens`
+counter under the chat input.
+
+**Connect a brain — inside the app.** Providers that need a login are wired
+through the in-app **Connect** flow: the studio opens the provider page, you
+sign in, paste the token back into the studio window, hit Test & Save.
+Nothing is handed to other apps; keys live only in
+`~/.dxn1-studio/config.json` on your machine. Live model lists can be fetched
+per provider from the settings page.
+
+### System prompt, your way
+
+- **Style presets** — Default / Concise / Senior dev / Custom
+- **Extra instructions** — persona, house style, quirks; in Custom mode your
+  text *is* the personality
+- **Preview** — see the exact effective system prompt (sandbox boundaries and
+  live workspace listing included) before saving
+
+### Sandbox — the hard boundary
+
+The agent cannot see or touch your machine. Only your open workspace:
+
+- only paths resolving *inside the workspace* are reachable; `..` traversal,
+  absolute escapes and symlink escapes are rejected
+- `.git`, `.ssh` and studio internals are off-limits to reads *and* writes
+- commands run with the workspace as working directory
+- **catastrophic commands** (`rm -rf /`, `sudo`, pipe-to-shell downloads,
+  raw disk writes, forced pushes…) always require an explicit human Accept —
+  even in full-access mode
+
+### Permission model — the whole point
+
+- **Ask mode** *(default)* — every edit arrives as a unified-diff card with
+  **Accept / Decline**; every command is a proposal card
+- **Full access** — turn both prompts off in agent settings and it stops
+  asking; edits apply and commands run immediately (dangerous ones still ask)
+- Disable the assistant entirely and the panel disappears
+
+## Packages — lightweight by default
+
+DXN1 installs **nothing** behind your back. The **Packages** sidebar view (or
+Tools → Manage Packages) is the single opt-in place for the heavy stuff:
 Flask, Requests, httpx, Pillow, NumPy, Rich, pytest, Black, Ruff, FastAPI,
 Uvicorn — with a filter box, live `pip` output, version detection and
 uninstall. Power users can pip-install anything from the same view.
 
 ## Export
 
-- **File → Export Project as ZIP…** — the whole workspace, skipping caches
-  and venvs; Flask projects automatically get a `requirements.txt`
+- **File → Export Project as ZIP…** — the whole workspace, caches and venvs
+  skipped; Flask projects automatically get a `requirements.txt`
 - **File → Export Current File As…** — just the file you're editing
 
-## DXN1 Agents
+## Keyboard & terminal
 
-The built-in copilot. Two layers:
+| Shortcut | Action |
+|---|---|
+| Ctrl+N / Ctrl+O / Ctrl+S | new / open / save |
+| Ctrl+W · Ctrl+Tab | close tab · cycle tabs |
+| Ctrl+K or Ctrl+Shift+P | command palette |
+| Ctrl+F | find in file |
+| F5 | run project |
+| Ctrl+, | settings |
 
-**Instant skills (offline, always available)** — no key, no network:
-
-- create files with starter templates (`create file utils.py`)
-- scaffold a complete Flask app (`new flask app`)
-- run your project (`run`) and install packages (`install flask`)
-- open workspace files (`open app.py`), analyze the editor buffer (`explain`)
-- propose raw commands (`shell python -V`)
-
-**Model brains (Settings → DXN1 Agents → Brain)** — pick one:
-
-| Brain | What it is | Cost |
-|-------|------------|------|
-| **Local skills** | The offline rule engine | free, no setup |
-| **Free cloud** | Pollinations — no account, no API key, **no login at all**; anonymous usage tracked per IP | free, rate-limited |
-| **BYOK** | Your own API key on any OpenAI-compatible provider — OpenRouter, Groq, Google AI Studio, Mistral, OpenAI, Ollama (local), or a custom endpoint | your key; OpenRouter `:free` models cost nothing |
-| **GitHub Models** | Free tier tracked via your GitHub login (`gh auth token` if you're signed in, or paste a PAT) | free, rate-limited |
-| **Kilo gateway** | Free-model routing through a direct HTTP client built into the studio — deliberately *not* a bundled Kilo instance, so it adds near-zero RAM instead of hundreds of MB | your Kilo token |
-
-The whole backend layer is standard-library `urllib` — no SDKs, no Node,
-no helper processes. Model backends that report usage feed a live
-`steps · tokens` counter under the chat input.
-
-**Connect a brain — inside the app.** Providers that need a login (Google
-sign-in on Kilo or OpenRouter, GitHub tokens) are wired through the
-in-app **Connect** flow: the studio opens the provider page, you sign in,
-paste the key/token back into the studio window, hit Test & Save. Nothing
-is handed to other apps and the key is stored only in
-`~/.dxn1-studio/config.json` on your machine. You can even fetch each
-provider's live model list from the settings page.
-
-**What the brain can do** (tool loop with up to `agents_max_steps` steps
-per message): list and read workspace files, create/overwrite files,
-surgical find/replace edits, and run commands inside the workspace —
-feeding results back to the model until the task is done.
-
-**System prompt, your way:**
-
-- **Style presets** — Default / Concise / Senior dev / Custom
-- **Extra instructions** — persona, house style, quirks; in Custom mode
-  your text *is* the personality
-- **Preview** — see the exact effective system prompt (including the
-  sandbox boundaries and live workspace listing) before saving
-
-**Sandbox — the hard boundary:**
-
-- only paths that resolve *inside the open workspace* are reachable;
-  `..` traversal, absolute escapes and symlink escapes are rejected
-- `.git`, `.ssh` and studio internals are off-limits to reads and writes
-- commands run with the workspace as working directory
-- **catastrophic commands** (`rm -rf /`, `sudo`, pipe-to-shell downloads,
-  raw disk writes, forced pushes…) always require an explicit human
-  Accept — even in full-access mode
-
-**Permission model** — the whole point:
-
-- **Ask mode** (default): every edit (with a unified diff preview) and
-  every command arrives as a card with **Accept / Decline**
-- **Full access**: turn both prompts off in the agent settings and it
-  stops asking — edits apply and commands run immediately (dangerous
-  commands still ask)
-- the assistant can be disabled entirely; the panel disappears
-
-Find it in **Settings → DXN1 Agents** (or the ⚙ icon on the agent panel).
+Terminal one-liners: `run` · `stop` · `clear` · `packages` · `search <q>` ·
+`find <text>` · `palette` · `hub` · `export` · `agent <request>` · `settings`
+— and `dxn1 studio` replays the boot splash, because why not.
 
 ## Requirements
 
-- Python 3.8+
-- Tkinter (usually included; Debian/Ubuntu/Termux: `apt install python3-tk`)
-- Pillow (optional — crisp image scaling, falls back automatically)
-- Everything else is opt-in via the Packages view
+| | |
+|---|---|
+| Python | 3.8+ |
+| Tkinter | usually bundled; Debian/Ubuntu/Termux: `apt install python3-tk` |
+| Pillow | optional — crisp image scaling, falls back automatically |
+| Everything else | opt-in via the Packages view |
 
-## Project Structure
+## Project structure
+
+<details>
+<summary><b>Inside the tree</b></summary>
 
 ```
 DXN1-STUDIO/
@@ -212,11 +350,34 @@ DXN1-STUDIO/
 │   ├── sandbox.py           # Workspace jail, tool protocol, agent engine
 │   ├── llm.py               # Backends: free cloud, BYOK, GitHub Models, Kilo
 │   └── errors.py            # Global error logging + toasts
-├── assets/                  # Logo & generated artwork
+├── assets/                  # Logo, banner, real UI screenshots
 ├── install.sh               # Curl-based installer
 └── README.md
 ```
 
+</details>
+
+## Roadmap
+
+- [ ] **v1.2** — main-UI expansion: split editors, more wizard choices,
+      searchable settings
+- [ ] **v1.3** — more free providers + a usage dashboard
+- [ ] **v1.4** — git panel: stage, diff, commit without leaving the studio
+- [ ] **v2.0** — plugin API + community themes
+
+## Contributing
+
+PRs welcome — see [CONTRIBUTING.md](CONTRIBUTING.md). The short version:
+standard library first, the sandbox stays sacred, and test on dark *and*
+light. CI runs the headless smoke test on Python 3.10 and 3.12.
+
 ## License
 
-MIT
+[MIT](LICENSE) — do whatever, just keep the notice.
+
+<div align="center">
+<br/>
+<img src="assets/logo.png" width="44" alt=""/><br/>
+<sub><b>DXN1 STUDIO</b> — built with Python and Tkinter. No frameworks, no
+Electron, no apologies.</sub>
+</div>
