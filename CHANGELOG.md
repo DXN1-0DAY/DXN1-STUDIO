@@ -4,6 +4,19 @@ All notable changes to DXN1 STUDIO. Format based on
 [Keep a Changelog](https://keepachangelog.com/); versioning is
 `MAJOR.MINOR.PATCH` while in **beta**.
 
+## [2.1.0] — 2026-09-14 · beta · "the studio speaks your language"
+
+### Added
+- **Internationalization** (`i18n.py`) — a tiny, honest i18n layer with
+  **eight language packs**: English, Español, Français, Deutsch,
+  Português, 简体中文, हिन्दी, 日本語. Dotted keys, graceful English
+  fallback, `{placeholder}` support, and community packs as plain JSON
+  in `~/.dxn1-studio/lang/`. `tr()` never raises.
+- **Settings sync** (`sync.py`) — your setup, everywhere: export the
+  safe subset of preferences to a **private GitHub gist** and pull it
+  back on any machine. Reuses the GitHub CLI login (no new accounts);
+  secrets never travel — the bundle is keys-whitelisted by design.
+
 ## [2.0.0] — 2026-09-14 · beta · **"DXN1 STUDIO 2" — the DS2 grand release**
 
 Six releases in one sprint: the visual git suite, a remembering agent,
