@@ -28,10 +28,13 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y python3-tk xvfb
           python -m pip install --upgrade pip
-          python -m pip install Pillow
+          python -m pip install Pillow pytest
 
       - name: Byte-compile every module
         run: python -m compileall -q dxn1_studio
+
+      - name: DS2 engine test suite
+        run: python3 -m pytest tests/ -q
 
       - name: Import-check every DS2 module
         run: |
