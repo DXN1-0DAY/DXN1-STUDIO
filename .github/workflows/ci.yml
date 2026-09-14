@@ -14,7 +14,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        python: ["3.10", "3.12"]
+        python: ["3.9", "3.10", "3.11", "3.12", "3.13"]
     steps:
       - uses: actions/checkout@v4
 
@@ -33,8 +33,48 @@ jobs:
       - name: Byte-compile every module
         run: python -m compileall -q dxn1_studio
 
+      - name: Import-check every DS2 module
+        run: |
+          python3 - << 'PYEOF'
+          import importlib, sys
+          sys.path.insert(0, ".")
+          failed = []
+          import pkgutil, dxn1_studio
+          for m in sorted(n for _, n, _ in pkgutil.iter_modules(dxn1_studio.__path__)):
+              try:
+                  importlib.import_module(f"dxn1_studio.{m}")
+              except Exception as exc:
+                  failed.append(f"{m}: {exc}")
+          if failed:
+              print("IMPORT FAILURES:\n" + "\n".join(failed))
+              sys.exit(1)
+          print(f"all dxn1_studio modules import clean")
+          PYEOF
+
       - name: Boot the studio (headless smoke test)
         run: xvfb-run -a python3 dxn1-studio --smoke-test
 
       - name: Verify installer syntax
         run: bash -n install.sh
+
+      - name: Verify YAML/data assets parse
+        run: |
+          python3 - << 'PYEOF'
+          import glob, sys
+          try:
+              import yaml
+          except ImportError:
+              print("pyyaml unavailable — skipping (CI yaml is read by GitHub anyway)")
+              sys.exit(0)
+          bad = []
+          for path in glob.glob(".github/**/*.yml", recursive=True):
+              try:
+                  with open(path) as fh:
+                      yaml.safe_load(fh)
+              except Exception as exc:
+                  bad.append(f"{path}: {exc}")
+          if bad:
+              print("\n".join(bad))
+              sys.exit(1)
+          print(".github YAML assets parse clean")
+          PYEOF
