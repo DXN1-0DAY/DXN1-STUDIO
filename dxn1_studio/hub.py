@@ -346,6 +346,26 @@ class ProjectHub(tk.Toplevel):
         tk.Label(self, text="RECENT WORKSPACES", bg=C["overlay"],
                  fg=C["muted"], font=(FONT_UI, 9, "bold")
                  ).pack(anchor="w", padx=32, pady=(14, 6))
+        # DS2: filter the recents list as you type
+        filter_row = tk.Frame(self, bg=C["overlay"])
+        filter_row.pack(anchor="w", padx=32, fill=tk.X, pady=(0, 6))
+        self.filter_var = tk.StringVar()
+        self._filter_entry = tk.Entry(filter_row,
+                                      textvariable=self.filter_var,
+                                      bg=C["input_bg"], fg=C["text"],
+                                      insertbackground=C["text"],
+                                      relief=tk.FLAT, font=(FONT_MONO, 9),
+                                      highlightthickness=1,
+                                      highlightbackground=C["card_border"],
+                                      highlightcolor=self.accent)
+        self._filter_entry.pack(side=tk.LEFT, fill=tk.X, expand=True,
+                                ipady=4)
+        self._filter_entry.insert(0, "")
+        self._filter_entry.bind("<KeyRelease>",
+                                lambda e: self._refresh_recents())
+        tk.Label(filter_row, text="⌕ type to filter", bg=C["overlay"],
+                 fg=C["muted"], font=(FONT_UI, 8)).pack(side=tk.LEFT,
+                                                        padx=(8, 0))
         self.recents_box = tk.Frame(self, bg=C["overlay"])
         self.recents_box.pack(anchor="w", padx=32, fill=tk.X)
         self._refresh_recents()
@@ -420,49 +440,116 @@ class ProjectHub(tk.Toplevel):
         for w in self.recents_box.winfo_children():
             w.destroy()
         recents = projects.list_recent(self.config)
+        # DS2: pinned workspaces float to the top
+        pinned = self.config.get("pinned_projects") or []
+        recents.sort(key=lambda r: (r.get("path") not in pinned,))
+        needle = ""
+        try:
+            needle = self.filter_var.get().strip().lower()
+        except (AttributeError, tk.TclError):
+            pass
+        if needle:
+            recents = [r for r in recents
+                       if needle in r.get("name", "").lower()
+                       or needle in r.get("path", "").lower()]
         if not recents:
+            msg = ("No workspaces yet — your new projects will show up here."
+                   if not needle else
+                   f"Nothing matches '{needle}'.")
             tk.Label(self.recents_box,
-                     text="No workspaces yet — your new projects will show up here.",
+                     text=msg,
                      bg=C["overlay"], fg=C["muted"], font=(FONT_UI, 9)
                      ).pack(anchor="w", pady=(0, 2))
             return
+        # DS2: live workspace stats — computed once per refresh, capped
+        stats_map = {}
+        if len(recents) <= 8:
+            try:
+                from .workspace_stats import stats_for
+                for r in recents:
+                    stats_map[r.get("path", "")] = stats_for(
+                        r.get("path", ""))
+            except Exception:
+                stats_map = {}
         for r in recents:
-            row = tk.Frame(self.recents_box, bg=C["card"], highlightthickness=1,
-                           highlightbackground=C["card_border"])
-            row.pack(fill=tk.X, pady=3, ipady=5)
-            label, _, icon = projects.TEMPLATE_INFO.get(
-                r["kind"], ("Workspace", "", "◻"))
-            tk.Label(row, text=icon, bg=C["card"], fg=self.accent,
-                     font=(FONT_MONO, 8, "bold"), padx=6, pady=2
-                     ).pack(side=tk.LEFT, padx=(12, 4))
-            mid = tk.Frame(row, bg=C["card"])
-            mid.pack(side=tk.LEFT, fill=tk.X, expand=True)
-            tk.Label(mid, text=r["name"], bg=C["card"], fg=C["text"],
-                     font=(FONT_UI, 10, "bold"), anchor="w").pack(anchor="w")
-            tk.Label(mid, text=r["path"], bg=C["card"], fg=C["muted"],
-                     font=(FONT_UI, 8), anchor="w").pack(anchor="w")
-            tk.Label(row, text=rel_time(r.get("opened", "")),
-                     bg=C["card"], fg=C["muted"], font=(FONT_UI, 8),
-                     padx=6).pack(side=tk.LEFT)
-            tk.Label(row, text=label, bg=C["card"], fg=C["secondary"],
-                     font=(FONT_UI, 8), padx=6).pack(side=tk.LEFT)
-            remove = tk.Label(row, text="✕", bg=C["card"], fg=C["muted"],
-                              font=(FONT_UI, 9), cursor="hand2", padx=8)
-            remove.pack(side=tk.RIGHT)
-            remove.bind("<Button-1>", lambda e, p=r["path"]:
-                        self._remove_recent(p))
-            open_lbl = tk.Label(row, text="Open  →", bg=C["card"],
-                                fg=self.accent,
-                                font=(FONT_UI, 10, "bold"), cursor="hand2",
-                                padx=12)
-            open_lbl.pack(side=tk.RIGHT)
-            for w in (row, mid, open_lbl):
-                w.bind("<Button-1>", lambda e, p=r["path"], k=r["kind"]:
-                       self._finish_open(p, k))
-                w.bind("<Enter>", lambda e: row.config(
-                    highlightbackground=self.accent))
-                w.bind("<Leave>", lambda e: row.config(
-                    highlightbackground=C["card_border"]))
+            self._recent_row(r, stats_map.get(r.get("path", ""), {}),
+                             r.get("path") in pinned)
+
+    def _recent_row(self, r, stats, is_pinned):
+        """DS2: one recent card — richer info line, pin + remove actions."""
+        row = tk.Frame(self.recents_box, bg=C["card"], highlightthickness=1,
+                       highlightbackground=self.accent if is_pinned
+                       else C["card_border"])
+        row.pack(fill=tk.X, pady=3, ipady=5)
+        label, _, icon = projects.TEMPLATE_INFO.get(
+            r["kind"], ("Workspace", "", "◻"))
+        tk.Label(row, text=icon, bg=C["card"], fg=self.accent,
+                 font=(FONT_MONO, 8, "bold"), padx=6, pady=2
+                 ).pack(side=tk.LEFT, padx=(12, 4))
+        mid = tk.Frame(row, bg=C["card"])
+        mid.pack(side=tk.LEFT, fill=tk.X, expand=True)
+        name_row = tk.Frame(mid, bg=C["card"])
+        name_row.pack(anchor="w")
+        tk.Label(name_row, text=r["name"], bg=C["card"], fg=C["text"],
+                 font=(FONT_UI, 10, "bold"), anchor="w").pack(side=tk.LEFT)
+        if is_pinned:
+            tk.Label(name_row, text="  ⚑ pinned", bg=C["card"],
+                     fg=self.accent, font=(FONT_UI, 7, "bold")
+                     ).pack(side=tk.LEFT)
+        info = r["path"]
+        if stats:
+            try:
+                from .workspace_stats import summary_line
+                line = summary_line(stats)
+                if line:
+                    info = f"{r['path']}   ·   {line}"
+            except Exception:
+                pass
+        tk.Label(mid, text=info, bg=C["card"], fg=C["muted"],
+                 font=(FONT_UI, 8), anchor="w").pack(anchor="w")
+        tk.Label(row, text=rel_time(r.get("opened", "")),
+                 bg=C["card"], fg=C["muted"], font=(FONT_UI, 8),
+                 padx=6).pack(side=tk.LEFT)
+        tk.Label(row, text=label, bg=C["card"], fg=C["secondary"],
+                 font=(FONT_UI, 8), padx=6).pack(side=tk.LEFT)
+        pin_lbl = tk.Label(row, text="⚑" if is_pinned else "⚐",
+                           bg=C["card"],
+                           fg=self.accent if is_pinned else C["muted"],
+                           font=(FONT_UI, 11), cursor="hand2", padx=8)
+        pin_lbl.pack(side=tk.RIGHT)
+        pin_lbl.bind("<Button-1>", lambda e, p=r["path"]:
+                     self._toggle_pin(p))
+        remove = tk.Label(row, text="✕", bg=C["card"], fg=C["muted"],
+                          font=(FONT_UI, 9), cursor="hand2", padx=8)
+        remove.pack(side=tk.RIGHT)
+        remove.bind("<Button-1>", lambda e, p=r["path"]:
+                    self._remove_recent(p))
+        open_lbl = tk.Label(row, text="Open  →", bg=C["card"],
+                            fg=self.accent,
+                            font=(FONT_UI, 10, "bold"), cursor="hand2",
+                            padx=12)
+        open_lbl.pack(side=tk.RIGHT)
+        for w in (row, mid, open_lbl):
+            w.bind("<Button-1>", lambda e, p=r["path"], k=r["kind"]:
+                   self._finish_open(p, k))
+            w.bind("<Enter>", lambda e: row.config(
+                highlightbackground=self.accent))
+            w.bind("<Leave>", lambda e: row.config(
+                highlightbackground=C["card_border"]))
+
+    def _toggle_pin(self, path):
+        pinned = list(self.config.get("pinned_projects") or [])
+        if path in pinned:
+            pinned.remove(path)
+            self.on_log_pin("unpinned")
+        else:
+            pinned.insert(0, path)
+            self.on_log_pin("pinned")
+        self.config.set("pinned_projects", pinned)
+        self._refresh_recents()
+
+    def on_log_pin(self, verb):
+        pass  # hook for the studio log; hub usually has no logger
 
     def _remove_recent(self, path):
         recents = [r for r in (self.config.get("recent_projects") or [])

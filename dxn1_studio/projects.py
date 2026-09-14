@@ -30,11 +30,14 @@ TEMPLATE_INFO = {
     "cli":     ("CLI Tool",       "argparse app — flags, help, subcommands.", "cli"),
     "static":  ("Static Website", "HTML + CSS + JS — no build step, no deps.", "web"),
     "game":    ("Canvas Game",     "Tkinter game loop — keys, score, restart. F5 to play.", "game"),
+    "rust":    ("Rust Project",   "Cargo.toml + hello main.rs — cargo run ready.", "rust"),
+    "go":      ("Go Module",      "go.mod + main.go — idiomatic hello server.", "go"),
     "empty":   ("Empty Workspace", "A clean folder for your own ideas.", "folder"),
 }
 
 KIND_ORDER = ("python", "flask", "fastapi", "requests",
-              "tkinter", "package", "cli", "static", "game", "empty")
+              "tkinter", "package", "cli", "static", "game",
+              "rust", "go", "empty")
 
 
 def slugify(name):
@@ -499,6 +502,34 @@ def template_files(kind, name):
         }
     if kind == "game":
         return {"main.py": _GAME_APP.format(name=name)}
+    if kind == "rust":
+        slug = slugify(name).replace("-", "_")
+        pkg = slug if slug[:1].isalpha() else f"app_{slug}"
+        return {
+            "Cargo.toml":
+                '[package]\nname = "' + pkg + '"\nversion = "0.1.0"\n'
+                'edition = "2021"\n',
+            "src/main.rs":
+                '// ' + name + ' — scaffolded by DXN1 STUDIO\n'
+                'fn main() {\n'
+                '    println!("Hello from ' + name + '!");\n'
+                '}\n',
+            "README.md": _README_MD.format(name=name),
+        }
+    if kind == "go":
+        slug = slugify(name).lower().replace("-", "_")
+        mod = slug if slug[:1].isalpha() else f"app{slug}"
+        return {
+            "go.mod": "module " + mod + "\n\ngo 1.22\n",
+            "main.go":
+                '// ' + name + ' — scaffolded by DXN1 STUDIO\n'
+                'package main\n\n'
+                'import "fmt"\n\n'
+                'func main() {\n'
+                '    fmt.Println("Hello from ' + name + '!")\n'
+                '}\n',
+            "README.md": _README_MD.format(name=name),
+        }
     if kind == "empty":
         return {"README.md": _README_MD.format(name=name)}
     return {}
