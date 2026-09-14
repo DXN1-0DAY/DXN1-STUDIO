@@ -1257,3 +1257,65 @@ def test_clipboard_ring():
     assert len(preview_of("x" * 200)) == 90
     assert preview_of("x" * 200).endswith("…")
     assert preview_of(None) == "" and preview_of(5) == ""
+
+
+def test_markdown_preview_engine():
+    # DS2 v2.14.0 — zero-dependency markdown renderer
+    from dxn1_studio.markprev import (inline_spans, markdown_to_html,
+                                      parse_blocks)
+
+    # headings, hr, fenced code (lang captured, fence consumed)
+    blocks = parse_blocks("# Top\n\ntext\n\n---\n\n```py\nx=1\n```")
+    kinds = [b["type"] for b in blocks]
+    assert kinds == ["heading", "para", "hr", "code"]
+    assert blocks[0]["level"] == 1 and blocks[0]["text"] == "Top"
+    assert blocks[3]["lang"] == "py" and blocks[3]["text"] == "x=1"
+
+    # unclosed fence is tolerated
+    unclosed = parse_blocks("```\nstill code")
+    assert unclosed[0]["type"] == "code" and "still code" in \
+        unclosed[0]["text"]
+
+    # lists: ul (-/*/+) and ol (1./1)) with multi-item runs
+    ul = parse_blocks("- a\n* b\n+ c")
+    assert ul[0]["type"] == "ulist" and ul[0]["items"] == ["a", "b", "c"]
+    ol = parse_blocks("1. a\n2) b")
+    assert ol[0]["type"] == "olist" and ol[0]["items"] == ["a", "b"]
+
+    # blockquote folds lines, blank line separates blocks
+    q = parse_blocks("> one\n> two\n\nafter")
+    assert q[0]["type"] == "quote" and q[0]["text"] == "one two"
+    assert q[1]["type"] == "para"
+
+    # pipe table: header + separator + rows, cells trimmed
+    tb = parse_blocks("| a | b |\n| --- | :-: |\n| 1 | 2 |")
+    assert tb[0]["type"] == "table"
+    assert tb[0]["header"] == ["a", "b"] and tb[0]["rows"] == [["1", "2"]]
+
+    # paragraph folds continuation lines; snake_case stays plain
+    p = parse_blocks("one two\nthree four")
+    assert p[0]["text"] == "one two three four"
+    assert inline_spans("my_var") == [("plain", "my_var")]
+
+    # inline spans: every style recognized, unknown text preserved
+    spans = inline_spans("x **b** *i* ~~s~~ `c` [t](u) end")
+    kinds = [k for k, _ in spans]
+    assert kinds == ["plain", "bold", "plain", "italic", "plain",
+                     "strike", "plain", "code", "plain", "link",
+                     "plain"]
+    assert spans[9] == ("link", ("t", "u"))
+
+    # html export: escapes content, covers all block kinds
+    html = markdown_to_html("# h\n\n<b>&</b>\n\n| a |\n| --- |\n"
+                            "| 1 |\n\n> q\n\n- li\n\n```\ncd\n```\n\n"
+                            "fin")
+    assert html.startswith("<!doctype html>")
+    assert "<h1>h</h1>" in html
+    assert "&lt;b&gt;&amp;&lt;/b&gt;" in html
+    assert "<th>a</th>" in html and "<td>1</td>" in html
+    assert "<blockquote><p>q</p></blockquote>" in html
+    assert "<li>li</li>" in html and "cd" in html and "fin" in html
+
+    # hostile input never raises
+    assert parse_blocks("") == [] and parse_blocks(None) == []
+    assert markdown_to_html("```\nunclosed")  # still renders

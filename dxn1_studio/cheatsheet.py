@@ -87,6 +87,8 @@ SHEETS = [
                         "(Ctrl+Alt+S/D/H/R)"),
         ("clip", "Clipboard history — last 25 copies, double-click to "
                  "paste back (Ctrl+Shift+V)"),
+        ("md", "Markdown preview — live dual-pane render, tables + "
+               "code blocks, copy/export HTML (F5)"),
     ]),
     ("TERMINAL TALK", [
         ("help", "List every studio command"),

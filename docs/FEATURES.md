@@ -203,3 +203,14 @@
 | Smart dedupe | `ClipRing` engine | Re-copying an older entry moves it to the top instead of duplicating it; identical consecutive copies are ignored; empty/whitespace and non-string payloads never enter the ring |
 | One-line previews | list rows | Whitespace collapsed, 90-char cap with an ellipsis — multi-line snippets stay scannable |
 | Pure engine | `tests/test_ds2.py` | Ring bounds, eviction order, repeat-to-front, junk rejection, size coercion and preview truncation are all unit-tested |
+
+## Markdown Preview (v2.14.0)
+
+| Feature | Where | What it does |
+|---|---|---|
+| Dual-pane window | `markprev.py`, Workshop → *Markdown Preview…*, palette, terminal `md` / `preview` / `markdown` | Edit markdown on the left, see the rendered result on the right — opens pre-loaded with the current editor buffer |
+| Zero-dependency renderer | `parse_blocks` + `inline_spans` | Headings `#`–`######`, **bold**, *italic*, ~~strikethrough~~, `` `inline code` ``, fenced code blocks with language label, blockquotes, ordered/unordered lists, pipe tables, links, horizontal rules — no packages, pure stdlib |
+| Live re-render | debounced 300 ms on typing, F5 for instant | The preview follows your keystrokes; the status bar reports words, lines, blocks and render time in milliseconds |
+| HTML export | *Copy HTML* / *Export HTML…* buttons | One click copies a full standalone HTML document (embedded CSS) or saves it next to your notes |
+| Forgiving parser | engine, unit-tested | Unclosed fences, missing blank lines, snake_case text and empty input all degrade gracefully — the renderer never loses characters or raises |
+| Tests | `tests/test_ds2.py` | Every block kind, inline style, table cells, paragraph folding, HTML escaping and hostile-input paths covered |

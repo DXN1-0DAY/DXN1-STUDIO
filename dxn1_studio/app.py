@@ -1127,6 +1127,15 @@ class DXN1Studio:
         workshop_menu.add_command(
             label="Focus Timer…",
             command=_open_focus_menu)
+        # DS2: markdown preview (defensive)
+        def _open_md_menu():
+            self.open_markdown_preview()
+        try:
+            workshop_menu.add_command(
+                label="Markdown Preview…",
+                command=_open_md_menu)
+        except Exception:  # pragma: no cover — menu stays alive
+            pass
         workshop_menu.add_separator()
         workshop_menu.add_command(label="Token Usage Dashboard…",
                                   command=_open_usage_menu)
@@ -1486,6 +1495,21 @@ class DXN1Studio:
             open_cliphistory(self.root, self.theme,
                              paste_callback=_paste,
                              ring=self.clip_ring)
+        except Exception:  # noqa: BLE001 — menu stays alive
+            pass
+
+    def open_markdown_preview(self):
+        """DS2: live markdown preview of the current buffer."""
+        try:
+            from .markprev import open_markdown_preview
+            try:
+                text = self.editor.text.get("1.0", "end-1c")
+            except Exception:  # noqa: BLE001
+                text = ""
+            path = (getattr(self, "current_path", "")
+                    or getattr(self.editor, "path", "") or "")
+            open_markdown_preview(self.root, self.theme,
+                                  text=text, path=path)
         except Exception:  # noqa: BLE001 — menu stays alive
             pass
 
@@ -2500,6 +2524,8 @@ class DXN1Studio:
                     ("focus <min>", "pomodoro focus timer — work/break "
                                     "cycles with session dots"),
                     ("clip", "clipboard history — paste earlier copies"),
+                    ("md", "live markdown preview — dual-pane, HTML "
+                           "export"),
                     ("explain", "hand the last error to the agent"),
                     ("git <args>", "run git in the workspace (status, add,"),
                     ("", "commit, log… output streams below"),
@@ -2732,6 +2758,12 @@ class DXN1Studio:
             # DS2: clipboard history window
             self.paste_from_history()
             self.terminal.log("Clipboard history opened")
+            return
+        if low in ("md", "preview", "markdown"):
+            # DS2: markdown preview window
+            self.open_markdown_preview()
+            self.terminal.log("Markdown preview opened — edit left, "
+                              "render right, F5 re-renders")
             return
         if low.startswith("goto "):
             num = text[5:].strip()
@@ -3317,6 +3349,14 @@ class DXN1Studio:
         try:
             cmds.append(("Clipboard history — paste earlier copies…",
                          "DS2", _open_clip))
+        except Exception:  # pragma: no cover — palette stays alive
+            pass
+        # DS2: markdown preview (defensive)
+        def _open_md_palette():
+            self.open_markdown_preview()
+        try:
+            cmds.append(("Markdown preview — live dual-pane render…",
+                         "DS2", _open_md_palette))
         except Exception:  # pragma: no cover — palette stays alive
             pass
         # DS2: focus timer (defensive)

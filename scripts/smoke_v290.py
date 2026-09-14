@@ -153,6 +153,37 @@ def main():
     fwin2.update_idletasks()
     check("custom 50-min block", fwin2.engine.work == 50 * 60)
     fwin2.destroy()
+
+    # ---- markdown preview (same smoke, fifth lane)
+    from dxn1_studio.markprev import (markdown_to_html,
+                                      open_markdown_preview,
+                                      SAMPLE_DOC)
+    doc = "# Title\n\nbody **bold**\n\n| a | b |\n| --- | --- |\n" \
+          "| 1 | 2 |\n\n```py\nx=1\n```"
+    mwin = open_markdown_preview(root, theme, text=doc,
+                                 path="notes/demo.md")
+    mwin.update_idletasks()
+    check("markdown window opens", mwin.winfo_exists())
+    check("markdown source pane", mwin.src.get("1.0", "end-1c")
+          .startswith("# Title"))
+    view_text = mwin.view.get("1.0", "end-1c")
+    check("markdown renders heading", "Title" in view_text)
+    check("markdown renders table", "a" in view_text and "─" in
+          view_text)
+    check("markdown renders code", "x=1" in view_text)
+    check("markdown title from path", mwin._title() == "demo.md")
+    mwin.src.delete("1.0", "end")
+    mwin.src.insert("1.0", SAMPLE_DOC)
+    mwin.render_now()
+    check("sample doc renders", "DS2 Markdown Preview" in
+          mwin.view.get("1.0", "end-1c"))
+    html = markdown_to_html(SAMPLE_DOC)
+    check("html export shape", html.startswith("<!doctype html>")
+          and "<h1>DS2 Markdown Preview</h1>" in html)
+    mwin.render_now()
+    check("status shows render stats", "render" in
+          mwin.status.cget("text"))
+    mwin.destroy()
     root.destroy()
 
     failed = [n for n, ok in CHECKS if not ok]
