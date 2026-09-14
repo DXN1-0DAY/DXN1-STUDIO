@@ -18,6 +18,7 @@ from tkinter import ttk
 
 from .theme import FONT_UI, FONT_MONO
 from .widgets import TREE_SKIP
+from .i18n import tr
 
 try:  # DS2 visual git suite — optional at boot, never blocks the panel
     from . import gitgraph
@@ -152,11 +153,12 @@ class GitPanel(tk.Frame):
     # ------------------------------------------------------- placeholder
     def _placeholder(self, event=None):
         if not self.msg.get():
-            self.msg.insert(0, "Message (Ctrl+Enter to commit)")
+            self.msg.insert(0, tr("git.message_placeholder"))
             self.msg.config(fg=self.theme["text_muted"])
 
     def _placeholder_clear(self, event=None):
-        if self.msg.get().startswith("Message ("):
+        # compare a locale-safe prefix of the translated placeholder
+        if self.msg.get().startswith(tr("git.message_placeholder")[:8]):
             self.msg.delete(0, tk.END)
             self.msg.config(fg=self.theme["text"])
 

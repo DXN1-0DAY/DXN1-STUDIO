@@ -17,6 +17,7 @@ import tkinter as tk
 
 from . import APP_NAME, APP_VERSION, APP_CHANNEL
 from .onboarding import load_scaled
+from .i18n import tr
 
 ASSETS_DIR = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "assets")
 
@@ -118,7 +119,7 @@ class Splash:
 
         tk.Label(inner, text=APP_NAME, bg=DARK_BG, fg=TEXT,
                  font=("Segoe UI", 17, "bold")).pack(pady=(12, 0))
-        tk.Label(inner, text="The clean, modern IDE. Built for flow.",
+        tk.Label(inner, text=tr("app.tagline"),
                  bg=DARK_BG, fg=MUTED, font=("Segoe UI", 9)).pack(pady=(2, 0))
         tk.Label(inner, text=f"v{APP_VERSION} · {APP_CHANNEL.upper()}",
                  bg=DARK_BG, fg=self.accent,

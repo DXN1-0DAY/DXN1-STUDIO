@@ -18,6 +18,7 @@ from . import APP_NAME, APP_VERSION, APP_CHANNEL
 from .onboarding import load_scaled
 from . import projects
 from .theme import FONT_UI, FONT_MONO
+from .i18n import tr
 
 HUB_W, HUB_H = 940, 830
 
@@ -318,7 +319,7 @@ class ProjectHub(tk.Toplevel):
             tk.Label(self, image=hero, bg=C["overlay"]).pack(pady=(10, 0))
 
         name = self.config.get("name") or "developer"
-        tk.Label(self, text=f"Welcome back, {name}. Where to?",
+        tk.Label(self, text=tr("hub.welcome", name=name),
                  bg=C["overlay"], fg=C["text"], font=(FONT_UI, 20, "bold")
                  ).pack(anchor="w", padx=32, pady=(14, 2))
         tk.Label(self, text="Start something new, bring an existing folder, "
