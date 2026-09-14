@@ -109,3 +109,14 @@
 | Hub context menu | Project Hub, right-click a card | Open, Reveal in file manager, Open terminal here (5-way fallback), Copy path, Snapshot now (zip backup), Pin/Unpin, Remove — with a flash-status confirmation in the bottom bar |
 | Encoding + EOL chip | `app.py` statusbar | `UTF-8 · LF` (or `UTF-8 BOM` / `UTF-16` / `non-UTF8` / `CRLF` / `CR`) for the current file; sniffed per open, EOL live per keystroke |
 | Smarter error explainer | `app.py::extract_error_block` | Terminal `explain` now understands pytest `FAILED …::test` summaries and unittest `FAIL: test_x` headers (with assert context), guarded against ordinary "Failed to …" lines |
+
+## The Pocket Knife (v2.7.0)
+
+| Feature | Where | What it does |
+|---|---|---|
+| Developer tools window | `devtools.py`, Help → *Developer Tools…*, palette, terminal `tools` | Four tabs of everyday ammunition: regex, JSON, text and time — all engines pure and unit-tested, all state defensive |
+| Regex tester | Dev tools → *Regex* | Live match list with spans, capture groups and named-group hints; ignore-case / multiline / dotall toggles; replace-with preview; copy-all-rows; 500-match cap keeps the UI honest |
+| JSON workshop | Dev tools → *JSON* | Pretty (2/4), minify, validate, sort keys — errors report the exact `line X, col Y` of the offending byte |
+| Text transformer | Dev tools → *Text* | `snake_case`, `camelCase`, `PascalCase`, `kebab-case`, `CONST_CASE`, Title Case (understands `HTTPServer2`); base64 and URL encode/decode; `\u`/`\U` escape round-trips incl. astral plane; MD5/SHA-1/SHA-256; word/char/line counts; *↑ use output as input* chains transforms |
+| Time converter | Dev tools → *Time* | Ticking ISO clock (local or UTC), epoch ↔ ISO both directions, `Z`-suffix and naive-timestamp handling, relative labels (`3h ago`, `in 2d`) |
+| Terminal shortcuts | terminal `tools` / `devtools` / `regex` | Opens the window; `regex` seeds the pattern from the current editor selection |

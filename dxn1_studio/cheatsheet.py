@@ -52,6 +52,17 @@ SHEETS = [
         ("remember: …", "Teach the agent instantly from the chat — no "
                         "model call, instant confirmation"),
     ]),
+    ("POCKET KNIFE (DS2)", [
+        ("Dev tools", "Regex tester, JSON fixer, text transformer, time "
+                      "converter — one window (Help → Developer Tools, "
+                      "or type `tools` in the terminal)"),
+        ("regex tab", "Live matches with spans + groups, i/m/s flags, "
+                      "replace preview"),
+        ("json tab", "Pretty / minify / validate with line:col on errors"),
+        ("text tab", "snake/camel/kebab, base64, URL%, \\u escapes, "
+                     "MD5/SHA, word counts — chain via ↑"),
+        ("time tab", "epoch ↔ ISO ↔ '3h ago', ticking clock, local/UTC"),
+    ]),
     ("TERMINAL TALK", [
         ("help", "List every studio command"),
         ("run", "Execute the current project"),

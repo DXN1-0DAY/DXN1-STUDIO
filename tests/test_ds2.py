@@ -613,3 +613,106 @@ def test_extract_error_block_line_cap():
     tb = ("Traceback (most recent call last):\n"
           + "".join(f"  line {i}\n" for i in range(100)))
     assert len(ex(tb, max_lines=10).split("\n")) <= 10
+
+
+def test_devtools_case_and_codecs():
+    from dxn1_studio.devtools import (to_snake, to_camel, to_pascal,
+                                      to_kebab, to_const, to_title,
+                                      b64_encode, b64_decode,
+                                      url_encode, url_decode,
+                                      hashes, unicode_escape,
+                                      unicode_unescape, text_counts)
+    # identifier splitting across every naming style
+    for src in ("HTTPServer2", "http_server2", "HttpServer2"):
+        assert to_snake(src) == "http_server2"
+    assert to_snake("http-server-2") == "http_server_2"
+    assert to_camel("user_profile_name") == "userProfileName"
+    assert to_pascal("user profile") == "UserProfile"
+    assert to_kebab("PascalCaseInput") == "pascal-case-input"
+    assert to_const("apiKey") == "API_KEY"
+    assert to_title("hello-world") == "Hello World"
+    assert to_snake("") == "" and to_snake("   ") == ""
+    # codec round-trips
+    assert b64_decode(b64_encode("héllo 世界")[0])[0] == "héllo 世界"
+    assert b64_decode("!!!not base64!!!")[1] != ""
+    assert url_decode(url_encode("a b&c=d")[0])[0] == "a b&c=d"
+    h = hashes("abc")
+    assert h["md5"] == "900150983cd24fb0d6963f7d28e17f72"
+    assert len(h["sha256"]) == 64
+    esc, _ = unicode_escape("aéπ")
+    assert esc == "a\\u00e9\\u03c0"
+    assert unicode_unescape(esc)[0] == "aéπ"
+    astral, _ = unicode_escape("𝄞")
+    assert astral == "\\U0001d11e"
+    assert unicode_unescape(astral)[0] == "𝄞"
+    c = text_counts("hello world\nsecond\n")
+    assert c == {"chars": 19, "chars_no_ws": 16, "words": 3, "lines": 2}
+
+
+def test_devtools_regex_engine():
+    from dxn1_studio.devtools import (regex_matches, regex_do_replace,
+                                      regex_flags, MAX_MATCHES)
+    # groups + named groups + spans
+    ms, err = regex_matches(r"(\w+)@(\w+)\.com",
+                            "a@b.com and c@d.com")
+    assert err == "" and len(ms) == 2
+    assert ms[0]["start"] == 0 and ms[0]["end"] == 7
+    assert ms[0]["groups"] == ["a", "b"]
+    ms, _ = regex_matches(r"(?P<y>\d{4})-(?P<m>\d{2})", "2026-09")
+    assert ms[0]["groupdict"] == {"y": "2026", "m": "09"}
+    # flags engine
+    assert regex_matches("HELLO", "hello world",
+                         regex_flags("i"))[1] == ""
+    assert regex_matches("HELLO", "hello world")[0] == []
+    fm, _ = regex_matches(r"^b", "a\nb", regex_flags("m"))
+    assert fm and fm[0]["text"] == "b"
+    # bad pattern is an error, never an exception
+    ms, err = regex_matches("([unclosed", "x")
+    assert ms == [] and "pattern error" in err
+    # replace with backrefs + errors
+    out, err = regex_do_replace(r"(\w+)@example\.com",
+                                r"\1 AT example", "bob@example.com")
+    assert out == "bob AT example" and err == ""
+    out, err = regex_do_replace("a", r"\9nosuch", "a")
+    assert err != ""
+    # cap enforced
+    ms, _ = regex_matches("x", "x" * 3000)
+    assert len(ms) == MAX_MATCHES
+
+
+def test_devtools_json_and_time():
+    from dxn1_studio.devtools import (json_format, json_minify,
+                                      json_validate, epoch_to_iso,
+                                      iso_to_epoch, rel_time,
+                                      now_iso)
+    pretty, err = json_format('{"b":1,"a":[1,2]}', sort_keys=True)
+    assert err == ""
+    assert pretty.splitlines()[1].strip().startswith('"a"')
+    mini, err = json_minify('{ "a" : 1 }')
+    assert mini == '{"a":1}' and err == ""
+    # error carries line/col
+    _, err = json_format('{\n  "a": 1,\n}')
+    assert "line 2" in err or "line 3" in err
+    assert json_validate("nope") != ""
+    assert json_validate('{"ok": true}') == ""
+    # epoch <-> ISO round-trip (UTC, second resolution)
+    ep = 1_789_000_000
+    iso, err = epoch_to_iso(ep)
+    assert err == "" and iso.startswith("2026-")
+    back, err = iso_to_epoch(iso)
+    assert back == ep and err == ""
+    # 'Z' suffix + naive-means-UTC
+    assert iso_to_epoch("2026-01-01T00:00:00Z")[0] == \
+        iso_to_epoch("2026-01-01T00:00:00")[0]
+    # garbage is an error, never an exception
+    assert epoch_to_iso("not-a-number")[1] != ""
+    assert iso_to_epoch("gibberish")[1] != ""
+    # relative time engine
+    now = 1_800_000_000
+    assert rel_time(now - 7200, now=now) == "2h ago"
+    assert rel_time(now + 3 * 86400, now=now) == "in 3d"
+    assert rel_time(now + 3, now=now) == "in 3s"
+    assert rel_time(now - 61, now=now) == "1m ago"
+    assert rel_time(now, now=now) == "now"
+    assert rel_time("junk") == ""
+    assert now_iso().startswith("20")

@@ -1021,6 +1021,12 @@ class DXN1Studio:
             open_cheatsheet(self.root, self.theme)
         help_menu.add_command(label="DS2 Cheat Sheet…",
                               command=_open_cheatsheet)
+        # DS2: the developer pocket knife — regex, JSON, text, time
+        def _open_devtools():
+            from .devtools import open_devtools
+            open_devtools(self.root, self.theme)
+        help_menu.add_command(label="Developer Tools…",
+                              command=_open_devtools)
         # DS2: the release notes, rendered (also auto-opens once per tag)
         def _open_whatsnew():
             from .whatsnew import open_whatsnew
@@ -2360,6 +2366,19 @@ class DXN1Studio:
             except Exception as exc:  # noqa: BLE001 — terminal stays alive
                 self.terminal.log(f"stats failed: {exc}")
             return
+        if low in ("tools", "devtools", "regex"):
+            # DS2: open the developer tools window (regex/JSON/text/time)
+            try:
+                from .devtools import open_devtools
+                win = open_devtools(self.root, self.theme)
+                sel = self.editor.text.get("sel.first", "sel.last") if low == "regex" else ""
+                if sel:
+                    win.rx_pattern_var.set(sel.strip())
+                self.terminal.log("Developer tools opened — regex, JSON, "
+                                  "text, time")
+            except Exception as exc:  # noqa: BLE001 — terminal stays alive
+                self.terminal.log(f"tools failed: {exc}")
+            return
         if low.startswith("goto "):
             num = text[5:].strip()
             if num.isdigit():
@@ -2794,6 +2813,15 @@ class DXN1Studio:
                 ("Task runner — project commands…", "DS2", _open_tasks),
                 ("Editor minimap on/off", "DS2", _toggle_minimap),
             ]
+        except Exception:  # pragma: no cover — palette stays alive
+            pass
+        # DS2: developer pocket knife (defensive)
+        def _open_devtools_palette():
+            from .devtools import open_devtools
+            open_devtools(self.root, self.theme)
+        try:
+            cmds.append(("Developer tools — regex, JSON, text, time…",
+                         "DS2", _open_devtools_palette))
         except Exception:  # pragma: no cover — palette stays alive
             pass
         return cmds
