@@ -4,6 +4,32 @@ All notable changes to DXN1 STUDIO. Format based on
 [Keep a Changelog](https://keepachangelog.com/); versioning is
 `MAJOR.MINOR.PATCH` while in **beta**.
 
+## [2.4.0] — 2026-09-14 · beta · "know your workspace"
+
+### Added
+- **File statistics explorer** (`filestats.py`) — the honest answer to
+  "what is in this workspace?": one read-only scan aggregates file
+  counts and bytes per extension, finds the largest files and reports
+  every noisy directory it skipped (.git, node_modules, caches,
+  venvs). The window renders summary cards, a per-extension bar chart
+  (click a bar to filter the list below) and a largest-files table
+  (double-click copies the path). Copy-report button, rescan, and a
+  CLI: `python3 -m dxn1_studio.filestats [dir]`. Palette → *File
+  statistics*; terminal `stats` prints the one-line summary.
+- **Recent-files fuzzy picker** (`recents.py`) — the File menu has
+  recents, muscle memory wants Quick-Open: type a few letters, arrows
+  to choose, Enter to jump. Relevance ranking puts basename prefix
+  hits above path substring hits, with a subsequence fallback, so
+  `util` finds `src/util.py` first. Palette → *Recent files…*.
+- **Plugin status items in the statusbar** — the plugin API could
+  register status items; now they actually show up. One compact label
+  (left of the agents status) refreshes every 5 s, capped at three
+  items so the bar stays calm, and survives broken plugin callbacks.
+
+### Fixed
+- Recents picker rendered an empty list on first open (shown-list
+  initialised after first render).
+
 ## [2.3.0] — 2026-09-14 · beta · "fourteen ways to start"
 
 ### Added
