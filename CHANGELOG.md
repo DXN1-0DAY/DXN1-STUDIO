@@ -4,6 +4,22 @@ All notable changes to DXN1 STUDIO. Format based on
 [Keep a Changelog](https://keepachangelog.com/); versioning is
 `MAJOR.MINOR.PATCH` while in **beta**.
 
+## [2.13.0] — 2026-09-14 · beta · "nothing copied is lost"
+
+### Added
+- **Clipboard history** (`clipboard.py`, Edit menu → *Paste from
+  History…*, palette, terminal `clip`, Ctrl+Shift+V) — a 1.5 s
+  background poller (defensive, never raises) watches the system
+  clipboard and keeps the last 25 distinct entries. The window pastes
+  any earlier copy at the editor cursor with one double-click;
+  repeats move to the top instead of duplicating; previews are
+  one-line, whitespace-collapsed, 90-char capped.
+
+### Tests
+- Engine suite **43 cases** (+clip ring: bounds, eviction, repeat-to-
+  front, junk rejection, preview truncation); boot QA 17/17 and a
+  live window check (selection copy, clear, clean close).
+
 ## [2.12.0] — 2026-09-14 · beta · "order from chaos"
 
 ### Added
