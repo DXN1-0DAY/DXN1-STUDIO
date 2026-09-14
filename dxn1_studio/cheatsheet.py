@@ -93,6 +93,12 @@ SHEETS = [
                   "verdicts, click-to-copy shade ramps"),
         ("rest", "REST Bench — send GET/POST/PATCH…, inspect status + "
                  "JSON, copy any request as curl (Ctrl+Enter)"),
+        ("chart", "Chart Studio — paste numbers, get line/bar/"
+                  "histogram views, stats and a sparkline"),
+        ("unit", "Unit Converter — length/mass/temperature/data/"
+                 "time/speed, all units at once, offline"),
+        ("lang", "Language — switch UI language packs (en es fr de "
+                 "pt zh hi ja), remembered across restarts"),
         ("scribe <n>", "Writing meter — ✎ chip in the statusbar shows "
                        "words, WPM and goal progress; click for a "
                        "session toast")

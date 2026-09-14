@@ -203,6 +203,48 @@ def main():
           cwin.info.cget("text"))
     cwin.destroy()
 
+    # ---- Chart Studio (same smoke, new lane)
+    from dxn1_studio.charts import (parse_series, scale_points,
+                                    open_chart_studio)
+    win = open_chart_studio(root, theme)
+    win.update_idletasks()
+    win.canvas.config(width=600, height=240)
+    check("chart studio window opens", win.winfo_exists())
+    check("chart studio parses sample", "n=20" in
+          win.stats.cget("text"))
+    check("chart studio statusbar", "render" in win.status.cget("text"))
+    win.kind.set("bar")
+    win.refresh()
+    check("chart studio bar mode", "bar" in win.status.cget("text"))
+    win.input.delete("1.0", "end")
+    win.input.insert("1.0", "zzz junk only ---")
+    win.refresh()
+    win.update_idletasks()
+    check("chart studio junk tolerated", "waiting for data" in
+          win.status.cget("text"))
+    win.destroy()
+
+    # ---- Unit Converter (same smoke, new lane)
+    from dxn1_studio.unitconv import convert, open_unit_converter
+    uwin = open_unit_converter(root, theme)
+    uwin.update_idletasks()
+    check("unit converter window opens", uwin.winfo_exists())
+    check("unit converter live result", "=" in
+          uwin.result.cget("text"))
+    check("unit converter all-units panel", "ft" in
+          uwin.table.cget("text"))
+    uwin.cat.set("temperature")
+    uwin._recat()
+    check("unit converter temp switch", "°" in uwin.result.cget("text")
+          or "C" in uwin.result.cget("text"))
+    uwin.value.set("garbage")
+    uwin.refresh()
+    check("unit converter junk tolerated", "waiting for a number" in
+          uwin.status.cget("text"))
+    check("unitconv engine offline", abs(convert(1, "km", "mi") -
+          0.621371192237) < 1e-9)
+    uwin.destroy()
+
     # ---- REST bench (same smoke, seventh lane)
     from dxn1_studio.restbench import (RestResponse, build_curl,
                                        format_size,

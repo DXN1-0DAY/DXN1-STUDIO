@@ -400,6 +400,12 @@ class DXN1Studio:
         self.smoke_test = smoke_test
         self.no_splash = no_splash
         self.restart_requested = False
+        # DS2: honour the persisted UI language (i18n activation)
+        try:
+            from .i18n import boot_from_config
+            boot_from_config(config)
+        except Exception:  # noqa: BLE001 — boot continues in English
+            pass
 
         self.root = tk.Tk()
         self.root.title(f"{APP_NAME}  ·  v{APP_VERSION}-{APP_CHANNEL}")
@@ -1174,6 +1180,24 @@ class DXN1Studio:
                 command=_open_rest_menu)
         except Exception:  # pragma: no cover — menu stays alive
             pass
+        # DS2: chart studio (defensive)
+        def _open_chart_menu():
+            self.open_chart_studio()
+        try:
+            workshop_menu.add_command(
+                label="Chart Studio — paste numbers, see them…",
+                command=_open_chart_menu)
+        except Exception:  # pragma: no cover — menu stays alive
+            pass
+        # DS2: unit converter (defensive)
+        def _open_unit_menu():
+            self.open_unit_converter()
+        try:
+            workshop_menu.add_command(
+                label="Unit Converter — length/mass/data…",
+                command=_open_unit_menu)
+        except Exception:  # pragma: no cover — menu stays alive
+            pass
         workshop_menu.add_separator()
         workshop_menu.add_command(label="Token Usage Dashboard…",
                                   command=_open_usage_menu)
@@ -1601,6 +1625,22 @@ class DXN1Studio:
         try:
             from .restbench import open_restbench
             open_restbench(self.root, self.theme)
+        except Exception:  # noqa: BLE001 — menu stays alive
+            pass
+
+    def open_chart_studio(self):
+        """DS2: paste-numbers charting window."""
+        try:
+            from .charts import open_chart_studio
+            open_chart_studio(self.root, self.theme)
+        except Exception:  # noqa: BLE001 — menu stays alive
+            pass
+
+    def open_unit_converter(self):
+        """DS2: unit conversion window."""
+        try:
+            from .unitconv import open_unit_converter
+            open_unit_converter(self.root, self.theme)
         except Exception:  # noqa: BLE001 — menu stays alive
             pass
 
@@ -2621,6 +2661,10 @@ class DXN1Studio:
                               "contrast, shade ramps"),
                     ("rest", "REST bench — send HTTP requests, "
                              "copy as curl, inspect responses"),
+                    ("chart", "chart studio — paste numbers, get line/"
+                              "bar/histogram + stats"),
+                    ("unit", "unit converter — length/mass/temp/data/"
+                             "time/speed at a glance"),
                     ("scribe <n>", "set the words-per-session goal for "
                                    "the statusbar writing meter"),
                     ("explain", "hand the last error to the agent"),
@@ -2873,6 +2917,44 @@ class DXN1Studio:
             self.open_restbench()
             self.terminal.log("REST Bench opened — Ctrl+Enter sends, "
                               "responses pretty-print JSON")
+            return
+        if low in ("chart", "charts", "plot"):
+            # DS2: chart studio window
+            self.open_chart_studio()
+            self.terminal.log("Chart Studio opened — paste numbers on "
+                              "the left, charts redraw live")
+            return
+        if low in ("unit", "units", "convert"):
+            # DS2: unit converter window
+            self.open_unit_converter()
+            self.terminal.log("Unit Converter opened — length/mass/"
+                              "temperature/data/time/speed, offline")
+            return
+        if low == "lang" or low.startswith("lang "):
+            # DS2: switch the UI language pack (i18n activation)
+            from . import i18n as _i18n
+            arg = text[4:].strip()
+            codes = _i18n.available()
+            if not arg:
+                self.terminal.log("languages: " + ", ".join(codes))
+                self.terminal.log("current: %s (usage: lang <code>)"
+                                  % _i18n.current())
+                return
+            pick = arg.lower()
+            if pick not in codes:
+                self.terminal.log("unknown language '%s' — available: %s"
+                                  % (pick, ", ".join(codes)))
+                return
+            _i18n.set_language(pick)
+            try:
+                self.config.set("language", pick)
+            except Exception:
+                pass
+            name = _i18n.LANG_NAMES.get(pick, pick)
+            self.terminal.log("language set to %s — %d strings live "
+                              "(new windows pick it up; tr() plumbing "
+                              "arrives window by window)"
+                              % (name, len(_i18n._active["pack"])))
             return
         if low == "scribe" or low.startswith("scribe "):
             # DS2: writing-meter goal / status
@@ -3506,6 +3588,22 @@ class DXN1Studio:
         try:
             cmds.append(("REST Bench — send HTTP requests…",
                          "DS2", _open_rest_palette))
+        except Exception:  # pragma: no cover — palette stays alive
+            pass
+        # DS2: chart studio (defensive)
+        def _open_chart_palette():
+            self.open_chart_studio()
+        try:
+            cmds.append(("Chart Studio — paste numbers, see them…",
+                         "DS2", _open_chart_palette))
+        except Exception:  # pragma: no cover — palette stays alive
+            pass
+        # DS2: unit converter (defensive)
+        def _open_unit_palette():
+            self.open_unit_converter()
+        try:
+            cmds.append(("Unit Converter — length/mass/data…",
+                         "DS2", _open_unit_palette))
         except Exception:  # pragma: no cover — palette stays alive
             pass
         # DS2: scribe goal (defensive)

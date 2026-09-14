@@ -264,3 +264,31 @@
 | Deterministic renderer | `sparkline()` / `delta_line()` | Junk input renders empty, all-equal series render mid blocks, over-long series bucket-compress (chunk max) — pure functions, fully unit-tested |
 | Forgiving store | `load_history()` / `append_history()` | Missing or corrupt history files rebuild silently on the next scan; persistence failures never break the stats window |
 | Tests | `tests/test_ds2.py` | Round-trips, dedupe, cap, first-scan/growth/shrink delta lines and corrupt-store recovery all covered with temp workspaces |
+
+## Chart Studio (v2.17.0 lane)
+
+| Feature | Where | What it does |
+|---|---|---|
+| Paste-to-chart | `charts.py`, Workshop → *Chart Studio — paste numbers, see them…*, palette, terminal `chart` / `charts` / `plot` | Paste logs, CSV columns, test timings or build sizes — any text containing numbers becomes a live chart, no external plotting library |
+| Four views | line / bar / histogram radiobuttons + a unicode sparkline strip | Line charts draw connected points, bar charts scale rectangles relative to the max, histograms bin the distribution (constant series get one honest bin), and the sparkline compresses long series into bucket means |
+| Stats panel | count / min / max / mean / median / stdev / range / sum | Recomputed on every keystroke (300 ms debounce), one click copies the whole summary to the clipboard |
+| Junk-tolerant parser | `parse_series()` | Splits on spaces/commas/semicolons/pipes, understands `12ms`, `5px`, `8%` suffixes and scientific notation, skips garbage tokens silently — a text box of nonsense renders a friendly "no numbers yet" instead of crashing |
+| Pure geometry | `scale_points()` / `bar_rects()` | Flat series draw a mid-height line, single points center, negative values hang below the zero line; pads respected; every function unit-tested including junk dimensions |
+
+## Unit Converter (v2.17.0 lane)
+
+| Feature | Where | What it does |
+|---|---|---|
+| Six categories | `unitconv.py`, Workshop → *Unit Converter — length/mass/data…*, palette, terminal `unit` / `units` / `convert` | Length, mass, temperature, data size, duration and speed — pick a category, type a value, read every unit converted at once |
+| Exact factors | mm→mi, kg→lb, MB→MiB, min→h, km/h→mph | Conversion tables carry full precision (international foot, avoirdupois pound, binary KiB/MiB/GiB family); temperature uses real C/F/K formulas instead of offsets |
+| All-units panel | list under the live result | Every unit in the category shown with the current value; the source unit is marked; one click copies the headline result |
+| Junk honesty | `convert()` returns `None`, UI shows `—` | Garbage input, unknown units and booleans are rejected politely; the status bar asks for a number instead of lying with a zero |
+| Offline | no network, no dependencies | Pure engine, fully unit-tested (factors, temperature formulas, junk tolerance, batch tables) |
+
+## Language Switcher (v2.17.0 — i18n activation)
+
+| Feature | Where | What it does |
+|---|---|---|
+| `lang` terminal command | terminal, persisted via config `language` key | `lang` lists available packs and the current one; `lang es` / `lang zh` / `lang ja` activates a pack — eight ship built-in (en es fr de pt zh hi ja) and any file dropped in `~/.dxn1-studio/lang/<code>.json` joins the list automatically |
+| Boot persistence | `i18n.boot_from_config()` at studio start | The remembered language is honoured on every launch, so the choice survives restarts |
+| Translation template | `i18n.export_template(dest, code)` | Community packs start from a complete JSON template — honest groundwork for the tr() plumbing that now has a switchable substrate |

@@ -4,6 +4,15 @@ All notable changes to DXN1 STUDIO. Format based on
 [Keep a Changelog](https://keepachangelog.com/); versioning is
 `MAJOR.MINOR.PATCH` while in **beta**.
 
+## [2.17.0] — 2026-09-14 · beta · "see the numbers, know the words"
+
+### Added
+- **Chart Studio** (`charts.py`, Workshop → *Chart Studio…*, terminal `chart` / `charts` / `plot`) — paste any text containing numbers and get instant line/bar/histogram views on a canvas, a unicode sparkline strip and a live stats panel (count/min/max/mean/median/stdev/range/sum) with copy-to-clipboard; junk-tolerant parser understands `12ms`, `5px`, `8%` suffixes and skips garbage tokens; zero plotting dependencies.
+- **Unit Converter** (`unitconv.py`, Workshop → *Unit Converter…*, terminal `unit` / `convert`) — six categories (length, mass, temperature, data, time, speed) with exact international factors and real C/F/K formulas; type a value and read every unit converted at once, swap units, copy the result; junk input shows an honest dash instead of a fake zero.
+- **Language switcher** (i18n activation, terminal `lang`) — the eight built-in language packs (en es fr de pt zh hi ja) are now reachable: `lang` lists them, `lang <code>` activates and persists across restarts via the new `boot_from_config()` hook; community packs in `~/.dxn1-studio/lang/` join automatically.
+
+### Changed
+- Terminal help, cheatsheet and Workshop menu now cover all three new tools; smoke harness extended to 77 checks, test suite to 51 groups.
 ## [2.16.0] — 2026-09-14 · beta · "the studio keeps score"
 
 ### Added

@@ -1627,3 +1627,68 @@ def test_filestats_scan_history():
         assert append_history(ws, snap)[0]["files"] == 12
     finally:
         shutil.rmtree(ws, ignore_errors=True)
+
+
+def test_chart_studio_engine():
+    """DS2 charts: series parsing, stats, geometry, sparkline."""
+    from dxn1_studio import charts
+    # parsing: separators, suffixes, junk tolerance
+    assert charts.parse_series("1 2,3;4|5") == [1.0, 2.0, 3.0, 4.0, 5.0]
+    assert charts.parse_series("12ms 5px 8% 2e3") == [12.0, 5.0, 8.0, 2000.0]
+    assert charts.parse_series("garbage -3.5 ok") == [-3.5]
+    assert charts.parse_series("") == []
+    assert charts.parse_series(None) == []
+    # summary
+    s = charts.summary([1, 2, 3, 4])
+    assert s["count"] == 4 and s["mean"] == 2.5 and s["median"] == 2.5
+    assert (s["min"], s["max"], s["range"]) == (1, 4, 3)
+    assert charts.summary([])["count"] == 0
+    # line geometry: pads respected, flat series draws mid-height
+    pts = charts.scale_points([0, 5, 10], 300, 200)
+    assert len(pts) == 3
+    assert pts[0][0] == 10.0 and pts[-1][0] == 290.0
+    assert all(p[1] == 100.0 for p in charts.scale_points([4, 4], 300, 200))
+    assert charts.scale_points([], 300, 200) == []
+    assert charts.scale_points([1], "x", 200) == []
+    # bar geometry: taller value → taller rect; negatives handled
+    rects = charts.bar_rects([2, 5, 1], 300, 200)
+    assert len(rects) == 3 and rects[1][3] > rects[2][3]
+    assert charts.bar_rects([], 300, 200) == []
+    # histogram: totals preserved, max clamped into the last bin
+    h = charts.histogram([1, 2, 3, 4, 5, 6, 7, 8, 9, 10], bins=5)
+    assert len(h) == 5 and sum(b[2] for b in h) == 10
+    assert charts.histogram([7, 7]) == [(7, 7, 2)]
+    assert charts.histogram([]) == []
+    # sparkline: deterministic ramp, flat mid, bucket compression
+    assert charts.sparkline([1, 2, 3, 4, 5]) == "▁▂▄▆█"
+    assert charts.sparkline([3, 3]) == "▅▅"
+    assert len(charts.sparkline(list(range(100)), width=10)) == 10
+    assert charts.sparkline([]) == ""
+
+
+def test_unitconv_engine():
+    """DS2 unitconv: factor conversion, temperature, junk tolerance."""
+    from dxn1_studio import unitconv
+    # exact factors
+    assert abs(unitconv.convert(1.0, "km", "mi") - 0.621371192237) < 1e-9
+    assert abs(unitconv.convert(1.0, "kg", "lb") - 2.204622621849) < 1e-9
+    assert abs(unitconv.convert(90.0, "min", "h") - 1.5) < 1e-12
+    assert unitconv.convert(2.5, "kg", "g") == 2500.0
+    # temperature formulas (auto-detected category)
+    assert unitconv.convert(100.0, "C", "F") == 212.0
+    assert abs(unitconv.convert(32.0, "F", "C")) < 1e-12
+    assert abs(unitconv.convert(0.0, "K", "C") + 273.15) < 1e-12
+    # junk in → None out; booleans rejected; strings accepted
+    assert unitconv.convert("abc", "km", "mi") is None
+    assert unitconv.convert(1.0, "zz", "mi") is None
+    assert unitconv.convert(True, "kg", "g") is None
+    assert unitconv.convert(" 2.5 ", "kg", "g") == 2500.0
+    # catalogue helpers + batch table
+    assert unitconv.categories() == sorted(unitconv.categories())
+    assert unitconv.units("nope") == []
+    batch = unitconv.batch_table(1.0, "kg", "mass")
+    assert dict(batch)["kg"] == 1.0 and dict(batch)["g"] == 1000.0
+    assert unitconv.batch_table(1.0, "zz", "mass") is None
+    # formatted strings never raise
+    assert unitconv.convert_str("x", "km", "mi") == "—"
+    assert unitconv.convert_str(1, "km", "mi").endswith("mi")
