@@ -4,6 +4,36 @@ All notable changes to DXN1 STUDIO. Format based on
 [Keep a Changelog](https://keepachangelog.com/); versioning is
 `MAJOR.MINOR.PATCH` while in **beta**.
 
+## [2.56.0] — 2026-09-15 · beta · "the desk grows eyes and tells no lies" (the honest ledger + a live preview of the studio in your pack)
+
+### Added
+- **The honest ledger** — `lang diff [code]` (`langedit.pack_diff()`):
+  the coverage meter can flatter — a pack seeded from English and
+  never edited shows 100% covered while every string still reads
+  English. The diff splits a pack's own strings into **real**
+  translations (they differ from English) and **untouched seeds**
+  (byte-identical — wearing the pack, not speaking it), alongside
+  missing / stale / unsafe, and prints `real_pct`: the number that
+  cannot lie. Bare `lang diff` names the current language; `en` is
+  refused ("it does not differ from itself"); unknown packs get the
+  list; seeds are named (up to 8) where you can act on them.
+- **Untouched filter** — the desk's fifth chip (All · **Untouched** ·
+  Missing · Stale · Unsafe): the seeds reviewable in place. Edit one
+  and it leaves the bucket at once; `pack_counts` carries the
+  counter and the meter prints it (`… · N untouched`), so the header
+  keeps telling the truth about seeds.
+- **Pack preview** — the desk grows eyes (`langedit.PackPreview`,
+  opened by the *Preview the studio* button or Ctrl+P): a slice of
+  the studio UI — title bar, menu bar, toolbar, sidebar, find bar —
+  rendered in the pack being edited, LIVE. Typing in the desk keeps
+  the preview up keystroke for keystroke, so Menu ▸ Settings…
+  becomes Ajustes… in context before saving. What the pack speaks
+  wears the accent; English that shows through stays grey (exactly
+  what `tr()` would answer). Closing the desk closes its eyes.
+- **Ctrl+P in the desk** — preview as a real gesture, advertised in
+  the desk's hint bar beside Ctrl+S; one press re-renders or raises
+  the open preview instead of stacking windows.
+
 ## [2.55.0] — 2026-09-15 · beta · "the translator gets a desk" (a real editor for language packs + a launcher that grows to fit)
 
 ### Added

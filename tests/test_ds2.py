@@ -6265,3 +6265,224 @@ def test_lang_edit(tmp_path):
         except tk.TclError:
             pass
         monkeypatch.undo()
+
+
+def test_lang_diff(tmp_path):
+    """DS2 v2.56 — the desk grows eyes and tells no lies: pack_diff
+    splits a pack's own strings into real translations and untouched
+    seeds (byte-identical to English — a seeded pack can show 100%
+    covered while 0% of it is real), pack_counts carries the honest
+    counter, the desk's fifth filter chip reviews those seeds in
+    place, the meter prints them, and the live PackPreview renders a
+    slice of the studio in the working copy — keeping up with every
+    keystroke, coloring what the pack speaks, closing with the desk.
+    `lang diff [code]` prints the ledger with honest refusals."""
+    import tkinter as tk
+    try:
+        root = tk.Tk(); root.withdraw()
+    except tk.TclError:
+        return
+    import json
+    import os
+    import pytest
+    import dxn1_studio.config as cfgmod
+    from dxn1_studio import i18n as i18nmod
+    from dxn1_studio import langedit as le
+
+    # --- data layer: the ledger cannot flatter
+    d = le.pack_diff("es")
+    assert d["code"] == "es" and d["name"] == "Español"
+    assert "menu.file" in d["real"]          # Archivo != File
+    assert d["seeds"] == []                  # es speaks for every key
+    assert d["real_pct"] == 100 and d["missing"] == [] \
+        and d["stale"] == []
+    # every seed really is byte-identical to English
+    own_es = le.own_translations("es")
+    assert all(own_es[k] == i18nmod.EN[k] for k in d["seeds"])
+    # a pack seeded from English and never edited: 100% covered,
+    # 0% real — exactly the lie the coverage meter tells
+    monkeypatch = pytest.MonkeyPatch()
+    lang_dir = tmp_path / "lang"
+    lang_dir.mkdir()
+    monkeypatch.setattr(i18nmod, "LANG_DIR", str(lang_dir))
+    le.save_user_pack("seedpack", dict(i18nmod.EN))
+    d2 = le.pack_diff("seedpack")
+    assert d2["real"] == [] and len(d2["seeds"]) == len(i18nmod.EN)
+    assert d2["real_pct"] == 0 and d2["missing"] == []
+    counts = le.pack_counts("seedpack")
+    assert counts["covered"] == counts["total"] \
+        and counts["untouched"] == len(d2["seeds"])
+    # mixed: real / seed / unsafe — unsafe is a property, not a
+    # bucket: an unsafe string still counts as real if it differs
+    le.save_user_pack("mixed", {"menu.file": "MiArchivo",
+                                "menu.edit": "Edit",
+                                "menu.run": "İşlet",
+                                "ghost.key": "old"})
+    d3 = le.pack_diff("mixed")
+    assert d3["real"] == ["menu.file", "menu.run"]
+    assert d3["seeds"] == ["menu.edit"]
+    assert d3["unsafe"] == ["menu.run"]
+    assert d3["stale"] == ["ghost.key"]
+    assert le.pack_diff("nosuch")["real"] == []
+    monkeypatch.undo()
+
+    # --- through the real app: verb, chip, meter, preview
+    monkeypatch = pytest.MonkeyPatch()
+    monkeypatch.setattr(cfgmod, "CONFIG_DIR", str(tmp_path / "cfg"))
+    monkeypatch.setattr(cfgmod, "CONFIG_PATH",
+                        str(tmp_path / "cfg" / "config.json"))
+    monkeypatch.setenv("HOME", str(tmp_path / "home"))
+    real_lang = tmp_path / "homelang"
+    monkeypatch.setattr(i18nmod, "LANG_DIR", str(real_lang))
+    from dxn1_studio.app import DXN1Studio, TERMINAL_HELP
+    app = DXN1Studio(cfgmod.Config(), smoke_test=True, no_splash=True)
+    try:
+        app.root.update()
+        # the help table knows the ledger
+        verbs_list = [r[0] for r in TERMINAL_HELP]
+        assert "lang diff [code]" in verbs_list, verbs_list
+        # `lang diff es` through the real dispatcher
+        logs = []
+        _old_log = app.terminal.log
+
+        def _rec(m, *a, **k):
+            logs.append(str(m))
+        app.terminal.log = _rec
+        try:
+            app.handle_terminal_command("lang diff es")
+            blob = "\n".join(logs)
+            assert "%d real translations" % len(i18nmod.EN) in blob, blob
+            assert "0 untouched seeds" in blob and "100% real" in blob
+            assert "real_pct cannot lie" in blob
+            # bare `lang diff` names the current language
+            i18nmod.set_language("fr")
+            logs.clear()
+            app.handle_terminal_command("lang diff")
+            assert any("lang diff fr" in m for m in logs), logs
+            i18nmod.set_language("en")
+            # the source of truth does not differ from itself
+            logs.clear()
+            app.handle_terminal_command("lang diff en")
+            assert any("does not differ from itself" in m for m in logs)
+            # unknown packs are refused with the list
+            logs.clear()
+            app.handle_terminal_command("lang diff NOPE!!")
+            assert any("unknown language" in m for m in logs), logs
+            # a seeded user pack shows its seeds in the ledger
+            le.save_user_pack("seedpack", dict(i18nmod.EN))
+            logs.clear()
+            app.handle_terminal_command("lang diff seedpack")
+            blob = "\n".join(logs)
+            assert "%d untouched seeds" % len(i18nmod.EN) in blob \
+                and "0 real translations" in blob, blob
+            assert "byte-identical to English" in blob
+        finally:
+            app.terminal.log = _old_log
+
+        # --- the desk: untouched chip + meter + live preview
+        app.handle_terminal_command("lang edit es")
+        app.root.update()
+        desks = [w for w in app.root.winfo_children()
+                 if isinstance(w, le.PackEditor)]
+        assert len(desks) == 1 and desks[0].code == "es"
+        desk = desks[0]
+        # the meter carries the honest counter
+        assert "0 untouched" in desk.meter.cget("text"), \
+            desk.meter.cget("text")
+        # the fifth chip exists and paints
+        assert set(desk._chips) == {"all", "untouched", "missing",
+                                    "stale", "unsafe"}
+        # clear one key, seed it back → exactly that key is untouched
+        desk._select_index(desk._row_keys.index("menu.file"))
+        desk._clear_key()
+        desk._seed_from_en()
+        desk._set_filter("untouched")
+        assert desk._row_keys == ["menu.file"], desk._row_keys
+        # editing it makes it real → out of the untouched bucket
+        desk._select_index(0)
+        desk.edit.delete("1.0", "end")
+        desk.edit.insert("1.0", "Archivador")
+        desk._flush_edit()
+        assert desk._row_keys == []
+        desk._set_filter("all")
+
+        # --- the preview: eyes for the desk
+        pv = desk._open_preview()
+        app.root.update()
+        assert isinstance(pv, le.PackPreview) and pv.winfo_exists()
+        assert pv.desk is desk and "es" in pv.title()
+        # every slice key renders; the pack-spoken ones wear accent
+        labels = []
+        for strip in pv.body.winfo_children():
+            for w in strip.winfo_children():
+                if isinstance(w, tk.Label):
+                    labels.append(w)
+        texts = {w.cget("text") for w in labels}
+        assert i18nmod.EN["menu.file"] not in texts     # it speaks
+        assert "Archivador" in texts                    # the edit, live
+        assert i18nmod.EN["app.tagline"] not in texts   # es speaks it
+        spoken = [w for w in labels if w.cget("fg") == pv.theme.accent]
+        assert spoken, "pack-spoken strings must wear the accent"
+        # a key the pack does NOT speak shows English, muted —
+        # use a fresh desk (no work) to prove the fallback path
+        desk2 = le.PackEditor(app, "tlh")
+        app.root.update()
+        pv2 = desk2._open_preview()
+        app.root.update()
+        labels2 = []
+        for strip in pv2.body.winfo_children():
+            for w in strip.winfo_children():
+                if isinstance(w, tk.Label):
+                    labels2.append(w)
+        assert i18nmod.EN["menu.file"] in \
+            {w.cget("text") for w in labels2}
+        assert not [w for w in labels2
+                    if w.cget("fg") == pv2.theme.accent]
+        # live: type into the desk, the preview keeps up
+        desk2._select_index(desk2._row_keys.index("menu.save"))
+        desk2.edit.delete("1.0", "end")
+        desk2.edit.insert("1.0", "Waqtaq")
+        desk2._flush_edit()
+        app.root.update()
+        texts2 = {w.cget("text") for strip in pv2.body.winfo_children()
+                  for w in strip.winfo_children()
+                  if isinstance(w, tk.Label)}
+        assert "Waqtaq" in texts2 and \
+            i18nmod.EN["menu.save"] not in texts2
+        # Ctrl+P re-opens the same window; Esc closes it
+        assert desk2._open_preview() is pv2
+        pv2._close()
+        app.root.update()
+        assert desk2._preview is None
+        assert not pv2.winfo_exists()
+        # closing the desk closes its preview — no orphaned eyes
+        pv3 = desk2._open_preview()
+        assert pv3 is not None and pv3.winfo_exists()
+        desk2._close()
+        app.root.update()
+        assert not [w for w in app.root.winfo_children()
+                    if isinstance(w, le.PackPreview)]
+        desk._close()
+
+        # source agreement: the ledger and the eyes are written
+        # where they run
+        base = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+        with open(os.path.join(base, "dxn1_studio", "langedit.py"),
+                  encoding="utf-8") as fh:
+            lesrc = fh.read()
+        assert "def pack_diff" in lesrc and "real_pct" in lesrc
+        assert "class PackPreview" in lesrc and "_open_preview" in lesrc
+        with open(os.path.join(base, "dxn1_studio", "app.py"),
+                  encoding="utf-8") as fh:
+            src = fh.read()
+        assert '"lang diff [code]"' in src
+    finally:
+        try:
+            app.root.destroy()
+        except tk.TclError:
+            pass
+        try:
+            root.destroy()
+        except tk.TclError:
+            pass
+        monkeypatch.undo()

@@ -1,4 +1,4 @@
-"""DXN1 STUDIO — the translation desk (DS2 v2.55).
+"""DXN1 STUDIO — the translation desk (DS2 v2.56).
 
 A real desk for pack translators. Until now a community pack meant
 hand-writing JSON against a key list you had to scrape out of the
@@ -7,6 +7,15 @@ marks what is missing, stale or highlight-unsafe, and saves a user
 pack to ``~/.dxn1-studio/lang/<code>.json`` — the file
 ``i18n.set_language`` already layers over the built-ins, so saved
 strings go live the moment their pack is active.
+
+v2.56 gave the desk eyes and a conscience: a live **preview**
+renders a slice of the studio UI in the pack you are editing (it
+keeps up as you type, so you see Menu ▸ Settings… become Ajustes…
+in context before saving), an **Untouched** filter reviews the
+strings that still read English byte-for-byte, and ``pack_diff`` /
+``lang diff`` print the honest ledger — real translations versus
+seeds — because a coverage meter can flatter a pack that was seeded
+and never edited.
 
 The model is the audit's (v2.54), restated as editing:
 
@@ -119,25 +128,65 @@ def save_user_pack(code, mapping):
 def pack_counts(code):
     """The desk's header numbers for a code, computed the same way
     ``i18n.pack_stats`` computes them: covered, total, missing,
-    stale, unsafe. Never raises."""
+    stale, unsafe — plus v2.56's honest counter, ``untouched``: the
+    pack's own strings that are byte-identical to English (seeded,
+    maybe, but not yet translated). Never raises."""
     en = _i18n.EN
     own = own_translations(code)
     in_en = set(en)
     covered = len([k for k in own if k in in_en])
     stale = len([k for k in own if k not in in_en])
     unsafe = len([k for k, v in own.items() if is_unsafe(v)])
+    untouched = len([k for k in own if k in in_en
+                     and own[k] == en[k]])
     total = len(en)
     pct = int(round(covered * 100.0 / total)) if total else 100
     return {"covered": covered, "total": total, "pct": pct,
             "missing": total - covered, "stale": stale,
-            "unsafe": unsafe}
+            "unsafe": unsafe, "untouched": untouched}
+
+
+def pack_diff(code):
+    """DS2 v2.56 — the honest ledger: how a pack REALLY differs from
+    the English source. The coverage meter can flatter: a pack
+    seeded from English and never edited shows 100% covered while
+    every string still reads English. The diff splits the pack's own
+    strings into **real** translations (they differ from English —
+    the pack speaks for itself) and **seeds** (byte-identical to
+    English — wearing the pack, not speaking it), alongside the
+    audit's missing / stale / and the highlight-unsafe property.
+
+    ``real_pct`` is the number that cannot lie: real translations
+    over the English total. Never raises."""
+    en = _i18n.EN
+    own = own_translations(code)
+    real, seeds, stale = [], [], []
+    unsafe = []
+    for key, val in own.items():
+        if is_unsafe(val):
+            unsafe.append(key)
+        if key not in en:
+            stale.append(key)
+        elif val == en[key]:
+            seeds.append(key)
+        else:
+            real.append(key)
+    missing = [k for k in en if k not in own]
+    total = len(en)
+    return {"code": code, "name": _i18n.LANG_NAMES.get(code, code),
+            "real": sorted(real), "seeds": sorted(seeds),
+            "missing": missing, "stale": sorted(stale),
+            "unsafe": sorted(unsafe),
+            "real_pct": (int(round(len(real) * 100.0 / total))
+                         if total else 100)}
 
 
 # ---------------------------------------------------------------- desk
 class PackEditor(tk.Toplevel):
     """The desk itself: every English key beside its translation,
-    filter chips (All / Missing / Stale / Unsafe), a search box, a
-    live unsafe warning and an atomic Save. Ctrl+S saves, Esc
+    filter chips (All / Untouched / Missing / Stale / Unsafe), a
+    search box, a live unsafe warning, a live preview of the studio
+    in this pack (Ctrl+P) and an atomic Save. Ctrl+S saves, Esc
     closes; selection loads the detail pane; typing commits into the
     working copy at once, so the meter is always honest."""
 
@@ -158,6 +207,7 @@ class PackEditor(tk.Toplevel):
         self.work = own_translations(self.code)
         self._filter = "all"
         self._current = None          # key shown in the detail pane
+        self._preview = None          # the live PackPreview, if open
 
         self._build_header()
         self._build_filters()
@@ -166,13 +216,16 @@ class PackEditor(tk.Toplevel):
 
         self.bind("<Escape>", lambda e: self._close())
         self.bind("<Control-s>", lambda e: self._save())
+        self.bind("<Control-p>", lambda e: self._open_preview())
         self.bind("<Destroy>", self._on_destroy, add="+")
         try:
             from . import hints
             self._hintbar = hints.hint_bar(
                 self, t,
-                pairs=(("Ctrl+S", "save pack"),),
-                notes=("click a key, type, Ctrl+S writes the pack",))
+                pairs=(("Ctrl+S", "save pack"),
+                       ("Ctrl+P", "preview this pack"),),
+                notes=("click a key, type, Ctrl+S writes the pack",
+                       "Ctrl+P shows the studio in what you typed",))
         except Exception:  # noqa: BLE001 — garnish
             self._hintbar = None
 
@@ -210,7 +263,9 @@ class PackEditor(tk.Toplevel):
         row = tk.Frame(self, bg=t["bg"])
         row.pack(fill=tk.X, padx=14)
         self._chips = {}
-        for key, label in (("all", "All"), ("missing", "Missing"),
+        for key, label in (("all", "All"),
+                           ("untouched", "Untouched"),
+                           ("missing", "Missing"),
                            ("stale", "Stale"), ("unsafe", "Unsafe")):
             chip = tk.Label(row, text=label, bg=t["card"],
                             fg=t["text"], cursor="hand2",
@@ -290,6 +345,12 @@ class PackEditor(tk.Toplevel):
                         font=(FONT_UI, 9), padx=10, pady=4)
         seed.pack(side=tk.LEFT, padx=(8, 0))
         seed.bind("<Button-1>", lambda e: self._seed_from_en())
+        prev = tk.Label(btns, text="Preview the studio",
+                        bg=t["card"], fg=t["text"], cursor="hand2",
+                        font=(FONT_UI, 9), padx=10, pady=4)
+        prev.pack(side=tk.LEFT, padx=(8, 0))
+        prev.bind("<Button-1>", lambda e: self._open_preview())
+        self.preview_btn = prev
         self.save_btn = tk.Label(btns, text="Save pack", bg=t.accent,
                                  fg="#ffffff", cursor="hand2",
                                  font=(FONT_UI, 9, "bold"),
@@ -349,6 +410,11 @@ class PackEditor(tk.Toplevel):
         f = self._filter
         if f == "all":
             return state != "hidden"
+        if f == "untouched":
+            # v2.56 — the pack's own string, byte-identical to the
+            # English source: seeded, maybe, but not yet translated
+            return (state == "translated"
+                    and val == _i18n.EN.get(key))
         if f == "missing":
             return state == "missing"
         if f == "stale":
@@ -364,8 +430,10 @@ class PackEditor(tk.Toplevel):
     def _meter_text(self):
         c = pack_counts(self.code)
         return ("%d/%d keys · %d%% · %d missing · %d stale · "
-                "%d unsafe" % (c["covered"], c["total"], c["pct"],
-                               c["missing"], c["stale"], c["unsafe"]))
+                "%d unsafe · %d untouched"
+                % (c["covered"], c["total"], c["pct"],
+                   c["missing"], c["stale"], c["unsafe"],
+                   c["untouched"]))
 
     # -------------------------------------------------------- actions
     def _set_filter(self, key):
@@ -390,6 +458,7 @@ class PackEditor(tk.Toplevel):
         except Exception:  # noqa: BLE001 — a dying window is fine
             pass
         self._refresh_rows()
+        self._refresh_preview()
 
     def _refresh_rows(self):
         try:
@@ -466,6 +535,7 @@ class PackEditor(tk.Toplevel):
             self._warn_check()
             self._refresh_rows()
             self.meter.config(text=self._meter_text())
+            self._refresh_preview()
         except Exception:  # noqa: BLE001 — the desk never raises
             pass
 
@@ -561,8 +631,159 @@ class PackEditor(tk.Toplevel):
         except Exception:  # noqa: BLE001 — dying root is fine
             pass
 
+    def _open_preview(self, _event=None):
+        """v2.56 — the desk grows eyes: open the live preview (or
+        refresh + raise the one already open). Ctrl+P or the button.
+        Returns the window or None — never raises."""
+        try:
+            if self._preview is not None \
+                    and self._preview.winfo_exists():
+                self._preview.refresh()
+                try:
+                    self._preview.lift()
+                except Exception:  # noqa: BLE001
+                    pass
+                return self._preview
+            self._preview = PackPreview(self)
+            return self._preview
+        except Exception:  # noqa: BLE001 — the desk never raises
+            return None
+
+    def _refresh_preview(self):
+        """Keep the preview honest on every keystroke — it renders
+        the working copy, so it must keep up while typing."""
+        try:
+            p = self._preview
+            if p is not None and p.winfo_exists():
+                p.refresh()
+        except Exception:  # noqa: BLE001 — garnish must not bite
+            pass
+
     def _on_destroy(self, _event=None):
-        pass  # nothing to clean: the working copy lives only here
+        # closing the desk closes its preview — no orphaned eyes
+        try:
+            p = self._preview
+            self._preview = None
+            if p is not None and p.winfo_exists():
+                p.destroy()
+        except Exception:  # noqa: BLE001 — teardown is best-effort
+            pass
+
+
+# ------------------------------------------------------------- preview
+class PackPreview(tk.Toplevel):
+    """The desk grows eyes: a slice of the studio UI rendered in the
+    pack being edited, live — type in the desk and the preview keeps
+    up, so Menu ▸ Settings… becomes Ajustes… in context BEFORE the
+    pack is saved. A string the pack does not speak shows English
+    (exactly what ``tr()`` would answer), in the muted color; a
+    string the pack DOES carry wears the accent. Never raises;
+    closing the desk closes it."""
+
+    # the slices, in studio anatomy order: (caption, keys)
+    SLICES = (
+        ("title bar", ("app.tagline",)),
+        ("menu bar", ("menu.file", "menu.edit", "menu.view",
+                      "menu.tools", "menu.help")),
+        ("toolbar", ("menu.new_file", "menu.open_file",
+                     "menu.save", "menu.run", "menu.stop")),
+        ("sidebar", ("panel.explorer", "panel.search",
+                     "panel.git", "panel.packages")),
+        ("find bar", ("menu.find", "menu.replace")),
+    )
+
+    def __init__(self, desk):
+        self.desk = desk
+        t = self.theme = desk.theme
+        super().__init__(desk)
+        self.title("Pack preview — %s" % desk.code)
+        self.configure(bg=t["bg"])
+        self.transient(desk)
+        self.resizable(True, True)
+        self.minsize(340, 300)
+        self.geometry("440x380")
+        self.protocol("WM_DELETE_WINDOW", self._close)
+        self.bind("<Escape>", lambda e: self._close())
+        self._build()
+        self.refresh()
+        try:
+            from . import hints
+            self._hintbar = hints.hint_bar(self, t)
+        except Exception:  # noqa: BLE001 — garnish
+            self._hintbar = None
+
+    def _build(self):
+        t = self.theme
+        head = tk.Frame(self, bg=t["bg"])
+        head.pack(fill=tk.X, padx=14, pady=(12, 0))
+        tk.Label(head, text="PACK PREVIEW", bg=t["bg"],
+                 fg=t["text"], font=(FONT_UI, 11,
+                                     "bold")).pack(anchor="w")
+        tk.Label(head, text="a slice of the studio in '%s' — live: "
+                            "it keeps up as you type in the desk"
+                            % self.desk.code,
+                 bg=t["bg"], fg=t["text_muted"], font=(FONT_UI, 9),
+                 wraplength=400, justify="left",
+                 anchor="w").pack(anchor="w", pady=(2, 1))
+        tk.Label(head, text="accent = the pack speaks for it · "
+                            "grey = English shows through",
+                 bg=t["bg"], fg=t["text_secondary"],
+                 font=(FONT_UI, 8), wraplength=400,
+                 justify="left", anchor="w").pack(anchor="w",
+                                                  pady=(0, 4))
+        self.body = tk.Frame(self, bg=t["bg"])
+        self.body.pack(fill=tk.BOTH, expand=True, padx=14,
+                       pady=(4, 8))
+
+    def working(self):
+        """The dict the preview renders: EN with the desk's live
+        working copy on top — what ``tr()`` would answer the moment
+        this pack is saved and activated."""
+        d = dict(_i18n.EN)
+        try:
+            d.update(self.desk.work)
+        except Exception:  # noqa: BLE001 — a dying desk previews EN
+            pass
+        return d
+
+    def refresh(self):
+        """Re-render every slice from the live working copy."""
+        try:
+            for w in self.body.winfo_children():
+                w.destroy()
+            t = self.theme
+            pack = self.working()
+            spoken = set(getattr(self.desk, "work", {}) or {})
+            for caption, keys in self.SLICES:
+                tk.Label(self.body, text=caption.upper(),
+                         bg=t["bg"], fg=t["text_muted"],
+                         font=(FONT_UI, 7, "bold")).pack(
+                    anchor="w", pady=(6, 1))
+                strip = tk.Frame(self.body, bg=t["card"],
+                                 highlightthickness=1,
+                                 highlightbackground=t["card_border"])
+                strip.pack(fill=tk.X)
+                for key in keys:
+                    val = pack.get(key) or key
+                    from_pack = key in spoken
+                    lab = tk.Label(strip, text=val,
+                                   bg=t["card"],
+                                   fg=t.accent if from_pack
+                                   else t["text_secondary"],
+                                   font=(FONT_UI, 9), padx=8, pady=3)
+                    lab.pack(side=tk.LEFT)
+        except Exception:  # noqa: BLE001 — a preview never bites
+            pass
+
+    def _close(self):
+        try:
+            self.desk._preview = None
+        except Exception:  # noqa: BLE001 — the desk may be gone
+            pass
+        try:
+            self.destroy()
+        except Exception:  # noqa: BLE001 — dying windows are fine
+            pass
 
 
 # ------------------------------------------------------------- chooser

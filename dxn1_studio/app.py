@@ -148,6 +148,9 @@ TERMINAL_HELP = (
     ("lang", "list available UI language packs and the current one"),
     ("lang audit", "every pack answers for itself — coverage, stale "
                    "keys, highlight-safe honest audit"),
+    ("lang diff [code]", "the honest ledger — real translations vs "
+                         "seeds that still read English, plus "
+                         "missing, stale and unsafe"),
     ("lang edit [code]", "open the translation desk — edit a pack "
                          "beside its English source; saved strings "
                          "become a user pack that overrides built-ins"),
@@ -3663,6 +3666,70 @@ class DXN1Studio:
                         "translated FROM, not edited")
                     return
                 self._open_lang_desk(rest)
+                return
+            if arg == "diff" or arg.startswith("diff "):
+                # DS2 v2.56 — the honest ledger: coverage can flatter
+                # (a pack seeded from English and never edited shows
+                # 100% while every string still reads English); the
+                # diff splits real translations from untouched seeds
+                from . import langedit as _le
+                rest = arg[4:].strip().lower()
+                code = rest or _i18n.current()
+                if code == "en":
+                    self.terminal.log(
+                        "English is the source of truth — it does not "
+                        "differ from itself; name a pack (lang diff "
+                        "<code> — available: %s)"
+                        % ", ".join(c for c in _i18n.available()
+                                    if c != "en"))
+                    return
+                if code not in _i18n.available():
+                    self.terminal.log(
+                        "unknown language '%s' — available: %s"
+                        % (code, ", ".join(_i18n.available())))
+                    return
+                try:
+                    d = _le.pack_diff(code)
+                except Exception:  # noqa: BLE001 — a verb never raises
+                    d = None
+                if not d:
+                    self.terminal.log("lang diff unavailable here")
+                    return
+                self.terminal.log(
+                    "lang diff %s — %s [%s]: %d real translation%s, "
+                    "%d untouched seed%s, %d missing, %d stale · "
+                    "%d%% real"
+                    % (code, d["name"],
+                       "user" if os.path.exists(
+                           os.path.join(_i18n.LANG_DIR,
+                                        code + ".json"))
+                       else ("built-in" if code in _i18n.PACKS
+                             else "new"),
+                       len(d["real"]),
+                       "" if len(d["real"]) == 1 else "s",
+                       len(d["seeds"]),
+                       "" if len(d["seeds"]) == 1 else "s",
+                       len(d["missing"]), len(d["stale"]),
+                       d["real_pct"]))
+                if d["seeds"]:
+                    sample = ", ".join(d["seeds"][:8])
+                    if len(d["seeds"]) > 8:
+                        sample += ", …"
+                    self.terminal.log(
+                        "  untouched (byte-identical to English — "
+                        "seeded, maybe, but not translated): " + sample)
+                if d["unsafe"]:
+                    self.terminal.log(
+                        "  NOT highlight-safe: "
+                        + ", ".join(d["unsafe"][:8]))
+                if d["stale"]:
+                    self.terminal.log(
+                        "  stale (the source dropped these): "
+                        + ", ".join(d["stale"][:8]))
+                self.terminal.log(
+                    "real_pct cannot lie: translations that differ "
+                    "from English, over the English total — edit the "
+                    "untouched ones in `lang edit %s`" % code)
                 return
             if arg == "audit":
                 # DS2 v2.54 — every pack answers for itself: coverage,
