@@ -90,6 +90,19 @@ def main():
                  "JWT decoder", ".env lint", "Data generator"):
         check(f"palette has {want}", want.lower() in labels.lower())
 
+    # 3b. scribe mini chip wired into the live statusbar
+    check("scribe chip engine exists",
+          getattr(app, "scribe_chip", None) is not None)
+    check("scribe label packed",
+          getattr(app, "status_scribe", None) is not None and
+          app.status_scribe.winfo_exists())
+    try:
+        app._scribe_feed()
+        fed = "✎" in app.status_scribe.cget("text")
+    except Exception:  # noqa: BLE001
+        fed = False
+    check("scribe feed renders text", fed)
+
     # 4. every DS2 opener module imports cleanly
     for mod, opener in (("devtools", "open_devtools"),
                         ("cronexp", "open_cron"),

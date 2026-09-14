@@ -502,6 +502,19 @@ class DXN1Studio:
         self.status_enc = tk.Label(right, text="", bg=t["statusbar"],
                                    fg=t["text_muted"], font=(FONT_UI, 8))
         self.status_enc.pack(side=tk.RIGHT, padx=(0, 12))
+        # DS2: scribe mini chip — live words/WPM/goal meter
+        self.scribe_chip = None
+        try:
+            from .scribe import ScribeChip
+            self.scribe_chip = ScribeChip(goal_words=int(
+                self.config.get("scribe_goal_words", 500)))
+        except Exception:  # noqa: BLE001 — chip is optional
+            self.scribe_chip = None
+        self.status_scribe = tk.Label(right, text="", bg=t["statusbar"],
+                                      fg=t["text_muted"],
+                                      font=(FONT_UI, 9), cursor="hand2")
+        self.status_scribe.pack(side=tk.RIGHT, padx=(0, 12))
+        self.status_scribe.bind("<Button-1>", self._scribe_click)
 
         # toast layer (placed above the status bar, right aligned)
         self.toast_layer = tk.Frame(self.root, bg=t["bg"])
@@ -1314,7 +1327,44 @@ class DXN1Studio:
                     info += f"  ·  {words} words"
             self.status_pos.config(text=info)
             self._update_enc_chip()   # DS2 v2.6: encoding + EOL chip
+            self._scribe_feed()       # DS2: scribe mini chip
         except Exception:
+            pass
+
+    # ---------------------------------------------------- DS2 scribe chip
+    def _scribe_feed(self, event=None):
+        """DS2: feed the scribe chip (throttled at both layers)."""
+        chip = getattr(self, "scribe_chip", None)
+        if chip is None:
+            return
+        try:
+            import time as _time
+            now = _time.time()
+            last = getattr(self, "_scribe_last_try", 0.0)
+            if now - last < 2.0:
+                return
+            self._scribe_last_try = now
+            words = len(self.editor.text.get("1.0", "end-1c").split())
+            chip.observe(words, now=now)
+            self.status_scribe.configure(text=chip.text())
+        except Exception:  # noqa: BLE001 — a chip must never kill UI
+            pass
+
+    def _scribe_click(self, _event=None):
+        """DS2: click the scribe chip for a session summary toast."""
+        try:
+            chip = self.scribe_chip
+            if chip is None:
+                return
+            from .scribe import format_count
+            msg = ("Writing session: %s words · current %d wpm · "
+                   "peak %d wpm · %.0f min"
+                   % (format_count(chip.words()), round(chip.wpm()),
+                      round(chip.peak_wpm()), chip.elapsed_min()))
+            if chip.goal_words > 0:
+                msg += " · goal %d%%" % chip.goal_pct()
+            self.toast(msg, "info")
+        except Exception:  # noqa: BLE001
             pass
 
     # ---------------------------------------------------- DS2 v2.6 encoding
@@ -2571,6 +2621,8 @@ class DXN1Studio:
                               "contrast, shade ramps"),
                     ("rest", "REST bench — send HTTP requests, "
                              "copy as curl, inspect responses"),
+                    ("scribe <n>", "set the words-per-session goal for "
+                                   "the statusbar writing meter"),
                     ("explain", "hand the last error to the agent"),
                     ("git <args>", "run git in the workspace (status, add,"),
                     ("", "commit, log… output streams below"),
@@ -2821,6 +2873,30 @@ class DXN1Studio:
             self.open_restbench()
             self.terminal.log("REST Bench opened — Ctrl+Enter sends, "
                               "responses pretty-print JSON")
+            return
+        if low == "scribe" or low.startswith("scribe "):
+            # DS2: writing-meter goal / status
+            arg = text[6:].strip()
+            chip = getattr(self, "scribe_chip", None)
+            if chip is None:
+                self.terminal.log("scribe chip unavailable")
+                return
+            if arg.isdigit() and int(arg) >= 0:
+                chip.set_goal(int(arg))
+                try:
+                    self.config.set("scribe_goal_words", int(arg))
+                except Exception:  # noqa: BLE001
+                    pass
+                self._scribe_feed()
+                self.terminal.log("scribe goal set to %s words — "
+                                  "click the ✎ chip for session "
+                                  "details" % arg)
+            else:
+                self.terminal.log(
+                    "scribe: %s — peak %d wpm, session %.0f min, "
+                    "goal %s%%"
+                    % (chip.text(), round(chip.peak_wpm()),
+                       chip.elapsed_min(), chip.goal_pct()))
             return
         if low.startswith("goto "):
             num = text[5:].strip()
@@ -3430,6 +3506,14 @@ class DXN1Studio:
         try:
             cmds.append(("REST Bench — send HTTP requests…",
                          "DS2", _open_rest_palette))
+        except Exception:  # pragma: no cover — palette stays alive
+            pass
+        # DS2: scribe goal (defensive)
+        def _scribe_goal_palette():
+            self._scribe_click()
+        try:
+            cmds.append(("Scribe meter — writing session details…",
+                         "DS2", _scribe_goal_palette))
         except Exception:  # pragma: no cover — palette stays alive
             pass
         # DS2: focus timer (defensive)

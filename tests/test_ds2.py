@@ -1537,3 +1537,37 @@ def test_window_geometry_memory():
     cfg2.set("window_geometry_by_screen", {"1920x1080": "bogus"})
     assert recall(cfg2, 1920, 1080) == ""
     assert screen_signature(1920, 1080) == "1920x1080"
+
+
+def test_scribe_chip():
+    # DS2 v2.16.0 lane — throttled statusbar writing meter
+    from dxn1_studio.scribe import ScribeChip, chip_text, format_count
+
+    assert format_count(1234) == "1,234"
+    assert format_count(-5) == "0" and format_count(0) == "0"
+    assert chip_text(0, 0, 0, goal=0) == "✎ 0 w · 0 wpm"
+    assert chip_text(1234, 27.4, 45, goal=500) == \
+        "✎ 1,234 w · 27 wpm · 45%"
+
+    c = ScribeChip(goal_words=100, min_interval=2.0)
+    assert c.observe(10, now=0.0) is True        # first lands
+    assert c.observe(15, now=1.0) is False       # throttled
+    assert c.observe(15, now=3.0) is True        # unthrottled + changed
+    assert c.words() == 15
+    assert c.observe(15, now=4.0) is False       # throttled
+    assert c.observe(15, now=5.5) is False       # same words, same text
+    assert "✎ 15 w" in c.text() and "15%" in c.text()
+    assert 0 <= c.wpm() <= 400                   # paste-spike cap holds
+
+    # goal handling: hide with 0, junk rejected, set works
+    c.set_goal(0)
+    assert "%" not in c.text()
+    assert c.set_goal("junk") is False
+    assert c.set_goal(40) is True
+    assert "37%" in c.text() or "38%" in c.text()
+
+    # reset starts fresh but keeps the goal
+    assert c.peak_wpm() >= 0
+    c.reset()
+    assert c.words() == 0 and c.goal_words == 40
+    assert c.observe(5, now=100.0) is True

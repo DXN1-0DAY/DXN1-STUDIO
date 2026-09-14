@@ -244,3 +244,13 @@
 | Clamp safety | `clamp_geometry` | Restored windows can never open off-screen or bigger than the display — a geometry left over from a since-disconnected monitor is pulled back inside the visible area |
 | LRU store | `remember()` | At most 8 screen shapes are kept (oldest evicted); re-remembering a shape moves it instead of duplicating; stored junk is ignored on recall |
 | Tests | `tests/test_ds2.py` | Parse/make round-trips (including negative offsets), clamping edge cases, LRU cap, signature isolation and junk-recall safety |
+
+## Scribe Mini Chip (v2.16.0 lane)
+
+| Feature | Where | What it does |
+|---|---|---|
+| Statusbar writing meter | `scribe.py` + statusbar right side, terminal `scribe` / `scribe 750` | A compact `✎ 1,234 w · 27 wpm · 45%` chip tracks the live word count, trailing words-per-minute and progress toward a session word goal — zen mode has the full card, the main editor now has the mini version |
+| Throttled observation | `ScribeChip.observe()` | Word counts are sampled at most every 2 s at the app layer and 2 s inside the engine, so even huge buffers never make typing laggy; paste spikes are capped like zen's tracker |
+| Session toast | click the chip | A toast summarizes the session: words, current WPM, peak WPM, elapsed minutes and goal percentage |
+| Goal control | terminal `scribe 750` / `scribe 0` | Sets the words-per-session goal (persisted in config); 0 hides the percentage part; `scribe` alone prints the current session stats |
+| Pure engine | `tests/test_ds2.py` | Throttle timing, change detection, goal hiding, junk rejection, paste-spike cap and reset-keeps-goal semantics are unit-tested with deterministic clocks |

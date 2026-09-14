@@ -92,7 +92,10 @@ SHEETS = [
         ("color", "Color Kit — hex/rgb/hsl at a glance, WCAG contrast "
                   "verdicts, click-to-copy shade ramps"),
         ("rest", "REST Bench — send GET/POST/PATCH…, inspect status + "
-                 "JSON, copy any request as curl (Ctrl+Enter)")
+                 "JSON, copy any request as curl (Ctrl+Enter)"),
+        ("scribe <n>", "Writing meter — ✎ chip in the statusbar shows "
+                       "words, WPM and goal progress; click for a "
+                       "session toast")
     ]),
     ("TERMINAL TALK", [
         ("help", "List every studio command"),

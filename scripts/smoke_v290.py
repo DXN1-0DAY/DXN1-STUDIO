@@ -260,6 +260,25 @@ def main():
     root.update_idletasks()
     check("geom applied to root", root.geometry().startswith(
         "%dx%d" % (sw, sh)))
+
+    # ---- scribe mini chip (same smoke, ninth lane — engine +
+    #      a real statusbar label, app-level wiring in boot_qa)
+    from dxn1_studio.scribe import ScribeChip
+    chip = ScribeChip(goal_words=100, min_interval=0.5)
+    chip.observe(120)
+    check("scribe chip text renders", "✎ 120 w" in chip.text()
+          and "100%" in chip.text())
+    lbl = tk.Label(root, text="")
+    chip2 = ScribeChip(goal_words=250, min_interval=0.0)
+    for _ in range(3):
+        chip2.observe(10 + _)
+        lbl.configure(text=chip2.text())
+    check("scribe label updated", "✎ 12 w" in lbl.cget("text"))
+    chip2.reset()
+    check("scribe reset keeps goal", chip2.goal_words == 250
+          and chip2.words() == 0)
+    check("scribe goal hide", chip2.set_goal(0) is True
+          and "%" not in chip2.text())
     root.destroy()
 
     failed = [n for n, ok in CHECKS if not ok]
