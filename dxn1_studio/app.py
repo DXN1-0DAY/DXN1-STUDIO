@@ -2267,6 +2267,31 @@ class DXN1Studio:
             ]
         except Exception:  # pragma: no cover — palette stays alive
             pass
+        # ---- DS2 navigation: symbol outline (defensive)
+        try:
+            from .outline import open_outline as _open_outline
+
+            def _goto_line(line):
+                target = f"{int(line)}.0"
+                try:
+                    self.editor.text.mark_set("insert", target)
+                    self.editor.text.see(target)
+                    self.editor.text.focus_set()
+                    self._update_cursor_pos()
+                except Exception:  # noqa: BLE001 — best-effort jump
+                    pass
+
+            cmds.append(
+                ("Go to symbol in file…", "",
+                 lambda: _open_outline(
+                     self.root, self.theme,
+                     get_text=lambda: self.editor.get_content(),
+                     on_jump=_goto_line,
+                     path=getattr(self.editor, "file_path", "") or "",
+                     on_log=lambda m: self.terminal.log(m))),
+            )
+        except Exception:  # pragma: no cover — palette stays alive
+            pass
         if self.config.get("agents_enabled"):
             cmds += [
                 ("Toggle DXN1 Agents panel", "", self.toggle_agents_panel),
