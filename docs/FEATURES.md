@@ -99,3 +99,13 @@
 | Line tools | `widgets.py`, Edit menu | Sort lines (A→Z / numeric / Z→A) and Remove Duplicate Lines on the selection |
 | Error explainer | `app.py`, terminal `explain`, palette | Nonzero exit + traceback detected → one command hands the block to the agent with a fix-me prompt (clipboard fallback) |
 | What's New | `whatsnew.py`, Help → *What's New…* | The changelog rendered as a release rail + notes pane; auto-opens exactly once after each upgrade (`last_seen_version`) |
+
+## Knowing Your Places (v2.6.0)
+
+| Feature | Where | What it does |
+|---|---|---|
+| Hub insights strip | `workspace_stats.py` + Project Hub | An aggregate *at a glance* line above the recent workspaces: total workspaces, files, lines, disk size and the dominant languages across everything the hub tracks |
+| Branch chips | Project Hub cards | Every recent workspace shows its current git branch (`⎇ main`) — 4 s timeout, locked repos can't stall the hub |
+| Hub context menu | Project Hub, right-click a card | Open, Reveal in file manager, Open terminal here (5-way fallback), Copy path, Snapshot now (zip backup), Pin/Unpin, Remove — with a flash-status confirmation in the bottom bar |
+| Encoding + EOL chip | `app.py` statusbar | `UTF-8 · LF` (or `UTF-8 BOM` / `UTF-16` / `non-UTF8` / `CRLF` / `CR`) for the current file; sniffed per open, EOL live per keystroke |
+| Smarter error explainer | `app.py::extract_error_block` | Terminal `explain` now understands pytest `FAILED …::test` summaries and unittest `FAIL: test_x` headers (with assert context), guarded against ordinary "Failed to …" lines |
