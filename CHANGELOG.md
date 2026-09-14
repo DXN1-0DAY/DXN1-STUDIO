@@ -4,6 +4,44 @@ All notable changes to DXN1 STUDIO. Format based on
 [Keep a Changelog](https://keepachangelog.com/); versioning is
 `MAJOR.MINOR.PATCH` while in **beta**.
 
+## [2.52.0] — 2026-09-15 · beta · "the menus learn the keyboard" (chip menus answer to keys + the git menu wears its divergence + a real snapshot-interval picker)
+
+### Added
+- **Keyboard-ready chip menus** — right-click any statusbar chip (git,
+  deps, scribe, session autosave) and the menu now answers to the
+  keyboard: the first activatable row wakes up active so Enter takes
+  it straight away, Up/Down walk the rows, Escape closes, and the
+  menu answers to `Home`/`End` and digits `1…9` on top of Tk's own
+  traversal (digits count commands, never separators). A probe found
+  the root cause first: `tk_popup` takes an X grab and that grab is
+  what routes keys to the posted menu — the renderer had been
+  releasing it immediately since v2.42, so every chip menu was
+  mouse-only and Tk's own traversal starved.
+- **The unpost poller** — the grab is released the moment the menu
+  unposts (a 40ms watcher) and the focus hands back to wherever it
+  was; the intent is recorded on the menu (`_ds2_focus_back`) and the
+  rows are introspectable (`_ds2_rows`), same spirit as v2.50's
+  `bar.pairs`.
+- **Git menu wears its divergence** — the sync rows take the branch's
+  severity: red `Push to origin` / `Pull from upstream` when the
+  branch diverged, amber when one plain push or pull would settle it,
+  silent when already in sync — the same language the deps menu
+  learned in v2.51.
+- **Snapshot-interval picker** — Settings → Activity gains "Hours
+  between snapshots": a themed spinbox (1–168) that reads the saved
+  value, clamps on save, and lands junk on 24; the engine honors it
+  on every half-hourly beat, and bare `activity auto` now names the
+  interval in its report.
+
+### Fixed
+- **A grab left behind** — Tk's grab state is per-DISPLAY and
+  process-wide: a menu left posted with its grab at teardown kept
+  swallowing pointer events from whatever ran next (found by the
+  pytest interps). Programmatic opens (no pointer gesture) release
+  the grab at once, the poller releases it on unpost, and the
+  studio's quit path puts the menu away before the root goes down
+  (`_dismiss_chip_menu`).
+
 ## [2.51.0] — 2026-09-15 · beta · "the diary writes itself" (nightly activity auto-snapshot + a menu that wears its severity)
 
 ### Added

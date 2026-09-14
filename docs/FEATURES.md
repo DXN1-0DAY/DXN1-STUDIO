@@ -498,6 +498,20 @@
 | Git-graph zoom | `GitGraphWindow.zoom_step()` / `zoom_reset()`, keys `+` `−` `0` | A real row-density zoom (0.5×–3.0×): rows, lanes, dots, diagonal edges, click hit-testing and the scroll region rescale together, so a 200-commit repo reads as a trunk or as a spreadsheet at one keystroke; `F5` / `Ctrl+R` refresh from the keyboard |
 | Doc states the rule | `docs/KEYBINDINGS.md` — Tool windows (v2.48) | The keybindings doc gained the window keys and says the rule out loud: a key appears in a hint bar only if the code really binds it — unit-tested so it stays that way |
 
+## Menus That Learn the Keyboard (v2.52.0)
+
+| Feature | Where | What it does |
+|---|---|---|
+| Keyboard-ready chip menus | `_render_chip_menu()` | The probe that designed this round: `tk_popup` takes an X grab and that grab is exactly what routes key events to the posted menu — but the renderer released it immediately, so every chip menu since v2.42 was mouse-only and Tk's own Up/Down/Return/Escape/typeahead starved. A menu opened by a real right-click now KEEPS the grab while it is up |
+| The unpost poller | `_arm_menu_unpost_poll()` | The other half of the fix: a 40ms poller watches the posted menu and releases the grab the moment it unposts, handing the focus back to wherever it was — bounded, idempotent, and it dies quietly with its menu. Tk's grab state is per-DISPLAY and process-wide, so nothing may outlive the menu (found by the pytest interps) |
+| First row wakes up active | renderer, `menu.activate()` | The first activatable row is active the moment the menu opens: Enter takes it straight away, Up/Down walk from there — no blind arrow-pressing to find out whether the keyboard works |
+| Home / End / digits 1–9 | `_wire_menu_keys()` | Bound on the posted menu itself: Home/End jump to the first/last activatable row, digits run the Nth COMMAND (separators never count — the number is the number it is invoked by, the same trick the AI quick-actions launcher learned in v2.50) |
+| The programmatic seam | `event=None` | A menu opened without a pointer gesture (the tests' way in) releases the grab at once — nothing outlives the call. The lesson is written in the code: a grab left held at teardown keeps swallowing pointer events from whatever runs next |
+| Quit puts the menu away | `_dismiss_chip_menu()`, `_on_close()` | The studio's quit path unposts the last chip menu and releases its grab BEFORE the root goes down — leaving cleanly means leaving nothing behind |
+| Introspectable menus | `menu._ds2_rows`, `app._last_chip_menu` | The posted menu carries the rows it was built from (same spirit as v2.50's `bar.pairs`): tests assert a menu's promises without scraping labels |
+| Git menu wears its divergence | `_git_menu_entries()` | The sync rows take the branch's severity through the renderer's color element: red `Push to origin` / `Pull from upstream` when the branch diverged (push/pull blind is how commits get lost), amber when one plain push or pull would settle it, silent when already in sync — the same language the deps menu learned in v2.51 |
+| Interval picker | Settings → Activity | "Hours between snapshots" — a themed spinbox (1–168) replacing the hardcoded 24: reads the saved value, clamps on save, junk lands on 24. The engine reads it on every half-hourly beat, and bare `activity auto` names the interval in its report |
+
 ## The Diary Writes Itself (v2.51.0)
 
 | Feature | Where | What it does |

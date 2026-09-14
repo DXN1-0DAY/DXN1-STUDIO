@@ -84,6 +84,23 @@ really bind.
 | `Ctrl+Return` | Scratchpad: stamp a new bullet |
 | `Enter` / `Esc` | Writing-goal dialog: set / cancel |
 
+## Chip menus (v2.52)
+Right-click a statusbar chip (git, deps, scribe, session autosave) and
+the menu answers to the keyboard: a real right-click keeps Tk's grab
+while the menu is up — that grab is what routes keys to the posted
+menu — and an unpost poller releases it the moment the menu closes and
+hands the focus back. Up/Down/Return/Escape and first-letter jumping
+stay Tk's own menu traversal; the rows below are wired on top. The
+first activatable row wakes up active, so Enter takes it straight
+away. Digits count commands, never separators.
+| Keys | Action |
+|---|---|
+| `Home` / `End` | chip menus: first / last row |
+| `1…9` | chip menus: run that row |
+| `Up` / `Down` | move the selection (Tk's own traversal) |
+| `Enter` | run the active row — the first row is active on open |
+| `Esc` | close the menu, focus returns where it was |
+
 ## Tool windows (v2.50)
 The third wave of door signs — ten more windows learned keys, and the
 bar still refuses to advertise anything the code does not really

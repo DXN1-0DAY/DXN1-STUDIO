@@ -831,6 +831,7 @@ class DXN1Studio:
         self.status_git.bind("<Button-3>", self._git_chip_menu)
         self._git_sig_state = ""    # last state the git chip was drawn for
         self._git_probed_at = 0.0   # throttle — one git call max per 3s
+        self._last_chip_menu = None  # DS2 v2.52: the menu now introspects
         self._chip_tip(self.status_git,
                        "Source control — click opens the panel, "
                        "right-click for actions")
@@ -3716,11 +3717,18 @@ class DXN1Studio:
                                % ("on" if arg == "on" else "off"),
                                "success")
                 else:
+                    try:   # DS2 v2.52 — the report names the interval
+                        _rep_h = int(float(self.config.get(
+                            "activity_autosnap_hours", 24)))
+                        _rep_h = max(1, min(168, _rep_h))
+                    except Exception:  # noqa: BLE001
+                        _rep_h = 24
                     self.terminal.log(
-                        "nightly snapshots are %s — try: "
+                        "nightly snapshots are %s — every %dh — try: "
                         "activity auto on|off"
                         % ("on" if self.config.get(
-                            "activity_autosnap", False) else "off"))
+                            "activity_autosnap", False) else "off",
+                           _rep_h))
                 return
             self.terminal.log("try: activity · activity copy · "
                               "activity export [json|csv] [path] · "
@@ -5523,10 +5531,25 @@ class DXN1Studio:
                             "Enter"))
             entries.append(("Draft AI commit message",
                             self._ai_commit_from_chip))
+            # DS2 v2.52 — the sync rows wear the branch's divergence,
+            # the same severity language the deps menu learned in
+            # v2.51: red when the branch diverged (push/pull blind is
+            # how commits get lost), amber when one plain push or
+            # pull would settle it, silent when already in sync.
+            try:
+                ahead = int(st.get("ahead") or 0)
+                behind = int(st.get("behind") or 0)
+            except Exception:  # noqa: BLE001 — junk counts stay quiet
+                ahead = behind = 0
+            diverged = ahead > 0 and behind > 0
+            sync_c = "#f85149" if diverged else \
+                ("#f59e0b" if (ahead or behind) else None)
             entries.append(("Push to origin",
-                            lambda: self.run_command("git push")))
+                            lambda: self.run_command("git push"),
+                            "", sync_c if ahead else None))
             entries.append(("Pull from upstream",
-                            lambda: self.run_command("git pull")))
+                            lambda: self.run_command("git pull"),
+                            "", sync_c if behind else None))
             branch = str(st.get("branch") or "")
             if branch:
                 entries.append(("Copy branch name",
@@ -5546,6 +5569,16 @@ class DXN1Studio:
         v2.51 — a row may be ``(label, command, accel, color)`` and
         the label takes that foreground: the deps menu paints its
         repair rows with the same severity the chip itself wears.
+        v2.52 — the menu learns the keyboard. The X grab Tk takes at
+        post time is now KEPT while the menu is up (the old
+        release-immediately left the posted menu deaf: every key
+        kept flowing to the editor), and an unpost poller releases
+        the grab the moment the menu closes and hands the focus
+        back. The first activatable row wakes up active so Enter
+        takes it straight away; Up/Down/Return/Escape/first-letter
+        stay Tk's own menu traversal; Home/End and digits 1-9 are
+        wired on top. Introspectable: the posted menu carries
+        ``_ds2_rows`` and the app keeps ``self._last_chip_menu``.
         The popup itself is best-effort — a menu must never break
         typing."""
         try:
@@ -5569,12 +5602,168 @@ class DXN1Studio:
                     menu.add_command(label=label, command=cmd, **kw)
                 else:
                     menu.add_command(label=label, command=cmd)
+            self._wire_menu_keys(menu)
+            try:
+                prev_focus = self.root.focus_get()
+            except Exception:  # noqa: BLE001 — focus is garnish
+                prev_focus = None
             try:
                 x = getattr(event, "x_root", 0) or 0
                 y = getattr(event, "y_root", 0) or 0
                 menu.tk_popup(x, y)
             finally:
-                menu.grab_release()
+                # v2.52 — a menu opened by a REAL pointer gesture keeps
+                # Tk's grab while it is up: that grab is exactly what
+                # routes keys to the posted menu, and the unpost
+                # poller below releases it the moment the menu closes.
+                # A programmatic open (event=None — the tests' way in)
+                # has no gesture to serve and releases at once, so
+                # nothing outlives the call: Tk's grab state is
+                # per-DISPLAY and process-wide, and a grab left held
+                # at teardown keeps swallowing pointer events from
+                # whatever runs next (found by the pytest interps).
+                if event is None:
+                    menu.grab_release()
+            try:
+                menu._ds2_rows = [tuple(e) for e in entries]
+            except Exception:  # noqa: BLE001 — introspection is garnish
+                pass
+            try:
+                rows = self._menu_command_rows(menu)
+                if rows:
+                    menu.activate(rows[0])
+            except Exception:  # noqa: BLE001 — best-effort wake-up
+                pass
+            self._last_chip_menu = menu
+            self._arm_menu_unpost_poll(menu, prev_focus)
+        except Exception:  # noqa: BLE001 — a menu must never break typing
+            pass
+
+    @staticmethod
+    def _menu_command_rows(menu):
+        """DS2 v2.52 — the menu-entry indexes of every activatable
+        row (``type(i) == "command"``): Home/End/digits count in
+        THIS space, so separators never count and a row's number is
+        the number it is invoked by. Empty menus answer honestly:
+        ``[]``. Never raises."""
+        rows = []
+        try:
+            end = menu.index("end")
+            if end is None:
+                return rows
+            for i in range(end + 1):
+                try:
+                    if menu.type(i) == "command":
+                        rows.append(i)
+                except Exception:  # noqa: BLE001 — one bad row
+                    pass
+        except Exception:  # noqa: BLE001 — a dead menu owns nothing
+            pass
+        return rows
+
+    def _wire_menu_keys(self, menu):
+        """DS2 v2.52 — the chip menu's extra keys, bound on the menu
+        itself: Home/End jump to the first/last activatable row and
+        digits 1-9 run the Nth one (the same trick the AI
+        quick-actions launcher learned in v2.50). Up/Down/Return/
+        Escape/first-letter stay Tk's own menu traversal, which the
+        kept grab now feeds again. The handlers are kept on the
+        menu as ``_ds2_keys`` so tests drive them without scraping
+        labels. Never raises."""
+        try:
+            def _home(_event=None):
+                try:
+                    rows = self._menu_command_rows(menu)
+                    if rows:
+                        menu.activate(rows[0])
+                except Exception:  # noqa: BLE001
+                    pass
+                return "break"
+
+            def _end(_event=None):
+                try:
+                    rows = self._menu_command_rows(menu)
+                    if rows:
+                        menu.activate(rows[-1])
+                except Exception:  # noqa: BLE001
+                    pass
+                return "break"
+
+            def _run_nth(n):
+                def _go(_event=None):
+                    try:
+                        rows = self._menu_command_rows(menu)
+                        if 1 <= n <= len(rows):
+                            idx = rows[n - 1]
+                            menu.activate(idx)
+                            menu.invoke(idx)
+                    except Exception:  # noqa: BLE001
+                        pass
+                    return "break"
+                return _go
+
+            menu.bind("<Key-Home>", _home)
+            menu.bind("<Key-End>", _end)
+            for d in range(1, 10):
+                menu.bind("<Key-%d>" % d, _run_nth(d))
+            try:
+                menu._ds2_keys = {"home": _home, "end": _end,
+                                  "nth": _run_nth}
+            except Exception:  # noqa: BLE001 — introspection is garnish
+                pass
+        except Exception:  # noqa: BLE001 — a menu must never break typing
+            pass
+
+    def _arm_menu_unpost_poll(self, menu, prev_focus,
+                              every_ms=40, attempts=1500):
+        """DS2 v2.52 — the other half of the keyboard fix. Tk's grab
+        stays on the posted menu (that is exactly what routes key
+        events to it while it is up); this poller watches for the
+        unpost and THEN releases the grab and hands the focus back
+        to wherever it was — the old code released before the menu
+        was even on screen, so the menu heard keys but the editor
+        kept them. Bounded (about a minute), idempotent, and it
+        dies quietly with its menu. Never raises. Exposed on the
+        menu as ``_ds2_poll`` so tests can drive it without a
+        sleep."""
+        try:
+            def poll(left):
+                try:
+                    try:
+                        alive = menu.winfo_exists()
+                    except Exception:  # noqa: BLE001
+                        alive = False
+                    if not alive:
+                        return
+                    try:
+                        mapped = menu.winfo_ismapped()
+                    except Exception:  # noqa: BLE001
+                        mapped = False
+                    if not mapped or left <= 0:
+                        try:
+                            menu.grab_release()
+                        except Exception:  # noqa: BLE001
+                            pass
+                        try:
+                            menu._ds2_focus_back = prev_focus
+                        except Exception:  # noqa: BLE001
+                            pass
+                        try:
+                            if (prev_focus is not None
+                                    and prev_focus.winfo_exists()):
+                                prev_focus.focus_set()
+                        except Exception:  # noqa: BLE001
+                            pass
+                        return
+                    menu.after(every_ms, lambda: poll(left - 1))
+                except Exception:  # noqa: BLE001 — polling stays quiet
+                    pass
+
+            try:
+                menu._ds2_poll = lambda: poll(attempts)
+            except Exception:  # noqa: BLE001 — introspection is garnish
+                pass
+            menu.after(every_ms, lambda: poll(attempts))
         except Exception:  # noqa: BLE001 — a menu must never break typing
             pass
 
@@ -6152,8 +6341,32 @@ class DXN1Studio:
             pass
 
     # ------------------------------------------------------------------ run
+    def _dismiss_chip_menu(self):
+        """DS2 v2.52 — put every posted chip menu away BEFORE the app
+        goes down: unpost the last one, release the grab it holds.
+        Tk's grab state is per-DISPLAY and process-wide, so a menu
+        left posted at teardown would keep swallowing pointer events
+        from whatever runs next (found by the pytest interps). Never
+        raises."""
+        try:
+            menu = self._last_chip_menu
+            if menu is not None:
+                try:
+                    menu.unpost()
+                except Exception:  # noqa: BLE001 — already gone
+                    pass
+                try:
+                    menu.grab_release()
+                except Exception:  # noqa: BLE001 — already gone
+                    pass
+        except Exception:  # noqa: BLE001 — exit must never block
+            pass
+        self._last_chip_menu = None
+
     def _on_close(self):
         """WM_DELETE_WINDOW — save session, then quit cleanly."""
+        # DS2 v2.52: the chip menu goes first (see its docstring)
+        self._dismiss_chip_menu()
         try:
             self.stop_run(silent=True)
             if self.config.get("restore_session", True) and \
@@ -6679,6 +6892,13 @@ class SettingsDialog(tk.Toplevel):
         # DS2 v2.51: the diary writes itself (nightly snapshots)
         self.activity_autosnap_v = tk.BooleanVar(
             value=bool(cfg.get("activity_autosnap", False)))
+        try:   # DS2 v2.52: the snapshot interval, hours, clamped
+            _snap_h = int(float(cfg.get("activity_autosnap_hours",
+                                        24)))
+            _snap_h = max(1, min(168, _snap_h))
+        except Exception:
+            _snap_h = 24
+        self.activity_hours_v = tk.StringVar(value=str(_snap_h))
         try:   # DS2 v2.36: update heartbeat interval, minutes
             _upd_min = max(15, min(360, int(
                 cfg.get("update_check_secs", 3600)) // 60))
@@ -6879,8 +7099,30 @@ class SettingsDialog(tk.Toplevel):
         tk.Label(arow, text="Nightly receipts snapshot",
                  bg=t["card"], fg=t["text"],
                  font=(FONT_UI, 10, "bold")).pack(side=tk.LEFT)
-        tk.Label(arow, text="  ·  every 24h the whole diary lands in "
-                            "exports/ as JSON — the last 14 are kept",
+        tk.Label(arow, text="  ·  on the clock, the whole diary lands "
+                            "in exports/ as JSON — the last 14 are kept",
+                 bg=t["card"], fg=t["text_secondary"],
+                 font=(FONT_UI, 8)).pack(side=tk.LEFT)
+        hrow = tk.Frame(secA, bg=t["card"])
+        hrow.pack(fill=tk.X, pady=3, ipady=2)
+        tk.Label(hrow, text="      Hours between snapshots",
+                 bg=t["card"], fg=t["text"],
+                 font=(FONT_UI, 10, "bold")).pack(side=tk.LEFT)
+        try:   # DS2 v2.52: the interval picker, in the house style
+            sp = tk.Spinbox(hrow, from_=1, to=168, width=4,
+                            textvariable=self.activity_hours_v,
+                            bg=t["editor"], fg=t["text"],
+                            buttonbackground=t["card"],
+                            insertbackground=t["text"],
+                            relief="flat", highlightthickness=1,
+                            highlightbackground=t["card_border"],
+                            highlightcolor=t.accent)
+        except Exception:  # noqa: BLE001 — a plain spinner still spins
+            sp = tk.Spinbox(hrow, from_=1, to=168, width=4,
+                            textvariable=self.activity_hours_v)
+        sp.pack(side=tk.LEFT, padx=8)
+        tk.Label(hrow, text="1–168 · the clock reads it every half "
+                            "hour",
                  bg=t["card"], fg=t["text_secondary"],
                  font=(FONT_UI, 8)).pack(side=tk.LEFT)
         tk.Label(secA, text="`activity snap` writes one now · "
@@ -7032,6 +7274,12 @@ class SettingsDialog(tk.Toplevel):
         # DS2 v2.51: nightly receipts snapshots
         cfg.set("activity_autosnap",
                 bool(self.activity_autosnap_v.get()))
+        try:   # DS2 v2.52: the interval — clamped, junk-proof
+            _snap_h = max(1, min(168, int(float(
+                self.activity_hours_v.get()))))
+        except Exception:
+            _snap_h = 24
+        cfg.set("activity_autosnap_hours", _snap_h)
         self.app._deps_sig_state = ""
         self.app._deps_probed_at = 0.0
         self.app._update_depswatch(force=True)

@@ -5468,3 +5468,228 @@ def test_activity_autosnap(tmp_path, monkeypatch):
     assert "AUTOSNAP_KEEP = 14" in act
     assert "def autosnap(" in act and "def autosnap_due(" in act
     assert "def snap_dir(" in act
+
+
+# ------------------------------------------- chip menu keys (v2.52)
+def test_menu_keys(tmp_path):
+    """DS2 v2.52 — the chip menus learn the keyboard. The probe that
+    designed this round: ``tk_popup`` takes an X grab and that grab
+    is what routes keys to the posted menu — but the old renderer
+    released it immediately, so every chip menu was mouse-only and
+    Tk's own Up/Down/Return/Escape/typeahead traversal starved.
+    Now the grab is kept while posted (an unpost poller releases it
+    the moment the menu closes and records the focus hand-back),
+    the first activatable row wakes up active so Enter takes it,
+    Home/End/digits 1-9 drive real rows, the git menu's sync rows
+    wear the branch's divergence (red diverged, amber one move from
+    sync), and the nightly-snapshot interval is a real picker that
+    clamps and junk-proofs."""
+    import tkinter as tk
+    try:
+        root = tk.Tk(); root.withdraw()
+    except tk.TclError:
+        return
+    import time as _time
+    import pytest
+    import dxn1_studio.config as cfgmod
+    from dxn1_studio.app import DXN1Studio, SettingsDialog
+    from dxn1_studio.activity import autosnap_due
+
+    monkeypatch = pytest.MonkeyPatch()
+    monkeypatch.setattr(cfgmod, "CONFIG_DIR", str(tmp_path))
+    monkeypatch.setattr(cfgmod, "CONFIG_PATH",
+                        str(tmp_path / "config.json"))
+    monkeypatch.setenv("HOME", str(tmp_path))
+    app = DXN1Studio(cfgmod.Config(), smoke_test=True, no_splash=True)
+    aroot = app.root
+    aroot.update()
+
+    def grab_path():
+        # raw Tcl: the grab registry is display-global and a
+        # cross-interp nametowidget raises (probe lesson r2)
+        return str(aroot.tk.call("grab", "current", "."))
+
+    def nth_command_index(menu, n_th):
+        """The menu-entry index of the n-th COMMAND row, derived from
+        the menu's own _ds2_rows promise — no label scraping."""
+        cmds = [e for e in getattr(menu, "_ds2_rows", [])
+                if e[0] != "---"]
+        rows = app._menu_command_rows(menu)
+        return rows[cmds.index(next(e for e in cmds
+                                    if e[0] == n_th))]
+
+    class _Ev:
+        x_root = 40
+        y_root = 40
+
+    try:
+        ran = []
+        entries = [("First", lambda: ran.append(1)),
+                   ("Second", lambda: ran.append(2)),
+                   ("---", None),
+                   ("Third", lambda: ran.append(3))]
+        app._render_chip_menu(entries, _Ev())
+        aroot.update()
+        menu = app._last_chip_menu
+        assert menu is not None and menu.winfo_ismapped()
+        # introspectable promises, not scraped labels
+        assert [e[0] for e in menu._ds2_rows] == \
+            ["First", "Second", "---", "Third"]
+        rows = app._menu_command_rows(menu)
+        assert rows == [0, 1, 3], rows      # separators never count
+        # the grab is held while posted — that is what feeds keys
+        assert grab_path() == str(menu), grab_path()
+        # the first activatable row wakes up active
+        assert menu.index("active") == 0
+        # Home/End walk the real rows
+        menu._ds2_keys["end"](); aroot.update()
+        assert menu.index("active") == 3
+        menu._ds2_keys["home"](); aroot.update()
+        assert menu.index("active") == 0
+        # digits run the Nth COMMAND and land on it
+        menu._ds2_keys["nth"](2)(); aroot.update()
+        assert ran == [2] and menu.index("active") == 1
+        menu._ds2_keys["nth"](3)()
+        assert ran == [2, 3]
+        menu._ds2_keys["nth"](9)()          # beyond the end: no-op
+        assert ran == [2, 3]
+        # the binds really exist for real keys
+        assert menu.bind("<Key-Home>") and menu.bind("<Key-End>")
+        assert menu.bind("<Key-5>")
+        menu.unpost(); aroot.update(); menu._ds2_poll()
+        aroot.update()
+        assert grab_path() == "", "deterministic release failed"
+        # the poller also fires on its own 40ms cadence once unposted
+        app._render_chip_menu(entries, _Ev())
+        menu2 = app._last_chip_menu
+        aroot.update()
+        menu2.unpost()
+        deadline = _time.time() + 2.0
+        while _time.time() < deadline and grab_path():
+            aroot.update()
+            _time.sleep(0.03)
+        aroot.update()
+        assert grab_path() == "", "the 40ms unpost poll never ran"
+        # focus hand-back: the intent is recorded on the menu and it
+        # is exactly whatever was focused before the menu opened
+        # (X-level focus truth is env-flaky under Xvfb — no WM — so
+        # the recorded intent is what is asserted)
+        anchor = tk.Entry(aroot)
+        anchor.pack()
+        anchor.focus_force()    # focus_set no-ops here (probe lesson)
+        aroot.update()
+        pre = aroot.focus_get()
+        app._render_chip_menu(entries, _Ev())
+        menu3 = app._last_chip_menu
+        aroot.update()
+        assert getattr(menu3, "_ds2_focus_back", "missing") == "missing"
+        menu3.unpost(); aroot.update(); menu3._ds2_poll()
+        aroot.update()
+        assert getattr(menu3, "_ds2_focus_back", None) is pre
+        # an empty menu never raises and answers honestly
+        app._render_chip_menu([("---", None)], _Ev())
+        aroot.update()
+        menu4 = app._last_chip_menu
+        assert menu4.winfo_ismapped()
+        assert app._menu_command_rows(menu4) == []
+        menu4.unpost(); aroot.update(); menu4._ds2_poll()
+        aroot.update()
+
+        # --- the git menu wears the branch's divergence
+        app._git_watch_state = lambda: {"repo": True, "branch": "m",
+                                        "dirty": 0, "ahead": 1,
+                                        "behind": 0}
+        app._render_chip_menu(app._git_menu_entries(), _Ev())
+        mg = app._last_chip_menu
+        aroot.update()
+        grow = [e for e in mg._ds2_rows if e[0] == "Push to origin"]
+        assert grow and grow[0][3] == "#f59e0b", grow
+        gpull = [e for e in mg._ds2_rows
+                 if e[0] == "Pull from upstream"]
+        assert gpull and gpull[0][3] is None
+        # through the real renderer the color lands on the row
+        pi = nth_command_index(mg, "Push to origin")
+        assert str(mg.entrycget(pi, "foreground")) == "#f59e0b"
+        mg.unpost(); aroot.update()
+        app._git_watch_state = lambda: {"repo": True, "branch": "m",
+                                        "dirty": 0, "ahead": 1,
+                                        "behind": 2}
+        app._render_chip_menu(app._git_menu_entries(), _Ev())
+        md = app._last_chip_menu
+        aroot.update()
+        drows = [e[3] for e in md._ds2_rows
+                 if e[0] in ("Push to origin", "Pull from upstream")]
+        assert drows == ["#f85149", "#f85149"], drows
+        md.unpost(); aroot.update()
+        app._git_watch_state = lambda: {"repo": True, "branch": "m",
+                                        "dirty": 0, "ahead": 0,
+                                        "behind": 0}
+        app._render_chip_menu(app._git_menu_entries(), _Ev())
+        ms = app._last_chip_menu
+        aroot.update()
+        srows = [e[3] for e in ms._ds2_rows
+                 if e[0] in ("Push to origin", "Pull from upstream")]
+        assert srows == [None, None], srows
+        ms.unpost(); aroot.update()
+        app._git_watch_state = lambda: None
+        app._render_chip_menu(app._git_menu_entries(), _Ev())
+        mp = app._last_chip_menu
+        aroot.update()
+        plain = [e[0] for e in mp._ds2_rows]
+        assert "Push to origin" not in plain
+        assert "Pull from upstream" not in plain
+        mp.unpost(); aroot.update()
+
+        # --- the interval picker: reads config, clamps, junk-proofs
+        app.config.set("activity_autosnap_hours", 7)
+        dlg = SettingsDialog(app)
+        aroot.update()
+        assert dlg.activity_hours_v.get() == "7"
+        dlg.activity_hours_v.set("999")
+        dlg._save()
+        assert app.config.get("activity_autosnap_hours") == 168
+        dlg2 = SettingsDialog(app)
+        dlg2.activity_hours_v.set("banana")
+        dlg2._save()
+        assert app.config.get("activity_autosnap_hours") == 24
+        dlg3 = SettingsDialog(app)
+        dlg3.activity_hours_v.set("0")
+        dlg3._save()
+        assert app.config.get("activity_autosnap_hours") == 1
+        # and the engine honors a saved custom interval
+        cfg = app.config
+        cfg.set("activity_autosnap", True)
+        cfg.set("activity_autosnap_last", 0.0)
+        assert autosnap_due(cfg, now=2 * 3600.0) is True   # 1h gate
+        cfg.set("activity_autosnap_hours", 24)
+        assert autosnap_due(cfg, now=2 * 3600.0) is False
+
+        # source agreement: the keyboard contract is written down
+        base = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+        with open(os.path.join(base, "dxn1_studio", "app.py"),
+                  encoding="utf-8") as fh:
+            src = fh.read()
+        assert "menu._ds2_rows = [tuple(e) for e in entries]" in src
+        assert 'menu.bind("<Key-Home>", _home)' in src
+        assert 'menu.bind("<Key-%d>" % d, _run_nth(d))' in src
+        assert "self._arm_menu_unpost_poll(menu, prev_focus)" in src
+        assert "menu._ds2_focus_back = prev_focus" in src
+        assert "sync_c if ahead else None" in src
+        assert '"#f85149" if diverged else' in src
+        assert "self.activity_hours_v = tk.StringVar" in src
+        assert 'cfg.set("activity_autosnap_hours", _snap_h)' in src
+        assert "Hours between snapshots" in src
+    finally:
+        try:
+            app._dismiss_chip_menu()    # belt: nothing stays posted
+        except Exception:  # noqa: BLE001 — teardown never raises
+            pass
+        try:
+            aroot.destroy()
+        except tk.TclError:
+            pass
+        try:
+            root.destroy()
+        except tk.TclError:
+            pass
+        monkeypatch.undo()
