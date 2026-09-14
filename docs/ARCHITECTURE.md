@@ -12,7 +12,7 @@ dxn1_studio/
 └── … 60+ feature modules, one lane each, described below
 ```
 
-## Design rules (what keeps 72 modules coherent)
+## Design rules (what keeps 74 modules coherent)
 
 1. **One module = one lane.** Every feature lives in its own file
    with a public `open_*(parent, theme, …)` opener, so parallel
@@ -67,7 +67,7 @@ geometry memory).
 `colorkit` (hex/rgb/hsl + WCAG contrast + ramps), `markprev`
 (live markdown preview), `charts` (paste-numbers chart studio),
 `unitconv` (unit converter), `charmap` (Unicode browser),
-`textcase` (identifier case converter), `jwt`, `cronexp`,
+`textcase` (identifier case converter), `pwdgen` (secrets-CSPRNG PassForge), `numbase` (bases 2-36 + bit inspector), `jwt`, `cronexp`,
 `envcheck`, `gen` (test data), `readability`, `usagedash`,
 `packages`, `doctor` (environment audit).
 

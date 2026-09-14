@@ -303,6 +303,28 @@ def main():
           entropy_bits(20) > 100)
     pfwin.destroy()
 
+    # ---- NumBase (same smoke, new lane)
+    from dxn1_studio.numbase import format_base, open_numbase
+    nbwin = open_numbase(root, theme, initial="255")
+    nbwin.update_idletasks()
+    check("numbase window opens", nbwin.winfo_exists())
+    check("numbase live rows", "ff" ==
+          nbwin.labels["16"].cget("text"))
+    nbwin.entry.delete(0, "end")
+    nbwin.entry.insert(0, "0x10")
+    nbwin.refresh()
+    check("numbase prefix parse", "10000" ==
+          nbwin.labels["2"].cget("text"))
+    nbwin.entry.delete(0, "end")
+    nbwin.entry.insert(0, "junk!!")
+    nbwin.refresh()
+    check("numbase junk tolerated", "not a valid" in
+          nbwin.status.cget("text"))
+    check("numbase bit inspector", "bit length" in
+          nbwin.bits.cget("text") or nbwin.bits.cget("text") == "")
+    check("numbase engine offline", format_base(255, 16) == "ff")
+    nbwin.destroy()
+
     # ---- REST bench (same smoke, seventh lane)
     from dxn1_studio.restbench import (RestResponse, build_curl,
                                        format_size,

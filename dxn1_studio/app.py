@@ -1225,6 +1225,15 @@ class DXN1Studio:
                 command=_open_passforge_menu)
         except Exception:  # pragma: no cover — menu stays alive
             pass
+        # DS2: numbase (defensive)
+        def _open_numbase_menu():
+            self.open_numbase()
+        try:
+            workshop_menu.add_command(
+                label="NumBase — bin/oct/dec/hex + bases 2-36…",
+                command=_open_numbase_menu)
+        except Exception:  # pragma: no cover — menu stays alive
+            pass
         workshop_menu.add_separator()
         workshop_menu.add_command(label="Token Usage Dashboard…",
                                   command=_open_usage_menu)
@@ -1692,6 +1701,14 @@ class DXN1Studio:
         try:
             from .pwdgen import open_passforge
             open_passforge(self.root, self.theme)
+        except Exception:  # noqa: BLE001 — menu stays alive
+            pass
+
+    def open_numbase(self):
+        """DS2: number base workbench."""
+        try:
+            from .numbase import open_numbase
+            open_numbase(self.root, self.theme)
         except Exception:  # noqa: BLE001 — menu stays alive
             pass
 
@@ -2722,6 +2739,8 @@ class DXN1Studio:
                              "snake/camel/kebab/… instantly"),
                     ("passgen", "PassForge — cryptographic passwords "
                                 "with an entropy meter"),
+                    ("base", "numbase — convert numbers between any "
+                             "bases 2-36 + bit inspector"),
                     ("scribe <n>", "set the words-per-session goal for "
                                    "the statusbar writing meter"),
                     ("explain", "hand the last error to the agent"),
@@ -3005,6 +3024,12 @@ class DXN1Studio:
             self.open_passforge()
             self.terminal.log("PassForge opened — secrets CSPRNG, "
                               "entropy meter, click generate")
+            return
+        if low in ("base", "numbase", "hex"):
+            # DS2: number base workbench
+            self.open_numbase()
+            self.terminal.log("NumBase opened — type a number, read "
+                              "every base + bit inspector")
             return
         if low == "lang" or low.startswith("lang "):
             # DS2: switch the UI language pack (i18n activation)
@@ -3704,6 +3729,14 @@ class DXN1Studio:
         try:
             cmds.append(("PassForge — strong passwords + entropy…",
                          "DS2", _open_passforge_palette))
+        except Exception:  # pragma: no cover — palette stays alive
+            pass
+        # DS2: numbase (defensive)
+        def _open_numbase_palette():
+            self.open_numbase()
+        try:
+            cmds.append(("NumBase — bin/oct/dec/hex + bases 2-36…",
+                         "DS2", _open_numbase_palette))
         except Exception:  # pragma: no cover — palette stays alive
             pass
         # DS2: scribe goal (defensive)

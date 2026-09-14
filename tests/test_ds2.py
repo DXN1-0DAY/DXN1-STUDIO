@@ -1786,3 +1786,42 @@ def test_pwdgen_engine():
     assert pwdgen.strength_label(200) == "overkill"
     assert pwdgen.strength_label(-5) == "very weak"
     assert pwdgen.strength_label(None) == "very weak"
+
+
+def test_numbase_engine():
+    """DS2 numbase: parsing, formatting, bit inspection."""
+    from dxn1_studio import numbase
+    # parsing: prefixes, signs, underscores, custom bases
+    assert numbase.parse_number("0xFF") == 255
+    assert numbase.parse_number("0b1010") == 10
+    assert numbase.parse_number("0o17") == 15
+    assert numbase.parse_number("ff", 16) == 255
+    assert numbase.parse_number("-17_0", 8) == -120
+    assert numbase.parse_number("zz", 36) == 35 * 36 + 35  # 'zz' in base 36
+    assert numbase.parse_number("z", 36) == 35
+    # junk → None
+    assert numbase.parse_number("5", 2) is None      # invalid digit
+    assert numbase.parse_number("zz", 10) is None
+    assert numbase.parse_number("x", 100) is None    # base range
+    assert numbase.parse_number("") is None
+    assert numbase.parse_number(None) is None
+    assert numbase.parse_number("0x") is None        # prefix, no digits
+    # formatting: round-trips in every base 2..36
+    for base in range(2, 37):
+        assert numbase.format_base(255, base) and \
+            numbase.parse_number(numbase.format_base(255, base),
+                                 base) == 255
+    assert numbase.format_base(255, 16) == "ff"
+    assert numbase.format_base(-255, 16) == "-ff"
+    assert numbase.format_base(0, 7) == "0"
+    assert numbase.format_base(True, 16) == ""
+    assert numbase.format_base(5, 99) == ""
+    # bit inspection
+    info = numbase.inspect_bits(255)
+    assert info["bit_length"] == 8 and info["ones"] == 8
+    assert info["hex"] == "0xff"
+    neg = numbase.inspect_bits(-128)
+    assert "two's complement" in neg["note"]
+    assert numbase.inspect_bits(0)["bit_length"] == 0
+    assert numbase.inspect_bits(True) == {}
+    assert numbase.inspect_bits("x") == {}

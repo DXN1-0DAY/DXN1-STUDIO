@@ -326,3 +326,12 @@
 | Real CSPRNG | stdlib `secrets.choice` | No home-made randomness anywhere; tests stay deterministic by injecting a seeded rng into `generate()` |
 | Entropy meter | `entropy_bits()` / `strength_label()` | Shannon entropy `length · log2(pool)` with an honest ladder: weak < 28 ≤ fair < 36 ≤ strong < 60 ≤ excellent < 128 ≤ overkill; empty pools and junk input read zero instead of lying |
 | Junk-tolerant | every engine entry | Non-integer lengths, zero/negative lengths, disabled pools all return empty strings; the window asks for options instead of crashing |
+
+## NumBase (v2.21.0 lane)
+
+| Feature | Where | What it does |
+|---|---|---|
+| Number base workbench | `numbase.py`, Workshop → *NumBase — bin/oct/dec/hex + bases 2-36…*, palette, terminal `base` / `numbase` / `hex` | Type a value in any base 2–36 and read it simultaneously as binary, octal, decimal, hex plus 11 more bases — click any row to copy |
+| Parser | `parse_number()` | Accepts +/- signs, `_` digit separators and the classic 0x/0o/0b prefixes (which override the chosen base); junk digits, empty prefixes and out-of-range bases return None instead of guessing |
+| Bit inspector | `inspect_bits()` | Bit length, popcount, big-endian hex bytes and a two's-complement note for negative values |
+| Round-trip proof | `tests/test_ds2.py` | Formatting then re-parsing 255 round-trips for every base 2..36 |

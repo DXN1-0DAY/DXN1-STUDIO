@@ -105,6 +105,8 @@ SHEETS = [
                  "pascal/kebab/constant/title/dot/flat"),
         ("passgen", "PassForge — secrets-CSPRNG passwords with "
                     "toggled classes and an entropy meter"),
+        ("base", "NumBase — read a number as bin/oct/dec/hex + any "
+                 "base 2-36, with a bit inspector"),
         ("scribe <n>", "Writing meter — ✎ chip in the statusbar shows "
                        "words, WPM and goal progress; click for a "
                        "session toast")

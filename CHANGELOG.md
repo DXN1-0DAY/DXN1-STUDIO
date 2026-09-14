@@ -4,6 +4,14 @@ All notable changes to DXN1 STUDIO. Format based on
 [Keep a Changelog](https://keepachangelog.com/); versioning is
 `MAJOR.MINOR.PATCH` while in **beta**.
 
+## [2.21.0] — 2026-09-14 · beta · "count in every base"
+
+### Added
+- **NumBase** (`numbase.py`, Workshop → *NumBase — bin/oct/dec/hex + bases 2-36…*, terminal `base` / `numbase` / `hex`) — a live number-base workbench: type a value in any base 2–36 (0x/0o/0b prefixes and `_` separators accepted) and read it simultaneously in fifteen bases with a bit inspector (bit length, popcount, hex bytes, two's-complement note for negatives); click any row to copy; round-trips are unit-tested for every base 2..36.
+
+### Changed
+- Smoke harness crossed the **100-check milestone** (now 15 live windows); test suite at 55 groups; ARCHITECTURE.md Workshop line updated with PassForge + NumBase.
+
 ## [2.20.0] — 2026-09-14 · beta · "secrets, not guesses"
 
 ### Added
