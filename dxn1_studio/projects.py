@@ -31,13 +31,15 @@ TEMPLATE_INFO = {
     "static":  ("Static Website", "HTML + CSS + JS — no build step, no deps.", "web"),
     "game":    ("Canvas Game",     "Tkinter game loop — keys, score, restart. F5 to play.", "game"),
     "rust":    ("Rust Project",   "Cargo.toml + hello main.rs — cargo run ready.", "rust"),
+    "nextjs":  ("Next.js App",    "pages + API route — the React framework, no npx.", "next"),
+    "svelte":  ("Svelte Kit",     "App.svelte + vite — runes-ready starter.", "svelte"),
     "go":      ("Go Module",      "go.mod + main.go — idiomatic hello server.", "go"),
     "empty":   ("Empty Workspace", "A clean folder for your own ideas.", "folder"),
 }
 
 KIND_ORDER = ("python", "flask", "fastapi", "requests",
               "tkinter", "package", "cli", "static", "game",
-              "rust", "go", "empty")
+              "rust", "go", "nextjs", "svelte", "empty")
 
 
 def slugify(name):
@@ -528,6 +530,51 @@ def template_files(kind, name):
                 'func main() {\n'
                 '    fmt.Println("Hello from ' + name + '!")\n'
                 '}\n',
+            "README.md": _README_MD.format(name=name),
+        }
+    if kind == "nextjs":
+        return {
+            "package.json":
+                '{\n  "name": "' + slugify(name).lower() + '",\n'
+                '  "scripts": {\n    "dev": "next dev",\n'
+                '    "build": "next build",\n    "start": "next start"\n  },\n'
+                '  "dependencies": {\n    "next": "^14.0.0",\n'
+                '    "react": "^18.0.0",\n    "react-dom": "^18.0.0"\n  }\n}\n',
+            "pages/index.js":
+                '// ' + name + ' — scaffolded by DXN1 STUDIO\n'
+                'export default function Home() {\n'
+                '  return (\n    <main>\n'
+                '      <h1>Hello from ' + name + '!</h1>\n'
+                '    </main>\n  )\n}\n',
+            "pages/api/hello.js":
+                'export default function handler(req, res) {\n'
+                '  res.status(200).json({ hello: "world" })\n}\n',
+            "README.md": _README_MD.format(name=name),
+        }
+    if kind == "svelte":
+        return {
+            "package.json":
+                '{\n  "name": "' + slugify(name).lower() + '",\n'
+                '  "type": "module",\n'
+                '  "scripts": {\n    "dev": "vite",\n    "build": "vite build"\n  },\n'
+                '  "devDependencies": {\n    "svelte": "^4.0.0",\n'
+                '    "vite": "^5.0.0",\n    "@sveltejs/vite-plugin-svelte": "^3.0.0"\n  }\n}\n',
+            "App.svelte":
+                '<!-- ' + name + ' — scaffolded by DXN1 STUDIO -->\n'
+                '<script>\n  let count = 0\n</script>\n\n'
+                '<main>\n  <h1>Hello from ' + name + '!</h1>\n'
+                '  <button on:click={() => count++}>count is {count}</button>\n'
+                '</main>\n',
+            "index.html":
+                '<!doctype html>\n<html>\n  <body>\n'
+                '    <div id="app"></div>\n'
+                '    <script type="module" src="/src/main.js"></script>\n'
+                '  </body>\n</html>\n',
+            "src/main.js":
+                "import App from '../App.svelte'\n"
+                "import { mount } from 'svelte'\n\n"
+                "const app = mount(App, { target: document.getElementById('app') })\n"
+                '\nexport default app\n',
             "README.md": _README_MD.format(name=name),
         }
     if kind == "empty":
