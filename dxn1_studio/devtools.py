@@ -21,6 +21,7 @@ from tkinter import ttk
 from urllib.parse import quote, unquote
 
 from .theme import FONT_UI, FONT_MONO
+from .i18n import tr
 
 MAX_MATCHES = 500  # keep the UI honest on huge inputs
 
@@ -615,14 +616,14 @@ class DevTools(tk.Toplevel):
         self.rx_repl = self._entry(bot, self.rx_repl_var)
         self.rx_repl.pack(side="left", fill="x", expand=True,
                           padx=(8, 8), ipady=5)
-        self._btn(bot, "Preview",
+        self._btn(bot, tr("devtools.preview"),
                   lambda: self._rx_replace(self.rx_repl_var.get())) \
             .pack(side="left")
         self.rx_preview, _unused = None, None
         pw, self.rx_preview = self._mono_text(page, height=5,
                                               read_only=True)
         pw.pack(fill="both", pady=(6, 0))
-        self._btn(page, "Copy matches",
+        self._btn(page, tr("common.copy_matches"),
                   lambda: self._copy_tree(self.rx_tree, self.rx_status)) \
             .pack(anchor="e", pady=(6, 0))
 
@@ -723,7 +724,7 @@ class DevTools(tk.Toplevel):
                        selectcolor=t["editor"], font=(FONT_UI, 9),
                        bd=0, highlightthickness=0).pack(side="left",
                                                         padx=(12, 0))
-        self._btn(row, "Copy output",
+        self._btn(row, tr("common.copy_output"),
                   lambda: self._copy(self.json_out, self.json_status)) \
             .pack(side="right")
 
@@ -786,9 +787,9 @@ class DevTools(tk.Toplevel):
         acts.pack(fill="x", pady=(0, 6))
         self._btn(acts, "↑ use output as input",
                   self._tx_feedback).pack(side="left")
-        self._btn(acts, "Count",
+        self._btn(acts, tr("devtools.count"),
                   lambda: self._tx_counts()).pack(side="left", padx=(6, 0))
-        self._btn(acts, "Copy output",
+        self._btn(acts, tr("common.copy_output"),
                   lambda: self._copy(self.tx_out, self.tx_status)) \
             .pack(side="right")
 
