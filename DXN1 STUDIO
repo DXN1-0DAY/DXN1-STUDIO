@@ -1,0 +1,21 @@
+#!/bin/bash
+# ─────────────────────────────────────────────────────────────
+#  DXN1 STUDIO — the launcher with a space in its name. Yes.
+#
+#  Usage (quote it, the shell demands respect for spaces):
+#      "DXN1 STUDIO"
+#
+#  It simply forwards to the dxn1 launcher, so this works too:
+#      "DXN1 STUDIO" /path/to/workspace
+# ─────────────────────────────────────────────────────────────
+DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+
+if [ -x "$DIR/dxn1" ]; then
+    exec python3 "$DIR/dxn1" "$@"
+elif [ -x "$HOME/.local/bin/dxn1" ]; then
+    exec "$HOME/.local/bin/dxn1" "$@"
+else
+    echo "DXN1 STUDIO is not installed — run:"
+    echo '  curl -fsSL https://raw.githubusercontent.com/DXN1-termux/DXN1-STUDIO/master/install.sh | bash'
+    exit 1
+fi

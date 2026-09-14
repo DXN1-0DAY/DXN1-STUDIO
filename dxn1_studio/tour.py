@@ -38,26 +38,41 @@ class InteractiveTour:
 
         self.steps = [
             TourStep("sidebar", "File Explorer",
-                     "Your whole project, one click away. Click any file to open it "
+                     "Your whole workspace, one click away. Click any file to open it "
                      "instantly in the editor — folders stay tidy on top.",
                      "right"),
             TourStep("tabs_frame", "Editor Tabs",
                      "Every file you open lands here as a tab. Hit the ✕ to close one. "
                      "Your active file always shows its path in the status bar below.",
                      "below"),
+            TourStep("toolbar", "Run, Packages & Export",
+                     "One strip for the power stuff: Run (F5) executes your code and "
+                     "streams output to the terminal, Packages installs optional extras "
+                     "like Flask, Export zips the whole workspace to share.",
+                     "below"),
             TourStep("editor", "The Editor",
                      "Line numbers, unlimited undo and a distraction-free dark (or light) "
                      "canvas in your chosen accent colour. This is where flow happens.",
                      "left"),
-            TourStep("terminal", "Built-in Terminal",
-                     "Everything DXN1 does — opens, saves, activity — is echoed "
-                     "here in real time. Toggle it from the View menu anytime.",
+            TourStep("terminal", "Terminal with Studio Commands",
+                     "Activity is echoed here — and you can type too. Try “run”, "
+                     "“packages” or the classic “dxn1 studio” to replay the boot "
+                     "splash. “help” lists everything.",
                      "above"),
-            TourStep(None, "You're ready",
-                     "That's the studio — clean, fast and already yours. "
-                     "Replay this tour anytime from Help → Replay Welcome & Tour.",
-                     "center", final=True),
         ]
+        if self.app.config.get("agents_enabled"):
+            self.steps.append(TourStep(
+                "agents", "DXN1 Agents",
+                "Your copilot. Ask it to create files, scaffold a Flask app, run "
+                "the project or install packages — each action lands as a card "
+                "you accept or decline. Switch to full access in its settings.",
+                "left"))
+        self.steps.append(TourStep(
+            None, "You're ready",
+            "That's the studio — clean, fast and already yours. Start a new "
+            "workspace from File → Project Hub anytime, and replay this tour "
+            "from Help → Replay Welcome & Tour.",
+            "center", final=True))
 
     # ---------------------------------------------------------------- public
     def start(self):

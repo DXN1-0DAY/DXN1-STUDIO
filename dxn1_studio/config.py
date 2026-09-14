@@ -13,7 +13,7 @@ CONFIG_DIR = os.path.join(os.path.expanduser("~"), ".dxn1-studio")
 CONFIG_PATH = os.path.join(CONFIG_DIR, "config.json")
 
 DEFAULTS = {
-    "version": "2.0.0",
+    "version": "2.1.0",
     "onboarded": False,      # has the welcome wizard been completed?
     "tour_done": False,      # has the interactive tour been finished/skipped?
     "name": "",              # display name used in greetings
@@ -22,6 +22,14 @@ DEFAULTS = {
     "launch_count": 0,
     "first_launch": None,    # ISO timestamp of first run
     "last_launch": None,     # ISO timestamp of most recent run
+    # --- v2.1: hub, splash, agents -------------------------------------
+    "agents_enabled": False,      # DXN1 Agents opted in via the wizard
+    "agents_ask_edits": True,     # confirm before the agent writes files
+    "agents_ask_commands": True,  # confirm before the agent runs commands
+    "splash_enabled": True,       # boot splash (logo card) before launch
+    "hub_on_startup": True,       # start every session at the Project Hub
+    "recent_projects": [],        # [{path, kind, opened}] — hub recents
+    "last_project": "",           # most recently opened workspace path
 }
 
 

@@ -129,11 +129,19 @@ class CodeEditor(tk.Frame):
 
 
 class Terminal(tk.Frame):
-    """Output panel — everything DXN1 does is echoed here."""
+    """Interactive terminal panel.
 
-    def __init__(self, parent, theme, greeting=None):
+    Everything the studio does is echoed here, and the user can type
+    studio commands (``dxn1 studio``, ``help``, ``clear``, ``packages``,
+    ``run``…) — handled by the callback the app passes in.
+    """
+
+    def __init__(self, parent, theme, greeting=None, on_command=None):
         super().__init__(parent, bg=theme["terminal"])
         self.theme = theme
+        self.on_command = on_command
+        self.history = []
+        self.history_pos = None
 
         header = tk.Frame(self, bg=theme["header"], height=30)
         header.pack(fill=tk.X)
@@ -142,6 +150,15 @@ class Terminal(tk.Frame):
         tk.Label(header, text="TERMINAL", bg=theme["header"],
                  fg=theme["text_secondary"], font=(FONT_UI, 9, "bold")
                  ).pack(side=tk.LEFT, padx=15)
+        tk.Label(header, text="type 'help' for studio commands",
+                 bg=theme["header"], fg=theme["text_muted"],
+                 font=(FONT_UI, 8)).pack(side=tk.LEFT, padx=8)
+
+        clear_btn = tk.Label(header, text="clear", bg=theme["header"],
+                             fg=theme["text_muted"], font=(FONT_UI, 8, "underline"),
+                             cursor="hand2")
+        clear_btn.pack(side=tk.RIGHT, padx=12)
+        clear_btn.bind("<Button-1>", lambda e: self.clear())
 
         self.output = tk.Text(self, bg=theme["terminal"], fg=theme["text"],
                               font=(FONT_MONO, 10), state="disabled",
@@ -149,14 +166,71 @@ class Terminal(tk.Frame):
                               highlightthickness=0, insertbackground=theme["text"])
         self.output.pack(fill=tk.BOTH, expand=True)
 
+        # command input row
+        row = tk.Frame(self, bg=theme["terminal"])
+        row.pack(fill=tk.X, padx=8, pady=(0, 8))
+        tk.Label(row, text="❯", bg=theme["terminal"], fg=theme.accent,
+                 font=(FONT_MONO, 10, "bold")).pack(side=tk.LEFT)
+        self.input = tk.Entry(row, bg=theme["terminal"], fg=theme["text"],
+                              insertbackground=theme["text"], relief=tk.FLAT,
+                              font=(FONT_MONO, 10), highlightthickness=0, bd=0)
+        self.input.pack(side=tk.LEFT, fill=tk.X, expand=True, padx=(8, 0), ipady=4)
+        self.input.bind("<Return>", self._submit)
+        self.input.bind("<Up>", lambda e: self._history_step(-1))
+        self.input.bind("<Down>", lambda e: self._history_step(1))
+
         if greeting:
             self.log(greeting)
         else:
             self.log(f"Welcome to {APP_NAME} v{APP_VERSION}-{APP_CHANNEL}")
             self.log("Ready")
 
+    # ---------------------------------------------------------------- output
     def log(self, message):
+        self._append(f"> {message}\n")
+
+    def log_raw(self, text):
+        """Stream process output verbatim (no '> ' prefix)."""
+        if not text.endswith("\n"):
+            text += "\n"
+        self._append(text)
+
+    def _append(self, text):
         self.output.config(state="normal")
-        self.output.insert(tk.END, f"> {message}\n")
+        self.output.insert(tk.END, text)
         self.output.see(tk.END)
         self.output.config(state="disabled")
+
+    def clear(self):
+        self.output.config(state="normal")
+        self.output.delete("1.0", tk.END)
+        self.output.config(state="disabled")
+
+    # ---------------------------------------------------------------- input
+    def _submit(self, event=None):
+        text = self.input.get().strip()
+        self.input.delete(0, tk.END)
+        if not text:
+            return
+        self.history.append(text)
+        self.history_pos = None
+        self.log(text)
+        if self.on_command:
+            try:
+                self.on_command(text)
+            except Exception as exc:  # noqa: BLE001 — terminal never crashes IDE
+                self.log(f"command error: {exc}")
+
+    def _history_step(self, delta):
+        if not self.history:
+            return
+        if self.history_pos is None:
+            self.history_pos = len(self.history) - 1 if delta < 0 else None
+        else:
+            self.history_pos = max(0, min(len(self.history) - 1,
+                                          self.history_pos + delta))
+        if self.history_pos is not None:
+            self.input.delete(0, tk.END)
+            self.input.insert(0, self.history[self.history_pos])
+        else:
+            self.input.delete(0, tk.END)

@@ -1,9 +1,10 @@
 """DXN1 STUDIO — first-launch Welcome wizard.
 
-A three-step cinematic dark splash shown once:
+A four-step cinematic dark splash shown once:
   1. Welcome        — hero art + display-name entry
   2. Make it yours  — dark/light theme cards + accent colour picker
-  3. Ready          — summary + launch into the interactive tour
+  3. DXN1 Agents    — opt in to the built-in assistant (optional)
+  4. Ready          — summary + launch into the Project Hub & tour
 """
 
 import os
@@ -15,7 +16,7 @@ from .theme import PALETTES, ACCENTS, FONT_UI
 
 ASSETS_DIR = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "assets")
 
-WIZ_W, WIZ_H = 880, 580
+WIZ_W, WIZ_H = 880, 600
 
 # ---- image loading (PIL when available, native PhotoImage fallback) --------
 
@@ -65,6 +66,7 @@ class WelcomeWizard:
         self.accent = ACCENTS.get(self.accent_name, ACCENTS["violet"])["dark"]
         self.theme_choice = config.get("theme", "dark")
         self.name_value = config.get("name", "") or ""
+        self.agents_choice = bool(config.get("agents_enabled", False))
         self._imgrefs = []
         self.index = 0
         self.done = False
@@ -85,6 +87,9 @@ class WelcomeWizard:
         self._build_slides()
         self._center_over_master()
 
+        # the main window stays hidden while the wizard owns first boot —
+        # explicitly map, or the Toplevel never appears on X11.
+        self.win.deiconify()
         self.win.grab_set()
         self.show(0)
 
@@ -107,7 +112,7 @@ class WelcomeWizard:
         self.dots = []
         dotrow = tk.Frame(top, bg=self.colors["overlay"])
         dotrow.pack(side=tk.RIGHT)
-        for i in range(3):
+        for i in range(4):
             d = tk.Label(dotrow, text="●", font=(FONT_UI, 9),
                          bg=self.colors["overlay"], fg=self.colors["card_border"])
             d.pack(side=tk.LEFT, padx=3)
@@ -131,6 +136,7 @@ class WelcomeWizard:
         self.slides = [
             self._slide_welcome(),
             self._slide_personalize(),
+            self._slide_agents(),
             self._slide_ready(),
         ]
         for s in self.slides:
@@ -305,6 +311,77 @@ class WelcomeWizard:
             text=f"Selected: {ACCENTS[self.accent_name]['label']} — colours the editor, buttons and highlights")
 
     # ------------------------------------------------------------- slide 3
+    def _slide_agents(self):
+        s = WizardSlide(self.page, self)
+        wrap = tk.Frame(s, bg=self.colors["overlay"])
+        wrap.place(relx=0.5, rely=0.5, anchor="center")
+
+        head = tk.Frame(wrap, bg=self.colors["overlay"])
+        head.pack()
+        hero = load_scaled(os.path.join(ASSETS_DIR, "agents_hero.png"), 150, 150)
+        if hero:
+            self._imgrefs.append(hero)
+            tk.Label(head, image=hero, bg=self.colors["overlay"]).pack()
+        else:
+            c = tk.Canvas(head, width=140, height=120, bg=self.colors["overlay"],
+                          highlightthickness=0)
+            c.pack()
+            c.create_oval(35, 15, 105, 85, fill=self.colors["card"],
+                          outline=self.accent, width=2)
+            c.create_rectangle(50, 38, 62, 58, fill=self.accent, outline="")
+            c.create_rectangle(78, 38, 90, 58, fill=self.accent, outline="")
+            c.create_rectangle(55, 95, 85, 103, fill=self.accent, outline="")
+
+        title_row = tk.Frame(wrap, bg=self.colors["overlay"])
+        title_row.pack(pady=(14, 0))
+        tk.Label(title_row, text="Meet DXN1 Agents", bg=self.colors["overlay"],
+                 fg=self.colors["text"], font=(FONT_UI, 22, "bold")).pack(side=tk.LEFT)
+        rounded_pill(title_row, "OPTIONAL", self.colors["card_border"],
+                     self.colors["secondary"], padx=8, pady=2,
+                     size=8).pack(side=tk.LEFT, padx=(12, 0), pady=8)
+
+        tk.Label(wrap, text="Your built-in studio copilot — fully local. It can create files, "
+                            "scaffold a Flask app, run your project and install packages.",
+                 bg=self.colors["overlay"], fg=self.colors["secondary"],
+                 font=(FONT_UI, 11), wraplength=560, justify=tk.CENTER
+                 ).pack(pady=(8, 4))
+        tk.Label(wrap, text="Nothing happens without your permission: every edit and every "
+                            "command arrives as a card you accept or decline.",
+                 bg=self.colors["overlay"], fg=self.colors["secondary"],
+                 font=(FONT_UI, 11), wraplength=560, justify=tk.CENTER
+                 ).pack(pady=(0, 18))
+
+        btns = tk.Frame(wrap, bg=self.colors["overlay"])
+        btns.pack()
+        self.agents_btns = {}
+        for key, label in ((True, "Enable DXN1 Agents"), (False, "Not now")):
+            b = tk.Label(btns, text=label, bg=self.colors["card"] if key is False
+                         else self.colors["card"], fg=self.colors["text"],
+                         font=(FONT_UI, 11, "bold"), cursor="hand2",
+                         padx=20, pady=10)
+            b.pack(side=tk.LEFT, padx=8)
+            b.bind("<Button-1>", lambda e, v=key: self.choose_agents(v))
+            self.agents_btns[key] = b
+
+        tk.Label(wrap, text="You can change this anytime in Settings → DXN1 Agents — "
+                            "including full-access mode that stops asking.",
+                 bg=self.colors["overlay"], fg=self.colors["muted"],
+                 font=(FONT_UI, 9)).pack(pady=(16, 0))
+
+        self._refresh_agents()
+        return s
+
+    def choose_agents(self, value):
+        self.agents_choice = value
+        self._refresh_agents()
+
+    def _refresh_agents(self):
+        for key, b in self.agents_btns.items():
+            on = key == self.agents_choice
+            b.config(bg=self.accent if on else self.colors["card"],
+                     fg="#ffffff" if on else self.colors["text"])
+
+    # ------------------------------------------------------------- slide 4
     def _slide_ready(self):
         s = WizardSlide(self.page, self)
         wrap = tk.Frame(s, bg=self.colors["overlay"])
@@ -319,7 +396,8 @@ class WelcomeWizard:
         self.summary = tk.Frame(wrap, bg=self.colors["overlay"])
         self.summary.pack()
         for icon, label, value in (("◐", "Theme", "Dark"), ("◆", "Accent", "Violet"),
-                                   ("→", "Next", "Quick guided tour")):
+                                   ("◆", "Agents", "Off"),
+                                   ("→", "Next", "Project Hub & quick tour")):
             row = tk.Frame(self.summary, bg=self.colors["card"],
                            highlightthickness=1, highlightbackground=self.colors["card_border"])
             row.pack(fill=tk.X, pady=4, ipadx=12, ipady=7)
@@ -336,17 +414,19 @@ class WelcomeWizard:
         self.ready_title.config(text=f"You're all set, {name}!")
         theme_lbl = "Dark" if self.theme_choice == "dark" else "Light"
         accent_lbl = ACCENTS[self.accent_name]["label"]
-        vals = [theme_lbl, accent_lbl, "Quick guided tour"]
+        agents_lbl = "Enabled" if self.agents_choice else "Off"
+        vals = [theme_lbl, accent_lbl, agents_lbl, "Project Hub & quick tour"]
         for row, v in zip(self.summary.winfo_children(), vals):
             row.winfo_children()[2].config(text=v)
 
     # ---------------------------------------------------------------- flow
     def _center_over_master(self):
+        # centre on the screen: the main window is hidden while the wizard
+        # and the Project Hub own the first-boot experience.
         self.win.update_idletasks()
         self.win.geometry(f"{WIZ_W}x{WIZ_H}")
-        mx = self.master.winfo_rootx() + max(0, (self.master.winfo_width() - WIZ_W) // 2)
-        my = self.master.winfo_rooty() + max(40, (self.master.winfo_height() - WIZ_H) // 3)
-        self.win.geometry(f"{WIZ_W}x{WIZ_H}+{max(0, mx)}+{max(0, my)}")
+        sw, sh = self.win.winfo_screenwidth(), self.win.winfo_screenheight()
+        self.win.geometry(f"{WIZ_W}x{WIZ_H}+{(sw - WIZ_W) // 2}+{max(20, (sh - WIZ_H) // 3)}")
 
     def show(self, idx):
         self.index = idx
@@ -363,7 +443,8 @@ class WelcomeWizard:
         self.back_btn.config(
             fg=self.colors["secondary"] if idx > 0 else self.colors["card_border"])
         hints = ["", "Changes apply instantly across the IDE",
-                 "A quick guided tour comes next"]
+                 "Ask mode by default — full access later in Settings",
+                 "The Project Hub comes first, then a quick tour"]
         self.hint.config(text=hints[idx])
 
     def finish(self, skip=False):
@@ -380,6 +461,7 @@ class WelcomeWizard:
             self.config.set("name", name, save=False)
             self.config.set("theme", self.theme_choice, save=False)
             self.config.set("accent", self.accent_name, save=False)
+            self.config.set("agents_enabled", bool(self.agents_choice), save=False)
         try:
             self.win.grab_release()
             self.win.destroy()

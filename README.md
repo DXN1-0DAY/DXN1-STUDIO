@@ -1,7 +1,9 @@
 # DXN1 STUDIO
 
-A clean, modern IDE built from scratch with Python & Tkinter. Dark + light themes,
-accent colours, and a guided first-launch experience.
+A clean, modern IDE built from scratch with Python & Tkinter. Boot splash,
+Project Hub, workspaces (Python / Flask / Tkinter / empty), one-click Run,
+optional dependency manager, project export, and **DXN1 Agents** — the
+built-in assistant that asks before it touches anything.
 
 ## Installation
 
@@ -17,62 +19,124 @@ After installation, add `~/.local/bin` to your PATH if not already present:
 export PATH="$HOME/.local/bin:$PATH"
 ```
 
-## Usage
+## Launching
 
-Launch the IDE from anywhere:
+The boot sequence: you get the logo card for ~2 seconds, then the studio
+rises. Any of these work:
 
 ```bash
-DXN1-STUDIO
+dxn1 studio          # the classic way
+dxn1                 # also fine
+DXN1 STUDIO          # uppercase, unquoted → shell runs DXN1 with arg STUDIO
+"DXN1 STUDIO"        # the launcher literally named with a space. Yes.
+dxn1 studio ~/my-app # boot straight into a workspace
 ```
 
 Useful flags:
 
 ```bash
-DXN1-STUDIO --reset-config    # wipe preferences and replay the welcome wizard
-DXN1-STUDIO --smoke-test      # run a headless self-check (wizard → tour → exit)
+dxn1 studio --reset-config    # wipe preferences and replay the welcome wizard
+dxn1 studio --no-splash       # skip the boot splash this once
+dxn1 studio --smoke-test      # headless self-check (CI-safe, temp config)
 ```
 
 ## First Launch
 
-The first time DXN1 STUDIO opens, a three-step welcome wizard guides you through:
+1. **Boot splash** — the logo card, two seconds, done
+2. **Welcome wizard** — hero splash + your display name
+3. **Make it yours** — dark/light theme + four accent colours (violet, cyan, green, orange)
+4. **DXN1 Agents** *(optional)* — opt in to the built-in assistant
+5. **Project Hub** — create your first workspace or explore the studio
+6. **Guided tour** — a short spotlight walk across the real UI
 
-1. **Welcome** — hero splash and your display name (used for greetings)
-2. **Make it yours** — dark or light theme + four accent colours (violet, cyan, green, orange)
-3. **Ready** — summary, then a short interactive tour of the real UI
+Replay the wizard or tour anytime from the **Help** menu.
 
-After that the studio just opens and remembers you. Replay the wizard or tour
-anytime from the **Help** menu.
+## Project Hub
 
-## Features
+Every session starts at the Hub:
+
+- **New Python Script** — ready-to-run `main.py`
+- **New Flask Web App** — `app.py` + template + `requirements.txt`
+- **New Tkinter App** — native desktop starter
+- **Empty Workspace** — a clean folder
+- **Recent workspaces** — one click back into your latest work
+
+Workspaces can live anywhere; DXN1 keeps track of them in
+`~/.dxn1-studio/config.json`. Reopen the Hub anytime via **File → Project Hub**.
+
+## The IDE
 
 - Modern dark & light themes with 4 accent colours
-- Guided first-launch wizard + interactive UI tour
-- File explorer sidebar
-- Tab system with closable tabs
-- Code editor with line numbers and unlimited undo
-- Built-in terminal / output panel
-- Status bar with live file indicator and version chip
-- Working Edit menu (undo/redo/cut/copy/paste) and Ctrl+N/O/S shortcuts
+- File explorer, closable tabs, line numbers, unlimited undo
+- **Toolbar**: New · Open · Save · ▶ Run (F5) · ■ Stop · Packages · Export ZIP · Hub
+- **Run system** — executes the active file (or your workspace's `app.py`/`main.py`)
+  and streams output live into the terminal; status bar flips to “● Running”
+- **Interactive terminal** — type `help` for studio commands:
+  `run`, `stop`, `clear`, `packages`, `hub`, `export`, `agent <request>`,
+  `settings` — and the classic `dxn1 studio` replays the boot splash
+- Keyboard: Ctrl+N/O/S, F5 run, Ctrl+, settings
+
+## Optional Packages (lightweight by default)
+
+DXN1 installs **nothing** behind your back. **Tools → Manage Packages** is the
+one opt-in page for the heavy stuff: Flask, Requests, httpx, Pillow, NumPy,
+Rich, pytest, Black, Ruff — with live `pip` output, version detection and
+uninstall. Power users can pip-install anything from the same window.
+
+## Export
+
+- **File → Export Project as ZIP…** — the whole workspace, skipping caches
+  and venvs; Flask projects automatically get a `requirements.txt`
+- **File → Export Current File As…** — just the file you're editing
+
+## DXN1 Agents
+
+The built-in copilot, fully local and rule-based in this beta. It can:
+
+- create files with starter templates (`create file utils.py`)
+- scaffold a complete Flask app (`new flask app`)
+- run your project (`run`) and install packages (`install flask`)
+- open workspace files (`open app.py`), analyze the editor buffer (`explain`)
+- propose raw commands (`shell python -V`)
+
+**Permission model** — the whole point:
+
+- **Ask mode** (default): every edit and command arrives as a card with
+  **Accept / Decline**
+- **Full access**: turn both prompts off in the agent settings and it stops
+  asking — edits apply and commands run immediately
+- Disable it entirely anytime; the panel disappears from the studio
+
+Find it in **Settings → DXN1 Agents** (or the ⚙ icon on the agent panel).
 
 ## Requirements
 
 - Python 3.8+
-- Tkinter (usually included with Python; on Debian/Ubuntu/Termux: `apt install python3-tk`)
-- Pillow (optional — used for crisp image scaling, falls back automatically)
+- Tkinter (usually included; Debian/Ubuntu/Termux: `apt install python3-tk`)
+- Pillow (optional — crisp image scaling, falls back automatically)
+- Everything else is opt-in via the Packages page
 
 ## Project Structure
 
 ```
 DXN1-STUDIO/
-├── dxn1-studio              # Entry point
+├── dxn1                     # CLI launcher (dxn1 studio / "DXN1 STUDIO")
+├── DXN1 STUDIO              # yes, a launcher with a space
+├── dxn1-studio              # classic entry point
 ├── dxn1_studio/
-│   ├── app.py               # Main window & session orchestration
+│   ├── app.py               # Main window, boot flow, run system, settings
 │   ├── config.py            # ~/.dxn1-studio/config.json persistence
 │   ├── theme.py             # Dark/light palettes + accent colours
-│   ├── widgets.py           # File explorer, code editor, terminal
-│   ├── onboarding.py        # Welcome wizard (first launch)
-│   └── tour.py              # Interactive guided tour
-├── assets/                  # Logo & onboarding artwork
+│   ├── widgets.py           # File explorer, code editor, interactive terminal
+│   ├── onboarding.py        # 4-step welcome wizard (incl. Agents opt-in)
+│   ├── tour.py              # Interactive guided tour
+│   ├── projects.py          # Workspace scaffolds + recent registry
+│   ├── hub.py               # Project Hub start screen
+│   ├── splash.py            # Boot splash (logo card)
+│   ├── packages.py          # Optional dependency manager
+│   ├── export.py            # ZIP / file export
+│   └── agent.py             # DXN1 Agents assistant + settings
+├── assets/                  # Logo & generated artwork
 ├── install.sh               # Curl-based installer
 └── README.md
 ```

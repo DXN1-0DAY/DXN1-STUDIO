@@ -1,0 +1,60 @@
+#!/usr/bin/env python3
+"""DXN1 STUDIO — command-line launcher.
+
+Usage:
+  dxn1                  launch the studio (boot splash first, IDE after ~2s)
+  dxn1 studio           the classic way — same thing
+  dxn1 /path/to/ws      launch straight into a workspace
+  dxn1 --version        print the banner + version
+  dxn1 --help           this text
+
+Case and spacing don't matter:  DXN1 STUDIO · dxn1 STUDIO · "DXN1 STUDIO"
+all boot the studio (see the companion launcher literally named
+"DXN1 STUDIO" for the fully-quoted experience).
+"""
+
+import os
+import re
+import sys
+
+BANNER = r"""██████╗ ██╗  ██╗███╗   ██╗██████╗
+██╔══██╗╚██╗██╔╝████╗  ██║██╔══██╗
+██║  ██║ ╚███╔╝ ██╔██╗ ██║██║  ██║
+██║  ██║ ██╔██╗ ██║╚██╗██║██║  ██║
+██████╔╝██╔╝ ██╗██║ ╚████║██████╔╝
+╚═════╝ ╚═╝  ╚═╝╚═╝  ╚═══╝╚═════╝"""
+
+sys.path.insert(0, os.path.dirname(os.path.realpath(__file__)))
+
+from dxn1_studio import APP_VERSION, APP_TAGLINE  # noqa: E402
+
+
+def banner():
+    print(BANNER)
+    print(f"  DXN1 STUDIO v{APP_VERSION}")
+    print(f"  {APP_TAGLINE}\n")
+
+
+def main():
+    args = sys.argv[1:]
+
+    # the magic word: "dxn1 studio" (any case) simply launches
+    if args and re.fullmatch(r"(?i)studio", args[0]):
+        args = args[1:]
+
+    if args and args[0] in ("--version", "-v"):
+        banner()
+        sys.exit(0)
+    if args and args[0] in ("--help", "-h"):
+        banner()
+        print(__doc__)
+        sys.exit(0)
+
+    from dxn1_studio.app import main as app_main  # noqa: E402
+    sys.argv = [sys.argv[0]] + args
+    banner()
+    app_main()
+
+
+if __name__ == "__main__":
+    main()
