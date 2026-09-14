@@ -4,6 +4,21 @@ All notable changes to DXN1 STUDIO. Format based on
 [Keep a Changelog](https://keepachangelog.com/); versioning is
 `MAJOR.MINOR.PATCH` while in **beta**.
 
+## [1.8.0] — 2026-09-14 · beta · "the hub grows up"
+
+### Added
+- **Workspace statistics** (`workspace_stats.py`) — fast, honest
+  numbers for any folder: file count, total lines, language mix, disk
+  size and git commit count, computed in one capped walk that can
+  never freeze the UI or raise.
+- **Project Hub v2** — recents now show live stats ("128 files ·
+  Python 61% · 12 commits"), workspaces can be **pinned** (they float
+  to the top with an accent border), and the whole list filters as you
+  type.
+- **Rust and Go scaffolds** — the hub gallery grows to 12 templates:
+  real Cargo.toml + main.rs and go.mod + main.go starters, ready for
+  `cargo run` and `go run` respectively.
+
 ## [1.7.0] — 2026-09-14 · beta · "the welcome gets smarter"
 
 ### Added
