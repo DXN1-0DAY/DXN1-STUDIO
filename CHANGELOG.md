@@ -4,6 +4,31 @@ All notable changes to DXN1 STUDIO. Format based on
 [Keep a Changelog](https://keepachangelog.com/); versioning is
 `MAJOR.MINOR.PATCH` while in **beta**.
 
+## [2.9.0] — 2026-09-14 · beta · "data in, trees out"
+
+### Added
+- **SQLite Lab** (`sqlitelab.py`, Workshop menu, palette, terminal
+  `db` / `db <file>`) — a real database browser: tables and views with
+  live row counts in the sidebar, a Browse grid with truncation-aware
+  cells and CSV/markdown export, a Schema tab (columns with type/null/
+  default/pk plus index flags), an F5 query bench (SELECT fills a grid
+  capped at 500 rows, writes report affected counts and refresh the
+  sidebar, errors land in the status line), an Info page with file
+  size, journal mode and encoding — and read-only-by-default
+  connections so browsing can never corrupt your data. The lab
+  auto-discovers `.db` / `.sqlite` files in the workspace.
+- **Directory tree export** (`treeexport.py`, Workshop menu, palette,
+  terminal `tree` / `tree <dir>`) — README-ready ASCII trees with
+  dirs-first sorting, depth 1–6, hidden-files and per-file size
+  toggles (live regeneration), a shared junk-skip set (`.git`,
+  `node_modules`, `__pycache__`…) with a skipped counter, a truncation
+  flag, clipboard copy and save-to-file.
+
+### Tests
+- Engine suite now **39 cases** (+sqlitelab engine, +treeexport
+  engine); the v2.9.0 UI smoke (`scripts/smoke_v290.py`) runs **21
+  checks** across both new windows; boot QA stays 17/17.
+
 ## [2.8.0] — 2026-09-14 · beta · "the workshop"
 
 ### Fixed
