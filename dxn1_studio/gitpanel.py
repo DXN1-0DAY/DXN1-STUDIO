@@ -55,11 +55,13 @@ def _run_git(repo, *args, timeout=15):
 class GitPanel(tk.Frame):
     """'Source Control' sidebar — the studio's view over your repo."""
 
-    def __init__(self, parent, theme, on_open_file=None, on_log=None):
+    def __init__(self, parent, theme, on_open_file=None, on_log=None,
+                 config=None):
         super().__init__(parent, bg=theme["sidebar"])
         self.theme = theme
         self.on_open_file = on_open_file
         self.on_log = on_log or (lambda msg: None)
+        self.config = config          # DS2: needed for the AI message chip
         self.workspace = None
         self._is_repo = False
 
@@ -102,6 +104,13 @@ class GitPanel(tk.Frame):
             font=(FONT_UI, 9, "bold"), cursor="hand2", padx=12, pady=5)
         self.commit_btn.pack(side=tk.LEFT)
         self.commit_btn.bind("<Button-1>", lambda e: self.commit())
+        # DS2: AI commit message chip
+        self.ai_btn = tk.Label(crow, text="✨ AI msg", bg=theme["card"],
+                               fg=theme["text_secondary"],
+                               font=(FONT_UI, 9, "bold"), cursor="hand2",
+                               padx=10, pady=5)
+        self.ai_btn.pack(side=tk.LEFT, padx=(6, 0))
+        self.ai_btn.bind("<Button-1>", lambda e: self.ai_message())
         stage_all = tk.Label(crow, text="+ Stage all", bg=theme["card"],
                              fg=theme["text_secondary"], cursor="hand2",
                              font=(FONT_UI, 9), padx=10, pady=5)
@@ -377,6 +386,58 @@ class GitPanel(tk.Frame):
             return
         self.on_log("git: staged every change")
         self.refresh()
+
+    def ai_message(self):
+        """DS2: generate a commit message with the studio's brain."""
+        if not self._is_repo or not self.workspace:
+            self._say("Open a repository first.")
+            return
+        if self.config is None:
+            self._say("AI message needs the agent brain — connect one in "
+                      "DXN1 Agents settings.")
+            return
+        self.ai_btn.config(text="… thinking", fg=self.theme["text_muted"])
+        self._say("Writing a commit message from the diff…")
+
+        def done(message):
+            try:
+                self.ai_btn.config(text="✨ AI msg",
+                                   fg=self.theme["text_secondary"])
+                if not message:
+                    self._say("No changes to describe — stage something "
+                              "first.")
+                    return
+                self._placeholder_clear()
+                self.msg.delete(0, tk.END)
+                self.msg.insert(0, message.splitlines()[0])
+                if len(message.splitlines()) > 1:
+                    self._say(message.splitlines()[1].strip()[:120])
+                else:
+                    self._say("AI message ready — edit if you like.")
+                self.on_log("git: AI commit message generated")
+            except tk.TclError:
+                pass
+
+        def fail(reason):
+            try:
+                self.ai_btn.config(text="✨ AI msg",
+                                   fg=self.theme["text_secondary"])
+                self._say(reason)
+            except tk.TclError:
+                pass
+
+        def worker_cb(message):
+            self.after(0, lambda: done(message))
+
+        def error_cb(reason):
+            self.after(0, lambda: fail(reason))
+
+        try:
+            from . import commit_msg
+            commit_msg.generate_message(self.workspace, self.config,
+                                        worker_cb, error_cb)
+        except Exception as exc:
+            fail(f"AI message failed: {exc}")
 
     def commit(self):
         if not self._is_repo:

@@ -476,7 +476,8 @@ class DXN1Studio:
                                        on_open_match=self.open_search_match)
         self.git_view = GitPanel(self.sidebar_container, t,
                                  on_open_file=self.open_file,
-                                 on_log=lambda msg: self.terminal.log(msg))
+                                 on_log=lambda msg: self.terminal.log(msg),
+                                 config=self.config)
         self.packages_view = PackagesView(self.sidebar_container, t)
         self.main_container.add(self.sidebar_container, width=252,
                                 minsize=190)
@@ -2162,6 +2163,13 @@ class DXN1Studio:
             ("Token usage dashboard…", "DS2", _open_usage),
             ("Agent memory (this workspace)…", "DS2", _open_memory),
         ]
+        # DS2: AI quick actions on the selection (defensive) — the
+        # module exposes its own palette-ready command tuples
+        try:
+            from . import quick_actions as _qa
+            cmds += _qa.palette_commands(self)
+        except Exception:  # pragma: no cover — palette stays alive
+            pass
         return cmds
 
     def _worktree_texts(self):
