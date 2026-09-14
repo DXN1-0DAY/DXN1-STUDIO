@@ -321,6 +321,16 @@ class AgentEngine:
             extra_prompt = (config.get("agents_system_prompt") or "").strip()
         self.system_prompt = build_system_prompt(
             sandbox, name, extra_prompt, style=self.style)
+        # DS2: per-workspace memory recall — most-relevant facts are
+        # injected once per session so the agent stops re-asking.
+        try:
+            from .memory import MemoryBank
+            block = MemoryBank(getattr(sandbox, "root", None)) \
+                .context_block()
+            if block:
+                self.system_prompt += "\n\n" + block
+        except Exception:  # pragma: no cover — memory is best-effort
+            pass
         self.history = []
         self.tokens_used = 0      # total tokens reported by the backend
         self.steps_used = 0       # tool-loop turns taken this session
@@ -328,6 +338,22 @@ class AgentEngine:
     # ------------------------------------------------------------ controls
     def stop(self):
         self.stop_flag = True
+
+    def _record_usage(self):
+        """DS2: report this turn's token delta to the local ledger."""
+        try:
+            total = int(getattr(self.backend, "total_tokens", 0) or 0)
+            before = int(getattr(self, "_tokens_before", 0) or 0)
+            if total > before:
+                from .usagedash import record_usage
+                record_usage(total - before,
+                             model=getattr(self.backend, "model", "?"),
+                             backend=getattr(self.backend, "label", "?"),
+                             workspace=getattr(self.sandbox, "root", ""))
+                self._tokens_before = total
+                self.tokens_used = total
+        except Exception:   # pragma: no cover — accounting never blocks
+            pass
 
     def reset(self):
         self.history = []
@@ -345,6 +371,28 @@ class AgentEngine:
         self.busy = True
         self.stop_flag = False
         try:
+            # DS2: "remember: …" teaches the memory bank directly —
+            # no model call, instant confirmation.
+            if user_text.strip().lower().startswith("remember:"):
+                fact = user_text.split(":", 1)[1].strip()
+                if fact:
+                    try:
+                        from .memory import MemoryBank
+                        bank = MemoryBank(
+                            getattr(self.sandbox, "root", None))
+                        ok, msg = bank.remember(fact,
+                                                source="agent chat")
+                        self.emit("finalize", "")
+                        self.emit("say", f"◈ Memory {'saved' if ok else 'kept'}: "
+                                         f"\"{fact[:100]}\" — {msg}. I'll "
+                                         f"recall it in later sessions "
+                                         f"for this workspace.")
+                    except Exception:
+                        self.emit("say", "Could not save that memory.")
+                else:
+                    self.emit("say", "Remember *what*? Try: remember: "
+                                     "this project uses pytest.")
+                return
             self.history.append({"role": "user", "content": user_text})
             max_steps = max(2, int(self.config.get("agents_max_steps", 12) or 12))
             for _ in range(max_steps):
@@ -384,6 +432,7 @@ class AgentEngine:
             self.emit("say", "Reached my step limit for this turn — say "
                              "\"continue\" if you want me to keep going.")
         finally:
+            self._record_usage()
             self.busy = False
 
     def _think(self):

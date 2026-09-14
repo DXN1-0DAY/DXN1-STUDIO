@@ -2123,6 +2123,21 @@ class DXN1Studio:
             ]
         except Exception:  # pragma: no cover — palette stays alive
             pass
+        # ---- DS2 intelligence: memory + usage (defensive)
+        try:
+            from . import memory as _mem
+            from . import usagedash as _ud
+            cmds += [
+                ("Agent memory — what the assistant remembers", "",
+                 lambda: _mem.open_memory(self.root, self.theme,
+                                          self.project_dir,
+                                          on_log=lambda m: None)),
+                ("Token usage dashboard", "",
+                 lambda: _ud.open_dashboard(self.root, self.theme,
+                                            self.project_dir)),
+            ]
+        except Exception:  # pragma: no cover — palette stays alive
+            pass
         if self.config.get("agents_enabled"):
             cmds += [
                 ("Toggle DXN1 Agents panel", "", self.toggle_agents_panel),
@@ -2130,6 +2145,23 @@ class DXN1Studio:
                  lambda: AgentSettingsDialog(self)),
                 ("Connect a brain…", "", lambda: ConnectDialog(self)),
             ]
+        # DS2 additions — usage metering + workspace memory (defensive)
+        def _open_usage():
+            from .usagedash import open_dashboard
+            open_dashboard(self, self.theme,
+                           workspace=getattr(self, "project_dir", ""),
+                           on_log=lambda msg: self.terminal.log(msg))
+
+        def _open_memory():
+            from .memory import open_memory_editor
+            open_memory_editor(self, self.theme,
+                               workspace=getattr(self, "project_dir", ""),
+                               on_log=lambda msg: self.terminal.log(msg))
+
+        cmds += [
+            ("Token usage dashboard…", "DS2", _open_usage),
+            ("Agent memory (this workspace)…", "DS2", _open_memory),
+        ]
         return cmds
 
     def _worktree_texts(self):
