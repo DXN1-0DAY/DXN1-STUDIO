@@ -4,6 +4,33 @@ All notable changes to DXN1 STUDIO. Format based on
 [Keep a Changelog](https://keepachangelog.com/); versioning is
 `MAJOR.MINOR.PATCH` while in **beta**.
 
+## [2.38.0] — 2026-09-15 · beta · "instant answers, honest invalidation" (deps cache + commands verb)
+
+### Added
+- **deps per-workspace cache** — repeat `deps` reports are instant:
+  the verdict is stored in `<workspace>/.dxn1/depcheck_cache.json`
+  with a change-sensitive fingerprint (every scanned `*.py` and
+  requirements file's `mtime_ns` + size, plus the workspace-root
+  listing, since a new top-level module changes the local-module
+  set). Any edit invalidates honestly and a real scan re-stores; a
+  corrupt cache file falls back to the scan path; the cache's own
+  `.dxn1` write can never self-invalidate the fingerprint it lives
+  in. A cached report says so — `deps: served from cache (workspace
+  unchanged) — `deps fresh` rescans`.
+- **`deps fresh`** — bypass the cache, rescan, re-store. `deps fix`
+  always works from a fresh scan (a cached report must never decide
+  what gets pinned).
+- **`commands [filter]`** — every command the Ctrl+K palette offers
+  (109+) listed in the terminal with its shortcut; a filter tail
+  narrows by substring first, then the closest fuzzy hits
+  (`commands line`, `commands sve fil` → *Save file*), capped at 24
+  rows with an honest "+N more — narrow the filter".
+- **Palette help fallback** — `help <query>` now searches the
+  palette's own registry when no terminal row matches:
+  `help duplicate` answers `palette: Duplicate line —
+  Ctrl+Shift+D`. The palette's vocabulary is discoverable without
+  opening the palette.
+
 ## [2.37.0] — 2026-09-14 · beta · "deps that fix themselves" (deps fix + help <verb>)
 
 ### Added

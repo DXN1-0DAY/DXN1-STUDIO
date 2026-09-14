@@ -67,6 +67,7 @@ TERMINAL_HELP = (
     ("search <query>", "search across the workspace"),
     ("find <text>", "find text in the current file"),
     ("palette", "open the command palette (Ctrl+K)"),
+    ("commands", "list palette commands (optional filter)"),
     ("todo", "scan the workspace for TODO / FIXME"),
     ("tools", "developer tools: regex, JSON, text, time"),
     ("cron <expr>", "decode a cron schedule + next runs"),
@@ -130,7 +131,8 @@ TERMINAL_HELP = (
     ("recent", "list recently opened files"),
     ("update", "check GitHub for a newer release"),
     ("whatsnew", "release notes — what changed between tags"),
-    ("deps", "cross-check imports vs requirements*.txt"),
+    ("deps", "cross-check imports vs requirements*.txt "
+             "(fix / fresh)"),
     ("hub", "open the Project Hub"),
     ("export", "export the workspace as a ZIP"),
     ("agent <request>", "talk to DXN1 Agents (if enabled)"),
@@ -157,6 +159,23 @@ def matching_help_rows(query, rows=TERMINAL_HELP):
                         key=lambda t: t[0], reverse=True)
         return [r for s, r in scored[:3] if s > 0]
     except Exception:  # noqa: BLE001 — help must never raise
+        return []
+
+
+def palette_help_rows(app):
+    """DS2 v2.38: ``(label, shortcut)`` rows for every command the
+    palette offers — the same registry Ctrl+K shows, flattened for
+    the terminal's ``commands`` verb and ``help`` fallback. Never
+    raises; an empty list means the palette could not be built."""
+    try:
+        rows = []
+        for label, key, _fn in app.palette_commands():
+            lab = " ".join(str(label or "").split())
+            if not lab:
+                continue
+            rows.append((lab, str(key or "").strip()))
+        return rows
+    except Exception:  # noqa: BLE001 — listing must never raise
         return []
 
 
@@ -3085,8 +3104,14 @@ class DXN1Studio:
                 self.terminal.log(f"  {cmd:<18} — {desc}")
             return
         if low.startswith("help "):
-            # DS2 v2.37: help for one verb — `help deps`
+            # DS2 v2.37/2.38: help for one verb — `help deps` — with a
+            # fallback into the palette's own command registry
             rows = matching_help_rows(text[5:])
+            if not rows:
+                prow = matching_help_rows(
+                    text[5:], rows=palette_help_rows(self))
+                rows = [("palette: " + c, d or "palette command")
+                        for c, d in prow]
             if rows:
                 for cmd, desc in rows:
                     self.terminal.log(f"  {cmd:<18} — {desc}")
@@ -3498,7 +3523,12 @@ class DXN1Studio:
             return
         if low == "deps" or low.startswith("deps "):
             self._run_depcheck(
-                fix=(low == "deps fix" or low.startswith("deps fix ")))
+                fix=(low == "deps fix" or low.startswith("deps fix ")),
+                force=(low == "deps fresh"
+                       or low.startswith("deps fresh ")))
+            return
+        if low == "commands" or low.startswith("commands "):
+            self._list_palette_commands(text[8:].strip())
             return
         if low in ("hub", "project hub"):
             self.open_hub()
@@ -4817,18 +4847,22 @@ class DXN1Studio:
         except Exception:  # noqa: BLE001 — dying root is fine
             pass
 
-    def _run_depcheck(self, fix=False):
-        """DS2 v2.36/v2.37: ``deps`` — imports vs requirements, in the
+    def _run_depcheck(self, fix=False, force=False):
+        """DS2 v2.36–v2.38: ``deps`` — imports vs requirements, in the
         terminal. Pure static analysis, never executes project code.
-        With ``fix`` (``deps fix``) missing imports are appended to the
-        requirements file as canonical pins — atomically, deduped."""
+        The report is cached per workspace (``.dxn1``) and only
+        rescanned when a fingerprint changes; ``deps fresh`` bypasses
+        the cache and ``deps fix`` always works from a fresh scan. With
+        ``fix``, missing imports are appended to the requirements file
+        as canonical pins — atomically, deduped."""
         try:
             if not self.project_dir:
                 self.toast("No workspace open — deps needs one",
                            kind="info")
                 return
             from . import depcheck as _dc
-            rep = _dc.check(self.project_dir)
+            rep = _dc.check_cached(self.project_dir,
+                                   use_cache=not (force or fix))
             text = _dc.describe(rep)
             if not text:
                 self.toast("deps: no Python files in this workspace",
@@ -4836,6 +4870,9 @@ class DXN1Studio:
                 return
             for ln in text.splitlines():
                 self.terminal.log(ln)
+            if rep.get("cached"):
+                self.terminal.log("deps: served from cache (workspace "
+                                  "unchanged) — `deps fresh` rescans")
             if not fix:
                 return
             pins = _dc.suggested_pins(rep.get("missing") or [])
@@ -4856,6 +4893,50 @@ class DXN1Studio:
                 self.terminal.log(f"deps fix failed: {res.get('error', '')}")
         except Exception:
             errors.log_exception("deps check", quiet=True)
+
+    def _list_palette_commands(self, flt=""):
+        """DS2 v2.38: ``commands [filter]`` — every command the
+        Ctrl+K palette offers, listed in the terminal. A filter tail
+        narrows the list: substring first, then the closest fuzzy
+        hits. Never raises."""
+        try:
+            rows = palette_help_rows(self)
+            if not rows:
+                self.terminal.log("commands: palette unavailable right "
+                                  "now — try `palette` (Ctrl+K)")
+                return
+            total = len(rows)
+            q = str(flt or "").strip().lower()
+            if q:
+                sub = [r for r in rows
+                       if q in r[0].lower() or q in r[1].lower()]
+                if not sub:
+                    try:
+                        from . import fuzzy as _fz
+                        scored = sorted(
+                            ((_fz.score(q, r[0]), r) for r in rows),
+                            key=lambda t: t[0], reverse=True)
+                        sub = [r for s, r in scored[:8] if s > 0]
+                    except Exception:  # noqa: BLE001
+                        sub = []
+                rows = sub
+            if not rows:
+                self.terminal.log(f"commands: nothing matches "
+                                  f"'{flt.strip()}'")
+                return
+            head = (f"commands: {len(rows)} of {total} palette command"
+                    f"{'s' if total != 1 else ''}"
+                    + (f" matching '{flt.strip()}'" if q else "")
+                    + " — fire any via `palette` (Ctrl+K):")
+            self.terminal.log(head)
+            shown = rows[:24]
+            for lab, key in shown:
+                self.terminal.log(f"  {lab}" + (f"  [{key}]" if key else ""))
+            if len(rows) > len(shown):
+                self.terminal.log(f"  … +{len(rows) - len(shown)} more — "
+                                  "narrow the filter")
+        except Exception:
+            errors.log_exception("commands", quiet=True)
 
     def show_whatsnew(self):
         """DS2 v2.36: open the What's New viewer on demand (terminal

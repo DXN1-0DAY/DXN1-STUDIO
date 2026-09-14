@@ -441,7 +441,10 @@
 | Famous alias table | `depcheck.ALIASES` | Pillow→PIL, beautifulsoup4→bs4, PyYAML→yaml, scikit-learn→sklearn, python-dotenv→dotenv and ~25 more pairs so `PyYAML` satisfies `import yaml` |
 | Honest caveats | `depcheck.check()` | No requirements file → a notice instead of an error; unknown dist↔import pairs can false-positive, and the report says exactly that |
 | Self-healing pins | terminal `deps fix`, `depcheck.fix_requirements()` | Missing imports become canonical pins appended atomically to `requirements*.txt` (`# added by deps on <date>`) — the reverse alias table picks the distribution (`yaml` → `pyyaml`, `PIL` → `pillow`); deduped against existing lines, creates the file on demand, second run is a no-op |
+| Per-workspace cache | terminal `deps`, `deps fresh`, `depcheck.check_cached()` | Repeat reports are instant: the verdict is stored in `<ws>/.dxn1/depcheck_cache.json` with a change-sensitive fingerprint (every scanned file's mtime + size, plus the root listing); any edit invalidates honestly, a corrupt cache falls back to a real scan, the cache's own `.dxn1` write never self-invalidates, and `deps fix` always works from a fresh scan |
 | Per-verb help | terminal `help <verb>`, `matching_help_rows()` | Exact command match, then substring over commands/descriptions, then the three closest fuzzy hits — `help dps` finds `deps`; unknown verbs get an honest "No help for" line |
+| Palette help fallback | terminal `help <query>`, `palette_help_rows()` | When no terminal row matches, `help` searches the palette's own command registry — `help duplicate` finds *Duplicate line — Ctrl+Shift+D*; the Ctrl+K vocabulary is discoverable without opening the palette |
+| Commands listing | terminal `commands [filter]`, app `_list_palette_commands()` | Every palette command (109+) listed in the terminal with its shortcut; a filter tail narrows by substring then fuzzy (`commands line`, `commands sve fil` → *Save file*), capped at 24 rows with an honest "+N more — narrow the filter" |
 
 ## Session Restore
 

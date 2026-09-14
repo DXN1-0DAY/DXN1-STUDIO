@@ -3421,3 +3421,179 @@ def test_help_verb(monkeypatch, tmp_path):
             root.destroy()
         except tk.TclError:
             pass
+
+
+def test_deps_cache(tmp_path):
+    """DS2 v2.38 — deps per-workspace cache: change-sensitive
+    signature, instant hit on repeat runs, honest invalidation when a
+    file changes, the .dxn1 self-invalidation guard, corrupt-cache
+    fallback, and the app-level `deps` / `deps fresh` / `deps fix`
+    caching contract."""
+    import json
+    import shutil
+    import tkinter as tk
+    from dxn1_studio import depcheck as dc
+    proj = tmp_path / "ws"
+    proj.mkdir()
+    (proj / "main.py").write_text("import yaml\nimport httpx\n",
+                                  encoding="utf-8")
+    (proj / "requirements.txt").write_text("PyYAML\n", encoding="utf-8")
+    # signature: stable without changes, sensitive to content
+    sig1 = dc.cache_sig(str(proj))
+    assert dc.cache_sig(str(proj)) == sig1
+    (proj / "main.py").write_text("import yaml\nimport httpx\nimport a\n",
+                                  encoding="utf-8")
+    assert dc.cache_sig(str(proj)) != sig1
+    (proj / "main.py").write_text("import yaml\nimport httpx\n",
+                                  encoding="utf-8")
+    # fresh store, then an instant cached hit
+    rep1 = dc.check_cached(str(proj))
+    assert not rep1.get("cached") and rep1["files"] == 1
+    assert rep1["missing"] == ["httpx"], rep1
+    rep2 = dc.check_cached(str(proj))
+    assert rep2.get("cached") is True and rep2["missing"] == ["httpx"]
+    cpath = proj / ".dxn1" / "depcheck_cache.json"
+    assert cpath.is_file()
+    stored = json.loads(cpath.read_text(encoding="utf-8"))
+    # the stored sig matches the CURRENT fingerprint (mtimes moved
+    # when main.py was rewritten, so the pre-rewrite sig1 is stale)
+    assert isinstance(stored.get("sig"), list) \
+        and stored["sig"] == dc.cache_sig(str(proj))
+    assert not (proj / ".dxn1" / "depcheck_cache.json.tmp").exists()
+    # the cache's own .dxn1 dir must NOT invalidate the cache
+    assert dc.check_cached(str(proj)).get("cached") is True
+    # a changed workspace invalidates honestly
+    (proj / "extra.py").write_text("import pendulum\n", encoding="utf-8")
+    rep3 = dc.check_cached(str(proj))
+    assert not rep3.get("cached") and rep3["files"] == 2
+    assert "pendulum" in rep3["missing"]
+    assert dc.check_cached(str(proj)).get("cached") is True
+    # corrupt cache -> honest fallback, no crash
+    cpath.write_text("{definitely not json", encoding="utf-8")
+    rep4 = dc.check_cached(str(proj))
+    assert not rep4.get("cached") and rep4["files"] == 2
+    # fresh bypass re-stores
+    rep5 = dc.check_cached(str(proj), use_cache=False)
+    assert not rep5.get("cached") and rep5["files"] == 2
+    assert dc.check_cached(str(proj)).get("cached") is True
+
+    # app-level contract on a real studio
+    try:
+        root = tk.Tk(); root.withdraw()
+    except tk.TclError:
+        return
+    import dxn1_studio.config as cfgmod
+    monkey_tmp = tmp_path / "cfg"
+    monkey_tmp.mkdir()
+    from dxn1_studio.app import DXN1Studio
+    cfgmod.CONFIG_DIR = str(monkey_tmp)
+    cfgmod.CONFIG_PATH = str(monkey_tmp / "config.json")
+    os.environ["HOME"] = str(tmp_path)
+    app = DXN1Studio(cfgmod.Config(), smoke_test=True, no_splash=True)
+    try:
+        logs = []
+        real_log = app.terminal.log
+        app.terminal.log = lambda s, *a, **k: logs.append(str(s))
+        app.project_dir = str(proj)
+        # cold start: the module-level section left the cache warm —
+        # remove it so the app-level `deps` proves the scan path
+        shutil.rmtree(str(proj / ".dxn1"), ignore_errors=True)
+        # first `deps`: a real scan, no cache note
+        app.handle_terminal_command("deps")
+        assert any("served from cache" in s for s in logs) is False
+        logs.clear()
+        # second `deps`: cached, with the honest note
+        app.handle_terminal_command("deps")
+        assert any("served from cache" in s for s in logs), logs
+        logs.clear()
+        # `deps fresh`: rescans, no cache note, cache refreshed after
+        app.handle_terminal_command("deps fresh")
+        assert any("served from cache" in s for s in logs) is False
+        assert any("2 file(s) scanned" in s for s in logs), logs
+        assert dc.check_cached(str(proj)).get("cached") is True
+        logs.clear()
+        # `deps fix` works from a FRESH scan: add a new import after
+        # the cache was stored — fix must still see it
+        (proj / "late.py").write_text("import uvicorn\n",
+                                      encoding="utf-8")
+        app.handle_terminal_command("deps fix")
+        blob = "\n".join(logs)
+        # requirements.txt only holds PyYAML, so ALL three imports
+        # (httpx, pendulum, uvicorn) are missing — fix pins them all
+        assert "added 3 pin(s)" in blob, blob
+        for name in ("httpx", "pendulum", "uvicorn"):
+            assert name in blob, (name, blob)
+    finally:
+        app.terminal.log = real_log
+        try:
+            root.destroy()
+        except tk.TclError:
+            pass
+
+
+def test_commands_verb(tmp_path):
+    """DS2 v2.38 — `commands [filter]`: the palette registry listed in
+    the terminal (label + shortcut), substring filter, fuzzy fallback,
+    the honest no-match line, and `help <query>` falling back into the
+    palette when the terminal rows come up empty."""
+    import tkinter as tk
+    try:
+        root = tk.Tk(); root.withdraw()
+    except tk.TclError:
+        return
+    import dxn1_studio.config as cfgmod
+    import pytest  # noqa: F401
+    monkeypatch = pytest.MonkeyPatch()
+    monkeypatch.setattr(cfgmod, "CONFIG_DIR", str(tmp_path))
+    monkeypatch.setattr(cfgmod, "CONFIG_PATH",
+                        str(tmp_path / "config.json"))
+    monkeypatch.setenv("HOME", str(tmp_path))
+    from dxn1_studio.app import DXN1Studio, palette_help_rows
+    app = DXN1Studio(cfgmod.Config(), smoke_test=True, no_splash=True)
+    try:
+        rows = palette_help_rows(app)
+        assert len(rows) >= 40, "palette registry should be rich"
+        assert ("Run project (F5)", "F5") in rows
+        assert all(r[0] for r in rows), "labels must be non-empty"
+        logs = []
+        real_log = app.terminal.log
+        app.terminal.log = lambda s, *a, **k: logs.append(str(s))
+        try:
+            # full listing: head line + rows + the fire-any hint
+            app.handle_terminal_command("commands")
+            assert any("commands: " in s and " of " in s for s in logs)
+            assert any("Run project (F5)" in s for s in logs)
+            assert any("Ctrl+K" in s for s in logs)
+            logs.clear()
+            # substring filter: 'line' hits the line commands
+            app.handle_terminal_command("commands line")
+            blob = "\n".join(logs)
+            assert "Duplicate line" in blob and "Go to line" in blob
+            assert "matching 'line'" in blob
+            logs.clear()
+            # fuzzy fallback: 'sve fil' is not a substring of anything
+            app.handle_terminal_command("commands sve fil")
+            blob = "\n".join(logs)
+            assert "Save file" in blob, blob
+            logs.clear()
+            # honest empty state
+            app.handle_terminal_command("commands zzzqqqxxx")
+            assert any("nothing matches" in s for s in logs), logs
+            logs.clear()
+            # help falls back into the palette registry
+            app.handle_terminal_command("help duplicate")
+            blob = "\n".join(logs)
+            assert "palette: Duplicate line" in blob
+            assert "Ctrl+Shift+D" in blob
+            logs.clear()
+            # `help commands` finds the new terminal row itself
+            app.handle_terminal_command("help commands")
+            assert any("list palette commands" in s for s in logs), logs
+        finally:
+            app.terminal.log = real_log
+    finally:
+        try:
+            root.destroy()
+        except tk.TclError:
+            pass
+        monkeypatch.undo()

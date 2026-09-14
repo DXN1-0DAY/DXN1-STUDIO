@@ -353,6 +353,98 @@ def check(root):
             "note": note}
 
 
+# ----------------------------------------------------------------- cache
+CACHE_REL = os.path.join(".dxn1", "depcheck_cache.json")
+
+
+def cache_sig(root):
+    """Change-sensitive fingerprint of everything the deps verdict
+    depends on: every scanned ``.py``, every requirements file, the
+    pyproject, and the workspace-root listing itself (a new top-level
+    module or package changes the local-module set even when no file
+    content changes). Sorted ``[relpath, mtime_ns, size]`` triples.
+    Never raises."""
+    root = str(root)
+    entries = []
+
+    def _add(path):
+        rel = os.path.relpath(path, root).replace(os.sep, "/")
+        try:
+            st = os.stat(path)
+            entries.append([rel, st.st_mtime_ns, st.st_size])
+        except Exception:  # noqa: BLE001 — vanished mid-walk
+            entries.append([rel, -1, -1])
+
+    for p in python_files(root):
+        _add(p)
+    for p in find_requirements(root):
+        _add(p)
+    pp = os.path.join(root, "pyproject.toml")
+    if os.path.isfile(pp):
+        _add(pp)
+    try:
+        for name in sorted(os.listdir(root)):
+            # .dxn1 holds only studio state (cache, memory) — its
+            # creation must never invalidate the very cache it stores
+            if name == ".dxn1":
+                continue
+            entries.append(["root:" + name, 0, 0])
+    except Exception:  # noqa: BLE001 — unreadable root
+        pass
+    entries.sort()
+    return entries
+
+
+def _cache_path(root):
+    return os.path.join(str(root), CACHE_REL)
+
+
+def _store_cache(root, rep):
+    """Atomic cache write — best-effort, never raises, no .tmp debris."""
+    try:
+        import json
+        cpath = _cache_path(root)
+        os.makedirs(os.path.dirname(cpath), exist_ok=True)
+        tmp = cpath + ".tmp"
+        with open(tmp, "w", encoding="utf-8") as fh:
+            # sig recomputed AFTER the scan: files created mid-scan
+            # must not be served as an already-covered cache hit
+            json.dump({"sig": cache_sig(root), "report": rep}, fh)
+        os.replace(tmp, cpath)
+    except Exception:  # noqa: BLE001 — the cache is a fast path only
+        pass
+
+
+def check_cached(root, use_cache=True):
+    """``check()`` with a per-workspace cache
+    (``<ws>/.dxn1/depcheck_cache.json``).
+
+    A signature hit returns the stored report with ``cached: True``
+    added — instant on repeat runs in big workspaces. A miss, a
+    corrupt cache file, or any cache trouble falls back to the real
+    ``check()`` and re-stores. ``use_cache=False`` (``deps fresh``)
+    always scans and re-stores. Never raises."""
+    root = str(root)
+    if not use_cache:
+        rep = check(root)
+        _store_cache(root, rep)
+        return rep
+    try:
+        import json
+        with open(_cache_path(root), "r", encoding="utf-8") as fh:
+            data = json.load(fh)
+        if isinstance(data, dict) and isinstance(data.get("report"), dict) \
+                and data.get("sig") == cache_sig(root):
+            rep = dict(data["report"])
+            rep["cached"] = True
+            return rep
+    except Exception:  # noqa: BLE001 — cache trouble means cache miss
+        pass
+    rep = check(root)
+    _store_cache(root, rep)
+    return rep
+
+
 def describe(rep):
     """Human multi-line summary for the terminal. Empty report -> ''."""
     if not isinstance(rep, dict) or not rep.get("files"):
@@ -426,4 +518,29 @@ if __name__ == "__main__":
     assert res3["ok"] and res3["added"] == ["requests"]
     assert os.path.isfile(os.path.join(bare, "requirements.txt"))
     assert not os.path.exists(reqp + ".tmp"), "atomic append leaves no tmp"
+    # cache lane: sig stability, hit-after-store, honest invalidation
+    sig1 = cache_sig(base)
+    assert cache_sig(base) == sig1, "sig must be stable without changes"
+    repc = check_cached(base)
+    assert not repc.get("cached") and repc["files"] == 2
+    repc2 = check_cached(base)
+    assert repc2.get("cached") is True, "second run must be a cache hit"
+    assert repc2["missing"] == rep["missing"] == []
+    with open(os.path.join(base, "extra.py"), "w") as fh:
+        fh.write("import pendulum\n")
+    repc3 = check_cached(base)
+    assert not repc3.get("cached") and repc3["files"] == 3, repc3
+    assert "pendulum" in repc3["missing"], repc3
+    assert check_cached(base).get("cached") is True
+    fresh = check_cached(base, use_cache=False)
+    assert not fresh.get("cached") and fresh["files"] == 3
+    # creating .dxn1 (the cache itself) must not self-invalidate
+    assert os.path.isdir(os.path.join(base, ".dxn1"))
+    assert check_cached(base).get("cached") is True
+    # corrupt cache file -> honest fallback to a real scan
+    with open(_cache_path(base), "w", encoding="utf-8") as fh:
+        fh.write("{not json at all")
+    repc4 = check_cached(base)
+    assert not repc4.get("cached") and repc4["files"] == 3
+    assert not os.path.exists(_cache_path(base) + ".tmp")
     print("depcheck.py self-test OK")
