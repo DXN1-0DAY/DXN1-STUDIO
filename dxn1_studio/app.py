@@ -2170,6 +2170,22 @@ class DXN1Studio:
             cmds += _qa.palette_commands(self)
         except Exception:  # pragma: no cover — palette stays alive
             pass
+        # DS2: AI review (gutter eyes) + pair mode (defensive)
+        def _open_pair():
+            from .pair import open_pair
+            panel = getattr(self, "agent_panel", None)
+            open_pair(self, getattr(panel, "sandbox", None),
+                      on_log=lambda m: self.terminal.log(m))
+        try:
+            from . import ai_lint as _lint
+            cmds.append(_lint.palette_command(self))
+        except Exception:  # pragma: no cover — palette stays alive
+            pass
+        try:
+            cmds.append(("Pair mode — plan, agree, build…", "DS2",
+                         _open_pair))
+        except Exception:  # pragma: no cover — palette stays alive
+            pass
         return cmds
 
     def _worktree_texts(self):
