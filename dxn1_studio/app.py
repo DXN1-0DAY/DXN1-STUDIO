@@ -436,6 +436,10 @@ class DXN1Studio:
         self.status_plugins = tk.Label(right, text="", bg=t["statusbar"],
                                        fg=t.accent, font=(FONT_UI, 9))
         self.status_plugins.pack(side=tk.RIGHT, padx=(0, 10))
+        # DS2 v2.6: encoding + line-endings chip (left of plugins)
+        self.status_enc = tk.Label(right, text="", bg=t["statusbar"],
+                                   fg=t["text_muted"], font=(FONT_UI, 8))
+        self.status_enc.pack(side=tk.RIGHT, padx=(0, 12))
 
         # toast layer (placed above the status bar, right aligned)
         self.toast_layer = tk.Frame(self.root, bg=t["bg"])
@@ -1076,8 +1080,51 @@ class DXN1Studio:
                 if words:
                     info += f"  ·  {words} words"
             self.status_pos.config(text=info)
+            self._update_enc_chip()   # DS2 v2.6: encoding + EOL chip
         except Exception:
             pass
+
+    # ---------------------------------------------------- DS2 v2.6 encoding
+    def _update_enc_chip(self):
+        """Encoding + line-endings chip on the right of the statusbar.
+
+        Encoding is sniffed once per open (cached in ``_file_encoding``);
+        the EOL part is derived cheaply from the widget's first line on
+        every cursor update. Never raises.
+        """
+        try:
+            enc = getattr(self, "_file_encoding", "") or "UTF-8"
+            t = self.editor.text
+            head = t.get("1.0", "2.0 lineend")
+            if "\r\n" in head:
+                eol = "CRLF"
+            elif "\r" in head:
+                eol = "CR"
+            else:
+                eol = "LF"
+            text = f"{enc} · {eol}"
+            if self.status_enc.cget("text") != text:
+                self.status_enc.config(text=text)
+        except Exception:  # noqa: BLE001 — a chip must never break typing
+            pass
+
+    @staticmethod
+    def _sniff_encoding(path):
+        """Best-effort encoding label for a file ('UTF-8' as fallback)."""
+        try:
+            with open(path, "rb") as fh:
+                head = fh.read(4)
+            if head.startswith(b"\xef\xbb\xbf"):
+                return "UTF-8 BOM"
+            if head.startswith((b"\xff\xfe", b"\xfe\xff")):
+                return "UTF-16"
+            with open(path, "rb") as fh:
+                fh.read(200_000).decode("utf-8")
+            return "UTF-8"
+        except UnicodeDecodeError:
+            return "non-UTF8"
+        except OSError:
+            return ""
 
     def _on_editor_key(self, event=None):
         """App-level hook for editor keystrokes (cursor pos + dirty tab)."""
@@ -1424,6 +1471,7 @@ class DXN1Studio:
         self.editor.file_path = None
         self.editor.highlighter.set_language(None)
         self.editor.bookmarks = set()   # DS2: untitled starts clean
+        self._file_encoding = "UTF-8"   # DS2 v2.6: fresh buffer is UTF-8
         try:
             self.editor.update_line_numbers()
         except Exception:  # noqa: BLE001
@@ -1458,6 +1506,7 @@ class DXN1Studio:
         self.editor.set_content(content, path=filepath)
         self._sync_split(content, filepath)
         self._restore_bookmarks(filepath)   # DS2: persistent bookmarks
+        self._file_encoding = self._sniff_encoding(filepath)   # DS2 v2.6
         self.status_file.config(text=filepath)
         self._update_cursor_pos()
         self._record_recent_file(filepath)
