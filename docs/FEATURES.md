@@ -401,3 +401,12 @@
 | Auto-fix suggestions | `suggest_fg()` | Below AA, searches lighten/darken steps until the foreground clears 4.5:1 against its background; honest `—` when unfixable |
 | Theme inventory | `iter_auditable_themes()` | Built-in Dark + Light, all 12 community gallery themes, and user-saved themes — junk themes audit to honest FAIL rows, never crash |
 | Copyable report | `report_text()` | Plain-text audit (pair, ratio, grade, fix) for issue reports and theme reviews |
+
+## Cheat Sheet
+
+| Feature | Where | What it does |
+|---|---|---|
+| Printable export | `cheatsheet.py`, Workshop → *Cheat Sheet — printable HTML export…*, palette, terminal `cheat` / `cheatsheet` / `man` | One standalone HTML page with every terminal command and keyboard shortcut, inline CSS, `@media print` rules — save it, open in any browser, Ctrl+P |
+| Zero drift | `TERMINAL_HELP` / `default_sections()` | The command list is the same tuple the terminal's `help` prints (extracted to module level this release), so new features appear on the sheet automatically |
+| Preview + actions | window | Plain-text preview of the full sheet; save HTML anywhere, open in browser instantly (temp file fallback), copy HTML to clipboard |
+| Honest saves | `save_html()` | Empty paths, directories, and missing folders return real error strings — the window reports them, never crashes |

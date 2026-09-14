@@ -446,6 +446,24 @@ def main():
           and _cgrade(2.0) == "FAIL")
     cwin.destroy()
 
+    # ---- Cheat Sheet exporter (same smoke, new lane)
+    import tempfile as _tf, os as _os
+    from dxn1_studio.cheatsheet import build_html as _bhtml, open_cheatsheet
+    kwin = open_cheatsheet(root, theme)
+    kwin.update_idletasks()
+    check("cheatsheet window opens", kwin.winfo_exists())
+    check("cheatsheet live preview", "TERMINAL COMMANDS" in
+          kwin.preview.get("1.0", "end"))
+    _out = _os.path.join(_tf.mkdtemp(prefix="ds2-smoke-cs-"), "cs.html")
+    kwin._write_to(_out)
+    check("cheatsheet saves HTML", _os.path.isfile(_out)
+          and _os.path.getsize(_out) > 5000)
+    check("cheatsheet honest save error", kwin._write_to(
+        "/nonexistent-dir-xyz/x.html") is None
+        and "save failed" in kwin.status.cget("text"))
+    check("cheatsheet engine offline", "@media print" in _bhtml(None))
+    kwin.destroy()
+
     # ---- REST bench (same smoke, seventh lane)
     from dxn1_studio.restbench import (RestResponse, build_curl,
                                        format_size,

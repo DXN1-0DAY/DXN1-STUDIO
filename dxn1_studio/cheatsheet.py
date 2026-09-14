@@ -1,235 +1,317 @@
-"""DXN1 STUDIO — the DS2 cheat sheet (v1.7).
+"""DXN1 STUDIO — cheat sheet exporter (DS2 v2.27).
 
-One window that answers "what can this thing do?": keyboard shortcuts,
-palette power commands, the AI workflow, the visual git suite, memory
-and usage — grouped, searchable, and written like a human. Open it from
-Help → Cheat sheet or the palette ("Cheat sheet…").
+One printable HTML page with every terminal command and keyboard
+shortcut the studio knows. The command list is the live
+``TERMINAL_HELP`` tuple shared with the terminal's own ``help``
+output — zero drift by construction; shortcuts are curated from the
+real ``setup_bindings`` table. The engine renders inline-CSS HTML
+with @media print rules (open the file in any browser, hit Ctrl+P),
+and every function is junk-tolerant: no data, no file permissions —
+honest error strings, never exceptions.
 """
 
+import datetime
+import os
 import tkinter as tk
-from tkinter import ttk
+from tkinter import filedialog
 
-from .theme import FONT_UI, FONT_MONO
+from . import APP_NAME, APP_VERSION, APP_TAGLINE
+from .i18n import tr
 
-SHEETS = [
-    ("CORE MOVES", [
-        ("Ctrl+K", "Command palette — every command; type @ for symbols"),
-        ("Ctrl+P", "Quick open — fuzzy jump to any file"),
-        ("Ctrl+S", "Save"), ("Ctrl+N", "New file"),
-        ("Ctrl+O", "Open file"), ("F5", "Run the project"),
-        ("Ctrl+F", "Find in file (Ctrl+H replaces)"),
-        ("Ctrl+G", "Go to line"), ("Ctrl+W", "Close tab"),
-    ]),
-    ("EDITOR POWER (DS2)", [
-        ("Tab", "Expand snippets — def, class, try, with, fn…"),
-        ("Ctrl+F2", "Toggle bookmark on this line (F2 walks them)"),
-        ("Ctrl+/", "Toggle comment"), ("Alt+Up/Down", "Move line"),
-        ("Ctrl+Shift+D", "Duplicate line"), ("Ctrl+Shift+K", "Delete line"),
-        ("Ctrl+\\", "Split editor"),
-        ("Ctrl++ / Ctrl+-", "Bigger / smaller editor text"),
-    ]),
-    ("AI WORKFLOW (DS2)", [
-        ("Select → ⚡", "Quick actions: explain, refactor, tests, fix, "
-                        "types, docstring, optimize"),
-        ("AI: review file", "Whole-file AI review with severity findings"),
-        ("Pair mode", "Agent plans first → you approve → it builds in the "
-                      "sandbox"),
-        ("✨ AI msg", "AI drafts your commit message from the staged diff"),
-        ("remember: …", "Teach the agent a fact — recalled every session"),
-    ]),
-    ("GIT, VISUALIZED (DS2)", [
-        ("Graph", "Commit graph across all branches — click for details"),
-        ("Branches", "Branch manager: create, merge, rename, delete, track"),
-        ("⇄ Diff", "Word-level visual diff — split or unified view"),
-        ("✨ AI msg", "Commit message drafts live in the source control "
-                      "panel"),
-    ]),
-    ("INTELLIGENCE (DS2)", [
-        ("Agent memory", "Per-workspace facts + prefs, injected into every "
-                         "agent conversation"),
-        ("Token usage", "Where your tokens went: 14-day chart, per-model "
-                        "bars, cost estimates, CSV"),
-        ("remember: …", "Teach the agent instantly from the chat — no "
-                        "model call, instant confirmation"),
-    ]),
-    ("POCKET KNIFE (DS2)", [
-        ("Dev tools", "Regex tester, JSON fixer, text transformer, time "
-                      "converter — one window (Help → Developer Tools, "
-                      "or type `tools` in the terminal)"),
-        ("regex tab", "Live matches with spans + groups, i/m/s flags, "
-                      "replace preview"),
-        ("json tab", "Pretty / minify / validate with line:col on errors"),
-        ("text tab", "snake/camel/kebab, base64, URL%, \\u escapes, "
-                     "MD5/SHA, word counts — chain via ↑"),
-        ("time tab", "epoch ↔ ISO ↔ '3h ago', ticking clock, local/UTC"),
-        ("color tab", "hex ↔ rgb ↔ hsl, WCAG contrast grade, harmony "
-                      "swatches — click to copy"),
-        ("cron <expr>", "Decode any cron schedule — plain English, field "
-                        "table, next five runs (`cron 0 9 * * 1-5`)"),
-        ("readability", "Flesch / Kincaid / Fog report for the current "
-                        "file: long sentences + word pressure"),
-        ("jwt <token>", "Decode a JWT — header, payload, humanized "
-                        "expiry (decode only, never verified)"),
-        ("env", "Lint the workspace .env — duplicates, quoting, secret "
-                "smells — and copy a masked version"),
-        ("gen", "Test data generator — UUID v4, ULID, nanoid, passwords, "
-                "lorem, fake users/events as JSON"),
-        ("db <file>", "SQLite Lab — browse tables, schema dive, run "
-                      "queries, export CSV/markdown (read-only default)"),
-        ("tree <dir>", "Directory tree export — junk-aware ASCII tree, "
-                       "depth + sizes, one-click clipboard copy"),
-        ("hash <file>", "Hasher — chunked MD5/SHA digests, folder "
-                        "manifests (sha256sum -c style), verify verdicts"),
-        ("focus <min>", "Pomodoro timer — 25/5 cycles (custom blocks "
-                        "welcome), session dots + long-break reminders"),
-        ("sort <mode>", "Line tools — sort az/za/len, dedupe, shuffle, "
-                        "reverse, trim; selection or whole file "
-                        "(Ctrl+Alt+S/D/H/R)"),
-        ("clip", "Clipboard history — last 25 copies, double-click to "
-                 "paste back (Ctrl+Shift+V)"),
-        ("md", "Markdown preview — live dual-pane render, tables + "
-               "code blocks, copy/export HTML (F5)"),
-        ("color", "Color Kit — hex/rgb/hsl at a glance, WCAG contrast "
-                  "verdicts, click-to-copy shade ramps"),
-        ("rest", "REST Bench — send GET/POST/PATCH…, inspect status + "
-                 "JSON, copy any request as curl (Ctrl+Enter)"),
-        ("chart", "Chart Studio — paste numbers, get line/bar/"
-                  "histogram views, stats and a sparkline"),
-        ("unit", "Unit Converter — length/mass/temperature/data/"
-                 "time/speed, all units at once, offline"),
-        ("lang", "Language — switch UI language packs (en es fr de "
-                 "pt zh hi ja), remembered across restarts"),
-        ("charmap", "Character Map — browse Unicode blocks, search "
-                    "by name or U+codepoint, click to copy"),
-        ("case", "TextCase — convert identifiers between snake/camel/"
-                 "pascal/kebab/constant/title/dot/flat"),
-        ("passgen", "PassForge — secrets-CSPRNG passwords with "
-                    "toggled classes and an entropy meter"),
-        ("base", "NumBase — read a number as bin/oct/dec/hex + any "
-                 "base 2-36, with a bit inspector"),
-        ("csv", "CSV Lab — paste csv/tsv/semicolon/pipe, peek the "
-                "table, copy back out as TSV"),
-        ("scribe <n>", "Writing meter — ✎ chip in the statusbar shows "
-                       "words, WPM and goal progress; click for a "
-                       "session toast")
-    ]),
-    ("TERMINAL TALK", [
-        ("help", "List every studio command"),
-        ("run", "Execute the current project"),
-        ("git status", "Repo status without leaving the studio"),
-        ("todo", "Scan the workspace for TODO / FIXME"),
-        ("palette", "Open the command palette from the keyboard"),
-    ]),
-]
+# ----------------------------------------------------------------- data
 
+# curated from app.setup_bindings() — the real table, shortcuts only
+SHORTCUTS = (
+    ("F5", "run the current file / project"),
+    ("Ctrl+S", "save the current file"),
+    ("Ctrl+N / Ctrl+O", "new file / open file"),
+    ("Ctrl+W", "close the active tab"),
+    ("Ctrl+Tab", "cycle to the next tab"),
+    ("Ctrl+K", "command palette — every feature, one keystroke"),
+    ("Ctrl+P", "quick open — jump to a file by name"),
+    ("Ctrl+F", "find in the current file"),
+    ("Ctrl+H", "find and replace"),
+    ("Ctrl+G", "jump to a line"),
+    ("Ctrl+/", "toggle comment on the selection"),
+    ("Ctrl+K (on a line)", "delete the whole line"),
+    ("Ctrl+D", "duplicate the current line"),
+    ("Alt+Up / Alt+Down", "move the current line up / down"),
+    ("Ctrl+Alt+S / D / H / R", "sort A-Z / dedupe / shuffle / reverse lines"),
+    ("Ctrl+\\", "toggle split editor view"),
+    ("Ctrl+Alt+Z", "toggle zen mode"),
+    ("Ctrl+Shift+V", "paste from clipboard history"),
+    ("Ctrl+,", "open studio settings"),
+    ("Ctrl+= / Ctrl+-", "bigger / smaller editor font"),
+)
+
+TIPS = (
+    ("palette first", "Ctrl+K opens the command palette — it can reach "
+     "every window and command in this sheet by friendly name."),
+    ("help in the terminal", "typing `help` (or `?`) prints the same "
+     "command list this sheet was generated from."),
+    ("print me", "save the HTML and open it in any browser — Ctrl+P "
+     "gives a clean two-page reference with zero chrome."),
+    ("stay current", "the command list is generated from the running "
+     "build, so new sprint features show up automatically."),
+)
+
+
+def default_sections(commands=None):
+    """(heading, [(key, description), ...]) — the cheat sheet body.
+    ``commands`` overrides the live TERMINAL_HELP (tests, offline)."""
+    if commands is None:
+        try:
+            from .app import TERMINAL_HELP
+            commands = TERMINAL_HELP
+        except Exception:  # noqa: BLE001 — headless / partial install
+            commands = (("help", "print studio commands"),)
+    return [
+        ("Terminal commands", tuple(commands or ())),
+        ("Keyboard shortcuts", SHORTCUTS),
+        ("Tips", TIPS),
+    ]
+
+
+def render_text(sections):
+    """Plain-text preview for the window and terminal — same content
+    as the HTML, readable without a browser. Never raises."""
+    out = []
+    for heading, rows in (sections or default_sections()):
+        out.append("")
+        out.append(heading.upper())
+        out.append("-" * max(8, len(heading)))
+        for key, desc in rows or ():
+            out.append("  %-24s %s" % (str(key or "")[:24],
+                                       str(desc or "")))
+    return "\n".join(out)
+
+
+# ----------------------------------------------------------------- html
+
+_HTML_HEAD = """<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>{title}</title>
+<style>
+  :root {{ --accent: #7c3aed; --ink: #1f2328; --muted: #57606a;
+          --line: #d8dee4; --chip-bg: #f6f8fa; }}
+  * {{ box-sizing: border-box; }}
+  body {{ font: 14px/1.55 -apple-system, "Segoe UI", Roboto, sans-serif;
+         color: var(--ink); max-width: 860px; margin: 24px auto;
+         padding: 0 20px; }}
+  header {{ border-bottom: 3px solid var(--accent); padding-bottom: 12px;
+           margin-bottom: 20px; }}
+  h1 {{ margin: 0; font-size: 26px; letter-spacing: -0.5px; }}
+  h1 span {{ color: var(--accent); }}
+  .meta {{ color: var(--muted); font-size: 12px; margin-top: 4px; }}
+  h2 {{ font-size: 15px; text-transform: uppercase; letter-spacing: 1px;
+       color: var(--accent); border-bottom: 1px solid var(--line);
+       padding-bottom: 4px; margin: 26px 0 8px; }}
+  table {{ width: 100%; border-collapse: collapse; }}
+  td {{ padding: 5px 8px; border-bottom: 1px solid var(--line);
+       vertical-align: top; }}
+  td.k {{ white-space: nowrap; width: 1%; }}
+  kbd {{ font: 12px/1.4 "SFMono-Regular", Consolas, monospace;
+        background: var(--chip-bg); border: 1px solid var(--line);
+        border-bottom-width: 2px; border-radius: 4px; padding: 1px 6px;
+        white-space: nowrap; }}
+  footer {{ margin-top: 28px; color: var(--muted); font-size: 11px;
+           border-top: 1px solid var(--line); padding-top: 8px; }}
+  @media print {{
+    body {{ margin: 0; font-size: 11px; max-width: none; }}
+    h2 {{ margin-top: 14px; }}
+    a {{ text-decoration: none; color: inherit; }}
+  }}
+</style>
+</head>
+<body>
+<header>
+  <h1>{app} <span>cheat sheet</span></h1>
+  <div class="meta">{meta}</div>
+</header>
+"""
+
+
+def build_html(sections, title=None, meta_extra=""):
+    """Render the cheat sheet as standalone print-friendly HTML.
+    Inline CSS only — one file, no dependencies, junk-tolerant."""
+    title = str(title or ("%s cheat sheet" % APP_NAME))
+    today = ""
+    try:
+        today = datetime.date.today().isoformat()
+    except Exception:
+        pass
+    meta = "v%s · %s · generated %s" % (APP_VERSION, APP_TAGLINE, today)
+    if meta_extra:
+        meta += " · " + str(meta_extra)
+    parts = [_HTML_HEAD.format(title=_esc(title), app=_esc(APP_NAME),
+                               meta=_esc(meta))]
+    for heading, rows in (sections or default_sections()):
+        parts.append("<h2>%s</h2>\n<table>" % _esc(str(heading)))
+        for key, desc in rows or ():
+            parts.append('<tr><td class="k"><kbd>%s</kbd></td>'
+                         '<td>%s</td></tr>'
+                         % (_esc(str(key or "")),
+                            _esc(str(desc or ""))))
+        parts.append("</table>")
+    parts.append('<footer>%s · printed from the cheat sheet '
+                 'exporter</footer>\n</body>\n</html>\n' % _esc(APP_NAME))
+    return "\n".join(parts)
+
+
+def _esc(text):
+    """Minimal HTML escaping — & < > only; never raises."""
+    return (str(text or "").replace("&", "&amp;")
+            .replace("<", "&lt;").replace(">", "&gt;"))
+
+
+def save_html(html, path):
+    """Write the HTML to ``path``; returns (path, error). Junk paths
+    and unwritable targets give an honest error, never an exception."""
+    try:
+        if not path or not str(path).strip():
+            return None, "no path given"
+        path = os.path.abspath(os.path.expanduser(str(path)))
+        if os.path.isdir(path):
+            return None, "path is a directory: %s" % path
+        d = os.path.dirname(path)
+        if d and not os.path.isdir(d):
+            return None, "folder does not exist: %s" % d
+        with open(path, "w", encoding="utf-8") as fh:
+            fh.write(html)
+        return path, None
+    except Exception as exc:  # noqa: BLE001 — honest error string
+        return None, str(exc) or "write failed"
+
+
+# ----------------------------------------------------------------- window
 
 class CheatSheet(tk.Toplevel):
-    """Searchable, grouped cheat sheet."""
+    """Cheat sheet window: preview, save HTML, open in browser."""
 
-    def __init__(self, parent, theme):
+    def __init__(self, parent, theme, initial="", commands=None):
         super().__init__(parent)
-        self.t = theme
-        self.title("Cheat sheet — DXN1 STUDIO")
-        self.configure(bg=self.t["bg"])
-        self.geometry("720x640")
-        self.minsize(520, 420)
-        self.transient(parent.winfo_toplevel()
-                       if parent is not None else parent)
-        self._build()
-        self._render("")
-        self.bind("<Escape>", lambda e: self.destroy())
-        self._center()
+        self.theme = theme or {}
+        t = self.theme
+        self.commands = commands
+        self.last_path = initial or ""
 
-    def _center(self):
+        self.title("Cheat Sheet — DXN1 STUDIO")
+        self.configure(bg=t.get("bg", "#16161e"))
+        self.geometry("720x520")
+        self.minsize(560, 400)
         try:
-            self.update_idletasks()
-            w, h = 720, 640
-            x = max(0, (self.winfo_screenwidth() - w) // 2)
-            y = max(0, (self.winfo_screenheight() - h) // 3)
-            self.geometry(f"{w}x{h}+{x}+{y}")
-        except tk.TclError:
+            self.transient(parent)
+        except Exception:
             pass
 
-    def _build(self):
-        t = self.t
-        bar = tk.Frame(self, bg=t["header"], height=46)
-        bar.pack(fill=tk.X)
-        bar.pack_propagate(False)
-        tk.Label(bar, text="⌘  CHEAT SHEET", bg=t["header"], fg=t["text"],
-                 font=(FONT_UI, 11, "bold")).pack(side=tk.LEFT, padx=14)
-        self.search = tk.Entry(bar, bg=t["editor"], fg=t["text"],
-                               insertbackground=t["text"], relief=tk.FLAT,
-                               font=(FONT_UI, 10), width=30,
-                               highlightthickness=1,
-                               highlightbackground=t["border"],
-                               highlightcolor=t.accent)
-        self.search.pack(side=tk.RIGHT, padx=12, ipady=4)
-        self.search.insert(0, "filter…")
-        self.search.config(fg=t["text_muted"])
-        self.search.bind("<FocusIn>", self._s_in)
-        self.search.bind("<FocusOut>", self._s_out)
-        self.search.bind("<KeyRelease>", lambda e: self._render(
-            self.search.get() if self.search.get() != "filter…" else ""))
+        top = tk.Frame(self, bg=t.get("header", "#242432"))
+        top.pack(fill=tk.X)
+        tk.Label(top, text="cheat sheet — every command & shortcut, "
+                           "print-ready",
+                 bg=t.get("header", "#242432"),
+                 fg=t.get("text_muted", "#8a8a9a"),
+                 font=("TkDefaultFont", 11, "bold")).pack(
+            side=tk.LEFT, padx=10, pady=8)
 
-        wrap = tk.Frame(self, bg=t["bg"])
-        wrap.pack(fill=tk.BOTH, expand=True)
-        self.canvas = tk.Canvas(wrap, bg=t["bg"], highlightthickness=0)
-        sb = ttk.Scrollbar(wrap, orient=tk.VERTICAL, command=self.canvas.yview)
-        self.inner = tk.Frame(self.canvas, bg=t["bg"])
-        self._win = self.canvas.create_window((0, 0), window=self.inner,
-                                              anchor="nw", width=690)
-        self.canvas.configure(yscrollcommand=sb.set)
-        self.canvas.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
-        sb.pack(side=tk.RIGHT, fill=tk.Y)
-        self.inner.bind("<Configure>", lambda e: self.canvas.configure(
-            scrollregion=self.canvas.bbox("all")))
-        self.canvas.bind("<Configure>", lambda e: self.canvas.itemconfigure(
-            self._win, width=e.width))
+        self.preview = tk.Text(self, wrap="word", relief=tk.FLAT,
+                               bg=t.get("editor_bg", "#1a1a24"),
+                               fg=t.get("text", "#e8e8f0"),
+                               insertbackground=t.get("text", "#fff"),
+                               padx=10, pady=8)
+        self.preview.pack(fill=tk.BOTH, expand=True,
+                          padx=10, pady=(10, 0))
+        self.preview.insert("1.0", render_text(default_sections(
+            self.commands)))
+        self.preview.configure(state=tk.DISABLED)
 
-    def _s_in(self, _e=None):
-        if self.search.get() == "filter…":
-            self.search.delete(0, tk.END)
-            self.search.config(fg=self.t["text"])
+        bottom = tk.Frame(self, bg=t.get("bg", "#16161e"))
+        bottom.pack(fill=tk.X)
+        self.status = tk.Label(
+            bottom, text=tr("cheatsheet.save_hint"), anchor="w",
+            bg=t.get("bg", "#16161e"),
+            fg=t.get("text_muted", "#8a8a9a"))
+        self.status.pack(side=tk.LEFT, padx=10, pady=6)
+        for label, cmd in ((tr("cheatsheet.save_html"), self._save_as),
+                           (tr("cheatsheet.open_browser"),
+                            self._open_browser),
+                           (tr("cheatsheet.copy_html"), self._copy_html)):
+            tk.Button(bottom, text=label, relief=tk.FLAT,
+                      bg=t.get("button", "#2a2a3a"),
+                      fg=t.get("text", "#e8e8f0"),
+                      activebackground=t.get("button_hover", "#33334a"),
+                      command=cmd).pack(side=tk.RIGHT, padx=(0, 6),
+                                        pady=4)
 
-    def _s_out(self, _e=None):
-        if not self.search.get():
-            self.search.insert(0, "filter…")
-            self.search.config(fg=self.t["text_muted"])
+    # ------------------------------------------------------------ actions
+    def _html(self):
+        return build_html(default_sections(self.commands))
 
-    def _render(self, query):
-        for w in self.inner.winfo_children():
-            w.destroy()
-        t = self.t
-        q = (query or "").lower()
-        total = 0
-        for section, items in SHEETS:
-            rows = [(k, d) for k, d in items
-                    if not q or q in k.lower() or q in d.lower()]
-            if not rows:
-                continue
-            total += len(rows)
-            tk.Label(self.inner, text=section, bg=t["bg"],
-                     fg=t.accent, font=(FONT_UI, 9, "bold"),
-                     anchor="w").pack(fill=tk.X, padx=6, pady=(14, 3))
-            for key, desc in rows:
-                row = tk.Frame(self.inner, bg=t["card"],
-                               highlightthickness=1,
-                               highlightbackground=t["card_border"])
-                row.pack(fill=tk.X, pady=1)
-                tk.Label(row, text=key, bg=t["card"], fg=t["text"],
-                         font=(FONT_MONO, 9, "bold"), width=18,
-                         anchor="w").pack(side=tk.LEFT, padx=10, pady=5)
-                tk.Label(row, text=desc, bg=t["card"],
-                         fg=t["text_secondary"], font=(FONT_UI, 9),
-                         anchor="w", wraplength=460,
-                         justify=tk.LEFT).pack(side=tk.LEFT, fill=tk.X,
-                                               expand=True, padx=6, pady=5)
-        if not total:
-            tk.Label(self.inner, text="Nothing matches — try 'git', 'AI' "
-                     "or 'palette'.", bg=t["bg"], fg=t["text_muted"],
-                     font=(FONT_UI, 10)).pack(anchor="w", padx=8, pady=14)
+    def _write_to(self, path):
+        """Save through the engine and report honestly in the status."""
+        path, err = save_html(self._html(), path)
+        if err:
+            self.status.configure(text="save failed — %s" % err,
+                                  fg=self.theme.get("error", "#f85149"))
+            return None
+        self.last_path = path
+        self.status.configure(
+            text="saved — %s" % path,
+            fg=self.theme.get("success", "#3fb950"))
+        return path
+
+    def _save_as(self):
+        try:
+            path = filedialog.asksaveasfilename(
+                parent=self, title="Save cheat sheet",
+                defaultextension=".html",
+                initialfile="dxn1-studio-cheatsheet.html",
+                filetypes=[("HTML", "*.html"), ("All files", "*")])
+        except Exception:  # noqa: BLE001 — dialog optional
+            path = None
+        if path:
+            self._write_to(path)
+
+    def _open_browser(self):
+        import webbrowser
+        path = self.last_path
+        if not path or not os.path.isfile(path):
+            import tempfile
+            try:
+                fd, tmp = tempfile.mkstemp(
+                    prefix="dxn1-cheatsheet-", suffix=".html")
+                with os.fdopen(fd, "w", encoding="utf-8") as fh:
+                    fh.write(self._html())
+            except Exception as exc:  # noqa: BLE001
+                self.status.configure(text="open failed — %s" % exc)
+                return
+            path = tmp
+            self.last_path = tmp
+        try:
+            webbrowser.open("file://%s" % path)
+            self.status.configure(text="opened in browser — %s" % path)
+        except Exception as exc:  # noqa: BLE001
+            self.status.configure(text="open failed — %s" % exc)
+
+    def _copy_html(self):
+        try:
+            html = self._html()
+            self.clipboard_clear()
+            self.clipboard_append(html)
+            self.status.configure(text="HTML copied — %d lines"
+                                       % len(html.splitlines()))
+        except Exception as exc:  # noqa: BLE001
+            self.status.configure(text="copy failed — %s" % exc)
+
+    def refresh(self):
+        self.preview.configure(state=tk.NORMAL)
+        self.preview.delete("1.0", "end")
+        self.preview.insert("1.0", render_text(
+            default_sections(self.commands)))
+        self.preview.configure(state=tk.DISABLED)
 
 
-def open_cheatsheet(parent, theme):
-    """Convenience opener — mirrors the studio's one-call dialog style."""
-    return CheatSheet(parent, theme)
+def open_cheatsheet(parent, theme, initial="", commands=None):
+    """Public entry — open the cheat sheet window."""
+    return CheatSheet(parent, theme, initial=initial, commands=commands)

@@ -2201,3 +2201,72 @@ def test_contrast_engine():
     assert "copied" in win.status.cget("text")
     win.refresh()
     win.destroy(); root.destroy()
+
+
+def test_cheatsheet_engine():
+    """DS2 cheatsheet: HTML build, text render, save, window flow."""
+    import os as _os
+    from dxn1_studio import cheatsheet as cs
+    from dxn1_studio.app import TERMINAL_HELP
+    # live sections: 48 terminal commands + shortcuts + tips
+    secs = cs.default_sections()
+    assert len(secs) == 3
+    assert secs[0][0] == "Terminal commands"
+    assert tuple(secs[0][1]) == tuple(TERMINAL_HELP)
+    assert len(secs[1][1]) >= 15      # shortcuts
+    assert len(secs[2][1]) >= 3       # tips
+    # override path works
+    tiny = cs.default_sections(commands=(("x", "y"),))
+    assert tuple(tiny[0][1]) == (("x", "y"),)
+    # HTML: standalone, print rules, escaping, meta
+    html = cs.build_html(secs)
+    assert html.startswith("<!DOCTYPE html>")
+    assert "@media print" in html and "<kbd>" in html
+    assert "Terminal commands" in html and "Keyboard shortcuts" in html
+    assert cs.APP_NAME in html and "generated" in html
+    evil = cs.build_html([("s <tag>", [("<b>", "a & b")])])
+    assert "<b>" not in evil.split("<table>")[1]  # escaped in rows
+    assert "&lt;b&gt;" in evil and "a &amp; b" in evil
+    assert "s &lt;tag&gt;" in evil
+    # junk sections never raise
+    assert "<table>" in cs.build_html(None)
+    assert "<table>" in cs.build_html([("h", None)])
+    assert cs.build_html([("h", [("", "")])])
+    # text render mirrors content
+    txt = cs.render_text(secs)
+    assert "TERMINAL COMMANDS" in txt
+    assert "palette" in txt and "KEYBOARD SHORTCUTS" in txt
+    assert len(cs.render_text(None)) > 0
+    # save: happy path + honest errors
+    import tempfile
+    d = tempfile.mkdtemp(prefix="ds2-cheat-")
+    path, err = cs.save_html(html, _os.path.join(d, "cs.html"))
+    assert path and not err and _os.path.getsize(path) > 5000
+    for bad in ("", None, "   ", d, "/nonexistent-dir-xyz/x.html"):
+        p2, e2 = cs.save_html(html, bad)
+        assert p2 is None and e2
+    # window: opens, previews live data, saves via engine path
+    import tkinter as tk
+    try:
+        root = tk.Tk(); root.withdraw()
+    except tk.TclError:
+        return
+    theme = {"bg": "#16161e", "header": "#242432",
+             "editor_bg": "#1a1a24", "text": "#e8e8f0",
+             "text_muted": "#8a8a9a", "button": "#2a2a3a",
+             "button_hover": "#33334a", "success": "#3fb950",
+             "error": "#ff6b6b"}
+    from dxn1_studio.cheatsheet import open_cheatsheet
+    win = open_cheatsheet(root, theme, commands=TERMINAL_HELP)
+    assert win is not None and win.winfo_exists()
+    body = win.preview.get("1.0", "end")
+    assert "TERMINAL COMMANDS" in body and "palette" in body
+    out = _os.path.join(d, "out.html")
+    assert win._write_to(out) == out
+    assert "saved" in win.status.cget("text")
+    assert "print-ready" not in win.status.cget("text")  # status, not hint
+    # honest failure lands in status without raising
+    assert win._write_to("/nonexistent-dir-xyz/x.html") is None
+    assert "save failed" in win.status.cget("text")
+    win.refresh()
+    win.destroy(); root.destroy()

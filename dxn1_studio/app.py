@@ -51,6 +51,82 @@ TEXT_EXTS = {".py", ".pyw", ".pyi", ".js", ".ts", ".jsx", ".tsx", ".html",
              ".rs", ".go", ".c", ".h", ".cpp", ".java", ".sql", ".env"}
 
 
+# Terminal commands listed by `help` — the single source of
+# truth shared with the cheat sheet exporter (cheatsheet.py).
+TERMINAL_HELP = (
+    ("dxn1 studio", "replay the boot splash"),
+    ("run", "run the current file / project (F5)"),
+    ("stop", "stop the running process"),
+    ("clear", "clear this terminal"),
+    ("packages", "open the optional-dependencies view"),
+    ("search <query>", "search across the workspace"),
+    ("find <text>", "find text in the current file"),
+    ("palette", "open the command palette (Ctrl+K)"),
+    ("todo", "scan the workspace for TODO / FIXME"),
+    ("tools", "developer tools: regex, JSON, text, time"),
+    ("cron <expr>", "decode a cron schedule + next runs"),
+    ("readability", "reading level of the current file"),
+    ("jwt <token>", "decode a JWT — header, payload, exp"),
+    ("env", "lint the workspace .env + masked copy"),
+    ("gen", "generate UUIDs, nanoids, fake users, JSON"),
+    ("db <file>", "browse SQLite databases — tables, "
+                  "schema, queries"),
+    ("tree <dir>", "ASCII directory tree for READMEs — "
+                   "skips junk, copies to clipboard"),
+    ("hash <file>", "checksums: MD5/SHA-1/256/512, folder "
+                    "manifests, paste-a-hash verify"),
+    ("focus <min>", "pomodoro focus timer — work/break "
+                    "cycles with session dots"),
+    ("clip", "clipboard history — paste earlier copies"),
+    ("md", "live markdown preview — dual-pane, HTML "
+           "export"),
+    ("color", "color kit — hex/rgb/hsl, WCAG "
+              "contrast, shade ramps"),
+    ("rest", "REST bench — send HTTP requests, "
+             "copy as curl, inspect responses"),
+    ("chart", "chart studio — paste numbers, get line/"
+              "bar/histogram + stats"),
+    ("unit", "unit converter — length/mass/temp/data/"
+             "time/speed at a glance"),
+    ("charmap", "character map — browse/search Unicode "
+                "blocks, click to copy"),
+    ("case", "textcase — convert identifiers between "
+             "snake/camel/kebab/… instantly"),
+    ("passgen", "PassForge — cryptographic passwords "
+                "with an entropy meter"),
+    ("base", "numbase — convert numbers between any "
+             "bases 2-36 + bit inspector"),
+    ("csv", "CSV Lab — paste csv/tsv, peek the table, "
+            "copy back as TSV"),
+    ("calc", "MathPad — safe expression calculator "
+             "(x = 5 assigns, _ is the last answer)"),
+    ("hexdump", "ByteSnoop — hexdump & byte inspector, "
+                "paste text or raw hex"),
+    ("diff2", "Paste Diff — compare two pasted texts "
+              "word/char/line"),
+    ("xml", "Markup Bench — pretty/minify/validate "
+            "XML + element stats"),
+    ("contrast", "Contrast Auditor — WCAG grades + "
+                 "fixes for every theme"),
+    ("cheat", "Cheat Sheet — print-friendly HTML export of "
+              "every command"),
+    ("scribe <n>", "set the words-per-session goal for "
+                   "the statusbar writing meter"),
+    ("explain", "hand the last error to the agent"),
+    ("git <args>", "run git in the workspace (status, add,"),
+    ("", "commit, log… output streams below"),
+    ("split", "toggle split editor view"),
+    ("zen", "toggle zen mode"),
+    ("goto <line>", "jump to a line"),
+    ("recent", "list recently opened files"),
+    ("update", "check GitHub for a newer release"),
+    ("hub", "open the Project Hub"),
+    ("export", "export the workspace as a ZIP"),
+    ("agent <request>", "talk to DXN1 Agents (if enabled)"),
+    ("settings", "open studio settings"),
+)
+
+
 def extract_error_block(text, max_lines=60, max_chars=4000):
     """DS2 v2.6: pull the most recent error block out of terminal text.
 
@@ -1288,6 +1364,15 @@ class DXN1Studio:
                 command=_open_contrast_menu)
         except Exception:  # pragma: no cover — menu stays alive
             pass
+        # DS2: cheat sheet exporter (defensive)
+        def _open_cheatsheet_menu():
+            self.open_cheatsheet()
+        try:
+            workshop_menu.add_command(
+                label="Cheat Sheet — printable HTML export…",
+                command=_open_cheatsheet_menu)
+        except Exception:  # pragma: no cover — menu stays alive
+            pass
         workshop_menu.add_separator()
         workshop_menu.add_command(label="Token Usage Dashboard…",
                                   command=_open_usage_menu)
@@ -1811,6 +1896,15 @@ class DXN1Studio:
         try:
             from .contrast import open_contrast
             open_contrast(self.root, self.theme)
+        except Exception:  # noqa: BLE001 — menu stays alive
+            pass
+
+    def open_cheatsheet(self):
+        """DS2: printable HTML cheat sheet of every command."""
+        try:
+            from .cheatsheet import open_cheatsheet
+            open_cheatsheet(self.root, self.theme,
+                            commands=TERMINAL_HELP)
         except Exception:  # noqa: BLE001 — menu stays alive
             pass
 
@@ -2800,75 +2894,7 @@ class DXN1Studio:
             return
         if low in ("help", "?"):
             self.terminal.log("Studio commands:")
-            for cmd, desc in (
-                    ("dxn1 studio", "replay the boot splash"),
-                    ("run", "run the current file / project (F5)"),
-                    ("stop", "stop the running process"),
-                    ("clear", "clear this terminal"),
-                    ("packages", "open the optional-dependencies view"),
-                    ("search <query>", "search across the workspace"),
-                    ("find <text>", "find text in the current file"),
-                    ("palette", "open the command palette (Ctrl+K)"),
-                    ("todo", "scan the workspace for TODO / FIXME"),
-                    ("tools", "developer tools: regex, JSON, text, time"),
-                    ("cron <expr>", "decode a cron schedule + next runs"),
-                    ("readability", "reading level of the current file"),
-                    ("jwt <token>", "decode a JWT — header, payload, exp"),
-                    ("env", "lint the workspace .env + masked copy"),
-                    ("gen", "generate UUIDs, nanoids, fake users, JSON"),
-                    ("db <file>", "browse SQLite databases — tables, "
-                                  "schema, queries"),
-                    ("tree <dir>", "ASCII directory tree for READMEs — "
-                                   "skips junk, copies to clipboard"),
-                    ("hash <file>", "checksums: MD5/SHA-1/256/512, folder "
-                                    "manifests, paste-a-hash verify"),
-                    ("focus <min>", "pomodoro focus timer — work/break "
-                                    "cycles with session dots"),
-                    ("clip", "clipboard history — paste earlier copies"),
-                    ("md", "live markdown preview — dual-pane, HTML "
-                           "export"),
-                    ("color", "color kit — hex/rgb/hsl, WCAG "
-                              "contrast, shade ramps"),
-                    ("rest", "REST bench — send HTTP requests, "
-                             "copy as curl, inspect responses"),
-                    ("chart", "chart studio — paste numbers, get line/"
-                              "bar/histogram + stats"),
-                    ("unit", "unit converter — length/mass/temp/data/"
-                             "time/speed at a glance"),
-                    ("charmap", "character map — browse/search Unicode "
-                                "blocks, click to copy"),
-                    ("case", "textcase — convert identifiers between "
-                             "snake/camel/kebab/… instantly"),
-                    ("passgen", "PassForge — cryptographic passwords "
-                                "with an entropy meter"),
-                    ("base", "numbase — convert numbers between any "
-                             "bases 2-36 + bit inspector"),
-                    ("csv", "CSV Lab — paste csv/tsv, peek the table, "
-                            "copy back as TSV"),
-                    ("calc", "MathPad — safe expression calculator "
-                             "(x = 5 assigns, _ is the last answer)"),
-                    ("hexdump", "ByteSnoop — hexdump & byte inspector, "
-                                "paste text or raw hex"),
-                    ("diff2", "Paste Diff — compare two pasted texts "
-                              "word/char/line"),
-                    ("xml", "Markup Bench — pretty/minify/validate "
-                            "XML + element stats"),
-                    ("contrast", "Contrast Auditor — WCAG grades + "
-                                 "fixes for every theme"),
-                    ("scribe <n>", "set the words-per-session goal for "
-                                   "the statusbar writing meter"),
-                    ("explain", "hand the last error to the agent"),
-                    ("git <args>", "run git in the workspace (status, add,"),
-                    ("", "commit, log… output streams below"),
-                    ("split", "toggle split editor view"),
-                    ("zen", "toggle zen mode"),
-                    ("goto <line>", "jump to a line"),
-                    ("recent", "list recently opened files"),
-                    ("update", "check GitHub for a newer release"),
-                    ("hub", "open the Project Hub"),
-                    ("export", "export the workspace as a ZIP"),
-                    ("agent <request>", "talk to DXN1 Agents (if enabled)"),
-                    ("settings", "open studio settings")):
+            for cmd, desc in TERMINAL_HELP:
                 self.terminal.log(f"  {cmd:<18} — {desc}")
             return
         if low == "clear":
@@ -3181,6 +3207,13 @@ class DXN1Studio:
             self.terminal.log("Contrast Auditor opened — 13 text "
                               "pairs graded per theme, fixes "
                               "suggested below AA")
+            return
+        if low in ("cheat", "cheatsheet", "man"):
+            # DS2: printable HTML cheat sheet export
+            self.open_cheatsheet()
+            self.terminal.log("Cheat Sheet opened — preview here, "
+                              "save a print-ready HTML copy from "
+                              "the button")
             return
         if low == "lang" or low.startswith("lang "):
             # DS2: switch the UI language pack (i18n activation)
@@ -3936,6 +3969,14 @@ class DXN1Studio:
         try:
             cmds.append(("Contrast Auditor — WCAG grades for themes…",
                          "DS2", _open_contrast_palette))
+        except Exception:  # pragma: no cover — palette stays alive
+            pass
+        # DS2: cheat sheet exporter (defensive)
+        def _open_cheatsheet_palette():
+            self.open_cheatsheet()
+        try:
+            cmds.append(("Cheat Sheet — printable HTML export…",
+                         "DS2", _open_cheatsheet_palette))
         except Exception:  # pragma: no cover — palette stays alive
             pass
         # DS2: scribe goal (defensive)

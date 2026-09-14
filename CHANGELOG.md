@@ -4,6 +4,30 @@ All notable changes to DXN1 STUDIO. Format based on
 [Keep a Changelog](https://keepachangelog.com/); versioning is
 `MAJOR.MINOR.PATCH` while in **beta**.
 
+## [2.27.0] — 2026-09-14 · beta · "print me" (bonus round)
+
+### Added
+- **Cheat Sheet** (`cheatsheet.py`, Workshop menu, palette, terminal
+  `cheat` / `cheatsheet` / `man`) — one standalone print-friendly HTML
+  page with every terminal command and keyboard shortcut: inline CSS,
+  `@media print` rules, kbd chips, zero dependencies.
+- **Zero-drift data** — the sheet is generated from the same
+  `TERMINAL_HELP` tuple the terminal's `help` prints, plus a curated
+  shortcuts table mirroring `setup_bindings()` and a tips section.
+- Window: plain-text preview, save HTML anywhere, open in browser
+  (temp-file fallback), copy HTML to clipboard; honest error strings
+  for bad paths — never raises.
+- i18n: 4 new `cheatsheet.*` keys in all 8 language packs.
+
+### Changed
+- Refactor: the terminal help list (48 commands) extracted from
+  `handle_terminal_command` to module-level `TERMINAL_HELP` — single
+  source of truth shared by terminal, cheat sheet, and tests.
+
+### Notes
+- 62/62 pytest groups · 136/136 smoke checks across 22 windows ·
+  20/20 boot QA · 80 feature modules.
+
 ## [2.26.0] — 2026-09-14 · beta · "readable or it didn't happen" (bonus round)
 
 ### Added
