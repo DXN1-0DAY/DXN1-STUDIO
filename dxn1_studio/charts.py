@@ -16,6 +16,8 @@ Open with: Workshop menu, palette, terminal ``chart`` / ``charts``.
 
 import tkinter as tk
 
+from .i18n import tr
+
 __all__ = ["parse_series", "summary", "scale_points", "bar_rects",
            "histogram", "sparkline", "ChartStudio", "open_chart_studio"]
 
@@ -279,7 +281,7 @@ class ChartStudio(tk.Toplevel):
                                anchor="w", bg=t.get("bg", "#16161e"),
                                fg=t.get("text_muted", "#8a8a9a"))
         self.status.pack(side=tk.LEFT, padx=10, pady=6)
-        tk.Button(bottom, text="copy stats", relief=tk.FLAT,
+        tk.Button(bottom, text=tr("chart.copy_stats"), relief=tk.FLAT,
                   bg=t.get("button", "#2a2a3a"),
                   fg=t.get("text", "#e8e8f0"),
                   activebackground=t.get("button_hover", "#33334a"),

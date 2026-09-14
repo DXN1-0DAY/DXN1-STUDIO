@@ -1207,6 +1207,15 @@ class DXN1Studio:
                 command=_open_charmap_menu)
         except Exception:  # pragma: no cover — menu stays alive
             pass
+        # DS2: textcase (defensive)
+        def _open_textcase_menu():
+            self.open_textcase()
+        try:
+            workshop_menu.add_command(
+                label="TextCase — snake/camel/kebab/… converter",
+                command=_open_textcase_menu)
+        except Exception:  # pragma: no cover — menu stays alive
+            pass
         workshop_menu.add_separator()
         workshop_menu.add_command(label="Token Usage Dashboard…",
                                   command=_open_usage_menu)
@@ -1658,6 +1667,14 @@ class DXN1Studio:
         try:
             from .charmap import open_charmap
             open_charmap(self.root, self.theme)
+        except Exception:  # noqa: BLE001 — menu stays alive
+            pass
+
+    def open_textcase(self):
+        """DS2: identifier case converter."""
+        try:
+            from .textcase import open_textcase
+            open_textcase(self.root, self.theme)
         except Exception:  # noqa: BLE001 — menu stays alive
             pass
 
@@ -2684,6 +2701,8 @@ class DXN1Studio:
                              "time/speed at a glance"),
                     ("charmap", "character map — browse/search Unicode "
                                 "blocks, click to copy"),
+                    ("case", "textcase — convert identifiers between "
+                             "snake/camel/kebab/… instantly"),
                     ("scribe <n>", "set the words-per-session goal for "
                                    "the statusbar writing meter"),
                     ("explain", "hand the last error to the agent"),
@@ -2954,6 +2973,13 @@ class DXN1Studio:
             self.open_charmap()
             self.terminal.log("Character Map opened — click a glyph "
                               "to copy it; search by block or U+code")
+            return
+        if low in ("case", "textcase"):
+            # DS2: identifier case converter window
+            self.open_textcase()
+            self.terminal.log("TextCase opened — snake/camel/pascal/"
+                              "kebab/constant/title/dot/flat, click "
+                              "a row to copy")
             return
         if low == "lang" or low.startswith("lang "):
             # DS2: switch the UI language pack (i18n activation)
@@ -3637,6 +3663,14 @@ class DXN1Studio:
         try:
             cmds.append(("Character Map — browse & copy Unicode…",
                          "DS2", _open_charmap_palette))
+        except Exception:  # pragma: no cover — palette stays alive
+            pass
+        # DS2: textcase (defensive)
+        def _open_textcase_palette():
+            self.open_textcase()
+        try:
+            cmds.append(("TextCase — snake/camel/kebab/… converter",
+                         "DS2", _open_textcase_palette))
         except Exception:  # pragma: no cover — palette stays alive
             pass
         # DS2: scribe goal (defensive)

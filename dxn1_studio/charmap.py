@@ -13,6 +13,8 @@ Open with: Workshop menu, palette, terminal ``charmap`` / ``char``.
 import unicodedata
 import tkinter as tk
 
+from .i18n import tr
+
 __all__ = ["block_names", "chars_in", "search", "describe",
            "CharacterMap", "open_charmap"]
 
@@ -152,7 +154,7 @@ class CharacterMap(tk.Toplevel):
 
         bottom = tk.Frame(self, bg=t.get("bg", "#16161e"))
         bottom.pack(fill=tk.X)
-        self.status = tk.Label(bottom, text="click a character to copy",
+        self.status = tk.Label(bottom, text=tr("charmap.click_copy"),
                                anchor="w", bg=t.get("bg", "#16161e"),
                                fg=t.get("text_muted", "#8a8a9a"))
         self.status.pack(side=tk.LEFT, padx=10, pady=6)

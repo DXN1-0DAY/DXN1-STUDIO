@@ -15,6 +15,8 @@ Open with: Workshop menu, palette, terminal ``unit`` / ``convert``.
 import tkinter as tk
 from tkinter import ttk
 
+from .i18n import tr
+
 __all__ = ["categories", "units", "convert", "convert_str",
            "batch_table", "UnitConverter", "open_unit_converter"]
 
@@ -227,7 +229,7 @@ class UnitConverter(tk.Toplevel):
                                bg=t.get("bg", "#16161e"),
                                fg=t.get("text_muted", "#8a8a9a"))
         self.status.pack(side=tk.LEFT, padx=10, pady=6)
-        tk.Button(bottom, text="copy result", relief=tk.FLAT,
+        tk.Button(bottom, text=tr("unit.copy_result"), relief=tk.FLAT,
                   bg=t.get("button", "#2a2a3a"),
                   fg=t.get("text", "#e8e8f0"),
                   activebackground=t.get("button_hover", "#33334a"),

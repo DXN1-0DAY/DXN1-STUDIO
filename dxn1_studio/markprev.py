@@ -16,6 +16,8 @@ import re
 import tkinter as tk
 import tkinter.font as tkfont
 
+from .i18n import tr
+
 __all__ = ["parse_blocks", "inline_spans", "markdown_to_html",
            "MarkdownPreview", "open_markdown_preview"]
 
@@ -345,9 +347,9 @@ class MarkdownPreview(tk.Toplevel):
         tk.Label(bar, text="│", bg=t.get("header", "#242432"),
                  fg=t.get("text_muted", "#555")).pack(side=tk.LEFT,
                                                       padx=2)
-        _btn("Copy HTML", self.copy_html).pack(
+        _btn(tr("markprev.copy_html"), self.copy_html).pack(
             side=tk.LEFT, padx=4, pady=6)
-        _btn("Export HTML…", self.export_html).pack(
+        _btn(tr("markprev.export_html"), self.export_html).pack(
             side=tk.LEFT, padx=4, pady=6)
 
     def _build_panes(self):

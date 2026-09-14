@@ -301,3 +301,19 @@
 | Three-way search | type in the search box | Matches block names (`box`), hex codepoints (`U+2192`, `0x00e9`, `2192`) or any literal character you paste; a failed search says so honestly instead of silently falling back |
 | Click-to-copy | clicking a glyph | Copies the character and prints `U+00E9 · é · LATIN SMALL LETTER E WITH ACUTE` (unnamed glyphs handled); *copy all shown* grabs the whole grid for pasting into an editor |
 | Pure engine | `block_names()` / `chars_in()` / `search()` / `describe()` | Junk-tolerant, bounded, fully unit-tested; the window never raises |
+
+## TextCase (v2.19.0 lane)
+
+| Feature | Where | What it does |
+|---|---|---|
+| Identifier converter | `textcase.py`, Workshop → *TextCase — snake/camel/kebab/… converter*, palette, terminal `case` / `textcase` | Type any identifier in any convention and read all eight styles live: snake_case, camelCase, PascalCase, kebab-case, CONSTANT_CASE, Title Case, dot.case, flatcase — click any row to copy |
+| Acronym-aware splitter | `words()` | `getHTTPResponse_2` splits to get/HTTP/Response/2 — acronym runs stay whole, digits stay attached to their word, snake/kebab/dot/space delimiters all respected |
+| Junk-tolerant | `convert()` / `all_cases()` | Non-strings and delimiters-only input convert to empty; unknown style names return empty instead of raising; camel→snake round-trips are stable |
+| Live rows | eight labelled rows with click-to-copy | Paste button reads the clipboard; every conversion updates on each keystroke |
+
+## i18n tr() Deepening (v2.19.0 lane)
+
+| Feature | Where | What it does |
+|---|---|---|
+| Six new UI keys | `i18n.py`, full translations in all eight packs | `markprev.copy_html` / `markprev.export_html` / `chart.copy_stats` / `unit.copy_result` / `textcase.click_copy` / `charmap.click_copy` — every pack now carries 68 keys |
+| Translated buttons | markprev, charts, unitconv, textcase, charmap | The newest windows' copy/export buttons and hints resolve through the active language pack; `lang es` visibly re-speaks them |

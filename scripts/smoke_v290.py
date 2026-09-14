@@ -263,6 +263,27 @@ def main():
     check("charmap engine offline", search("2192") == ["\u2192"])
     cmwin.destroy()
 
+    # ---- TextCase (same smoke, new lane)
+    from dxn1_studio.textcase import convert, open_textcase
+    tcwin = open_textcase(root, theme)
+    tcwin.update_idletasks()
+    check("textcase window opens", tcwin.winfo_exists())
+    check("textcase eight rows", len(tcwin.labels) == 8)
+    check("textcase live convert", "getHttpResponse2" ==
+          tcwin.labels["camel"].cget("text"))
+    tcwin.entry.delete(0, "end")
+    tcwin.entry.insert(0, "user_profile_id")
+    tcwin.refresh()
+    check("textcase refresh", "userProfileId" ==
+          tcwin.labels["camel"].cget("text"))
+    tcwin.entry.delete(0, "end")
+    tcwin.entry.insert(0, "---")
+    tcwin.refresh()
+    check("textcase junk tolerated", "—" ==
+          tcwin.labels["camel"].cget("text"))
+    check("textcase engine offline", convert("a_b", "kebab") == "a-b")
+    tcwin.destroy()
+
     # ---- REST bench (same smoke, seventh lane)
     from dxn1_studio.restbench import (RestResponse, build_curl,
                                        format_size,

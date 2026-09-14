@@ -1716,3 +1716,35 @@ def test_charmap_engine():
     assert d.startswith("U+00E9") and "LATIN SMALL LETTER E" in d
     assert "<unnamed>" in charmap.describe("\uE000")
     assert charmap.describe(None) == ""
+
+
+def test_textcase_engine():
+    """DS2 textcase: word splitting + every style + junk tolerance."""
+    from dxn1_studio import textcase
+    # acronym runs split whole; delimiters of every kind
+    assert textcase.words("getHTTPResponse_2") == \
+        ["get", "HTTP", "Response", "2"]
+    assert textcase.words("user_profile-id") == ["user", "profile", "id"]
+    assert textcase.words("MyApp2-file") == ["My", "App2", "file"]
+    assert textcase.words("version2Update") == ["version2", "Update"]
+    # every style
+    assert textcase.convert("user_profile_id", "camel") == "userProfileId"
+    assert textcase.convert("user_profile_id", "pascal") == "UserProfileId"
+    assert textcase.convert("user_profile_id", "kebab") == "user-profile-id"
+    assert textcase.convert("user_profile_id", "constant") == "USER_PROFILE_ID"
+    assert textcase.convert("user_profile_id", "title") == "User Profile Id"
+    assert textcase.convert("user_profile_id", "dot") == "user.profile.id"
+    assert textcase.convert("user_profile_id", "flat") == "userprofileid"
+    # camel boundary in the source converts to snake
+    assert textcase.convert("getHTTPResponse", "snake") == \
+        "get_http_response"
+    # round-trip: snake → camel → snake is stable
+    assert textcase.convert(
+        textcase.convert("round_trip_here", "camel"), "snake") == \
+        "round_trip_here"
+    # all_cases covers 8 styles, junk is empty
+    assert len(textcase.all_cases("some_name")) == 8
+    assert textcase.all_cases("---") == {}
+    assert textcase.words(None) == []
+    assert textcase.convert(5, "snake") == ""
+    assert textcase.convert("x", "nope") == ""

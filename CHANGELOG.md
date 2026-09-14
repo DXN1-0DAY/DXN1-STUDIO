@@ -4,6 +4,14 @@ All notable changes to DXN1 STUDIO. Format based on
 [Keep a Changelog](https://keepachangelog.com/); versioning is
 `MAJOR.MINOR.PATCH` while in **beta**.
 
+## [2.19.0] — 2026-09-14 · beta · "speak the case, speak the language"
+
+### Added
+- **TextCase** (`textcase.py`, Workshop → *TextCase — snake/camel/kebab/… converter*, terminal `case` / `textcase`) — paste an identifier in any convention (`user_profile_id`, `getHTTPResponse`, `MyApp2-file`) and read all eight styles at once: snake_case, camelCase, PascalCase, kebab-case, CONSTANT_CASE, Title Case, dot.case, flatcase; acronym runs split whole (`getHTTPResponse` → `get_http_response`), digits stay attached, click any row to copy.
+
+### Changed
+- **tr() deepening** — six new UI keys shipped with full translations in all eight language packs (68 keys each): markdown preview's Copy/Export HTML buttons, chart studio's copy-stats, unit converter's copy-result, TextCase and Character Map click-to-copy hints now resolve through the active language; missing keys keep falling back to English by design.
+
 ## [2.18.0] — 2026-09-14 · beta · "every glyph at your fingertips"
 
 ### Added

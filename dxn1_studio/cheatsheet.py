@@ -101,6 +101,8 @@ SHEETS = [
                  "pt zh hi ja), remembered across restarts"),
         ("charmap", "Character Map — browse Unicode blocks, search "
                     "by name or U+codepoint, click to copy"),
+        ("case", "TextCase — convert identifiers between snake/camel/"
+                 "pascal/kebab/constant/title/dot/flat"),
         ("scribe <n>", "Writing meter — ✎ chip in the statusbar shows "
                        "words, WPM and goal progress; click for a "
                        "session toast")
