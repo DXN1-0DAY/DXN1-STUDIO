@@ -19,6 +19,13 @@ from tkinter import ttk
 from .theme import FONT_UI, FONT_MONO
 from .widgets import TREE_SKIP
 
+try:  # DS2 visual git suite — optional at boot, never blocks the panel
+    from . import gitgraph
+    from . import branches as branches_mod
+except Exception:  # pragma: no cover — broken install keeps git working
+    gitgraph = None
+    branches_mod = None
+
 STATUS_FLAG = {
     "M": ("M", "#e3b341"),      # modified
     "A": ("A", "#3fb950"),      # added
@@ -105,6 +112,18 @@ class GitPanel(tk.Frame):
                                fg=theme["text_muted"], font=(FONT_UI, 8),
                                anchor="w")
         self.status.pack(fill=tk.X, padx=12, pady=(2, 0))
+
+        # --------------------------------------------- DS2 git toolbar
+        self.tools = tk.Frame(self, bg=theme["sidebar"])
+        self.tools.pack(fill=tk.X, padx=10, pady=(4, 0))
+        for label, cmd in (("Graph", self._open_graph),
+                           ("Branches", self._open_branches)):
+            chip = tk.Label(self.tools, text=label, bg=theme["card"],
+                            fg=theme["text_secondary"],
+                            font=(FONT_UI, 9), cursor="hand2",
+                            padx=10, pady=4)
+            chip.pack(side=tk.LEFT, padx=(0, 6))
+            chip.bind("<Button-1>", lambda e, fn=cmd: fn())
 
         # ----------------------------------------------------------- results
         self.canvas = tk.Canvas(self, bg=theme["sidebar"],
@@ -312,6 +331,24 @@ class GitPanel(tk.Frame):
         btn.bind("<Button-1>", lambda e: cmd())
 
     # ------------------------------------------------------------- actions
+    def _open_graph(self):
+        if gitgraph is None or not self._is_repo:
+            return
+        try:
+            gitgraph.open_graph(self.winfo_toplevel(), self.theme,
+                                self.workspace, on_log=self.on_log)
+        except Exception as exc:  # pragma: no cover — never kill the panel
+            self._say(f"graph failed: {exc}")
+
+    def _open_branches(self):
+        if branches_mod is None or not self._is_repo:
+            return
+        try:
+            branches_mod.open_branches(self.winfo_toplevel(), self.theme,
+                                       self.workspace, on_log=self.on_log)
+        except Exception as exc:  # pragma: no cover — never kill the panel
+            self._say(f"branches failed: {exc}")
+
     def _open(self, relpath):
         full = os.path.join(self.workspace, relpath)
         if os.path.isfile(full) and self.on_open_file:

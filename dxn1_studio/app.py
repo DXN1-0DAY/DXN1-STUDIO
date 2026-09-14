@@ -2102,6 +2102,27 @@ class DXN1Studio:
             ("Smaller editor text", "Ctrl+-", lambda: self.change_font_size(-1)),
             ("Replay welcome & tour", "", self.start_wizard),
         ]
+        # ---- DS2 visual git suite (defensive: never break the palette)
+        try:
+            from . import gitgraph as _gg
+            from . import branches as _br
+            from . import diffview as _dv
+            cmds += [
+                ("Commit graph (all branches)", "",
+                 lambda: _gg.open_graph(self.root, self.theme,
+                                        self.project_dir,
+                                        on_log=lambda m: None)),
+                ("Branch manager — create / merge / cleanup", "",
+                 lambda: _br.open_branches(self.root, self.theme,
+                                           self.project_dir,
+                                           on_log=lambda m: None)),
+                ("Diff workspace vs HEAD", "",
+                 lambda: _dv.show_diff(
+                     self.root, self.theme,
+                     *self._worktree_texts())),
+            ]
+        except Exception:  # pragma: no cover — palette stays alive
+            pass
         if self.config.get("agents_enabled"):
             cmds += [
                 ("Toggle DXN1 Agents panel", "", self.toggle_agents_panel),
@@ -2110,6 +2131,32 @@ class DXN1Studio:
                 ("Connect a brain…", "", lambda: ConnectDialog(self)),
             ]
         return cmds
+
+    def _worktree_texts(self):
+        """(HEAD text, working text) for the open file — diff support."""
+        import subprocess as _sp
+        path = getattr(self, "current_path", None) or \
+            getattr(self.editor, "path", None)
+        if not path:
+            return "", ""
+        try:
+            rel = os.path.relpath(path, self.project_dir).replace(os.sep,
+                                                                  "/")
+        except ValueError:
+            rel = path
+        try:
+            proc = _sp.run(["git", "show", f"HEAD:{rel}"],
+                           cwd=self.project_dir, capture_output=True,
+                           text=True, timeout=10)
+            old = proc.stdout if proc.returncode == 0 else ""
+        except Exception:  # pragma: no cover — diff is best-effort
+            old = ""
+        try:
+            with open(path, "r", encoding="utf-8", errors="replace") as fh:
+                new = fh.read()
+        except OSError:
+            new = ""
+        return old, new
 
     # --------------------------------------------------------------- toast
     def toast(self, message, kind="info"):

@@ -4,6 +4,46 @@ All notable changes to DXN1 STUDIO. Format based on
 [Keep a Changelog](https://keepachangelog.com/); versioning is
 `MAJOR.MINOR.PATCH` while in **beta**.
 
+## [1.4.0] — 2026-09-14 · beta · "the visual git suite"
+
+### Added
+- **The visual diff viewer** (`diffview.py`) — a real diff window, not a
+  wall of red and green text. Two panes side by side (or a unified patch
+  view, one click away), **word-level highlighting** so only the words
+  that actually changed glow, tinted gutters, live `+adds −dels ~mods`
+  pills in the header, and hunk navigation (‹ › or F3 / Shift+F3) with a
+  `3 / 17` counter that jumps and scrolls for you. A **Copy patch**
+  button puts a clean unified diff on the clipboard. Powered by
+  stdlib `difflib`, themed end-to-end, zero new dependencies.
+- **The commit graph** (`gitgraph.py`) — your history as an interactive
+  graph across **all branches**: one colored lane per branch line, real
+  parent-based lane routing (merges fork out, first parents stay
+  straight), hover cursor, click a commit and a detail card slides in
+  with sha, author, parents and refs — plus **Copy sha**,
+  **Diff vs parent** (opens the visual diff viewer) and
+  **Checkout**. Filter box searches subjects, authors and shas live;
+  decorated refs (`HEAD -> master`, `tag: v1.4.0`, `origin/…`) render
+  beside their commits in the accent colour.
+- **The branch manager** (`branches.py`) — create, checkout (double-click
+  a branch), rename, delete, **merge** and **track** remote branches in
+  one focused window. Ahead/behind badges come from
+  `git for-each-ref` in a single call; the last commit subject shows
+  beside every branch; tags live in a chip row (double-click to
+  checkout). Deleting an unmerged branch takes a deliberate two-click
+  confirm — and a second deliberate click to force.
+- **Source control toolbar** — the git panel now carries **Graph** and
+  **Branches** buttons, so the whole visual suite is one click from the
+  sidebar.
+- **Three new palette commands** — *Commit graph (all branches)*,
+  *Branch manager — create / merge / cleanup* and *Diff workspace vs
+  HEAD* (diffs the open file against its committed self). All wired
+  defensively: if a DS2 module is missing, the palette pretends nothing
+  happened.
+
+### Changed
+- Version bookkeeping: `APP_VERSION` is now **1.4.0** and the config
+  default follows.
+
 ## [1.1.6] — 2026-09-14 · beta
 
 ### Fixed

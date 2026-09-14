@@ -13,7 +13,7 @@ with `@` symbol jump, sandboxed AI agents on a **resilient free cloud stack**
 frameworks. ~10 MB of Python.
 
 [![CI](https://github.com/DXN1-termux/DXN1-STUDIO/actions/workflows/ci.yml/badge.svg)](https://github.com/DXN1-termux/DXN1-STUDIO/actions/workflows/ci.yml)
-[![Version](https://img.shields.io/badge/version-1.1.6--beta-7c3aed?style=flat-square)](CHANGELOG.md)
+[![Version](https://img.shields.io/badge/version-1.4.0--beta-7c3aed?style=flat-square)](CHANGELOG.md)
 [![Python](https://img.shields.io/badge/python-3.8%2B-3776ab?style=flat-square&logo=python&logoColor=white)](https://www.python.org)
 [![Platform](https://img.shields.io/badge/platform-Linux%20%7C%20Termux%20%7C%20macOS%20%7C%20Windows-24292f?style=flat-square)](#requirements)
 [![License](https://img.shields.io/badge/license-MIT-3fb950?style=flat-square)](LICENSE)
@@ -501,7 +501,8 @@ DXN1-STUDIO/
       settings, `@` symbols, bookmarks, snippets
 - [x] **v1.3** — free-brain failover stack (keyless → GitHub Models),
       source-control panel, animated splash
-- [ ] **v1.4** — visual diff viewer, branch manager and a git graph
+- [x] **v1.4** — visual diff viewer (word-level, split & unified),
+      branch manager and a commit graph with real lane routing
 - [ ] **v1.5** — token usage dashboard + per-workspace agent memory
 - [ ] **v2.0** — plugin API + community themes
 
