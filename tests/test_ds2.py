@@ -1362,3 +1362,122 @@ def test_colorkit_engine():
     r1, r2 = shade_ramp("#7c3aed", 9), shade_ramp("#7c3aed", 9)
     assert r1 == r2 and len(r1) == 9 and r1[4] == "#7c3aed"
     assert shade_ramp("zzz", 9) == [] and shade_ramp("#fff", 1) == []
+
+
+def test_restbench_engine():
+    # DS2 v2.15.0 lane — HTTP workbench (offline: local server only)
+    import http.server
+    import json as _json
+    import threading
+
+    from dxn1_studio.restbench import (RestResponse, build_curl,
+                                       format_size, http_request,
+                                       parse_headers_text,
+                                       pretty_body)
+
+    # pure helpers
+    assert format_size(942) == "942 B"
+    assert format_size(3200) == "3.1 KB"
+    assert format_size(2500000) == "2.4 MB"
+    assert parse_headers_text("A: 1\nB : 2\njunk") == \
+        {"A": "1", "B": "2"}
+    assert parse_headers_text(None) == {}
+
+    # guard rails: junk input → error response, never raises
+    e1 = http_request("")
+    assert e1.error == "empty url"
+    e2 = http_request("ftp://nope")
+    assert "must start with" in e2.error
+
+    # opener injection: success shape without network
+    class FakeRaw:
+        status, reason = 201, "Created"
+        headers = {"Content-Type": "application/json"}
+
+        def read(self):
+            return b'{"ok": true}'
+
+        def close(self):
+            pass
+
+    ok1 = http_request("https://unit.test/x",
+                       opener=lambda req: FakeRaw())
+    assert ok1.status == 201 and ok1.ok and ok1.reason == "Created"
+    assert ok1.body == '{"ok": true}'
+
+    # hostile opener (read explodes) is absorbed
+    class FakeBoom:
+        status, reason, headers = 200, "OK", {}
+
+        def read(self):
+            raise IOError("boom")
+
+        def close(self):
+            pass
+
+    boom = http_request("https://unit.test/y",
+                        opener=lambda req: FakeBoom())
+    assert boom.error and boom.status == 200
+
+    # curl builder: quoting survives an apostrophe
+    curl = build_curl("https://api.example.dev/v1", "POST",
+                      {"X-Tag": "o'brien"}, '{"a": 1}')
+    assert curl.startswith("curl -X POST 'https://api.example.dev/v1'")
+    assert "-H" in curl and "--data" in curl and "\\" in curl
+
+    # real exchange against a local, offline-safe server
+    class Handler(http.server.BaseHTTPRequestHandler):
+        def do_POST(self):
+            length = int(self.headers.get("Content-Length", 0))
+            payload = self.rfile.read(length)
+            body = _json.dumps({"echo": _json.loads(payload),
+                                "seen": self.headers.get("X-Tag")})
+            raw = body.encode()
+            self.send_response(201)
+            self.send_header("Content-Type", "application/json")
+            self.send_header("Content-Length", str(len(raw)))
+            self.end_headers()
+            self.wfile.write(raw)
+
+        def do_GET(self):
+            raw = b"plain hello"
+            self.send_response(200)
+            self.send_header("Content-Length", str(len(raw)))
+            self.end_headers()
+            self.wfile.write(raw)
+
+        def log_message(self, *_a):
+            pass
+
+    server = http.server.ThreadingHTTPServer(("127.0.0.1", 0),
+                                             Handler)
+    thread = threading.Thread(target=server.serve_forever,
+                              daemon=True)
+    thread.start()
+    try:
+        base = "http://127.0.0.1:%d" % server.server_address[1]
+        got = http_request(base + "/", method="GET", timeout=5)
+        assert got.ok and got.status == 200
+        assert got.body == "plain hello"
+        assert "Content-Length" in got.headers
+
+        posted = http_request(
+            base + "/echo", method="POST",
+            headers=parse_headers_text("X-Tag: ds2"),
+            body='{"n": 7}', timeout=5)
+        assert posted.status == 201 and posted.ok
+        data = _json.loads(posted.body)
+        assert data["echo"] == {"n": 7} and data["seen"] == "ds2"
+        assert pretty_body(posted.body) != posted.body  # JSON prettified
+
+        miss = http_request("http://127.0.0.1:1/x", timeout=1)
+        assert miss.error and not miss.ok
+    finally:
+        server.shutdown()
+        server.server_close()
+
+    # summary lines for both happy and sad paths
+    assert RestResponse(method="GET", url="u", status=200,
+                        reason="OK").summary().count("·") == 2
+    assert "ERROR" in RestResponse(method="GET", url="u",
+                                   error="x").summary()

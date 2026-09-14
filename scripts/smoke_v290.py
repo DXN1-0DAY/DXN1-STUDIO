@@ -202,6 +202,39 @@ def main():
     check("colorkit junk tolerated", "enter a color" in
           cwin.info.cget("text"))
     cwin.destroy()
+
+    # ---- REST bench (same smoke, seventh lane)
+    from dxn1_studio.restbench import (RestResponse, build_curl,
+                                       format_size,
+                                       open_restbench)
+    rwin = open_restbench(root, theme, initial_url="https://x.test")
+    rwin.update_idletasks()
+    check("restbench window opens", rwin.winfo_exists())
+    check("restbench default headers", "Content-Type" in
+          rwin.headers.get("1.0", "end-1c"))
+    rwin.url.delete(0, "end")
+    rwin.url.insert(0, "not-a-scheme")
+    rwin.method.set("GET")
+    rwin._send_now()
+    check("restbench guard rail shown", "must start with" in
+          rwin.status_lbl.cget("text"))
+    check("restbench history recorded", len(rwin.history) == 1
+          and rwin.history[0].error)
+    rwin.view.configure(state=tk.NORMAL)
+    check("restbench response pane shows error", "ERROR" in
+          rwin.view.get("1.0", "end-1c"))
+    rwin.copy_curl()
+    check("restbench curl copied", "curl -X GET" in
+          rwin.clipboard_get())
+    check("restbench helpers", format_size(942) == "942 B"
+          and "curl" in build_curl("https://a.b", "GET"))
+    demo = RestResponse(method="POST", url="https://a.b", status=201,
+                        reason="Created", elapsed_ms=12.0,
+                        body='{"x": 1}')
+    rwin._show(demo)
+    check("restbench shows ok response", "201" in
+          rwin.status_lbl.cget("text"))
+    rwin.destroy()
     root.destroy()
 
     failed = [n for n, ok in CHECKS if not ok]

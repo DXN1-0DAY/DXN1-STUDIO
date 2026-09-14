@@ -1145,6 +1145,15 @@ class DXN1Studio:
                 command=_open_color_menu)
         except Exception:  # pragma: no cover — menu stays alive
             pass
+        # DS2: REST bench (defensive)
+        def _open_rest_menu():
+            self.open_restbench()
+        try:
+            workshop_menu.add_command(
+                label="REST Bench — fire HTTP requests…",
+                command=_open_rest_menu)
+        except Exception:  # pragma: no cover — menu stays alive
+            pass
         workshop_menu.add_separator()
         workshop_menu.add_command(label="Token Usage Dashboard…",
                                   command=_open_usage_menu)
@@ -1527,6 +1536,14 @@ class DXN1Studio:
         try:
             from .colorkit import open_colorkit
             open_colorkit(self.root, self.theme)
+        except Exception:  # noqa: BLE001 — menu stays alive
+            pass
+
+    def open_restbench(self):
+        """DS2: HTTP request workbench."""
+        try:
+            from .restbench import open_restbench
+            open_restbench(self.root, self.theme)
         except Exception:  # noqa: BLE001 — menu stays alive
             pass
 
@@ -2545,6 +2562,8 @@ class DXN1Studio:
                            "export"),
                     ("color", "color kit — hex/rgb/hsl, WCAG "
                               "contrast, shade ramps"),
+                    ("rest", "REST bench — send HTTP requests, "
+                             "copy as curl, inspect responses"),
                     ("explain", "hand the last error to the agent"),
                     ("git <args>", "run git in the workspace (status, add,"),
                     ("", "commit, log… output streams below"),
@@ -2789,6 +2808,12 @@ class DXN1Studio:
             self.open_colorkit()
             self.terminal.log("Color Kit opened — paste a hex, get "
                               "rgb/hsl/contrast/ramps")
+            return
+        if low in ("rest", "http", "restbench"):
+            # DS2: HTTP request workbench
+            self.open_restbench()
+            self.terminal.log("REST Bench opened — Ctrl+Enter sends, "
+                              "responses pretty-print JSON")
             return
         if low.startswith("goto "):
             num = text[5:].strip()
@@ -3390,6 +3415,14 @@ class DXN1Studio:
         try:
             cmds.append(("Color Kit — hex/rgb/hsl + contrast…",
                          "DS2", _open_color_palette))
+        except Exception:  # pragma: no cover — palette stays alive
+            pass
+        # DS2: REST bench (defensive)
+        def _open_rest_palette():
+            self.open_restbench()
+        try:
+            cmds.append(("REST Bench — send HTTP requests…",
+                         "DS2", _open_rest_palette))
         except Exception:  # pragma: no cover — palette stays alive
             pass
         # DS2: focus timer (defensive)

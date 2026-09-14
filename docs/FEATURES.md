@@ -223,3 +223,13 @@
 | WCAG contrast | contrast panel | Live contrast ratios against white and black with the AA 4.5:1 verdict and a "best partner" recommendation for text color |
 | Shade ramps | click-to-copy chips | A deterministic 9-step light→dark ramp through your color — every chip copies its hex to the clipboard |
 | Pure engine | `tests/test_ds2.py` | normalize/hex↔rgb↔hsl round-trips, 0-255 clamping, WCAG luminance math, mix/lighten/darken monotonicity and junk-input safety all unit-tested |
+
+## REST Bench (v2.15.0 lane)
+
+| Feature | Where | What it does |
+|---|---|---|
+| HTTP workbench | `restbench.py`, Workshop → *REST Bench — fire HTTP requests…*, palette, terminal `rest` / `http` / `restbench` | Pick a method (GET/POST/PUT/PATCH/DELETE/HEAD/OPTIONS), edit URL, headers and body, hit Send (or Ctrl+Enter) without leaving the studio |
+| Zero-dependency engine | `http_request()` on `urllib.request` | Status, reason, headers, body, elapsed ms and byte size come back in one `RestResponse`; network errors, bad schemes and timeouts become readable error responses instead of crashes |
+| Response viewer | response pane | Response headers in muted ink, JSON bodies auto-pretty-printed, status line always visible; a 30-entry history ring remembers recent exchanges |
+| Copy as curl | toolbar button | Any request converts to a copy-pasteable `curl` command with proper shell quoting (apostrophes included) |
+| Offline-testable | `tests/test_ds2.py` | The suite runs against a local `http.server` (round-trip POST with headers + body, GET, connection-refused path) plus opener injection — zero external network |
