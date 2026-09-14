@@ -2035,3 +2035,63 @@ def test_textdiff_engine():
     win.refresh()
     assert "paste" in win.status.cget("text")
     win.destroy(); root.destroy()
+
+
+def test_xmlbench_engine():
+    """DS2 xmlbench: pretty/minify/validate/stats + safety guards."""
+    from dxn1_studio import xmlbench as x
+    doc = '<note id="42"><to>DXN1</to></note>'
+    # pretty
+    out, err = x.xml_pretty(doc)
+    assert err is None and "<to>DXN1</to>" in out and "\n" in out
+    out2, _ = x.xml_pretty(doc, indent=4)
+    assert "    <to>" in out2
+    # minify keeps real text, drops inter-element whitespace
+    mn, err = x.xml_minify("<root>\n  <a> 1 </a>\n  <b/>\n</root>")
+    assert err is None and "\n" not in mn
+    assert "<a> 1 </a>" in mn and "<b />" in mn
+    # validate
+    assert x.xml_validate(doc) == (True, "valid XML")
+    ok, msg = x.xml_validate("<a><b></a>")
+    assert not ok and "line 1" in msg
+    assert not x.xml_validate("")[0] and not x.xml_validate(None)[0]
+    # safety: DTD entities and size bombs refused
+    ok, msg = x.xml_validate(
+        '<!DOCTYPE r [<!ENTITY a "x">]><r>&a;</r>')
+    assert not ok and "refused" in msg
+    ok, msg = x.xml_validate("<r>" + "<a/>" * 400000 + "</r>")
+    assert not ok and "too large" in msg
+    # stats
+    st, err = x.tag_stats(doc)
+    assert err is None and st["root"] == "note"
+    assert st["elements"] == 2 and st["attributes"] == 1
+    assert st["max_depth"] == 2
+    st, _ = x.tag_stats("<r><t>a</t><t>b</t><t>c</t></r>")
+    assert dict(st["top"]).get("t") == 3
+    assert st["text_nodes"] == 3
+    assert "invalid" in x.stats_line("<nope>")
+    # junk tolerance
+    assert x.xml_pretty(123)[1] is not None
+    assert x.tag_stats("")[1] is not None
+    # window: opens, validates, minifies, tolerates junk
+    import tkinter as tk
+    try:
+        root = tk.Tk(); root.withdraw()
+    except tk.TclError:
+        return
+    theme = {"bg": "#16161e", "header": "#242432",
+             "editor_bg": "#1a1a24", "text": "#e8e8f0",
+             "text_muted": "#8a8a9a", "button": "#2a2a3a",
+             "button_hover": "#33334a", "ok": "#7ee787",
+             "error": "#ff6b6b"}
+    from dxn1_studio.xmlbench import open_xmlbench
+    win = open_xmlbench(root, theme)
+    assert win is not None and win.winfo_exists()
+    assert "valid" in win.status.cget("text")
+    win._minify()
+    assert "<to>" in win.output.get("1.0", "end")
+    win.input.delete("1.0", "end")
+    win.refresh_called = True
+    win._validate()
+    assert "XML" in win.status.cget("text")
+    win.destroy(); root.destroy()

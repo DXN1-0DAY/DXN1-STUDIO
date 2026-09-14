@@ -380,3 +380,14 @@
 | Similarity meter | `similarity()` / `summary()` | Live `+N -M lines · P% similar` status computed from the same opcodes |
 | Copy | one click | The rendered diff copies back out as plain text |
 | i18n | `diff.*` keys | Copy button and empty-state hint translate across all 8 language packs |
+
+## Markup Bench
+
+| Feature | Where | What it does |
+|---|---|---|
+| XML workbench | `xmlbench.py`, Workshop → *Markup Bench — pretty & inspect XML…*, palette, terminal `xml` / `markup` / `xmlbench` | Paste XML, pretty-print or minify it, with live validation and stats as you type |
+| Pretty printer | `xml_pretty()` | Re-indents with 2–8 spaces; returns honest `line X, column Y` errors for malformed input |
+| Minifier | `xml_minify()` | Drops inter-element whitespace while preserving real text nodes |
+| Element census | `tag_stats()` / `stats_line()` | Total elements, unique tags, top-3 tag counts, max depth, attribute total |
+| Safety guards | engine | 512 KB input cap, 200-level depth cap, DTD entities refused outright — hostile XML is declined, never executed |
+| i18n | `xml.*` keys | Copy button and empty-state hint translate across all 8 language packs |

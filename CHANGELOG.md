@@ -4,6 +4,15 @@ All notable changes to DXN1 STUDIO. Format based on
 [Keep a Changelog](https://keepachangelog.com/); versioning is
 `MAJOR.MINOR.PATCH` while in **beta**.
 
+## [2.25.0] — 2026-09-14 · beta · "well-formed or bust" (bonus round)
+
+### Added
+- **Markup Bench** (`xmlbench.py`, Workshop → *Markup Bench — pretty & inspect XML…*, terminal `xml` / `markup` / `xmlbench`) — an XML workbench: pretty-print with 2–8 space indent, minify (real text nodes preserved, inter-element whitespace dropped), live validation with honest line/column errors, and an element census (total elements, unique tags, top-3 counts, max depth, attributes). Safety first for untrusted input: 512 KB size cap, 200-level depth cap, and DTD entities refused outright (the billion-laughs vector) — junk in, honest message out.
+
+### Changed
+- i18n: `xml.copy_out` + `xml.paste_hint` translated in all 8 language packs.
+- Smoke harness now **126 checks across 20 live windows**; test suite at **60 groups**; boot QA 20/20.
+
 ## [2.24.0] — 2026-09-14 · beta · "what changed?" (bonus round)
 
 ### Added

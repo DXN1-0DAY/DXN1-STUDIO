@@ -96,6 +96,8 @@ EN = {
     "hex.rows_label": "hexdump — 16 bytes per row",
     "diff.copy_diff": "copy diff",
     "diff.paste_hint": "paste old and new text above",
+    "xml.copy_out": "copy",
+    "xml.paste_hint": "paste some XML first",
     "common.cancel": "Cancel",
     "common.close": "Close",
     "common.delete": "Delete",
@@ -169,6 +171,8 @@ PACKS = {
         "hex.rows_label": "hexdump — 16 bytes por fila",
         "diff.copy_diff": "copiar diff",
         "diff.paste_hint": "pega el texto viejo y el nuevo arriba",
+        "xml.copy_out": "copiar",
+        "xml.paste_hint": "pega algo de XML primero",
     },
     "fr": {  # French
         "app.tagline": "L'IDE propre et moderne. Conçu pour le flow.",
@@ -222,6 +226,8 @@ PACKS = {
         "hex.rows_label": "hexdump — 16 octets par ligne",
         "diff.copy_diff": "copier le diff",
         "diff.paste_hint": "collez l'ancien et le nouveau texte ci-dessus",
+        "xml.copy_out": "copier",
+        "xml.paste_hint": "collez du XML d'abord",
     },
     "de": {  # German
         "app.tagline": "Die moderne, aufgeräumte IDE. Für echten Flow.",
@@ -274,6 +280,8 @@ PACKS = {
         "hex.rows_label": "Hexdump — 16 Bytes pro Zeile",
         "diff.copy_diff": "Diff kopieren",
         "diff.paste_hint": "Füge oben alten und neuen Text ein",
+        "xml.copy_out": "kopieren",
+        "xml.paste_hint": "füge zuerst XML ein",
     },
     "pt": {  # Portuguese
         "app.tagline": "A IDE limpa e moderna. Feita para o fluxo.",
@@ -309,6 +317,8 @@ PACKS = {
         "hex.rows_label": "hexdump — 16 bytes por linha",
         "diff.copy_diff": "copiar diff",
         "diff.paste_hint": "cole o texto antigo e o novo acima",
+        "xml.copy_out": "copiar",
+        "xml.paste_hint": "cole algum XML primeiro",
     },
     "zh": {  # Chinese (Simplified)
         "app.tagline": "干净现代的 IDE，为心流而生。",
@@ -361,6 +371,8 @@ PACKS = {
         "hex.rows_label": "十六进制转储 — 每行 16 字节",
         "diff.copy_diff": "复制差异",
         "diff.paste_hint": "在上方粘贴新旧文本",
+        "xml.copy_out": "复制",
+        "xml.paste_hint": "先粘贴一些 XML",
     },
     "hi": {  # Hindi
         "app.tagline": "साफ़, आधुनिक IDE। फ़्लो के लिए बना।",
@@ -396,6 +408,8 @@ PACKS = {
         "hex.rows_label": "हेक्सडम्प — प्रति पंक्ति 16 बाइट",
         "diff.copy_diff": "डिफ़ कॉपी करें",
         "diff.paste_hint": "ऊपर पुराना और नया टेक्स्ट पेस्ट करें",
+        "xml.copy_out": "कॉपी करें",
+        "xml.paste_hint": "पहले कुछ XML पेस्ट करें",
     },
     "ja": {  # Japanese
         "app.tagline": "クリーンでモダンな IDE。フローのために。",
@@ -431,6 +445,8 @@ PACKS = {
         "hex.rows_label": "HEXダンプ — 1行16バイト",
         "diff.copy_diff": "差分をコピー",
         "diff.paste_hint": "上に新旧のテキストを貼り付け",
+        "xml.copy_out": "コピー",
+        "xml.paste_hint": "まずXMLを貼り付け",
     },
 }
 

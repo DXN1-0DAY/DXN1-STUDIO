@@ -1270,6 +1270,15 @@ class DXN1Studio:
                 command=_open_textdiff_menu)
         except Exception:  # pragma: no cover — menu stays alive
             pass
+        # DS2: xmlbench (defensive)
+        def _open_xml_menu():
+            self.open_xmlbench()
+        try:
+            workshop_menu.add_command(
+                label="Markup Bench — pretty & inspect XML…",
+                command=_open_xml_menu)
+        except Exception:  # pragma: no cover — menu stays alive
+            pass
         workshop_menu.add_separator()
         workshop_menu.add_command(label="Token Usage Dashboard…",
                                   command=_open_usage_menu)
@@ -1777,6 +1786,14 @@ class DXN1Studio:
         try:
             from .textdiff import open_textdiff
             open_textdiff(self.root, self.theme)
+        except Exception:  # noqa: BLE001 — menu stays alive
+            pass
+
+    def open_xmlbench(self):
+        """DS2: XML pretty/minify/validate bench."""
+        try:
+            from .xmlbench import open_xmlbench
+            open_xmlbench(self.root, self.theme)
         except Exception:  # noqa: BLE001 — menu stays alive
             pass
 
@@ -2817,6 +2834,8 @@ class DXN1Studio:
                                 "paste text or raw hex"),
                     ("diff2", "Paste Diff — compare two pasted texts "
                               "word/char/line"),
+                    ("xml", "Markup Bench — pretty/minify/validate "
+                            "XML + element stats"),
                     ("scribe <n>", "set the words-per-session goal for "
                                    "the statusbar writing meter"),
                     ("explain", "hand the last error to the agent"),
@@ -3130,6 +3149,12 @@ class DXN1Studio:
             self.open_textdiff()
             self.terminal.log("Paste Diff opened — old vs new, word/"
                               "char/line modes, [-…-] {+…+} marks")
+            return
+        if low in ("xml", "xmlbench", "markup"):
+            # DS2: XML pretty/minify/validate bench
+            self.open_xmlbench()
+            self.terminal.log("Markup Bench opened — paste XML, "
+                              "pretty/minify it, live validation")
             return
         if low == "lang" or low.startswith("lang "):
             # DS2: switch the UI language pack (i18n activation)
@@ -3869,6 +3894,14 @@ class DXN1Studio:
         try:
             cmds.append(("Paste Diff — compare two texts…",
                          "DS2", _open_textdiff_palette))
+        except Exception:  # pragma: no cover — palette stays alive
+            pass
+        # DS2: xmlbench (defensive)
+        def _open_xml_palette():
+            self.open_xmlbench()
+        try:
+            cmds.append(("Markup Bench — pretty & inspect XML…",
+                         "DS2", _open_xml_palette))
         except Exception:  # pragma: no cover — palette stays alive
             pass
         # DS2: scribe goal (defensive)

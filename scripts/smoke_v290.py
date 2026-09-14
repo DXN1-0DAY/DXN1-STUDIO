@@ -410,6 +410,23 @@ def main():
           _idl("quick brown", "quick red"))
     tdwin.destroy()
 
+    # ---- Markup Bench (same smoke, new lane)
+    from dxn1_studio.xmlbench import xml_pretty as _xpre, open_xmlbench
+    xbwin = open_xmlbench(root, theme)
+    xbwin.update_idletasks()
+    check("xmlbench window opens", xbwin.winfo_exists())
+    check("xmlbench live validate", "valid" in
+          xbwin.status.cget("text"))
+    xbwin._minify()
+    check("xmlbench minify", "<to>" in xbwin.output.get("1.0", "end"))
+    xbwin.input.delete("1.0", "end")
+    xbwin.input.insert("1.0", "<a><b></a>")
+    xbwin._validate()
+    check("xmlbench honest error", "invalid" in
+          xbwin.status.cget("text"))
+    check("xmlbench engine offline", _xpre("<r/>")[0].startswith("<r"))
+    xbwin.destroy()
+
     # ---- REST bench (same smoke, seventh lane)
     from dxn1_studio.restbench import (RestResponse, build_curl,
                                        format_size,
