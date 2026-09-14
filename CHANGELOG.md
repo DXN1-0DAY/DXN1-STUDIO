@@ -4,6 +4,32 @@ All notable changes to DXN1 STUDIO. Format based on
 [Keep a Changelog](https://keepachangelog.com/); versioning is
 `MAJOR.MINOR.PATCH` while in **beta**.
 
+## [2.45.0] — 2026-09-15 · beta · "the receipts survive the night" (persistent activity log + since last time)
+
+### Added
+- **Persistent activity log** — the ring now lives on disk beside
+  `config.json` (`activity.json`): every toast re-writes it
+  atomically (tmp + `os.replace`, the same pattern `Config.save`
+  uses, so a crash mid-write can never tear the file), and boot
+  reloads whatever the last session whispered. A corrupt or torn
+  file falls back to a fresh ring honestly — lost receipts are
+  never fatal.
+- **"Since last time" divider** — entries from a previous session
+  are marked at load and render under a muted divider in the
+  Activity window: this session's whispers on top, the older
+  receipts below, one glance to tell them apart.
+- **Relative stamps** — rows now show "just now", "2m ago",
+  "3h ago", "5d ago" instead of clock times; a future timestamp
+  renders as an honest blank.
+- **Clear persists** — wiping the slate through the window fires
+  the app's `on_change`, so the file on disk agrees immediately
+  (no resurrected receipts on the next boot).
+
+### Changed
+- The Activity window's `open_activity()` accepts an optional
+  `on_change` callback (fired after Clear); `open_activity`'s
+  existing callers are unaffected.
+
 ## [2.44.0] — 2026-09-15 · beta · "the studio keeps its receipts" (activity log + scribe goal dialog)
 
 ### Added

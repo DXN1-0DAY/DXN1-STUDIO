@@ -493,9 +493,13 @@
 | Feature | Where | What it does |
 |---|---|---|
 | Toast receipts | every `app.toast()` call, `activity.ActivityLog` | Every notification the studio whispers — confirmations, errors, snapshot acks — is archived in a capped ring buffer (100 events, newest first) with its kind (info / success / error) and a timestamp; a toast can never break the lane that produced the event |
-| Activity window | terminal `activity` / `notifications`, palette *Activity — recent notifications…*, `activity.open_activity()` | One themed window lists the receipts: kind-colored dots, HH:MM:SS stamps, live substring filter (the same first pass `help <q>` uses) with an honest "nothing here" empty state, and a count label that tells the truth |
+| Activity window | terminal `activity` / `notifications`, palette *Activity — recent notifications…*, `activity.open_activity()` | One themed window lists the receipts: kind-colored dots, relative stamps ("2m ago"), live substring filter (the same first pass `help <q>` uses) with an honest "nothing here" empty state, and a count label that tells the truth |
 | Click to copy | window rows, `on_copy` callback | Clicking a row copies its message to the clipboard and fires a confirmation toast — a notification you looked away from can still become a bug report |
 | Clear | window header | One click wipes the slate — the ring, the rows and the count agree immediately |
+| Night survival | `activity.save_json()` / `load_json()`, `<config-dir>/activity.json` | The receipts survive the night: every toast re-writes the ring atomically (tmp + `os.replace`, the `Config.save` pattern), boot reloads whatever the last session whispered, and a corrupt or torn file falls back to a fresh ring honestly — lost receipts are never fatal |
+| Since last time | `ActivityLog.from_list()` prev-marking, window divider | Entries loaded from disk carry `prev=True` and render under a muted "— since last time —" divider: this session's whispers on top, the older receipts below, one glance to tell them apart |
+| Relative stamps | `activity.rel_time()` | Rows show "just now", "2m ago", "3h ago", "5d ago" instead of clock times — pure and unit-tested, with a future timestamp rendering as an honest blank |
+| Clear persists | window `on_change` callback | Wiping the slate fires the app's `on_change`, so the file on disk agrees immediately — no resurrected receipts on the next boot |
 | Verbs registry | TERMINAL_HELP + `verbs` browser | `activity` is a first-class verb: `help activity` explains it, `help act` finds it fuzzily, and the Terminal Verbs browser lists it with the rest |
 
 ## Session Restore

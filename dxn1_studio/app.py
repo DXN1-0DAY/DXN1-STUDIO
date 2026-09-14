@@ -767,10 +767,14 @@ class DXN1Studio:
                        "Scribe meter — click for session details, "
                        "right-click for actions")
         # DS2 v2.44: the studio keeps its receipts — every toast is
-        # archived in a ring buffer the Activity window can show
+        # archived in a ring buffer the Activity window can show.
+        # DS2 v2.45: the receipts survive the night — reload whatever
+        # the last session whispered (corrupt file → fresh ring)
         try:
-            from .activity import ActivityLog
-            self.activity_log = ActivityLog(cap=100)
+            from .activity import ActivityLog, load_json
+            loaded = load_json(self._activity_path(), cap=100)
+            self.activity_log = loaded if loaded is not None \
+                else ActivityLog(cap=100)
         except Exception:  # noqa: BLE001 — the log is optional
             self.activity_log = None
 
@@ -4505,10 +4509,13 @@ class DXN1Studio:
     def toast(self, message, kind="info"):
         """Small notification card above the status bar; auto-dismisses."""
         # DS2 v2.44: archive the whisper — toasts vanish, the log stays
+        # (v2.45: the ring persists to disk atomically on every add)
         log = getattr(self, "activity_log", None)
         if log is not None:
             try:
                 log.add(message, kind)
+                from .activity import save_json
+                save_json(log, self._activity_path())
             except Exception:  # noqa: BLE001 — never break the toast
                 pass
         t = self.theme
@@ -5208,6 +5215,17 @@ class DXN1Studio:
         self._render_chip_menu(self._sesave_menu_entries(), event)
 
     # ---------------------------------------------------- DS2 v2.44 activity window
+    def _activity_path(self):
+        """DS2 v2.45 — where the activity ring persists: beside
+        config.json in the studio's config dir. Resolved at call
+        time so tests can redirect CONFIG_DIR. Never raises."""
+        try:
+            from . import config as _cfgmod
+            return os.path.join(_cfgmod.CONFIG_DIR, "activity.json")
+        except Exception:  # noqa: BLE001 — a sane fallback
+            return os.path.join(os.path.expanduser("~"),
+                                ".dxn1-studio", "activity.json")
+
     def _activity_open(self):
         """DS2 v2.44 — the Activity window: every notification the
         studio has whispered, live-filtered, click a row to copy it.
@@ -5217,10 +5235,12 @@ class DXN1Studio:
             self.terminal.log("activity log unavailable here")
             return
         try:
-            from .activity import open_activity
+            from .activity import open_activity, save_json
             open_activity(self.root, self.theme, log,
                           on_copy=lambda m: self.toast(
-                              "Copied: %s" % m, "info"))
+                              "Copied: %s" % m, "info"),
+                          on_change=lambda: save_json(
+                              log, self._activity_path()))
         except Exception:  # noqa: BLE001 — best-effort window
             self.terminal.log("activity log unavailable here")
 

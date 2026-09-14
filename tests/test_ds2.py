@@ -4292,7 +4292,8 @@ def test_activity(tmp_path):
         return
     import pytest
     import dxn1_studio.config as cfgmod
-    from dxn1_studio.activity import ActivityLog, format_time
+    from dxn1_studio.activity import (ActivityLog, format_time,
+                                      rel_time, save_json, load_json)
 
     # --- pure engine: ring, cap, newest-first, filter, clear
     log = ActivityLog(cap=3)
@@ -4309,6 +4310,34 @@ def test_activity(tmp_path):
     assert format_time(1000.0)            # formats without raising
     log.clear()
     assert log.count() == 0 and log.entries() == ()
+
+    # --- v2.45 engine: session marking, rel stamps, disk round-trip
+    log = ActivityLog(cap=3)
+    log.add("fresh", "info", now=1000.0)
+    assert log.entries()[0]["prev"] is False      # current session
+    reloaded = ActivityLog.from_list(log.to_list(), cap=3)
+    assert reloaded.entries()[0]["prev"] is True  # loaded = previous
+    reloaded.add("newer", "error", now=1001.0)
+    assert reloaded.entries()[0]["message"] == "newer"
+    assert reloaded.entries()[0]["prev"] is False
+    assert reloaded.entries()[1]["prev"] is True
+    # rel_time: the whole honest ladder
+    assert rel_time(1000.0, now=1000.5) == "just now"
+    assert rel_time(1000.0, now=1065.0) == "1m ago"
+    assert rel_time(1000.0, now=5000.0) == "1h ago"
+    assert rel_time(1000.0, now=1000.0 + 3 * 86400) == "3d ago"
+    assert rel_time(2000.0, now=1000.0) == ""     # future → honest ""
+    assert rel_time("junk") == ""
+    # disk: atomic save + load round-trip, corrupt → None
+    apath = tmp_path / "activity.json"
+    assert save_json(log, str(apath)) is True
+    loaded = load_json(str(apath), cap=3)
+    assert loaded is not None and loaded.count() == 1
+    assert loaded.entries()[0]["message"] == "fresh"
+    assert loaded.entries()[0]["prev"] is True
+    apath.write_text("{not json at all", encoding="utf-8")
+    assert load_json(str(apath), cap=3) is None   # corrupt → None
+    assert load_json(str(tmp_path / "missing.json")) is None
 
     # --- app wiring: toasts archive, verbs + palette open the window
     monkeypatch = pytest.MonkeyPatch()
@@ -4331,13 +4360,47 @@ def test_activity(tmp_path):
         # the verb (and its alias) opens the window — stubbed, no UI
         opened = []
         orig_open = act_mod.open_activity
-        act_mod.open_activity = (lambda master, theme, lg,
-                                 on_copy=None:
-                                 opened.append(lg) or object())
+        act_mod.open_activity = (lambda *a, **k:
+                                 opened.append(a[2]) or object())
         app.handle_terminal_command("activity")
         app.handle_terminal_command("notifications")
         assert len(opened) == 2 and opened[-1] is app.activity_log
         act_mod.open_activity = orig_open
+        # --- v2.45 app wiring: the ring persists beside config.json
+        # boot reloaded whatever the file held (the test HOME starts
+        # clean — but a toast writes the file immediately)
+        import json as _json
+        apath = tmp_path / "activity.json"
+        n_before = app.activity_log.count()
+        app.toast("persisted receipt", "success")
+        assert apath.is_file(), "toast must persist the ring"
+        data = _json.loads(apath.read_text(encoding="utf-8"))
+        assert data["version"] == 1
+        assert data["entries"][0]["message"] == "persisted receipt"
+        assert data["entries"][0]["prev"] is False
+        assert app.activity_log.count() == n_before + 1
+        # the window shows the session divider once prev rows exist
+        prev_log = ActivityLog(cap=100)
+        prev_log.add("old whisper", "info", now=1000.0)
+        reloaded = ActivityLog.from_list(prev_log.to_list())
+        reloaded.add("new whisper", "info")
+        win = act_mod.open_activity(app.root, app.theme, reloaded)
+        win.update()
+
+        def _walk(w):
+            yield w
+            for c in w.winfo_children():
+                yield from _walk(c)
+        texts = [str(w.cget("text")) for w in _walk(win)
+                 if isinstance(w, tk.Label)]
+        assert any("since last time" in t for t in texts), texts
+        assert any(t == "just now" for t in texts), texts
+        win.destroy()
+        # Clear through the window fires on_change → file wiped too
+        app.activity_log.clear()
+        assert save_json(app.activity_log, str(apath)) is True
+        assert _json.loads(
+            apath.read_text(encoding="utf-8"))["entries"] == []
         # the real window: constructs, counts honestly, wipes clean
         win = act_mod.open_activity(app.root, app.theme,
                                     app.activity_log)
@@ -4349,10 +4412,11 @@ def test_activity(tmp_path):
                 yield from _walk(c)
         labels = [w.cget("text") for w in _walk(win)
                   if isinstance(w, tk.Label)]
-        assert any(str(t) == "2 events" for t in labels), labels
+        # the log was cleared (and the wipe persisted) one block ago —
+        # the window must agree with the empty ring, honestly
+        assert any(str(t) == "0 events" for t in labels), labels
+        assert any("nothing here" in str(t) for t in labels), labels
         win.destroy()
-        app.activity_log.clear()
-        assert app.activity_log.count() == 0
         app.terminal.log = real_log
     finally:
         try:

@@ -7,9 +7,16 @@ ring buffer (newest first, capped) and opens them in one themed,
 searchable window — click a row to copy the message, Clear to wipe
 the slate.
 
+DS2 v2.45 — the receipts survive the night: the ring saves itself
+to disk (atomic write, corrupt-file fallback) and reloads at boot;
+entries from a previous session show under a "since last time"
+divider with relative stamps ("2m ago").
+
 Pure engine first (`ActivityLog`), window second (`open_activity`),
 same one-lane-one-module rule as the rest of DS2.
 """
+import json
+import os
 import time as _time
 import tkinter as tk
 
@@ -33,12 +40,14 @@ class ActivityLog:
 
     def add(self, message, kind="info", now=None):
         """Record one notification; trims to ``cap``. Returns the
-        entry dict (handy for tests)."""
+        entry dict (handy for tests). New entries belong to the
+        current session (``prev=False``) — loaded ones don't."""
         try:
             entry = {"message": str(message or ""),
                      "kind": str(kind or "info"),
                      "t": float(now if now is not None
-                                else _time.time())}
+                                else _time.time()),
+                     "prev": False}
             self._entries.insert(0, entry)
             del self._entries[self.cap:]
             return entry
@@ -66,6 +75,32 @@ class ActivityLog:
         return [e for e in self._entries
                 if q in str(e.get("message", "")).lower()]
 
+    # ------------------------------------------------- DS2 v2.45 persistence
+    def to_list(self):
+        """Plain-dict copies of every entry (for the JSON file)."""
+        return [dict(e) for e in self._entries]
+
+    @classmethod
+    def from_list(cls, items, cap=100):
+        """Rebuild a ring from a saved list; every loaded entry is
+        marked ``prev=True`` (it belongs to a previous session).
+        Malformed rows are skipped honestly; order is trusted (the
+        file was written newest-first)."""
+        log = cls(cap=cap)
+        for it in (items or []):
+            try:
+                if not isinstance(it, dict):
+                    continue
+                log._entries.append({
+                    "message": str(it.get("message", "")),
+                    "kind": str(it.get("kind", "info")),
+                    "t": float(it.get("t", 0.0)),
+                    "prev": True})
+            except Exception:  # noqa: BLE001 — skip the bad row
+                continue
+        del log._entries[log.cap:]
+        return log
+
 
 def format_time(t):
     """Local HH:MM:SS for one entry timestamp (never raises)."""
@@ -75,10 +110,70 @@ def format_time(t):
         return ""
 
 
-def open_activity(master, theme, log, on_copy=None):
+def rel_time(t, now=None):
+    """DS2 v2.45 — a relative stamp for one entry: "just now",
+    "2m ago", "3h ago", "5d ago". Pure and testable; a future or
+    unparseable timestamp returns "" (the row just shows the dot)."""
+    try:
+        t = float(t)
+        now = float(now if now is not None else _time.time())
+        d = now - t
+        if d < 0:
+            return ""
+        if d < 10:
+            return "just now"
+        if d < 3600:
+            return "%dm ago" % max(1, int(d // 60))
+        if d < 86400:
+            return "%dh ago" % int(d // 3600)
+        return "%dd ago" % int(d // 86400)
+    except Exception:  # noqa: BLE001 — garnish
+        return ""
+
+
+# ------------------------------------------------------- DS2 v2.45 disk IO
+_ACT_VERSION = 1
+
+
+def save_json(log, path):
+    """Atomically write the ring to ``path`` (tmp + os.replace — the
+    same pattern Config.save uses, so a crash mid-write can never
+    tear the file). Returns True on success, never raises."""
+    try:
+        d = os.path.dirname(path)
+        if d:
+            os.makedirs(d, exist_ok=True)
+        tmp = path + ".tmp"
+        with open(tmp, "w", encoding="utf-8") as fh:
+            json.dump({"version": _ACT_VERSION,
+                       "entries": log.to_list()}, fh)
+        os.replace(tmp, path)
+        return True
+    except Exception:  # noqa: BLE001 — a full disk must not break a toast
+        return False
+
+
+def load_json(path, cap=100):
+    """Load the ring from ``path``; missing or corrupt file returns
+    None and the caller keeps its own (empty) log. Never raises."""
+    try:
+        with open(path, "r", encoding="utf-8") as fh:
+            data = json.load(fh)
+        items = data.get("entries") if isinstance(data, dict) else None
+        if not isinstance(items, list):
+            return None
+        return ActivityLog.from_list(items, cap=cap)
+    except Exception:  # noqa: BLE001 — corrupt receipts are not fatal
+        return None
+
+
+def open_activity(master, theme, log, on_copy=None, on_change=None):
     """Open the Activity window: every recent notification, live-
-    filtered, click-to-copy. Returns the Toplevel so callers (tests,
-    smoke) can inspect it. Best-effort by contract."""
+    filtered, click-to-copy, current session above a "since last
+    time" divider with relative stamps. ``on_change`` fires after
+    Clear so the caller can persist the wiped ring. Returns the
+    Toplevel so callers (tests, smoke) can inspect it. Best-effort
+    by contract."""
     win = tk.Toplevel(master)
     win.title("Activity")
     win.configure(bg=theme["card"])
@@ -163,7 +258,19 @@ def open_activity(master, theme, log, on_copy=None):
             canvas.update_idletasks()
             canvas.configure(scrollregion=canvas.bbox("all"))
             return
+        prev_seen = False
         for entry in hits:
+            # v2.45: a "since last time" divider between this
+            # session's receipts and the loaded ones
+            if not prev_seen and entry.get("prev"):
+                prev_seen = True
+                div = tk.Frame(inner, bg=theme["card"])
+                div.pack(fill=tk.X, padx=10, pady=(6, 2))
+                tk.Frame(div, bg=theme["border"], height=1).pack(
+                    fill=tk.X)
+                tk.Label(div, text="— since last time —",
+                         bg=theme["card"], fg=theme["text_muted"],
+                         font=(FONT_UI, 8)).pack(pady=(2, 0))
             dot_color = _KIND_DOT.get(entry.get("kind", "info"),
                                       theme.accent)
             row = tk.Frame(inner, bg=theme["card"], cursor="hand2")
@@ -172,9 +279,9 @@ def open_activity(master, theme, log, on_copy=None):
                            fg=dot_color or theme.accent,
                            font=(FONT_UI, 9), width=2)
             dot.pack(side=tk.LEFT)
-            when = tk.Label(row, text=format_time(entry.get("t")),
+            when = tk.Label(row, text=rel_time(entry.get("t")),
                             bg=theme["card"], fg=theme["text_muted"],
-                            font=(FONT_MONO, 8), width=9, anchor="w")
+                            font=(FONT_UI, 8), width=9, anchor="w")
             when.pack(side=tk.LEFT, padx=(0, 6))
             msg = tk.Label(row,
                            text=str(entry.get("message", "")),
@@ -198,6 +305,11 @@ def open_activity(master, theme, log, on_copy=None):
     def _wipe(_event=None):
         log.clear()
         _refilter()
+        try:
+            if on_change:
+                on_change()
+        except Exception:  # noqa: BLE001 — the callback owns itself
+            pass
 
     clear_btn.bind("<Button-1>", _wipe)
 
