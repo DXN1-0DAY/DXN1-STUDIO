@@ -191,7 +191,7 @@ helpsrc = src
 check("verbs: the `activity` verb is in TERMINAL_HELP",
       '("activity", "recent studio notifications' in helpsrc)
 check("verbs: `activity` and `notifications` route to the window",
-      'if low in ("activity", "notifications"):' in helpsrc)
+      'low == "notifications" or low == "activity"' in helpsrc)
 check("palette: the Activity row is registered",
       "Activity — recent notifications…" in src)
 check("toast: the archive hook is wired exactly once",

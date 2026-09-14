@@ -132,8 +132,11 @@ TERMINAL_HELP = (
     ("zen", "toggle zen mode"),
     ("goto <line>", "jump to a line"),
     ("recent", "list recently opened files"),
-    ("activity", "recent studio notifications — searchable, "
-                 "click to copy"),
+    ("activity", "recent studio notifications — searchable window "
+                 "with kind filters"),
+    ("activity copy", "every receipt to the clipboard, oldest first"),
+    ("activity export [path]", "every receipt to a text file "
+                               "(default beside activity.json)"),
     ("update", "check GitHub for a newer release"),
     ("whatsnew", "release notes — what changed between tags"),
     ("deps", "cross-check imports vs requirements*.txt "
@@ -3596,8 +3599,22 @@ class DXN1Studio:
         if low in ("whatsnew", "whats new", "changelog"):
             self.show_whatsnew()
             return
-        if low in ("activity", "notifications"):
-            self._activity_open()
+        if low == "notifications" or low == "activity" \
+                or low.startswith("activity "):
+            # DS2 v2.46 — the verb grew hands: copy the receipts to
+            # the clipboard or write them to a file, not just look
+            rest = text[8:].strip() if low.startswith("activity") else ""
+            if not rest:
+                self._activity_open()
+                return
+            if rest == "copy":
+                self._activity_copy_all()
+                return
+            if rest == "export" or rest.startswith("export "):
+                self._activity_export_to(rest[6:].strip() or None)
+                return
+            self.terminal.log("try: activity · activity copy · "
+                              "activity export [path]")
             return
         if low == "deps" or low.startswith("deps "):
             rest = text[4:].strip().lower()
@@ -4419,6 +4436,14 @@ class DXN1Studio:
                          "DS2", _activity_palette))
         except Exception:  # pragma: no cover — palette stays alive
             pass
+
+        def _activity_export_palette():
+            self._activity_export_to()
+        try:
+            cmds.append(("Activity — export receipts to a file…",
+                         "DS2", _activity_export_palette))
+        except Exception:  # pragma: no cover — palette stays alive
+            pass
         # DS2: focus timer (defensive)
         def _open_focus():
             from .focus import open_focus
@@ -5229,7 +5254,9 @@ class DXN1Studio:
     def _activity_open(self):
         """DS2 v2.44 — the Activity window: every notification the
         studio has whispered, live-filtered, click a row to copy it.
-        Never raises."""
+        v2.46 — the window can also send the receipts somewhere:
+        export_dir seeds its Save-as dialog, on_export gets the path
+        for honest feedback. Never raises."""
         log = getattr(self, "activity_log", None)
         if log is None:
             self.terminal.log("activity log unavailable here")
@@ -5238,11 +5265,74 @@ class DXN1Studio:
             from .activity import open_activity, save_json
             open_activity(self.root, self.theme, log,
                           on_copy=lambda m: self.toast(
-                              "Copied: %s" % m, "info"),
+                              ("Copied: %s" % m) if len(m) <= 48
+                              else "Copied %d characters" % len(m),
+                              "info"),
                           on_change=lambda: save_json(
-                              log, self._activity_path()))
+                              log, self._activity_path()),
+                          export_dir=os.path.dirname(
+                              self._activity_path()),
+                          on_export=self._activity_exported)
         except Exception:  # noqa: BLE001 — best-effort window
             self.terminal.log("activity log unavailable here")
+
+    def _activity_exported(self, path):
+        """DS2 v2.46 — the window wrote the receipts file; the app
+        acknowledges it the usual way. Never raises."""
+        try:
+            self.toast("Receipts saved → %s" % path, "success")
+        except Exception:  # noqa: BLE001
+            pass
+        try:
+            self.terminal.log("activity receipts written to %s" % path)
+        except Exception:  # noqa: BLE001
+            pass
+
+    def _activity_copy_all(self):
+        """DS2 v2.46 — every receipt to the clipboard, oldest first.
+        An empty ring is told honestly. Never raises."""
+        log = getattr(self, "activity_log", None)
+        if log is None:
+            self.terminal.log("activity log unavailable here")
+            return
+        try:
+            from .activity import export_text
+            text = export_text(log.entries())
+            if not text:
+                self.toast("No receipts to copy yet", "info")
+                return
+            self.root.clipboard_clear()
+            self.root.clipboard_append(text)
+            n = log.count()
+            self.toast("Copied %d receipt%s to the clipboard"
+                       % (n, "" if n == 1 else "s"), "success")
+        except Exception:  # noqa: BLE001 — a verb must never raise
+            self.terminal.log("activity copy unavailable here")
+
+    def _activity_export_to(self, path=None):
+        """DS2 v2.46 — every receipt to a plain text file: the given
+        path, or a timestamped one beside activity.json. Never
+        raises."""
+        log = getattr(self, "activity_log", None)
+        if log is None:
+            self.terminal.log("activity log unavailable here")
+            return
+        try:
+            import time as _time_mod
+            from .activity import export_file
+            p = str(path or "").strip()
+            if not p:
+                p = os.path.join(
+                    os.path.dirname(self._activity_path()),
+                    "activity-export-%s.txt"
+                    % _time_mod.strftime("%Y%m%d-%H%M%S"))
+            got = export_file(log, p)
+            if got:
+                self._activity_exported(got)
+            else:
+                self.toast("Could not write the receipts file", "error")
+        except Exception:  # noqa: BLE001 — a verb must never raise
+            self.terminal.log("activity export unavailable here")
 
     def _git_menu_entries(self):
         """DS2 v2.41 — the branch-chip context menu's rows, as

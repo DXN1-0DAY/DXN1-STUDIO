@@ -4,6 +4,40 @@ All notable changes to DXN1 STUDIO. Format based on
 [Keep a Changelog](https://keepachangelog.com/); versioning is
 `MAJOR.MINOR.PATCH` while in **beta**.
 
+## [2.46.0] — 2026-09-15 · beta · "the receipts go where you send them" (activity export + kind filters)
+
+### Added
+- **Kind filters in the Activity window** — a row of colored dots
+  (● success / ● error / ● info) below the search box toggles each
+  kind on or off; hidden kinds turn hollow and muted, the count
+  label follows the view honestly, and a kind the studio cannot
+  name *always* shows — you cannot re-show what you cannot name,
+  so a filter can never make receipts silently vanish.
+- **Copy all** — one header click puts the whole ring on the
+  clipboard as a chronological diary (oldest first, one receipt
+  per line: `[YYYY-MM-DD HH:MM:SS] kind    message`), whatever the
+  filter is showing. Long copies acknowledge as "Copied N
+  characters" instead of shouting the whole text back in a toast.
+- **Save as file…** — a save dialog (seeded with the studio's
+  config dir, timestamped default name) writes the same diary to
+  any path: atomic write (tmp + `os.replace`, the house pattern), a
+  cancelled dialog is an honest no-op, and the app acknowledges the
+  saved path in a toast and a terminal line.
+- **Export verbs** — `activity copy` (diary → clipboard) and
+  `activity export [path]` (diary → file, default beside
+  `activity.json`); a nonsense sub-command gets an honest `try:`
+  hint. `help` documents both rows, and the command palette gained
+  "Activity — export receipts to a file…".
+
+### Changed
+- `ActivityLog.filtered()` accepts an optional `kinds` narrowing
+  (engine-level, shared with the window); `export_text()` /
+  `export_file()` / `stamp_full()` join the pure engine lane; the
+  window opener grew `export_dir` / `on_export` seams. Smoke grew a
+  22-check suite (`smoke_v460.py`); the unit group behind the
+  activity lane covers the export engine, the filter rule and the
+  new verbs end to end.
+
 ## [2.45.0] — 2026-09-15 · beta · "the receipts survive the night" (persistent activity log + since last time)
 
 ### Added

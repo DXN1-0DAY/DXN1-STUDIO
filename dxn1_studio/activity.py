@@ -12,6 +12,13 @@ to disk (atomic write, corrupt-file fallback) and reloads at boot;
 entries from a previous session show under a "since last time"
 divider with relative stamps ("2m ago").
 
+DS2 v2.46 — the receipts go where you send them: `export_text` /
+`export_file` turn the ring into a plain chronological text file
+(oldest first, one receipt per line), the window grows kind
+filters (click a dot to hide that kind — unnamed kinds always
+show, so nothing can silently vanish) and Copy all / Save as
+file… buttons.
+
 Pure engine first (`ActivityLog`), window second (`open_activity`),
 same one-lane-one-module rule as the rest of DS2.
 """
@@ -19,11 +26,18 @@ import json
 import os
 import time as _time
 import tkinter as tk
+from tkinter import filedialog
 
 FONT_UI = "TkDefaultFont"
 FONT_MONO = "TkFixedFont"
 
 _KIND_DOT = {"success": "#3fb950", "error": "#f85149", "info": None}
+
+# DS2 v2.46 — the three kinds the studio actually whispers. The kind
+# filter can only hide these; anything else (a future kind, a plugin's
+# kind, a typo) always shows, because you cannot re-show what you
+# cannot name.
+_CANONICAL_KINDS = ("success", "error", "info")
 
 
 class ActivityLog:
@@ -65,15 +79,31 @@ class ActivityLog:
         """Wipe the slate (the window's Clear button)."""
         self._entries = []
 
-    def filtered(self, query):
+    def filtered(self, query, kinds=None):
         """Entries whose message contains ``query`` (case-insensitive
         substring — the same first pass `help <q>` uses). An empty
-        query returns everything, never None."""
+        query returns everything, never None.
+
+        DS2 v2.46: ``kinds`` optionally narrows by kind — only the
+        canonical trio can be hidden; an entry whose kind is not one
+        of them always passes (you cannot re-show what you cannot
+        name, so nothing silently vanishes). ``None`` means no kind
+        filter at all."""
         q = str(query or "").strip().lower()
-        if not q:
-            return list(self._entries)
-        return [e for e in self._entries
-                if q in str(e.get("message", "")).lower()]
+        if q:
+            base = [e for e in self._entries
+                    if q in str(e.get("message", "")).lower()]
+        else:
+            base = list(self._entries)
+        if kinds is None:
+            return base
+        try:
+            allowed = frozenset(str(k) for k in kinds)
+        except Exception:  # noqa: BLE001 — a broken filter shows all
+            return base
+        return [e for e in base
+                if str(e.get("kind", "info")) not in _CANONICAL_KINDS
+                or str(e.get("kind", "info")) in allowed]
 
     # ------------------------------------------------- DS2 v2.45 persistence
     def to_list(self):
@@ -131,6 +161,68 @@ def rel_time(t, now=None):
         return ""
 
 
+# ---------------------------------------------------- DS2 v2.46 export lane
+def stamp_full(t):
+    """A full local stamp for one entry: "2026-09-14 19:12:03".
+    Pure and testable; junk returns "" (the export line then just
+    skips the bracket)."""
+    try:
+        return _time.strftime("%Y-%m-%d %H:%M:%S",
+                              _time.localtime(float(t)))
+    except Exception:  # noqa: BLE001 — garnish
+        return ""
+
+
+def export_text(entries):
+    """The receipts as one plain text block, oldest first — sorted
+    by their timestamps, so the file reads like a diary no matter
+    what order the ring held (the list view trusts the ring's order;
+    a file on disk should not). One receipt per line:
+    ``[stamp] kind    message``; entries with an unstampable time
+    keep their line anyway. Empty in, empty out — never raises."""
+    try:
+        rows = list(entries or [])
+    except Exception:  # noqa: BLE001 — a broken caller gets ""
+        return ""
+
+    def _t(e):
+        try:
+            return float(e.get("t", 0.0))
+        except Exception:  # noqa: BLE001 — junk time sinks to the top
+            return 0.0
+
+    rows.sort(key=_t)
+    lines = []
+    for e in rows:
+        try:
+            msg = str(e.get("message", ""))
+            kind = (str(e.get("kind", "info")) or "info").ljust(7)
+            st = stamp_full(e.get("t"))
+            lines.append("[%s] %s  %s" % (st, kind, msg) if st
+                         else "%s  %s" % (kind, msg))
+        except Exception:  # noqa: BLE001 — skip the bad row
+            continue
+    return "\n".join(lines)
+
+
+def export_file(log, path):
+    """Write every receipt to ``path`` as plain text (atomic write —
+    tmp + os.replace, the same pattern save_json uses). Returns the
+    path on success, None on failure; never raises."""
+    try:
+        text = export_text(log.entries())
+        d = os.path.dirname(path)
+        if d:
+            os.makedirs(d, exist_ok=True)
+        tmp = path + ".tmp"
+        with open(tmp, "w", encoding="utf-8") as fh:
+            fh.write(text + ("\n" if text else ""))
+        os.replace(tmp, path)
+        return path
+    except Exception:  # noqa: BLE001 — a full disk must not break a click
+        return None
+
+
 # ------------------------------------------------------- DS2 v2.45 disk IO
 _ACT_VERSION = 1
 
@@ -167,13 +259,19 @@ def load_json(path, cap=100):
         return None
 
 
-def open_activity(master, theme, log, on_copy=None, on_change=None):
+def open_activity(master, theme, log, on_copy=None, on_change=None,
+                  export_dir=None, on_export=None):
     """Open the Activity window: every recent notification, live-
     filtered, click-to-copy, current session above a "since last
     time" divider with relative stamps. ``on_change`` fires after
-    Clear so the caller can persist the wiped ring. Returns the
-    Toplevel so callers (tests, smoke) can inspect it. Best-effort
-    by contract."""
+    Clear so the caller can persist the wiped ring.
+
+    DS2 v2.46: kind dots filter the list by kind (unnamed kinds
+    always show), "Copy all" puts every receipt on the clipboard,
+    and "Save as file…" writes the whole ring to a plain text file
+    (``export_dir`` seeds the dialog, ``on_export`` gets the path
+    for the caller's own feedback). Returns the Toplevel so callers
+    (tests, smoke) can inspect it. Best-effort by contract."""
     win = tk.Toplevel(master)
     win.title("Activity")
     win.configure(bg=theme["card"])
@@ -196,6 +294,15 @@ def open_activity(master, theme, log, on_copy=None, on_change=None):
                          fg=theme["text_secondary"], cursor="hand2",
                          font=(FONT_UI, 9))
     clear_btn.pack(side=tk.RIGHT, padx=(0, 12))
+    # DS2 v2.46 — the receipts go where you send them
+    saveas_btn = tk.Label(head, text="Save as file…", bg=theme["card"],
+                          fg=theme["text_secondary"], cursor="hand2",
+                          font=(FONT_UI, 9))
+    saveas_btn.pack(side=tk.RIGHT, padx=(0, 12))
+    copyall_btn = tk.Label(head, text="Copy all", bg=theme["card"],
+                           fg=theme["text_secondary"], cursor="hand2",
+                           font=(FONT_UI, 9))
+    copyall_btn.pack(side=tk.RIGHT, padx=(0, 12))
 
     searchrow = tk.Frame(wrap, bg=theme["card"])
     searchrow.pack(fill=tk.X, padx=14, pady=(0, 8))
@@ -211,6 +318,38 @@ def open_activity(master, theme, log, on_copy=None, on_change=None):
     tk.Label(searchrow, text="filter — substring, case-insensitive",
              bg=theme["card"], fg=theme["text_muted"],
              font=(FONT_UI, 8), anchor="w").pack(fill=tk.X, pady=(2, 0))
+
+    # DS2 v2.46 — kind filters: click a dot to hide that kind; a
+    # kind the studio cannot name always shows (you cannot re-show
+    # what you cannot name, so nothing silently vanishes)
+    shown = set(_CANONICAL_KINDS)
+    filterrow = tk.Frame(wrap, bg=theme["card"])
+    filterrow.pack(fill=tk.X, padx=14, pady=(0, 8))
+    tk.Label(filterrow, text="show:", bg=theme["card"],
+             fg=theme["text_muted"], font=(FONT_UI, 8)).pack(side=tk.LEFT)
+    kind_btns = {}
+
+    def _toggle_kind(kind):
+        try:
+            lbl = kind_btns.get(kind)
+            if kind in shown:
+                shown.discard(kind)
+                lbl.config(text="○ " + kind, fg=theme["text_muted"])
+            else:
+                shown.add(kind)
+                lbl.config(text="● " + kind,
+                           fg=_KIND_DOT.get(kind) or theme.accent)
+        except Exception:  # noqa: BLE001 — a dot must never raise
+            pass
+        _refilter()
+
+    for _k in _CANONICAL_KINDS:
+        _lbl = tk.Label(filterrow, text="● " + _k, bg=theme["card"],
+                        fg=_KIND_DOT.get(_k) or theme.accent,
+                        cursor="hand2", font=(FONT_UI, 8))
+        _lbl.pack(side=tk.LEFT, padx=(8, 0))
+        _lbl.bind("<Button-1>", lambda _e, k=_k: _toggle_kind(k))
+        kind_btns[_k] = _lbl
 
     body = tk.Frame(wrap, bg=theme["card"])
     body.pack(fill=tk.BOTH, expand=True, padx=8, pady=(0, 10))
@@ -245,7 +384,7 @@ def open_activity(master, theme, log, on_copy=None, on_change=None):
         empty_lbl = None
         for child in inner.winfo_children():
             child.destroy()
-        hits = log.filtered(var.get())
+        hits = log.filtered(var.get(), kinds=shown)
         count_lbl.config(text="%d event%s"
                          % (len(hits), "" if len(hits) == 1 else "s"))
         if not hits:
@@ -312,6 +451,34 @@ def open_activity(master, theme, log, on_copy=None, on_change=None):
             pass
 
     clear_btn.bind("<Button-1>", _wipe)
+
+    def _copy_all(_event=None):
+        """DS2 v2.46 — every receipt to the clipboard, oldest first
+        (the same text the file gets). Never raises."""
+        _copy(export_text(log.entries()))
+
+    def _saveas(_event=None):
+        """DS2 v2.46 — the receipts as a plain text file, wherever
+        the user points; a cancelled dialog is an honest no-op.
+        Never raises."""
+        try:
+            stamp = _time.strftime("%Y%m%d-%H%M%S")
+            path = filedialog.asksaveasfilename(
+                parent=win, title="Export activity receipts",
+                defaultextension=".txt",
+                initialfile="activity-export-%s.txt" % stamp,
+                initialdir=(export_dir if export_dir else None))
+            path = str(path or "").strip()
+            if not path:
+                return
+            got = export_file(log, path)
+            if got and on_export:
+                on_export(got)
+        except Exception:  # noqa: BLE001 — a button must never raise
+            pass
+
+    copyall_btn.bind("<Button-1>", _copy_all)
+    saveas_btn.bind("<Button-1>", _saveas)
 
     _refilter()
     try:

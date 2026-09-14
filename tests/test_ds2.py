@@ -4417,6 +4417,124 @@ def test_activity(tmp_path):
         assert any(str(t) == "0 events" for t in labels), labels
         assert any("nothing here" in str(t) for t in labels), labels
         win.destroy()
+
+        # --- v2.46 engine: the receipts go where you send them
+        from dxn1_studio.activity import (export_text, export_file,
+                                          stamp_full)
+        elog = ActivityLog(cap=10)
+        elog.add("second", "error", now=1060.0)
+        elog.add("first", "success", now=1000.0)
+        elog.add("third", "info", now=1120.0)
+        etext = export_text(elog.entries())
+        elines = etext.splitlines()
+        assert len(elines) == 3
+        assert elines[0].endswith("first")     # oldest first — a diary
+        assert elines[1].endswith("second") and "error" in elines[1]
+        assert elines[2].endswith("third")
+        assert export_text([]) == "" and export_text(None) == ""
+        assert stamp_full(1000.0) and stamp_full("junk") == ""
+        epath = tmp_path / "receipts.txt"
+        assert export_file(elog, str(epath)) == str(epath)
+        assert epath.read_text(
+            encoding="utf-8").splitlines() == elines
+        (tmp_path / "blocker").write_text("x", encoding="utf-8")
+        assert export_file(elog,
+                           str(tmp_path / "blocker" / "x.txt")) is None
+        # kind filter engine: only the named trio can hide
+        klog = ActivityLog(cap=10)
+        klog.add("a-ok", "success")
+        klog.add("b-bad", "error")
+        klog.add("c-info", "info")
+        klog.add("d-odd", "weird")
+        assert [e["message"] for e in klog.filtered("", kinds=None)] \
+            == ["d-odd", "c-info", "b-bad", "a-ok"]
+        assert [e["message"]
+                for e in klog.filtered("", kinds={"error"})] \
+            == ["d-odd", "b-bad"]   # the unnamed kind rides along
+        assert [e["message"] for e in
+                klog.filtered("", kinds={"success", "info"})] \
+            == ["d-odd", "c-info", "a-ok"]
+        # unnamed kinds survive every filter state — nothing vanishes
+        assert [e["message"] for e in klog.filtered("", kinds=set())] \
+            == ["d-odd"]
+
+        # --- v2.46 window: kind dots, Copy all, Save as file…
+        from types import SimpleNamespace as _NS
+        wlog = ActivityLog(cap=100)
+        wlog.add("gamma err", "error")
+        wlog.add("beta ok", "success")
+        wlog.add("alpha info", "info")
+        wlog.add("odd duck", "weird")
+        wout = []
+        wwin = act_mod.open_activity(app.root, app.theme, wlog,
+                                     export_dir=str(tmp_path),
+                                     on_export=wout.append)
+        wwin.update()
+        wlabels = [str(w.cget("text")) for w in _walk(wwin)
+                   if isinstance(w, tk.Label)]
+        assert "● success" in wlabels and "● error" in wlabels \
+            and "● info" in wlabels
+        err_btn = [w for w in _walk(wwin) if isinstance(w, tk.Label)
+                   and str(w.cget("text")) == "● error"][0]
+        err_btn.event_generate("<Button-1>")
+        wwin.update()
+        texts2 = [str(w.cget("text")) for w in _walk(wwin)
+                  if isinstance(w, tk.Label)]
+        assert "gamma err" not in texts2, "error kind hidden"
+        assert "beta ok" in texts2 and "alpha info" in texts2
+        assert "odd duck" in texts2, "unnamed kind cannot be hidden"
+        off_btn = [w for w in _walk(wwin) if isinstance(w, tk.Label)
+                   and str(w.cget("text")) == "○ error"][0]
+        off_btn.event_generate("<Button-1>")
+        wwin.update()
+        texts3 = [str(w.cget("text")) for w in _walk(wwin)
+                  if isinstance(w, tk.Label)]
+        assert "gamma err" in texts3, "toggle back restores the row"
+        # Copy all → the whole chronological block on the clipboard
+        cap_btn = [w for w in _walk(wwin) if isinstance(w, tk.Label)
+                   and str(w.cget("text")) == "Copy all"][0]
+        cap_btn.event_generate("<Button-1>")
+        wwin.update()
+        assert wwin.clipboard_get() == export_text(wlog.entries())
+        # Save as file… → the dialog seam is stubbed, the file is real
+        real_fd = act_mod.filedialog
+        chosen = tmp_path / "chosen.txt"
+        act_mod.filedialog = _NS(
+            asksaveasfilename=lambda **k: str(chosen))
+        try:
+            sav_btn = [w for w in _walk(wwin)
+                       if isinstance(w, tk.Label)
+                       and str(w.cget("text")) == "Save as file…"][0]
+            sav_btn.event_generate("<Button-1>")
+            wwin.update()
+            assert chosen.is_file(), "the dialog path was written"
+            assert chosen.read_text(encoding="utf-8").splitlines() \
+                == export_text(wlog.entries()).splitlines()
+            assert wout == [str(chosen)], "on_export got the path"
+            # a cancelled dialog is an honest no-op
+            act_mod.filedialog = _NS(asksaveasfilename=lambda **k: "")
+            sav_btn.event_generate("<Button-1>")
+            wwin.update()
+            assert wout == [str(chosen)], "cancel wrote nothing"
+        finally:
+            act_mod.filedialog = real_fd
+        wwin.destroy()
+
+        # --- v2.46 verbs: activity copy / activity export [path]
+        app.toast("verb receipt", "info")
+        app.handle_terminal_command("activity copy")
+        assert "verb receipt" in app.root.clipboard_get()
+        app.handle_terminal_command("activity export")
+        import glob as _glob
+        made = _glob.glob(str(tmp_path / "activity-export-*.txt"))
+        assert made, "default export lands beside activity.json"
+        assert "verb receipt" in open(made[0],
+                                      encoding="utf-8").read()
+        mine = tmp_path / "mine.txt"
+        app.handle_terminal_command("activity export %s" % mine)
+        assert mine.is_file(), "an explicit path is honored"
+        app.handle_terminal_command("activity nonsense")
+        assert any("try: activity" in s for s in logs), logs
         app.terminal.log = real_log
     finally:
         try:
