@@ -63,9 +63,11 @@ class InteractiveTour:
         if self.app.config.get("agents_enabled"):
             self.steps.append(TourStep(
                 "agents", "DXN1 Agents",
-                "Your copilot. Ask it to create files, scaffold a Flask app, run "
-                "the project or install packages — each action lands as a card "
-                "you accept or decline. Switch to full access in its settings.",
+                "Your sandboxed copilot. Attach a brain in its settings — "
+                "your own API key (BYOK), the free GitHub Models tier or the "
+                "lightweight Kilo gateway — or stay on built-in offline "
+                "skills. Every edit and command lands as a card you accept "
+                "or decline, and it never leaves this workspace.",
                 "left"))
         self.steps.append(TourStep(
             None, "You're ready",

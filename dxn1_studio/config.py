@@ -13,7 +13,7 @@ CONFIG_DIR = os.path.join(os.path.expanduser("~"), ".dxn1-studio")
 CONFIG_PATH = os.path.join(CONFIG_DIR, "config.json")
 
 DEFAULTS = {
-    "version": "2.1.0",
+    "version": "2.2.0",
     "onboarded": False,      # has the welcome wizard been completed?
     "tour_done": False,      # has the interactive tour been finished/skipped?
     "name": "",              # display name used in greetings
@@ -26,6 +26,17 @@ DEFAULTS = {
     "agents_enabled": False,      # DXN1 Agents opted in via the wizard
     "agents_ask_edits": True,     # confirm before the agent writes files
     "agents_ask_commands": True,  # confirm before the agent runs commands
+    # --- v2.2: agent brains ---------------------------------------------
+    "agents_backend": "local",    # local | byok | github | kilo
+    "agents_provider": "openrouter",  # BYOK preset id (see llm.PRESETS)
+    "agents_base_url": "",        # BYOK custom endpoint override
+    "agents_api_key": "",         # BYOK key — stored locally only
+    "agents_model": "",           # model id for the active backend
+    "agents_github_key": "",      # optional PAT (else gh auth token)
+    "agents_kilo_url": "",        # Kilo gateway endpoint override
+    "agents_kilo_key": "",        # Kilo token
+    "agents_system_prompt": "",   # extra persona instructions
+    "agents_max_steps": 12,       # tool-loop steps per message
     "splash_enabled": True,       # boot splash (logo card) before launch
     "hub_on_startup": True,       # start every session at the Project Hub
     "recent_projects": [],        # [{path, kind, opened}] — hub recents

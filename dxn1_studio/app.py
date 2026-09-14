@@ -22,7 +22,9 @@ from .theme import from_config, FONT_UI, FONT_MONO
 from .widgets import FileTree, CodeEditor, Terminal
 from .onboarding import WelcomeWizard
 from .tour import InteractiveTour
-from . import projects, export
+from . import projects, export, llm
+from .sandbox import (WorkspaceSandbox, AgentEngine, FakeBackend,
+                      SandboxError)
 from .hub import ProjectHub
 from .splash import Splash
 from .packages import PackageManager
@@ -47,6 +49,7 @@ class DXN1Studio:
         self.active_file = None
         self.sidebar_visible = True
         self.terminal_visible = True
+        self._tab_frames = {}
 
         self.project_dir = None
         self.project_kind = "empty"
@@ -86,6 +89,9 @@ class DXN1Studio:
         self.status_file = tk.Label(left, text="No file open", bg=t["statusbar"],
                                     fg=t["text_muted"], font=(FONT_UI, 9))
         self.status_file.pack(side=tk.LEFT, padx=(14, 0))
+        self.status_pos = tk.Label(left, text="", bg=t["statusbar"],
+                                   fg=t["text_muted"], font=(FONT_UI, 9))
+        self.status_pos.pack(side=tk.LEFT, padx=(14, 0))
         self.status_ws = tk.Label(left, text="", bg=t["statusbar"],
                                   fg=t.accent, font=(FONT_UI, 9, "bold"))
         self.status_ws.pack(side=tk.LEFT, padx=(14, 0))
@@ -125,6 +131,8 @@ class DXN1Studio:
 
         self.editor = CodeEditor(editor_container, t)
         self.editor.pack(fill=tk.BOTH, expand=True)
+        self.editor.text.bind("<KeyRelease>", self._update_cursor_pos)
+        self.editor.text.bind("<ButtonRelease-1>", self._update_cursor_pos)
         self.right_panel.add(editor_container, minsize=200)
 
         self.terminal = Terminal(self.right_panel, t, greeting="Ready",
@@ -141,9 +149,15 @@ class DXN1Studio:
 
         # DXN1 Agents dock (right) — only when opted in
         self.agents_visible = False
-        if self.config.get("agents_enabled"):
-            self._build_agent_panel()
+        self._build_agent_panel()
         self._refresh_agents_status()
+
+    def _update_cursor_pos(self, event=None):
+        try:
+            line, col = self.editor.text.index("insert").split(".")
+            self.status_pos.config(text=f"Ln {line}, Col {int(col) + 1}")
+        except Exception:
+            pass
 
     def _chip(self, parent, text, fg=None, accent=False, cmd=None):
         lbl = tk.Label(parent, text=text,
@@ -190,6 +204,8 @@ class DXN1Studio:
         if self.agent_panel is not None:
             return
         self.agent_panel = DXN1AgentPanel(self.main_container, self)
+        if self.project_dir:
+            self.agent_panel.set_workspace(self.project_dir)
         if self.agents_visible:
             self.main_container.add(self.agent_panel, width=300, minsize=240)
         self.widgets["agents"] = self.agent_panel
@@ -236,13 +252,12 @@ class DXN1Studio:
         if not self.config.get("agents_enabled"):
             self.status_agents.config(text="")
             return
-        if not self.config.get("agents_ask_edits") and \
-                not self.config.get("agents_ask_commands"):
-            self.status_agents.config(text="◆ Agents: full access",
-                                      fg=self.theme["success"])
-        else:
-            self.status_agents.config(text="◆ Agents: ask mode",
-                                      fg=self.theme["text_muted"])
+        full = not self.config.get("agents_ask_edits") and \
+            not self.config.get("agents_ask_commands")
+        self.status_agents.config(
+            text=f"◆ Agents: {llm.describe_backend(self.config)} · "
+                 f"{'full access' if full else 'ask mode'}",
+            fg=self.theme["success"] if full else self.theme["text_muted"])
 
     def setup_menu(self):
         t = self.theme
@@ -424,6 +439,9 @@ class DXN1Studio:
         self.status_ws.config(text=f"◆ {name}")
         self.root.title(f"{name} — {APP_NAME} · v{APP_VERSION}-{APP_CHANNEL}")
         self.terminal.log(f"Workspace: {name} ({kind}) — {self.project_dir}")
+        # bind the agent to this workspace (fresh jail + conversation)
+        if self.agent_panel is not None:
+            self.agent_panel.set_workspace(self.project_dir)
         # auto-open the most interesting entry file
         if not self.editor.file_path:
             for cand in ("app.py", "main.py"):
@@ -495,8 +513,9 @@ class DXN1Studio:
         self.editor.set_content(content)
         self.editor.file_path = filepath
         self.status_file.config(text=filepath)
+        self._update_cursor_pos()
         self.terminal.log(f"Opened: {filepath}")
-        self.add_tab(os.path.basename(filepath))
+        self.add_tab(os.path.basename(filepath), filepath)
 
     def save_file(self):
         if self.editor.file_path:
@@ -516,22 +535,58 @@ class DXN1Studio:
             self.status_file.config(text=filepath)
             self.save_file()
 
-    def add_tab(self, filename):
-        tab = tk.Frame(self.tabs_frame, bg=self.theme["header"])
-        tk.Label(tab, text=filename, bg=self.theme["header"], fg=self.theme["text"],
-                 font=(FONT_UI, 9)).pack(side=tk.LEFT, padx=10, pady=8)
-        close = tk.Label(tab, text="✕", bg=self.theme["header"], fg=self.theme["text_muted"],
-                         font=(FONT_UI, 9), cursor="hand2")
-        close.pack(side=tk.RIGHT, padx=8)
-        tab.pack(side=tk.LEFT)
-        close.bind("<Button-1>", lambda e, t=tab, n=filename: self.close_tab(t, n))
+    def add_tab(self, filename, filepath=None):
+        filepath = filepath or self.editor.file_path or filename
+        if filepath not in self._tab_frames:
+            t = self.theme
+            tab = tk.Frame(self.tabs_frame, bg=t["header"])
+            label = tk.Label(tab, text=filename, bg=t["header"], fg=t["text"],
+                             font=(FONT_UI, 9))
+            label.pack(side=tk.LEFT, padx=10, pady=8)
+            close = tk.Label(tab, text="✕", bg=t["header"],
+                             fg=t["text_muted"], font=(FONT_UI, 9),
+                             cursor="hand2")
+            close.pack(side=tk.RIGHT, padx=8)
+            bar = tk.Frame(tab, bg=t["header"], height=2)
+            bar.pack(side=tk.BOTTOM, fill=tk.X)
+            tab.pack(side=tk.LEFT)
+            close.bind("<Button-1>", lambda e, p=filepath: self.close_tab(p))
+            self._tab_frames[filepath] = {"frame": tab, "label": label,
+                                          "close": close, "bar": bar}
+        self._activate_tab(filepath)
 
-    def close_tab(self, tab, filename):
-        tab.destroy()
-        self.editor.set_content("")
-        self.editor.file_path = None
-        self.status_file.config(text="No file open")
-        self.terminal.log(f"Closed: {filename}")
+    def _activate_tab(self, filepath):
+        t = self.theme
+        for path, w in self._tab_frames.items():
+            active = path == filepath
+            bg = t["editor"] if active else t["header"]
+            w["frame"].config(bg=bg)
+            w["label"].config(bg=bg,
+                               fg=t["text"] if active else t["text_secondary"])
+            w["close"].config(bg=bg)
+            w["bar"].config(bg=t.accent if active else bg)
+
+    def close_tab(self, filepath):
+        entry = self._tab_frames.pop(filepath, None)
+        if entry is None:
+            return
+        entry["frame"].destroy()
+        self.terminal.log(f"Closed: {os.path.basename(filepath)}")
+        if self.editor.file_path == filepath:
+            self.editor.set_content("")
+            self.editor.file_path = None
+            self.status_file.config(text="No file open")
+            self.status_pos.config(text="")
+            if self._tab_frames:
+                last = list(self._tab_frames)[-1]
+                try:
+                    with open(last, "r", encoding="utf-8") as fh:
+                        self.editor.set_content(fh.read())
+                    self.editor.file_path = last
+                    self.status_file.config(text=last)
+                    self._activate_tab(last)
+                except Exception:
+                    pass
 
     # ------------------------------------------------------------- packages
     def open_packages(self, autostart=None):
@@ -662,6 +717,45 @@ class DXN1Studio:
                 self.terminal.log("Stopped.")
         elif not silent:
             self.terminal.log("Nothing is running.")
+
+    # ------------------------------------------------------- agent callbacks
+    def agent_execute_command(self, cmd):
+        """Run an agent-proposed command inside the workspace jail.
+
+        Called from the agent's worker thread; UI updates are marshalled
+        back through ``root.after``. Returns (exit_code, combined_output).
+        """
+        cwd = self.project_dir or os.path.expanduser("~")
+        self.root.after(0, lambda: self.terminal.log(f"$ {cmd}"))
+        try:
+            proc = subprocess.run(cmd, shell=True, cwd=cwd,
+                                  capture_output=True, text=True, timeout=60)
+            out = ((proc.stdout or "") + (proc.stderr or "")).strip()
+            code = proc.returncode
+        except subprocess.TimeoutExpired:
+            out, code = "(timed out after 60s)", 124
+        except Exception as exc:  # noqa: BLE001
+            out, code = f"(failed to start: {exc})", 1
+        tail = out[-4000:]
+        self.root.after(0, lambda: self.terminal.log_raw(
+            tail if tail else f"(exit {code}, no output)"))
+        return code, out
+
+    def agent_on_written(self, path):
+        """Agent touched a file — refresh explorer, reload if it's open."""
+        def ui():
+            try:
+                if os.path.isdir(self.project_dir or ""):
+                    self.sidebar.load_directory(self.project_dir)
+                self.terminal.log(f"Agents wrote: {os.path.basename(path)}")
+                if self.editor.file_path and \
+                        os.path.abspath(self.editor.file_path) == \
+                        os.path.abspath(path):
+                    with open(path, "r", encoding="utf-8") as fh:
+                        self.editor.set_content(fh.read())
+            except Exception:
+                pass
+        self.root.after(0, ui)
 
     # --------------------------------------------------- terminal commands
     def handle_terminal_command(self, text):
@@ -828,9 +922,42 @@ class DXN1Studio:
                 self.agent_panel.handle("create file agent_demo.py")
                 made = os.path.join(self.project_dir, "agent_demo.py")
                 assert os.path.isfile(made), "agent did not write file"
-                self.root.after(600, step7)
+                self.root.after(600, step6b)
             except Exception:
                 bail("step6-agent")
+
+        def step6b():
+            try:
+                # v2.2: tool-loop engine + sandbox + parser, fully offline
+                from .sandbox import parse_tools
+                sb = WorkspaceSandbox(self.project_dir)
+                eng = AgentEngine(
+                    FakeBackend([
+                        '<tool name="write_file">'
+                        '{"path": "engine_demo.py", '
+                        '"content": "print(42)\\n"}'
+                        '</tool>Wrote the file. <done>done</done>'
+                    ]),
+                    sb, self.config, name="Smoke",
+                    emit=lambda s: None, approve=lambda *a, **k: True,
+                    execute_command=lambda c: (0, "ok"),
+                    on_written=lambda p: None)
+                eng.run("write engine_demo.py")
+                assert os.path.isfile(
+                    os.path.join(self.project_dir, "engine_demo.py")), \
+                    "engine did not write file"
+                try:
+                    sb.resolve("../escape.py")
+                    raise AssertionError("sandbox escape allowed")
+                except SandboxError:
+                    pass
+                clean, tools = parse_tools(
+                    'hi <tool name="read_file">{"path": "a.py"}</tool>')
+                assert tools and tools[0][0] == "read_file" and clean == "hi"
+                self.terminal.log("Engine + sandbox checks passed")
+                self.root.after(500, step7)
+            except Exception:
+                bail("step6b-engine")
 
         def step7():
             try:

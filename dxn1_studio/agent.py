@@ -1,23 +1,36 @@
 """DXN1 STUDIO — the DXN1 Agents assistant.
 
 DXN1 Agents is the studio's built-in copilot. It can create files,
-scaffold whole apps, run the project and install packages — but how much
-it may do is always under your control:
+scaffold apps, edit code surgically, run commands and install packages —
+but how much it may do is always under your control:
 
-* **Ask mode** (default) — every file edit and every command appears as a
-  proposal card you Accept or Decline.
+* **Ask mode** (default) — every file edit and every command appears as
+  a proposal card you Accept or Decline.
 * **Full access** — turn both prompts off in the agent settings and the
   agent stops asking, applying edits and running commands directly.
+* **Sandbox** — whatever the mode, the agent only ever touches paths
+  inside the open workspace. Never your home folder, never your PC.
 
-The agent is fully local and rule-based in this beta: no account, no
-network calls, no data leaving the machine.
+Brains
+------
+local     Built-in offline skills (rule engine — no network, no key).
+byok      Bring your own key: OpenRouter / Groq / Gemini / Mistral /
+          OpenAI / Ollama / any OpenAI-compatible endpoint.
+github    GitHub Models — free tier, tracked via your GitHub login.
+kilo      Kilo gateway — free-model routing through one tiny direct
+          HTTP client (never a bundled Kilo instance, so RAM stays low).
 """
 
 import os
+import queue
 import re
+import threading
 import tkinter as tk
 
 from . import APP_NAME
+from . import llm
+from .sandbox import (WorkspaceSandbox, SandboxError, AgentEngine,
+                      head_preview)
 from .theme import FONT_UI, FONT_MONO
 
 AGENTS_NAME = "DXN1 Agents"
@@ -32,6 +45,11 @@ FILE_TEMPLATES = {
     ".md":    "# {stem}\n\n",
     ".txt":   "",
 }
+
+# messages the rule engine always answers instantly, even with an LLM brain
+LOCAL_EXACT = {"help", "?", "what can you do", "clear", "clear terminal",
+               "hub", "project hub", "packages", "manage packages",
+               "explain", "explain this", "what is this file", "analyze"}
 
 
 class Proposal:
@@ -59,14 +77,24 @@ class DXN1AgentPanel(tk.Frame):
         self._imgref = None
         self._canvas_win = None
 
+        self.sandbox = None          # WorkspaceSandbox, set per workspace
+        self.backend = None          # llm backend or None (local skills)
+        self.engine = None           # AgentEngine when a brain is attached
+        self._eq = queue.Queue()     # engine -> UI mailbox
+        self._busy = False
+        self._think_job = None
+        self._think_dots = 0
+
         self._build_header()
         self._build_message_area()
         self._build_input()
+        self.refresh_backend()
 
-        self.agent_say(f"{AGENTS_NAME} online. I can create files, scaffold a "
-                       f"Flask app, run your project or install packages — "
-                       f"always with your permission. Type “help” to see "
-                       f"everything.")
+        self.agent_say(
+            f"{AGENTS_NAME} online. I can create files, scaffold a Flask "
+            f"app, edit code, run your project or install packages — "
+            f"always inside this workspace, always with your permission. "
+            f"Type “help” to see everything.")
 
     # ------------------------------------------------------------------ ui
     def _build_header(self):
@@ -81,14 +109,37 @@ class DXN1AgentPanel(tk.Frame):
         self.mode_chip = tk.Label(head, text="", bg=self.t["header"],
                                   fg=self.t["text_muted"], font=(FONT_UI, 8, "bold"),
                                   padx=8, pady=2)
-        self.mode_chip.pack(side=tk.LEFT, padx=10)
+        self.mode_chip.pack(side=tk.LEFT, padx=6)
+        self.mode_chip.bind("<Button-1>", lambda e: self.open_settings())
+
+        self.brain_chip = tk.Label(head, text="", bg=self.t["header"],
+                                   fg=self.t["text_muted"],
+                                   font=(FONT_UI, 8), padx=8, pady=2,
+                                   cursor="hand2")
+        self.brain_chip.pack(side=tk.LEFT)
+        self.brain_chip.bind("<Button-1>", lambda e: self.open_settings())
 
         gear = tk.Label(head, text="⚙", bg=self.t["header"], fg=self.t["text_muted"],
                         font=(FONT_UI, 11), cursor="hand2")
         gear.pack(side=tk.RIGHT, padx=12)
         gear.bind("<Button-1>", lambda e: self.open_settings())
 
+        self.think = tk.Label(self, text="", bg=self.t["header"],
+                              fg=self.t.accent, font=(FONT_UI, 8, "italic"),
+                              anchor="w")
+        self.think.pack(fill=tk.X, padx=14)
+
         self.refresh_mode()
+        self.refresh_header()
+
+    def refresh_header(self):
+        if self.engine is not None and self.backend is not None:
+            label = self.backend.display
+            if len(label) > 26:
+                label = label[:24].rstrip() + "…"
+            self.brain_chip.config(text=label, fg=self.t.accent)
+        else:
+            self.brain_chip.config(text="local skills", fg=self.t["text_muted"])
 
     def refresh_mode(self):
         cfg = self.app.config
@@ -124,7 +175,7 @@ class DXN1AgentPanel(tk.Frame):
 
     def _build_input(self):
         row = tk.Frame(self, bg=self.t["sidebar"])
-        row.pack(fill=tk.X, padx=10, pady=(0, 10))
+        row.pack(fill=tk.X, padx=10, pady=(0, 2))
 
         self.entry = tk.Entry(row, bg=self.t["editor"], fg=self.t["text"],
                               insertbackground=self.t["text"], relief=tk.FLAT,
@@ -141,9 +192,16 @@ class DXN1AgentPanel(tk.Frame):
         send.pack(side=tk.LEFT, padx=(6, 0))
         send.bind("<Button-1>", lambda e: self.send())
 
-        tk.Label(self, text="try: create file utils.py · run · install flask · help",
+        foot = tk.Frame(self, bg=self.t["sidebar"])
+        foot.pack(fill=tk.X, padx=12, pady=(0, 6))
+        tk.Label(foot, text="try: fix the bug in app.py · new flask app · run",
                  bg=self.t["sidebar"], fg=self.t["text_muted"],
-                 font=(FONT_UI, 8), anchor="w").pack(fill=tk.X, padx=12, pady=(0, 6))
+                 font=(FONT_UI, 8), anchor="w").pack(side=tk.LEFT)
+        self.stop_lbl = tk.Label(foot, text="■ stop", bg=self.t["sidebar"],
+                                 fg=self.t["text_muted"], font=(FONT_UI, 8, "bold"),
+                                 cursor="hand2")
+        self.stop_lbl.pack(side=tk.RIGHT)
+        self.stop_lbl.bind("<Button-1>", lambda e: self.stop_engine())
 
     # ------------------------------------------------------------ messages
     def _new_card(self, accent_edge=False):
@@ -165,6 +223,13 @@ class DXN1AgentPanel(tk.Frame):
                  anchor="w").pack(anchor="w", padx=10, pady=(2, 8))
         self._scroll_down()
 
+    def system_note(self, text):
+        card = self._new_card()
+        tk.Label(card, text=text, bg=self.t["card"], fg=self.t["text_muted"],
+                 font=(FONT_UI, 8, "italic"), wraplength=240, justify=tk.LEFT,
+                 anchor="w").pack(anchor="w", padx=10, pady=6)
+        self._scroll_down()
+
     def user_say(self, text):
         card = self._new_card()
         tk.Label(card, text=f"You  ·  {text}", bg=self.t["card"],
@@ -173,6 +238,27 @@ class DXN1AgentPanel(tk.Frame):
                  anchor="w").pack(anchor="w", padx=10, pady=7)
         self._scroll_down()
 
+    def _scroll_down(self):
+        self.canvas.update_idletasks()
+        self.canvas.yview_moveto(1.0)
+
+    # ---------------------------------------------------------- thinking ui
+    def _set_thinking(self, on):
+        if self._think_job is not None:
+            self.after_cancel(self._think_job)
+            self._think_job = None
+        if on:
+            self._think_dots = 0
+            self._tick_think()
+        else:
+            self.think.config(text="")
+
+    def _tick_think(self):
+        self._think_dots = (self._think_dots + 1) % 4
+        self.think.config(text="thinking" + "·" * self._think_dots)
+        self._think_job = self.after(420, self._tick_think)
+
+    # ------------------------------------------------------ proposal cards
     def _propose(self, proposal):
         """Render a proposal card — or auto-approve in full-access mode."""
         if proposal.kind == "edit" and \
@@ -236,9 +322,131 @@ class DXN1AgentPanel(tk.Frame):
         decline.bind("<Button-1>", lambda e: decide(False))
         self._scroll_down()
 
-    def _scroll_down(self):
-        self.canvas.update_idletasks()
-        self.canvas.yview_moveto(1.0)
+    def _approve_card(self, kind, title, detail, preview, danger,
+                      holder, event):
+        """Card for engine approvals — flips the Event when decided."""
+        card = self._new_card(accent_edge=True)
+        head = tk.Frame(card, bg=self.t["card"])
+        head.pack(fill=tk.X, padx=10, pady=(6, 0))
+        tk.Label(head, text="EDIT" if kind == "edit" else "COMMAND",
+                 bg=self.t["card"], fg=self.t.accent,
+                 font=(FONT_UI, 8, "bold")).pack(side=tk.LEFT)
+        if danger:
+            tk.Label(head, text=" ⚠ NEEDS A HUMAN", bg=self.t["card"],
+                     fg="#f85149", font=(FONT_UI, 8, "bold")).pack(side=tk.LEFT)
+        tk.Label(head, text=f"  {title}"[:60], bg=self.t["card"],
+                 fg=self.t["text"], font=(FONT_UI, 9, "bold"), anchor="w"
+                 ).pack(side=tk.LEFT)
+        if detail:
+            tk.Label(card, text=detail, bg=self.t["card"],
+                     fg=self.t["text_secondary"], font=(FONT_UI, 8),
+                     wraplength=240, justify=tk.LEFT, anchor="w"
+                     ).pack(anchor="w", padx=10, pady=(2, 0))
+        if preview:
+            tk.Label(card, text=preview, bg=self.t["terminal"],
+                     fg=self.t["text"], font=(FONT_MONO, 8),
+                     wraplength=250, justify=tk.LEFT, anchor="w"
+                     ).pack(anchor="w", padx=10, pady=(4, 0), ipadx=6, ipady=4)
+
+        btns = tk.Frame(card, bg=self.t["card"])
+        btns.pack(fill=tk.X, padx=10, pady=(8, 8))
+
+        def decide(approved):
+            holder[0] = bool(approved)
+            for child in btns.winfo_children():
+                child.destroy()
+            tk.Label(btns, text="Accepted ✓" if approved else "Declined",
+                     bg=self.t["card"], fg=self.t["success"] if approved
+                     else self.t["text_muted"],
+                     font=(FONT_UI, 9, "bold")).pack(side=tk.LEFT)
+            event.set()
+
+        accept = tk.Label(btns, text="Accept", bg=self.t.accent, fg="#ffffff",
+                          font=(FONT_UI, 9, "bold"), cursor="hand2",
+                          padx=12, pady=4)
+        accept.pack(side=tk.LEFT)
+        accept.bind("<Button-1>", lambda e: decide(True))
+        decline = tk.Label(btns, text="Decline", bg=self.t["card"],
+                           fg=self.t["text_secondary"], font=(FONT_UI, 9),
+                           cursor="hand2", padx=10, pady=4)
+        decline.pack(side=tk.LEFT, padx=6)
+        decline.bind("<Button-1>", lambda e: decide(False))
+        self._scroll_down()
+
+    # ---------------------------------------------------------- engine glue
+    def refresh_backend(self):
+        """(Re)build the brain from current settings. Local ⇒ rules only."""
+        self.backend = llm.build_backend(self.app.config)
+        if self.backend is not None and self.sandbox is not None:
+            self.engine = AgentEngine(
+                self.backend, self.sandbox, self.app.config, name=AGENTS_NAME,
+                emit=lambda text: self._eq.put(("say", text)),
+                approve=self._engine_approve,
+                execute_command=self.app.agent_execute_command,
+                on_written=self.app.agent_on_written)
+        else:
+            self.engine = None
+        self.refresh_header()
+
+    def set_workspace(self, path):
+        """Bind the agent to a new workspace jail + fresh conversation."""
+        try:
+            self.sandbox = WorkspaceSandbox(path)
+        except SandboxError:
+            self.sandbox = None
+            self.engine = None
+            self.refresh_header()
+            return
+        self.refresh_backend()
+
+    def _engine_approve(self, kind, title, detail, preview, danger=False):
+        """Runs on the engine thread — marshal to the UI and wait."""
+        cfg = self.app.config
+        ask = cfg.get("agents_ask_edits") if kind == "edit" \
+            else cfg.get("agents_ask_commands")
+        if not danger and not ask:
+            self._eq.put(("auto", f"{title} — done automatically "
+                                  f"(full access)."))
+            return True
+        holder = [None]
+        ev = threading.Event()
+        self._eq.put(("approve", (kind, title, detail, preview, danger),
+                      holder, ev))
+        ev.wait(timeout=1800)          # 30 min, then treat as declined
+        return bool(holder[0])
+
+    def _engine_thread(self, text):
+        try:
+            self.engine.run(text)
+        except Exception as exc:  # noqa: BLE001 — report, never crash UI
+            self._eq.put(("say", f"⚠ That hit a snag: {exc}"))
+        finally:
+            self._eq.put(("done", None))
+
+    def _poll_engine(self):
+        try:
+            while True:
+                kind, payload = self._eq.get_nowait()
+                if kind == "say":
+                    self.agent_say(payload)
+                elif kind == "auto":
+                    self.system_note(payload)
+                elif kind == "approve":
+                    spec, holder, ev = payload
+                    self._approve_card(spec[0], spec[1], spec[2], spec[3],
+                                       spec[4], holder, ev)
+                elif kind == "done":
+                    self._busy = False
+                    self._set_thinking(False)
+                    self.entry.config(state="normal")
+        except queue.Empty:
+            pass
+        self.after(120, self._poll_engine)
+
+    def stop_engine(self):
+        if self.engine is not None and self.engine.busy:
+            self.engine.stop()
+            self.system_note("Stopping after the current step…")
 
     # ------------------------------------------------------------- driving
     def send(self):
@@ -246,14 +454,41 @@ class DXN1AgentPanel(tk.Frame):
         if not text:
             return
         self.entry.delete(0, tk.END)
+        self.route(text)
+
+    def route(self, text):
+        """One entry point for chat: local quickies, else the brain."""
+        if self._busy:
+            self.system_note("Still working on the previous task — "
+                             "press ■ stop to interrupt it first.")
+            return
+        low = text.lower().strip()
         self.user_say(text)
+        if low in LOCAL_EXACT or re.fullmatch(r"dxn1[\s_-]*studio", low):
+            try:
+                self.handle(low if low in LOCAL_EXACT else "dxn1 studio")
+            except Exception as exc:  # never kill the IDE from the chat box
+                self.agent_say(f"That hit a snag: {exc}")
+            return
+        if self.engine is not None:
+            self._busy = True
+            self._set_thinking(True)
+            self.entry.config(state="disabled")
+            threading.Thread(target=self._engine_thread, args=(text,),
+                             daemon=True).start()
+            return
         try:
             self.handle(text)
-        except Exception as exc:  # never kill the IDE from the chat box
+        except Exception as exc:
             self.agent_say(f"That hit a snag: {exc}")
+
+    def open_settings(self):
+        AgentSettingsDialog(self.app)
 
     # ------------------------------------------------------------------ io
     def base_dir(self):
+        if self.sandbox is not None:
+            return self.sandbox.root
         return self.app.project_dir or os.path.expanduser("~")
 
     def _safe_join(self, base, rel):
@@ -269,28 +504,29 @@ class DXN1AgentPanel(tk.Frame):
             os.makedirs(os.path.dirname(path), exist_ok=True)
             with open(path, "w", encoding="utf-8") as fh:
                 fh.write(content)
-        self.app.refresh_explorer()
+            self.app.agent_on_written(path)
         names = ", ".join(os.path.basename(p) for p, _ in files)
         self.app.terminal.log(f"Agents wrote: {names}")
-
-    def open_settings(self):
-        AgentSettingsDialog(self.app)
 
     # -------------------------------------------------------------- intents
     def handle(self, text):
         low = text.lower().strip()
 
         if low in ("help", "?", "what can you do"):
+            brain = "a real model" if self.engine is not None else "local skills"
             self.agent_say(
-                "Here's my toolkit:\n"
+                f"My brain right now: {brain}.\n\n"
+                "Instant skills (offline):\n"
                 "• create file <name> — new file with a starter template\n"
                 "• new flask app — scaffold a full web app (3 files)\n"
                 "• run — execute the current file / project (F5)\n"
-                "• install <package> — pip install, shown live in the terminal\n"
+                "• install <package> — pip install, shown live\n"
                 "• open <file> — open a workspace file in the editor\n"
                 "• explain — stats about the file in the editor\n"
-                "• dxn1 studio — replay the boot splash\n"
-                "• shell <command> — propose any terminal command")
+                "• shell <command> — propose any terminal command\n\n"
+                "Anything else you type goes to my model brain (if one is "
+                "attached) — it can read files, write code and run commands "
+                "inside this workspace, sandboxed.")
             return
 
         m = re.match(r"^(?:create|new)\s+file\s+(.+)$", low)
@@ -348,8 +584,19 @@ class DXN1AgentPanel(tk.Frame):
                 preview=f"$ {m.group(1)}"))
             return
 
+        if self.engine is not None:
+            # brain is attached — let it take this one
+            self.user_say(text)
+            self._busy = True
+            self._set_thinking(True)
+            self.entry.config(state="disabled")
+            threading.Thread(target=self._engine_thread, args=(text,),
+                             daemon=True).start()
+            return
+
         self.agent_say("I didn't catch that one yet — try “help” for the "
-                       "full list of things I know how to do.")
+                       "full list of things I know how to do, or attach a "
+                       "model brain in Settings → DXN1 Agents.")
 
     # -------------------------------------------------------------- actions
     def _intent_create_file(self, raw):
@@ -476,83 +723,340 @@ class DXN1AgentPanel(tk.Frame):
                else ""))
 
 
+# ================================================================= settings
+class _CfgShim:
+    """Reads like a Config but serves the dialog's current field values."""
+
+    def __init__(self, data):
+        self._d = dict(data)
+
+    def get(self, key, default=None):
+        return self._d.get(key, default)
+
+
 class AgentSettingsDialog(tk.Toplevel):
-    """Per-agent switches: enable + the two permission gates."""
+    """Assistant switches + brain picker (local / BYOK / GitHub / Kilo)."""
 
     def __init__(self, app):
         super().__init__(app.root)
         self.app = app
         cfg = app.config
+        t = app.theme
+        self.t = t
         self.title(f"{AGENTS_NAME} — Settings")
-        self.configure(bg=app.theme["bg"])
+        self.configure(bg=t["bg"])
         self.resizable(False, False)
         self.transient(app.root)
         self.grab_set()
 
-        box = tk.Frame(self, bg=app.theme["bg"])
-        box.pack(padx=26, pady=22)
+        box = tk.Frame(self, bg=t["bg"])
+        box.pack(padx=24, pady=18)
 
-        tk.Label(box, text=AGENTS_NAME, bg=app.theme["bg"], fg=app.theme["text"],
-                 font=(FONT_UI, 14, "bold")).pack(anchor="w")
-        tk.Label(box, text=AGENTS_TAGLINE, bg=app.theme["bg"],
-                 fg=app.theme["text_secondary"], font=(FONT_UI, 10)
-                 ).pack(anchor="w", pady=(2, 14))
+        head = tk.Frame(box, bg=t["bg"])
+        head.pack(fill=tk.X)
+        tk.Label(head, text=AGENTS_NAME, bg=t["bg"], fg=t["text"],
+                 font=(FONT_UI, 14, "bold")).pack(side=tk.LEFT)
+        tk.Label(head, text="  " + AGENTS_TAGLINE, bg=t["bg"],
+                 fg=t["text_secondary"], font=(FONT_UI, 10)
+                 ).pack(side=tk.LEFT, pady=(4, 0))
 
+        # ---------------------------------------------------- assistant
+        sec = self._section(box, "Assistant")
         self.enable_v = tk.BooleanVar(value=bool(cfg.get("agents_enabled")))
         self.edits_v = tk.BooleanVar(value=bool(cfg.get("agents_ask_edits")))
         self.cmds_v = tk.BooleanVar(value=bool(cfg.get("agents_ask_commands")))
+        self._check(sec, self.enable_v, "Enable DXN1 Agents",
+                    "Shows the assistant panel on the right side of the studio.")
+        self._check(sec, self.edits_v, "Ask before editing files",
+                    "Every file the agent creates or changes needs your Accept.")
+        self._check(sec, self.cmds_v, "Ask before running commands",
+                    "Commands (run project, pip install, shell) need approval.")
+        tk.Label(sec, text="Turn both prompts off for full access — the agent "
+                           "then acts without asking. Dangerous commands still "
+                           "stop and ask. The sandbox (workspace-only) is "
+                           "always on.",
+                 bg=t["card"], fg=t["text_muted"], font=(FONT_UI, 8, "italic"),
+                 wraplength=500, justify=tk.LEFT
+                 ).pack(anchor="w", padx=10, pady=(4, 6))
 
-        def check(parent, var, title, sub):
-            row = tk.Frame(parent, bg=app.theme["card"], highlightthickness=1,
-                           highlightbackground=app.theme["card_border"])
-            row.pack(fill=tk.X, pady=4, ipady=6)
-            cb = tk.Checkbutton(row, variable=var, bg=app.theme["card"],
-                                fg=app.theme["text"], activebackground=app.theme["card"],
-                                activeforeground=app.theme["text"],
-                                selectcolor=app.theme["editor"],
-                                highlightthickness=0, bd=0)
-            cb.pack(side=tk.LEFT, padx=(12, 4))
-            txt = tk.Frame(row, bg=app.theme["card"])
-            txt.pack(side=tk.LEFT)
-            tk.Label(txt, text=title, bg=app.theme["card"],
-                     fg=app.theme["text"], font=(FONT_UI, 10, "bold"),
-                     anchor="w").pack(anchor="w")
-            tk.Label(txt, text=sub, bg=app.theme["card"],
-                     fg=app.theme["text_secondary"], font=(FONT_UI, 8),
-                     wraplength=380, justify=tk.LEFT, anchor="w").pack(anchor="w")
+        # ---------------------------------------------------- brain
+        secb = self._section(box, "Brain — pick where the agent thinks")
+        self.kind_v = tk.StringVar(value=cfg.get("agents_backend", "local"))
+        kinds = (("local", "Local skills", "Offline · no network · no key"),
+                 ("byok", "BYOK", "Your API key · OpenRouter, Groq, Gemini…"),
+                 ("github", "GitHub Models", "Free tier · your GitHub login"),
+                 ("kilo", "Kilo gateway", "Free models · tiny HTTP client"))
+        row = tk.Frame(secb, bg=t["card"])
+        row.pack(fill=tk.X, padx=10, pady=(0, 6))
+        self._kind_btns = {}
+        for kid, label, sub in kinds:
+            b = tk.Label(row, text=label, bg=t["card"], fg=t["text"],
+                         font=(FONT_UI, 9, "bold"), cursor="hand2",
+                         padx=10, pady=6)
+            b.pack(side=tk.LEFT, padx=(0, 6))
+            b.bind("<Button-1>", lambda e, k=kid: self._pick_kind(k))
+            self._kind_btns[kid] = b
 
-        check(box, self.enable_v, "Enable DXN1 Agents",
-              "Shows the assistant panel on the right side of the studio.")
-        check(box, self.edits_v, "Ask before editing files",
-              "Every file the agent creates or changes needs your Accept.")
-        check(box, self.cmds_v, "Ask before running commands",
-              "Commands (run project, pip install, shell) need your approval.")
+        self._detail = tk.Frame(secb, bg=t["card"])
+        self._detail.pack(fill=tk.X, padx=10, pady=(0, 8))
+        self._subframes = {}
+        self._build_local_sub()
+        self._build_byok_sub(cfg)
+        self._build_github_sub(cfg)
+        self._build_kilo_sub(cfg)
 
-        note = tk.Frame(box, bg=app.theme["bg"])
-        note.pack(fill=tk.X, pady=(10, 0))
-        tk.Label(note, text="Turn both prompts off to give the agent full "
-                            "access — it then applies edits and runs commands "
-                            "without asking. You can switch back anytime.",
-                 bg=app.theme["bg"], fg=app.theme["text_muted"],
-                 font=(FONT_UI, 8, "italic"), wraplength=430,
-                 justify=tk.LEFT).pack(anchor="w")
+        # ---------------------------------------------------- behaviour
+        secbh = self._section(box, "Behaviour")
+        prow = tk.Frame(secbh, bg=t["card"])
+        prow.pack(fill=tk.X, padx=10, pady=(2, 4))
+        tk.Label(prow, text="Extra system prompt (persona, house style…):",
+                 bg=t["card"], fg=t["text"], font=(FONT_UI, 9)
+                 ).pack(anchor="w")
+        self.prompt_txt = tk.Text(prow, height=3, bg=t["editor"], fg=t["text"],
+                                  insertbackground=t["text"], relief=tk.FLAT,
+                                  font=(FONT_MONO, 9), highlightthickness=1,
+                                  highlightbackground=t["border"],
+                                  highlightcolor=t.accent, wrap=tk.WORD)
+        self.prompt_txt.pack(fill=tk.X, pady=(3, 4))
+        if cfg.get("agents_system_prompt"):
+            self.prompt_txt.insert("1.0", cfg.get("agents_system_prompt"))
+        srow = tk.Frame(secbh, bg=t["card"])
+        srow.pack(fill=tk.X, padx=10, pady=(0, 8))
+        tk.Label(srow, text="Max tool steps per message:", bg=t["card"],
+                 fg=t["text"], font=(FONT_UI, 9)).pack(side=tk.LEFT)
+        self.steps_v = tk.StringVar(value=str(cfg.get("agents_max_steps", 12)))
+        tk.Entry(srow, textvariable=self.steps_v, width=4, bg=t["editor"],
+                 fg=t["text"], insertbackground=t["text"], relief=tk.FLAT,
+                 font=(FONT_MONO, 10), highlightthickness=1,
+                 highlightbackground=t["border"],
+                 highlightcolor=t.accent).pack(side=tk.LEFT, padx=8)
 
-        row = tk.Frame(box, bg=app.theme["bg"])
-        row.pack(fill=tk.X, pady=(16, 0))
-        cancel = tk.Label(row, text="Cancel", bg=app.theme["bg"],
-                          fg=app.theme["text_secondary"], font=(FONT_UI, 10),
+        # ---------------------------------------------------- test + buttons
+        trow = tk.Frame(box, bg=t["bg"])
+        trow.pack(fill=tk.X, pady=(8, 0))
+        test_btn = tk.Label(trow, text="Test connection", bg=t["card"],
+                            fg=t.accent, font=(FONT_UI, 10, "bold"),
+                            cursor="hand2", padx=12, pady=6)
+        test_btn.pack(side=tk.LEFT)
+        test_btn.bind("<Button-1>", lambda e: self._test())
+        self.test_result = tk.Label(trow, text="", bg=t["bg"],
+                                    fg=t["text_muted"], font=(FONT_UI, 9))
+        self.test_result.pack(side=tk.LEFT, padx=10)
+
+        row = tk.Frame(box, bg=t["bg"])
+        row.pack(fill=tk.X, pady=(12, 0))
+        cancel = tk.Label(row, text="Cancel", bg=t["bg"],
+                          fg=t["text_secondary"], font=(FONT_UI, 10),
                           cursor="hand2", padx=10)
         cancel.pack(side=tk.RIGHT)
         cancel.bind("<Button-1>", lambda e: self.destroy())
-        save = tk.Label(row, text="Save", bg=app.theme.accent, fg="#ffffff",
+        save = tk.Label(row, text="Save", bg=t.accent, fg="#ffffff",
                         font=(FONT_UI, 10, "bold"), cursor="hand2",
                         padx=18, pady=6)
         save.pack(side=tk.RIGHT)
         save.bind("<Button-1>", lambda e: self._save())
 
         self.bind("<Escape>", lambda e: self.destroy())
+        self._pick_kind(self.kind_v.get())
         self._center()
 
+    # ------------------------------------------------------------- widgets
+    def _section(self, parent, title):
+        tk.Label(parent, text=title, bg=self.t["bg"],
+                 fg=self.t["text_secondary"], font=(FONT_UI, 9, "bold")
+                 ).pack(anchor="w", pady=(12, 4))
+        frame = tk.Frame(parent, bg=self.t["card"], highlightthickness=1,
+                         highlightbackground=self.t["card_border"])
+        frame.pack(fill=tk.X, ipady=6)
+        inner = tk.Frame(frame, bg=self.t["card"])
+        inner.pack(fill=tk.X)
+        return inner
+
+    def _check(self, parent, var, title, sub):
+        row = tk.Frame(parent, bg=self.t["card"])
+        row.pack(fill=tk.X, pady=2, ipady=2)
+        cb = tk.Checkbutton(row, variable=var, bg=self.t["card"],
+                            fg=self.t["text"],
+                            activebackground=self.t["card"],
+                            activeforeground=self.t["text"],
+                            selectcolor=self.t["editor"],
+                            highlightthickness=0, bd=0)
+        cb.pack(side=tk.LEFT, padx=(10, 4))
+        txt = tk.Frame(row, bg=self.t["card"])
+        txt.pack(side=tk.LEFT)
+        tk.Label(txt, text=title, bg=self.t["card"], fg=self.t["text"],
+                 font=(FONT_UI, 10, "bold"), anchor="w").pack(anchor="w")
+        tk.Label(txt, text=sub, bg=self.t["card"], fg=self.t["text_secondary"],
+                 font=(FONT_UI, 8), wraplength=440, justify=tk.LEFT,
+                 anchor="w").pack(anchor="w")
+
+    def _field(self, parent, label, value, width=38, show="", hint=None):
+        tk.Label(parent, text=label, bg=self.t["card"], fg=self.t["text"],
+                 font=(FONT_UI, 9)).pack(anchor="w", pady=(4, 1))
+        var = tk.StringVar(value=value)
+        e = tk.Entry(parent, textvariable=var, width=width, show=show,
+                     bg=self.t["editor"], fg=self.t["text"],
+                     insertbackground=self.t["text"], relief=tk.FLAT,
+                     font=(FONT_MONO, 9), highlightthickness=1,
+                     highlightbackground=self.t["border"],
+                     highlightcolor=self.t.accent)
+        e.pack(fill=tk.X, ipady=4)
+        if hint:
+            tk.Label(parent, text=hint, bg=self.t["card"],
+                     fg=self.t["text_muted"], font=(FONT_UI, 8),
+                     wraplength=470, justify=tk.LEFT,
+                     anchor="w").pack(anchor="w", pady=(1, 0))
+        return var
+
+    # ------------------------------------------------------- brain subpages
+    def _build_local_sub(self):
+        f = tk.Frame(self._detail, bg=self.t["card"])
+        self._subframes["local"] = f
+        tk.Label(f, text="The agent runs its built-in offline skills — "
+                         "create files, scaffold apps, run, install. No key, "
+                         "no network. Attach a model below whenever you want "
+                         "a brain that can reason about your code.",
+                 bg=self.t["card"], fg=self.t["text_secondary"],
+                 font=(FONT_UI, 9), wraplength=470, justify=tk.LEFT
+                 ).pack(anchor="w", pady=(2, 4))
+
+    def _build_byok_sub(self, cfg):
+        f = tk.Frame(self._detail, bg=self.t["card"])
+        self._subframes["byok"] = f
+        self.provider_v = tk.StringVar(
+            value=cfg.get("agents_provider", "openrouter"))
+        prow = tk.Frame(f, bg=self.t["card"])
+        prow.pack(fill=tk.X)
+        tk.Label(prow, text="Provider:", bg=self.t["card"], fg=self.t["text"],
+                 font=(FONT_UI, 9)).pack(side=tk.LEFT)
+        names = [f"{pid}  ·  {p['label']}" for pid, p in llm.PRESETS.items()]
+        self._provider_menu = tk.OptionMenu(
+            prow, self.provider_v, *list(llm.PRESETS.keys()))
+        self._provider_menu.config(bg=self.t["editor"], fg=self.t["text"],
+                                   activebackground=self.t["hover"],
+                                   highlightthickness=0, bd=0,
+                                   font=(FONT_UI, 9))
+        self._provider_menu.pack(side=tk.LEFT, padx=8)
+        self.byok_url_v = self._field(
+            f, "Endpoint (OpenAI-compatible)",
+            cfg.get("agents_base_url", ""), width=44)
+        self.byok_key_v = self._field(
+            f, "API key", cfg.get("agents_api_key", ""), width=44,
+            show="•", hint="Stored only in ~/.dxn1-studio/config.json on this "
+                           "machine. Free-model tip: OpenRouter models ending "
+                           "in :free cost nothing.")
+        self.byok_model_v = self._field(
+            f, "Model", cfg.get("agents_model", ""), width=44)
+        self.byok_note = tk.Label(f, text="", bg=self.t["card"],
+                                  fg=self.t["text_secondary"], font=(FONT_UI, 8),
+                                  wraplength=470, justify=tk.LEFT, anchor="w")
+        self.byok_note.pack(anchor="w", pady=(2, 0))
+        # register the preset watcher only AFTER the fields exist, then seed
+        self.provider_v.trace_add("write", lambda *a: self._apply_preset())
+        self.provider_v.set(cfg.get("agents_provider", "openrouter"))
+        self._apply_preset()
+
+    def _apply_preset(self):
+        pid = self.provider_v.get()
+        preset = llm.PRESETS.get(pid, llm.PRESETS["openrouter"])
+        if not (self.byok_url_v.get() or "").strip():
+            self.byok_url_v.set(preset["base_url"])
+        self.byok_note.config(text=preset["note"] +
+                              ("  Suggested: " + " · ".join(preset["models"][:3])
+                               if preset["models"] else ""))
+
+    def _build_github_sub(self, cfg):
+        f = tk.Frame(self._detail, bg=self.t["card"])
+        self._subframes["github"] = f
+        tk.Label(f, text="Free models, tracked via your GitHub account. If "
+                         "you're signed in with GitHub CLI, zero setup — "
+                         "otherwise paste a token (needs no paid plan; "
+                         "rate limits apply).",
+                 bg=self.t["card"], fg=self.t["text_secondary"],
+                 font=(FONT_UI, 9), wraplength=470, justify=tk.LEFT
+                 ).pack(anchor="w", pady=(2, 2))
+        self.gh_key_v = self._field(
+            f, "GitHub token (optional if gh is logged in)",
+            cfg.get("agents_github_key", ""), width=44, show="•",
+            hint="Checked in order: this field → GH_TOKEN → `gh auth token`.")
+        self.gh_model_v = self._field(
+            f, "Model", cfg.get("agents_model", "") or "openai/gpt-4o-mini",
+            width=44,
+            hint="Catalog: github.com/marketplace/models — e.g. "
+                 "openai/gpt-4o-mini, meta/Meta-Llama-3.3-70B-Instruct.")
+
+    def _build_kilo_sub(self, cfg):
+        f = tk.Frame(self._detail, bg=self.t["card"])
+        self._subframes["kilo"] = f
+        tk.Label(f, text="Kilo gateway gives you free-model routing. This is "
+                         "a direct HTTP client built into the studio — NOT "
+                         "the VS Code extension — so it adds near-zero RAM "
+                         "instead of hundreds of MB.",
+                 bg=self.t["card"], fg=self.t["text_secondary"],
+                 font=(FONT_UI, 9), wraplength=470, justify=tk.LEFT
+                 ).pack(anchor="w", pady=(2, 2))
+        self.kilo_url_v = self._field(
+            f, "Gateway endpoint",
+            cfg.get("agents_kilo_url", "") or llm.KiloBackend.DEFAULT_BASE,
+            width=44,
+            hint="If your Kilo dashboard shows a different endpoint, paste "
+                 "it here.")
+        self.kilo_key_v = self._field(
+            f, "Kilo token", cfg.get("agents_kilo_key", ""), width=44,
+            show="•")
+        self.kilo_model_v = self._field(
+            f, "Model", cfg.get("agents_model", ""), width=44,
+            hint='"auto" lets the gateway pick; model ids follow your Kilo '
+                 'account.')
+
+    def _pick_kind(self, kind):
+        self.kind_v.set(kind)
+        for kid, btn in self._kind_btns.items():
+            btn.config(bg=self.t.accent if kid == kind else self.t["card"],
+                       fg="#ffffff" if kid == kind else self.t["text"])
+        for kid, frame in self._subframes.items():
+            if kid == kind:
+                frame.pack(fill=tk.X, expand=True)
+            else:
+                frame.pack_forget()
+
+    # ---------------------------------------------------------------- test
+    def _dialog_config(self):
+        return _CfgShim({
+            "agents_backend": self.kind_v.get(),
+            "agents_provider": self.provider_v.get(),
+            "agents_base_url": self.byok_url_v.get(),
+            "agents_api_key": self.byok_key_v.get(),
+            "agents_model": self._model_for_kind(),
+            "agents_github_key": self.gh_key_v.get(),
+            "agents_kilo_url": self.kilo_url_v.get(),
+            "agents_kilo_key": self.kilo_key_v.get(),
+        })
+
+    def _model_for_kind(self):
+        kind = self.kind_v.get()
+        if kind == "github":
+            return self.gh_model_v.get()
+        if kind == "kilo":
+            return self.kilo_model_v.get()
+        return self.byok_model_v.get()
+
+    def _test(self):
+        self.test_result.config(text="testing…", fg=self.t["text_muted"])
+        backend = llm.build_backend(self._dialog_config())
+        if backend is None:
+            self.test_result.config(text="local skills need no connection ✓",
+                                    fg=self.t["success"])
+            return
+
+        def work():
+            ok, detail = llm.test_backend(backend)
+            self.after(0, lambda: self.test_result.config(
+                text=("✓ " + detail) if ok else ("✗ " + detail),
+                fg=self.t["success"] if ok else "#f85149"))
+        threading.Thread(target=work, daemon=True).start()
+
+    # ---------------------------------------------------------- save/close
     def _center(self):
         self.update_idletasks()
         w, h = self.winfo_reqwidth(), self.winfo_reqheight()
@@ -562,12 +1066,35 @@ class AgentSettingsDialog(tk.Toplevel):
 
     def _save(self):
         cfg = self.app.config
+        try:
+            steps = max(2, min(40, int(self.steps_v.get())))
+        except ValueError:
+            steps = 12
         cfg.set("agents_enabled", bool(self.enable_v.get()))
         cfg.set("agents_ask_edits", bool(self.edits_v.get()))
         cfg.set("agents_ask_commands", bool(self.cmds_v.get()))
+        cfg.set("agents_backend", self.kind_v.get())
+        cfg.set("agents_provider", self.provider_v.get())
+        cfg.set("agents_base_url", self.byok_url_v.get().strip())
+        cfg.set("agents_api_key", self.byok_key_v.get().strip())
+        cfg.set("agents_model", self._model_for_kind().strip())
+        cfg.set("agents_github_key", self.gh_key_v.get().strip())
+        cfg.set("agents_kilo_url", self.kilo_url_v.get().strip())
+        cfg.set("agents_kilo_key", self.kilo_key_v.get().strip())
+        cfg.set("agents_system_prompt",
+                self.prompt_txt.get("1.0", "end").strip())
+        cfg.set("agents_max_steps", steps)
+
         self.app.apply_agents_visibility()
+        if self.app.agent_panel is not None:
+            if self.app.project_dir:
+                self.app.agent_panel.set_workspace(self.app.project_dir)
+            else:
+                self.app.agent_panel.refresh_backend()
         self.app.terminal.log(
-            f"{AGENTS_NAME}: " + ("enabled" if self.enable_v.get() else "disabled")
+            f"{AGENTS_NAME}: "
+            + ("enabled" if self.enable_v.get() else "disabled")
+            + f" · brain: {llm.describe_backend(cfg)}"
             + ("" if (self.edits_v.get() and self.cmds_v.get())
                else " · full access mode"))
         self.grab_release()

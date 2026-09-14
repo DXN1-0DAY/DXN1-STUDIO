@@ -340,13 +340,16 @@ class WelcomeWizard:
                      self.colors["secondary"], padx=8, pady=2,
                      size=8).pack(side=tk.LEFT, padx=(12, 0), pady=8)
 
-        tk.Label(wrap, text="Your built-in studio copilot — fully local. It can create files, "
-                            "scaffold a Flask app, run your project and install packages.",
+        tk.Label(wrap, text="Your built-in studio copilot. It works fully offline out "
+                            "of the box — and you can give it a bigger brain later: "
+                            "your own API key (BYOK), the free GitHub Models tier, or "
+                            "the feather-light Kilo gateway.",
                  bg=self.colors["overlay"], fg=self.colors["secondary"],
                  font=(FONT_UI, 11), wraplength=560, justify=tk.CENTER
                  ).pack(pady=(8, 4))
         tk.Label(wrap, text="Nothing happens without your permission: every edit and every "
-                            "command arrives as a card you accept or decline.",
+                            "command arrives as a card you accept or decline — and it's "
+                            "sandboxed so it only ever touches your workspace.",
                  bg=self.colors["overlay"], fg=self.colors["secondary"],
                  font=(FONT_UI, 11), wraplength=560, justify=tk.CENTER
                  ).pack(pady=(0, 18))
@@ -363,8 +366,8 @@ class WelcomeWizard:
             b.bind("<Button-1>", lambda e, v=key: self.choose_agents(v))
             self.agents_btns[key] = b
 
-        tk.Label(wrap, text="You can change this anytime in Settings → DXN1 Agents — "
-                            "including full-access mode that stops asking.",
+        tk.Label(wrap, text="Brains are picked in Settings → DXN1 Agents (BYOK · GitHub "
+                            "Models · Kilo gateway) — full-access mode lives there too.",
                  bg=self.colors["overlay"], fg=self.colors["muted"],
                  font=(FONT_UI, 9)).pack(pady=(16, 0))
 

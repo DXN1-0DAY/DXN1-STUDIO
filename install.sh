@@ -66,7 +66,8 @@ download "$INSTALL_DIR/README.md" "README.md" required
 
 # package modules
 for f in __init__.py app.py config.py theme.py widgets.py onboarding.py \
-         tour.py projects.py hub.py splash.py packages.py export.py agent.py; do
+         tour.py projects.py hub.py splash.py packages.py export.py agent.py \
+         sandbox.py llm.py; do
     download "$INSTALL_DIR/dxn1_studio/$f" "dxn1_studio/$f" required
 done
 

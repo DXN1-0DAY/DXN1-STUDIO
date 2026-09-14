@@ -3,7 +3,8 @@
 A clean, modern IDE built from scratch with Python & Tkinter. Boot splash,
 Project Hub, workspaces (Python / Flask / Tkinter / empty), one-click Run,
 optional dependency manager, project export, and **DXN1 Agents** — the
-built-in assistant that asks before it touches anything.
+sandboxed assistant that asks before it touches anything and can run on
+your own API key or free model backends.
 
 ## Installation
 
@@ -91,7 +92,9 @@ uninstall. Power users can pip-install anything from the same window.
 
 ## DXN1 Agents
 
-The built-in copilot, fully local and rule-based in this beta. It can:
+The built-in copilot. Two layers:
+
+**Instant skills (offline, always available)** — no key, no network:
 
 - create files with starter templates (`create file utils.py`)
 - scaffold a complete Flask app (`new flask app`)
@@ -99,15 +102,45 @@ The built-in copilot, fully local and rule-based in this beta. It can:
 - open workspace files (`open app.py`), analyze the editor buffer (`explain`)
 - propose raw commands (`shell python -V`)
 
+**Model brains (Settings → DXN1 Agents → Brain)** — pick one:
+
+| Brain | What it is | Cost |
+|-------|------------|------|
+| **Local skills** | The offline rule engine | free, no setup |
+| **BYOK** | Your own API key on any OpenAI-compatible provider — OpenRouter, Groq, Google AI Studio, Mistral, OpenAI, Ollama (local), or a custom endpoint | your key; OpenRouter `:free` models cost nothing |
+| **GitHub Models** | Free tier tracked via your GitHub login (`gh auth token` if you're signed in, or paste a PAT) | free, rate-limited |
+| **Kilo gateway** | Free-model routing through a direct HTTP client built into the studio — deliberately *not* a bundled Kilo instance, so it adds near-zero RAM instead of hundreds of MB | your Kilo token |
+
+The whole backend layer is standard-library `urllib` — no SDKs, no Node,
+no helper processes.
+
+**What the brain can do** (tool loop with up to `agents_max_steps` steps
+per message): list and read workspace files, create/overwrite files,
+surgical find/replace edits, and run commands inside the workspace —
+feeding results back to the model until the task is done.
+
+**Sandbox — the hard boundary:**
+
+- only paths that resolve *inside the open workspace* are reachable;
+  `..` traversal, absolute escapes and symlink escapes are rejected
+- `.git`, `.ssh` and studio internals are off-limits to reads and writes
+- commands run with the workspace as working directory
+- **catastrophic commands** (`rm -rf /`, `sudo`, pipe-to-shell downloads,
+  raw disk writes, forced pushes…) always require an explicit human
+  Accept — even in full-access mode
+
 **Permission model** — the whole point:
 
-- **Ask mode** (default): every edit and command arrives as a card with
-  **Accept / Decline**
-- **Full access**: turn both prompts off in the agent settings and it stops
-  asking — edits apply and commands run immediately
-- Disable it entirely anytime; the panel disappears from the studio
+- **Ask mode** (default): every edit (with a unified diff preview) and
+  every command arrives as a card with **Accept / Decline**
+- **Full access**: turn both prompts off in the agent settings and it
+  stops asking — edits apply and commands run immediately (dangerous
+  commands still ask)
+- the assistant can be disabled entirely; the panel disappears
+- extra **system prompt** field for persona / house style
 
 Find it in **Settings → DXN1 Agents** (or the ⚙ icon on the agent panel).
+Keys are stored locally in `~/.dxn1-studio/config.json` only.
 
 ## Requirements
 
@@ -135,7 +168,9 @@ DXN1-STUDIO/
 │   ├── splash.py            # Boot splash (logo card)
 │   ├── packages.py          # Optional dependency manager
 │   ├── export.py            # ZIP / file export
-│   └── agent.py             # DXN1 Agents assistant + settings
+│   ├── agent.py             # DXN1 Agents panel + brain/permission settings
+│   ├── sandbox.py           # Workspace jail, tool protocol, agent engine
+│   └── llm.py               # Backends: BYOK presets, GitHub Models, Kilo
 ├── assets/                  # Logo & generated artwork
 ├── install.sh               # Curl-based installer
 └── README.md
