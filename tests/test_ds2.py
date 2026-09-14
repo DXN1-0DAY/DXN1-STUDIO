@@ -3917,3 +3917,115 @@ def test_git_chip(tmp_path):
         except tk.TclError:
             pass
         monkeypatch.undo()
+
+
+def test_chip_gestures(tmp_path):
+    """DS2 v2.41 — chip gestures: the red deps chip click queues
+    `deps fix` (one-gesture repair, Enter still runs it), the amber
+    click stays a plain rescan, and the branch chip's right-click
+    menu is honest per state (repo actions only on repos) with
+    working commands (stage-all routes to the shell runner, copy
+    branch fills the clipboard, open jumps to Source Control)."""
+    import tkinter as tk
+    try:
+        root = tk.Tk(); root.withdraw()
+    except tk.TclError:
+        return
+    import subprocess
+    import dxn1_studio.config as cfgmod
+
+    def _git(*args, cwd):
+        subprocess.run(["git", *args], cwd=str(cwd),
+                       capture_output=True, text=True)
+
+    import pytest
+    monkeypatch = pytest.MonkeyPatch()
+    monkeypatch.setattr(cfgmod, "CONFIG_DIR", str(tmp_path))
+    monkeypatch.setattr(cfgmod, "CONFIG_PATH",
+                        str(tmp_path / "config.json"))
+    monkeypatch.setenv("HOME", str(tmp_path))
+    from dxn1_studio.app import DXN1Studio
+    app = DXN1Studio(cfgmod.Config(), smoke_test=True, no_splash=True)
+    try:
+        logs = []
+        real_log = app.terminal.log
+        app.terminal.log = lambda s, *a, **k: logs.append(str(s))
+        # --- deps: the one-gesture repair
+        ws = tmp_path / "ws"
+        ws.mkdir()
+        (ws / "main.py").write_text("import uvicorn\n", encoding="utf-8")
+        app.project_dir = str(ws)
+        app.handle_terminal_command("deps")
+        app._update_depswatch(force=True)
+        assert app.status_deps.cget("text") == "● deps 1 missing"
+        app.terminal.input.delete(0, tk.END)
+        logs.clear()
+        app._deps_chip_click()          # red click → rescan + prefill
+        assert app.terminal.input.get() == "deps fix"
+        assert any("press Enter" in s for s in logs), logs
+        # Enter runs it — the repair lands in requirements.txt
+        app.handle_terminal_command("deps fix")
+        assert "uvicorn" in (ws / "requirements.txt").read_text(
+            encoding="utf-8")
+        assert app.status_deps.cget("text") == "deps ok"
+        # amber (stale) click: no prefill — just a rescan
+        app.terminal.input.delete(0, tk.END)
+        (ws / "late.py").write_text("import flask\n", encoding="utf-8")
+        app._update_depswatch(force=True)
+        assert app.status_deps.cget("text") == "● deps drift"
+        logs.clear()
+        app._deps_chip_click()
+        assert app.terminal.input.get() == ""
+        assert any("file(s) scanned" in s for s in logs), logs
+        # --- git: the right-click menu
+        repo = tmp_path / "repo"
+        repo.mkdir()
+        _git("init", "-q", cwd=repo)
+        (repo / "f.txt").write_text("x\n", encoding="utf-8")
+        app.project_dir = str(repo)
+        # not-yet-a-name repo is still a repo: menu shows repo rows
+        labels = [lab for lab, _cmd in app._git_menu_entries()]
+        assert "Open Source Control" in labels and "Rescan" in labels
+        assert "Stage all changes" in labels, labels
+        # stage-all routes to the shell runner (stubbed — worker thread)
+        ran = []
+        app.run_command = lambda cmd: ran.append(cmd)
+        for lab, cmd in app._git_menu_entries():
+            if lab == "Stage all changes":
+                cmd()
+        assert ran == ["git add -A"], ran
+        # copy branch fills the clipboard
+        _git("add", ".", cwd=repo)
+        _git("-c", "user.email=t@t", "-c", "user.name=t",
+             "commit", "-qm", "one", cwd=repo)
+        app._update_gitchip(force=True)
+        branch = app.status_git.cget("text")
+        for lab, cmd in app._git_menu_entries():
+            if lab == "Copy branch name":
+                cmd()
+        assert root.clipboard_get() == branch, (branch,)
+        # open jumps to Source Control
+        opened = []
+        app.show_sidebar_view = lambda name, *a, **k: opened.append(name)
+        for lab, cmd in app._git_menu_entries():
+            if lab == "Open Source Control":
+                cmd()
+        assert opened == ["git"], opened
+        # a plain folder: honest menu — lane rows disappear
+        plain = tmp_path / "plain"
+        plain.mkdir()
+        app.project_dir = str(plain)
+        labels = [lab for lab, _cmd in app._git_menu_entries()]
+        assert "Stage all changes" not in labels
+        assert "Copy branch name" not in labels
+        assert "Open Source Control" in labels and "Rescan" in labels
+        # the renderer itself never raises (popup is best-effort)
+        app.project_dir = str(repo)
+        app._git_chip_menu()
+    finally:
+        app.terminal.log = real_log
+        try:
+            root.destroy()
+        except tk.TclError:
+            pass
+        monkeypatch.undo()

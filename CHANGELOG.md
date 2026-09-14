@@ -4,6 +4,30 @@ All notable changes to DXN1 STUDIO. Format based on
 [Keep a Changelog](https://keepachangelog.com/); versioning is
 `MAJOR.MINOR.PATCH` while in **beta**.
 
+## [2.41.0] — 2026-09-15 · beta · "one gesture to repair" (chip gestures + context menu + settings)
+
+### Added
+- **One-gesture repair** — clicking the deps chip while it is RED
+  (imports missing from requirements) now rescans *and* queues
+  `deps fix` in the terminal input with a one-line hint: press Enter
+  to pin the missing imports. Nothing fires by accident — Enter
+  stays the trigger. The amber click stays a plain rescan.
+- **`deps fix` heals its own cache** — after pinning, the workspace
+  is re-scanned and re-stored immediately, so the cache and the
+  watch chip never lie about a workspace the studio just fixed; a
+  rare pin that doesn't satisfy its import is called out honestly
+  ("still missing after the pin").
+- **Branch chip context menu** — right-click the git chip for the
+  lane's actions in one themed menu: Open Source Control, Commit
+  graph, Stage all changes (routes through the visible terminal
+  runner), Copy branch name (clipboard + toast), Rescan. Repo rows
+  appear only when the chip is actually watching a repository — a
+  plain folder gets the honest two-row menu.
+- **Settings: "Statusbar watch chips"** — the Dependency watch and
+  Source control watch toggles now live in the Settings dialog too
+  (alongside the `deps watch` / `git watch` verbs); saving redraws
+  both chips immediately.
+
 ## [2.40.0] — 2026-09-15 · beta · "the lanes have eyes" (git lane chip + deps severity)
 
 ### Added

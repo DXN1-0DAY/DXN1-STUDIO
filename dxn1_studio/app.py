@@ -744,6 +744,7 @@ class DXN1Studio:
         self.status_git.pack(side=tk.RIGHT, padx=(0, 12))
         self.status_git.bind("<Button-1>",
                              lambda _e: self._git_chip_click())
+        self.status_git.bind("<Button-3>", self._git_chip_menu)
         self._git_sig_state = ""    # last state the git chip was drawn for
         self._git_probed_at = 0.0   # throttle — one git call max per 3s
         self._chip_tip(self.status_git,
@@ -4997,10 +4998,93 @@ class DXN1Studio:
             pass
 
     def _deps_chip_click(self):
-        """Click the drift chip: rescan deps (a drifted workspace is a
-        cache miss, so this is a real scan) and redraw the chip."""
+        """Click the drift chip: rescan deps and redraw. v2.41 one-
+        gesture repair: when the chip is RED (the last report found
+        imports missing from requirements) the click also drops
+        ``deps fix`` into the terminal input — Enter runs it, the
+        user stays in charge."""
+        red = False
+        try:
+            state, missing_n = self._deps_watch_state()
+            red = state == "cached" and missing_n > 0
+        except Exception:  # noqa: BLE001 — the chip never raises
+            red = False
         self._run_depcheck()
         self._update_depswatch(force=True)
+        if red:
+            self._prefill_terminal("deps fix")
+            self.terminal.log("deps fix is queued in the input — "
+                              "press Enter to pin the missing "
+                              "imports")
+
+    def _git_menu_entries(self):
+        """DS2 v2.41 — the branch-chip context menu's rows, as
+        ``(label, command)`` pairs (``("---", None)`` = separator).
+        Repo actions appear only when the chip is actually watching
+        a repository. Pure data — trivially testable, rendered by
+        `_git_chip_menu`."""
+        entries = [("Open Source Control",
+                    lambda: self.show_sidebar_view("git"))]
+        st = None
+        try:
+            st = self._git_watch_state()
+        except Exception:  # noqa: BLE001 — menu still opens
+            st = None
+        if st and st.get("repo"):
+            entries.append(("Commit graph", self._open_git_graph_chip))
+            entries.append(("Stage all changes",
+                            lambda: self.run_command("git add -A")))
+            branch = str(st.get("branch") or "")
+            if branch:
+                entries.append(("Copy branch name",
+                                lambda: self._copy_branch_name(branch)))
+        entries.append(("---", None))
+        entries.append(("Rescan",
+                        lambda: self._update_gitchip(force=True)))
+        return entries
+
+    def _git_chip_menu(self, event=None):
+        """DS2 v2.41 — right-click the branch chip: the lane's actions
+        in one themed menu (open Source Control, commit graph, stage
+        everything, copy the branch name, rescan). Never raises."""
+        try:
+            t = self.theme
+            menu = tk.Menu(self.root, tearoff=0, bg=t["sidebar"],
+                           fg=t["text"], activebackground=t["hover"],
+                           activeforeground=t["text"],
+                           font=(FONT_UI, 9))
+            for label, cmd in self._git_menu_entries():
+                if label == "---":
+                    menu.add_separator()
+                else:
+                    menu.add_command(label=label, command=cmd)
+            try:
+                x = getattr(event, "x_root", 0) or 0
+                y = getattr(event, "y_root", 0) or 0
+                menu.tk_popup(x, y)
+            finally:
+                menu.grab_release()
+        except Exception:  # noqa: BLE001 — a menu must never break typing
+            pass
+
+    def _open_git_graph_chip(self):
+        """Commit graph from the chip menu — same window the palette
+        and the Source Control panel open. Never raises."""
+        try:
+            from . import gitgraph as _gg
+            _gg.open_graph(self.root, self.theme, self.project_dir,
+                           on_log=lambda m: None)
+        except Exception:  # noqa: BLE001 — best-effort window
+            self.terminal.log("git graph unavailable here")
+
+    def _copy_branch_name(self, branch):
+        """Copy the branch name to the clipboard + a quiet toast."""
+        try:
+            self.root.clipboard_clear()
+            self.root.clipboard_append(branch)
+            self.toast("Copied: %s" % branch, "info")
+        except Exception:  # noqa: BLE001 — clipboard is garnish
+            pass
 
     def _deps_watch_toggle(self, arg=""):
         """``deps watch [on|off]`` — the statusbar drift chip, and the
@@ -5249,6 +5333,17 @@ class DXN1Studio:
                     f"deps fix: added {len(res['added'])} pin(s) to "
                     f"{os.path.basename(res.get('target') or '')}: "
                     + ", ".join(res["added"]))
+                # v2.41: the repaired workspace is the new truth —
+                # rescan + re-store so the cache and the watch chip
+                # never lie about a workspace we just fixed
+                rep2 = _dc.check_cached(self.project_dir,
+                                        use_cache=False)
+                self._deps_sig_state = ""
+                self._update_depswatch(force=True)
+                if rep2.get("missing"):
+                    self.terminal.log(
+                        "deps fix: still missing after the pin — "
+                        + ", ".join(str(n) for n in rep2["missing"][:6]))
             elif res.get("ok"):
                 self.terminal.log("deps fix: requirements already "
                                   "cover every import")
@@ -6023,6 +6118,11 @@ class SettingsDialog(tk.Toplevel):
             value=bool(cfg.get("session_autosave", True)))
         self.updates_v = tk.BooleanVar(
             value=bool(cfg.get("check_updates", True)))
+        # DS2 v2.41: the statusbar watch chips live here too
+        self.depswatch_v = tk.BooleanVar(
+            value=bool(cfg.get("deps_watch", True)))
+        self.gitwatch_v = tk.BooleanVar(
+            value=bool(cfg.get("git_watch", True)))
         try:   # DS2 v2.36: update heartbeat interval, minutes
             _upd_min = max(15, min(360, int(
                 cfg.get("update_check_secs", 3600)) // 60))
@@ -6158,6 +6258,30 @@ class SettingsDialog(tk.Toplevel):
                  bg=t["card"], fg=t["text_secondary"],
                  font=(FONT_UI, 8)).pack(side=tk.LEFT)
 
+        # --- statusbar watch chips (DS2 v2.41)
+        secW = self._section(box, "Statusbar watch chips")
+        for var, label, sub in (
+                (self.depswatch_v, "Dependency watch",
+                 "Amber when the workspace drifts from the last deps "
+                 "report, red when imports are missing from "
+                 "requirements."),
+                (self.gitwatch_v, "Source control watch",
+                 "Shows the branch; amber with ●N when files wait to "
+                 "be committed, ↑/↓ when the branch diverges.")):
+            wrow = tk.Frame(secW, bg=t["card"])
+            wrow.pack(fill=tk.X, pady=3, ipady=4)
+            tk.Checkbutton(wrow, variable=var, bg=t["card"], fg=t["text"],
+                           activebackground=t["card"],
+                           activeforeground=t["text"],
+                           selectcolor=t["editor"],
+                           highlightthickness=0, bd=0).pack(
+                side=tk.LEFT, padx=(12, 4))
+            tk.Label(wrow, text=label, bg=t["card"], fg=t["text"],
+                     font=(FONT_UI, 10, "bold")).pack(side=tk.LEFT)
+            tk.Label(wrow, text=f"  ·  {sub}", bg=t["card"],
+                     fg=t["text_secondary"], font=(FONT_UI, 8)).pack(
+                side=tk.LEFT)
+
         # --- agents
         sec3 = self._section(box, "DXN1 Agents")
         btn = tk.Label(sec3, text="Open agent settings…", bg=t["card"],
@@ -6291,6 +6415,15 @@ class SettingsDialog(tk.Toplevel):
         cfg.set("restore_session", bool(self.session_v.get()))
         cfg.set("session_autosave", bool(self.sesauto_v.get()))
         cfg.set("check_updates", bool(self.updates_v.get()))
+        # DS2 v2.41: watch chips — persist and redraw live
+        cfg.set("deps_watch", bool(self.depswatch_v.get()))
+        cfg.set("git_watch", bool(self.gitwatch_v.get()))
+        self.app._deps_sig_state = ""
+        self.app._deps_probed_at = 0.0
+        self.app._update_depswatch(force=True)
+        self.app._git_sig_state = ""
+        self.app._git_probed_at = 0.0
+        self.app._update_gitchip(force=True)
         try:   # DS2 v2.36: heartbeat minutes -> clamped seconds
             _upd_secs = max(900, min(21600,
                                      int(self.updint_v.get()) * 60))
