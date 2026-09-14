@@ -97,7 +97,9 @@ check("keys: the git menu advertises Enter where a repo exists",
       and _commit_rows[0][2] == "Enter")
 _src = open("dxn1_studio/app.py", encoding="utf-8").read()
 check("keys: the shared renderer passes accelerators to the real menu",
-      "accelerator=accel" in _src)
+      'kw["accelerator"] = accel' in _src)
+check("keys: v2.51 — the renderer forwards severity colors too",
+      'kw["foreground"] = color' in _src)
 _doc = open("docs/KEYBINDINGS.md", encoding="utf-8").read()
 check("keys: the keybindings doc agrees with the code",
       "`Ctrl+Shift+D` | Duplicate line" in _doc

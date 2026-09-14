@@ -4,6 +4,34 @@ All notable changes to DXN1 STUDIO. Format based on
 [Keep a Changelog](https://keepachangelog.com/); versioning is
 `MAJOR.MINOR.PATCH` while in **beta**.
 
+## [2.51.0] — 2026-09-15 · beta · "the diary writes itself" (nightly activity auto-snapshot + a menu that wears its severity)
+
+### Added
+- **Nightly receipts auto-snapshot** — when the gate is on, the whole
+  activity diary lands in `<config>/exports/activity-auto-<stamp>.json`
+  every 24 hours: checked politely 8 seconds after boot and re-armed
+  every half hour (the clock decides, not the session count), written
+  atomically in ring order, round-tripping through `load_json`, with
+  the last 14 snapshots kept and older ones pruned. The gate ships
+  OFF — nothing writes behind your back until you ask.
+- **`activity snap`** — write a snapshot now, gate or no gate: the
+  same code path the nightly clock uses, so the verb keeps the
+  machinery honest. **`activity auto on|off`** flips the gate from
+  the terminal; bare `activity auto` reports the state.
+- **Settings: Activity section** — the gate as a checkbox, the
+  retention rule and the terminal verbs named underneath, persisted
+  with every other setting.
+- **The deps menu wears its severity** — the shared chip-menu
+  renderer accepts a 4th row element (foreground): the deps menu
+  paints `Queue deps fix (N missing)` and the fresh rescan with the
+  chip's red when imports are missing, and its rescans with the
+  chip's amber when the cache drifted. The menu and the chip finally
+  tell the same story in the same colors.
+
+### Changed
+- The activity help rows grew the two new verbs; the deps repair row
+  now names its number ("2 missing") instead of asking you to guess.
+
 ## [2.50.0] — 2026-09-15 · beta · "every sign now hangs on a real key" (hint bars wave 3)
 
 ### Added

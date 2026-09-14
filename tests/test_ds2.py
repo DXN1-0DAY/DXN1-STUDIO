@@ -4071,14 +4071,20 @@ def test_chip_menus(tmp_path):
         app._update_depswatch(force=True)
         assert app.status_deps.cget("text") == "● deps 1 missing"
         labels = [e[0] for e in app._deps_menu_entries()]
-        assert "Rescan deps" in labels and "Queue deps fix" in labels
+        assert "Rescan deps" in labels
+        # v2.51: the repair row names its number and wears the chip's red
+        fix_rows = [l for l in labels if l.startswith("Queue deps fix")]
+        assert fix_rows and "1 missing" in fix_rows[0]
+        colored = [e for e in app._deps_menu_entries()
+                   if len(e) > 3 and e[3]]
+        assert colored and all(e[3] == "#f85149" for e in colored)
         assert "Fresh rescan (bypass cache)" in labels
         assert "Deps watch on/off" in labels and "Rescan chip" in labels
         # the repair row queues the fix (same one-gesture contract)
         app.terminal.input.delete(0, tk.END)
         logs.clear()
         for lab, cmd, *_r in app._deps_menu_entries():
-            if lab == "Queue deps fix":
+            if lab.startswith("Queue deps fix"):
                 cmd()
         assert app.terminal.input.get() == "deps fix"
         assert any("press Enter" in s for s in logs), logs
@@ -4685,13 +4691,13 @@ def test_honest_keys(tmp_path):
         commit = [e for e in rows if e[0] == "Commit staged…"]
         assert commit and len(commit[0]) == 3 \
             and commit[0][2] == "Enter"
-        # the renderer passes the accelerator to the real menu
+        # the renderer forwards both accelerator and severity color
         app_src = open(os.path.join(
             os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
             "dxn1_studio", "app.py"), encoding="utf-8").read()
-        assert "menu.add_command(label=label, command=cmd,\n" \
-               "                                     accelerator=accel)" \
-            in app_src
+        assert 'menu.add_command(label=label, command=cmd, **kw)' in app_src
+        assert 'kw["accelerator"] = accel' in app_src
+        assert 'kw["foreground"] = color' in app_src
         # the real Enter-to-commit binding lives in the panel
         gp_src = open(os.path.join(
             os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
@@ -5376,3 +5382,89 @@ def test_hint_wave3(tmp_path):
         root.destroy()
     except tk.TclError:
         pass
+
+
+def test_activity_autosnap(tmp_path, monkeypatch):
+    """DS2 v2.51 — the diary writes itself: the nightly snapshot gate
+    is off by default (nothing writes behind your back), due the
+    moment the gate is on and the last run is missing/stale, quiet
+    right after a run; a forced snapshot writes the chronological
+    JSON diary to exports/ (round-tripping through load_json), prunes
+    older snapshots beyond the keep window, stamps the run in config,
+    and survives junk config values. The verb row and the Settings
+    section agree with the code."""
+    import json as _json
+    import time as _time
+    from dxn1_studio import config as cfgmod
+    from dxn1_studio.activity import (ActivityLog, autosnap, autosnap_due,
+                                      load_json, snap_dir, AUTOSNAP_KEEP)
+    monkeypatch.setattr(cfgmod, "CONFIG_DIR", str(tmp_path))
+    monkeypatch.setattr(cfgmod, "CONFIG_PATH",
+                        str(tmp_path / "config.json"))
+    cfg = cfgmod.Config()
+    log = ActivityLog(cap=50)
+    log.add("first whisper", "info", now=1000.0)
+    log.add("committed", "success", now=2000.0)
+
+    # the gate is off by default — nothing writes behind your back
+    assert autosnap_due(cfg) is False
+    assert autosnap(log, cfg) == (None, 0)
+    assert not (tmp_path / "exports").exists()
+
+    # gate on + never ran → due; right after a run → not due
+    cfg.set("activity_autosnap", True, save=False)
+    assert autosnap_due(cfg) is True
+    cfg.set("activity_autosnap_last", _time.time(), save=False)
+    assert autosnap_due(cfg) is False
+
+    # a custom interval moves the clock (and junk gets the default)
+    cfg.set("activity_autosnap_last", 0.0, save=False)
+    assert autosnap_due(cfg, now=25 * 3600.0, min_hours=24.0) is True
+    assert autosnap_due(cfg, now=2 * 3600.0, min_hours=24.0) is False
+    cfg.set("activity_autosnap_hours", "junk", save=False)
+    assert autosnap_due(cfg, now=25 * 3600.0) is True
+    assert autosnap_due(cfg, now=2 * 3600.0) is False
+
+    # forced snapshot: writes JSON, round-trips, stamps the run
+    path, pruned = autosnap(log, cfg, force=True)
+    assert path and os.path.basename(path).startswith("activity-auto-") \
+        and path.endswith(".json") and pruned == 0
+    assert str(tmp_path) in path and "exports" in path
+    data = _json.load(open(path, encoding="utf-8"))
+    assert [e["message"] for e in data["entries"]] == \
+        ["committed", "first whisper"]       # ring order preserved
+    assert {e["kind"] for e in data["entries"]} == {"info", "success"}
+    assert load_json(path).count() == 2
+    assert float(cfg.get("activity_autosnap_last")) > 0
+
+    # pruning: 16 snapshots in the folder → the next run keeps 14
+    d = snap_dir()
+    have = len([f for f in os.listdir(d) if f.startswith("activity-auto-")])
+    for i in range(AUTOSNAP_KEEP + 2 - have):
+        with open(os.path.join(d, "activity-auto-20200101-000%02d.json"
+                               % i), "w", encoding="utf-8") as fh:
+            fh.write("{}")
+    path2, pruned2 = autosnap(log, cfg, force=True)
+    assert path2 and pruned2 == 2
+    left = [f for f in os.listdir(d) if f.startswith("activity-auto-")]
+    assert len(left) == AUTOSNAP_KEEP
+
+    # the app agrees: verb rows, routing, the boot hook and the gate
+    base = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    with open(os.path.join(base, "dxn1_studio", "app.py"),
+              encoding="utf-8") as fh:
+        src = fh.read()
+    assert '("activity snap", "write a nightly receipts snapshot now, "' in src
+    assert '("activity auto on|off"' in src
+    assert 'self.root.after(8000, self._activity_autosnap_check)' in src
+    assert '30 * 60 * 1000' in src                      # the re-arm
+    assert 'self._activity_autosnap_check(force=True)' in src
+    assert '"activity_autosnap", arg == "on"' in src    # the terminal gate
+    assert 'bool(cfg.get("activity_autosnap", False))' in src
+    assert 'cfg.set("activity_autosnap",' in src        # settings persist
+    with open(os.path.join(base, "dxn1_studio", "activity.py"),
+              encoding="utf-8") as fh:
+        act = fh.read()
+    assert "AUTOSNAP_KEEP = 14" in act
+    assert "def autosnap(" in act and "def autosnap_due(" in act
+    assert "def snap_dir(" in act

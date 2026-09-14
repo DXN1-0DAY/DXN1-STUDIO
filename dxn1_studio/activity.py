@@ -576,3 +576,90 @@ def open_activity(master, theme, log, on_copy=None, on_change=None,
     except Exception:  # noqa: BLE001 — focus is garnish
         pass
     return win
+
+
+# ---------------------------------------- DS2 v2.51 the diary writes itself
+AUTOSNAP_KEEP = 14            # snapshots kept per folder
+AUTOSNAP_HOURS = 24.0         # the "nightly" gate, in hours
+_AUTOSNAP_STEM = "activity-auto-"
+
+
+def snap_dir():
+    """Where auto-snapshots live: ``<CONFIG_DIR>/exports`` — beside
+    everything else the studio keeps, and out of the workspace's way.
+    Resolved at call time so tests can redirect CONFIG_DIR. Never
+    raises (a broken import still names a sane home)."""
+    try:
+        from . import config as _cfgmod
+        return os.path.join(_cfgmod.CONFIG_DIR, "exports")
+    except Exception:  # noqa: BLE001 — a sane fallback
+        return os.path.join(os.path.expanduser("~"),
+                            ".dxn1-studio", "exports")
+
+
+def autosnap_due(config, now=None, min_hours=None):
+    """Is a snapshot due? The gate is ``activity_autosnap`` (off by
+    default — nothing writes behind your back until you ask); the
+    last run is stamped ``activity_autosnap_last`` in config, and the
+    interval is ``activity_autosnap_hours`` (default 24). A missing
+    stamp means due the moment the gate is on. Never raises."""
+    try:
+        if not config.get("activity_autosnap", False):
+            return False
+        try:
+            hours = float(min_hours if min_hours is not None else
+                          config.get("activity_autosnap_hours",
+                                     AUTOSNAP_HOURS))
+        except Exception:  # noqa: BLE001 — junk interval, sane default
+            hours = AUTOSNAP_HOURS
+        if hours <= 0:
+            hours = AUTOSNAP_HOURS
+        try:
+            last = float(config.get("activity_autosnap_last", 0.0))
+        except Exception:  # noqa: BLE001
+            last = 0.0
+        t = float(now) if now is not None else _time.time()
+        return (t - last) >= hours * 3600.0
+    except Exception:  # noqa: BLE001 — a broken config answers no
+        return False
+
+
+def autosnap(log, config, now=None, force=False, keep=AUTOSNAP_KEEP):
+    """The nightly snapshot: when the gate is on and the clock says
+    due (or ``force``, the verb's way), write the whole ring as the
+    chronological JSON diary to ``exports/activity-auto-<stamp>.json``
+    (atomic, like every other export), prune older snapshots beyond
+    ``keep``, stamp the run in config, and return
+    ``(path, pruned)`` — ``(None, 0)`` when not due or the disk said
+    no. Never raises."""
+    try:
+        if not force and not autosnap_due(config, now=now):
+            return (None, 0)
+        t = float(now) if now is not None else _time.time()
+        d = snap_dir()
+        name = (_AUTOSNAP_STEM
+                + _time.strftime("%Y%m%d-%H%M%S", _time.localtime(t))
+                + ".json")
+        path = export_to(log, os.path.join(d, name), fmt="json")
+        if not path:
+            return (None, 0)
+        pruned = 0
+        try:
+            olds = sorted(f for f in os.listdir(d)
+                          if f.startswith(_AUTOSNAP_STEM)
+                          and f.endswith(".json"))
+            for f in olds[:max(0, len(olds) - int(keep))]:
+                try:
+                    os.remove(os.path.join(d, f))
+                    pruned += 1
+                except Exception:  # noqa: BLE001 — one file dies alone
+                    pass
+        except Exception:  # noqa: BLE001 — pruning is garnish
+            pass
+        try:
+            config.set("activity_autosnap_last", t, save=True)
+        except Exception:  # noqa: BLE001 — the file exists either way
+            pass
+        return (path, pruned)
+    except Exception:  # noqa: BLE001 — a full disk must not break boot
+        return (None, 0)

@@ -77,14 +77,15 @@ try:
           app.status_deps.cget("text") == "● deps 1 missing")
     labels = [e[0] for e in app._deps_menu_entries()]
     check("menu: the red chip's menu offers the full lane",
-          "Rescan deps" in labels and "Queue deps fix" in labels
+          "Rescan deps" in labels
+          and any(l.startswith("Queue deps fix") for l in labels)
           and "Fresh rescan (bypass cache)" in labels
           and "Deps watch on/off" in labels and "Rescan chip" in labels)
     # the repair row: same one-gesture contract as the red click
     app.terminal.input.delete(0, tk.END)
     logs.clear()
     for lab, cmd, *_r in app._deps_menu_entries():
-        if lab == "Queue deps fix":
+        if lab.startswith("Queue deps fix"):
             cmd()
     check("menu: queue-fix prefills `deps fix` + the Enter hint",
           app.terminal.input.get() == "deps fix"

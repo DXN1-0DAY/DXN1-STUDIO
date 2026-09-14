@@ -138,6 +138,11 @@ TERMINAL_HELP = (
     ("activity export [json|csv] [path]",
      "every receipt to a file — format follows the extension "
      "(default beside activity.json)"),
+    ("activity snap", "write a nightly receipts snapshot now, "
+                      "gate or no gate"),
+    ("activity auto on|off", "the nightly snapshot gate — when on, "
+                             "the whole diary lands in exports/ "
+                             "every 24h, last 14 kept"),
     ("update", "check GitHub for a newer release"),
     ("whatsnew", "release notes — what changed between tags"),
     ("deps", "cross-check imports vs requirements*.txt "
@@ -849,6 +854,13 @@ class DXN1Studio:
                 else ActivityLog(cap=100)
         except Exception:  # noqa: BLE001 — the log is optional
             self.activity_log = None
+        # DS2 v2.51: the diary writes itself — first nightly-snapshot
+        # check politely late (the toast layer is alive by then),
+        # then re-armed every half hour by the check itself
+        try:
+            self.root.after(8000, self._activity_autosnap_check)
+        except Exception:  # noqa: BLE001 — garnish
+            pass
 
         # toast layer (placed above the status bar, right aligned)
         self.toast_layer = tk.Frame(self.root, bg=t["bg"])
@@ -3690,8 +3702,29 @@ class DXN1Studio:
                     path = rest[6:].strip() or None
                 self._activity_export_to(path, fmt=fmt)
                 return
+            if rest == "snap":
+                # DS2 v2.51 — snapshot now, gate or no gate
+                self._activity_autosnap_check(force=True)
+                return
+            if rest.startswith("auto"):
+                # DS2 v2.51 — the nightly gate, from the terminal
+                arg = rest[4:].strip().lower()
+                if arg in ("on", "off"):
+                    self.config.set("activity_autosnap", arg == "on",
+                                    save=True)
+                    self.toast("Nightly receipts snapshots %s"
+                               % ("on" if arg == "on" else "off"),
+                               "success")
+                else:
+                    self.terminal.log(
+                        "nightly snapshots are %s — try: "
+                        "activity auto on|off"
+                        % ("on" if self.config.get(
+                            "activity_autosnap", False) else "off"))
+                return
             self.terminal.log("try: activity · activity copy · "
-                              "activity export [json|csv] [path]")
+                              "activity export [json|csv] [path] · "
+                              "activity snap · activity auto on|off")
             return
         if low == "deps" or low.startswith("deps "):
             rest = text[4:].strip().lower()
@@ -5198,22 +5231,30 @@ class DXN1Studio:
         ``(label, command)`` pairs (``("---", None)`` = separator).
         The repair row appears only when the last report actually
         found missing imports — honest per state, same contract as
-        the branch chip's menu. Pure data, rendered by
+        the branch chip's menu. v2.51 — the rows wear the chip's
+        severity: red repair/rescan when imports are missing, amber
+        rescans when the cache drifted. Pure data, rendered by
         `_deps_chip_menu`."""
-        entries = [("Rescan deps",
-                    lambda: (self._run_depcheck(),
-                             self._update_depswatch(force=True)))]
-        red = False
+        state, missing_n = "absent", 0
         try:
             state, missing_n = self._deps_watch_state()
-            red = state == "cached" and missing_n > 0
         except Exception:  # noqa: BLE001 — menu still opens
-            red = False
+            pass
+        red = state == "cached" and missing_n > 0
+        amber = state == "stale"
+        err_c, amber_c = "#f85149", "#f59e0b"   # the chip's own palette
+        entries = [("Rescan deps",
+                    lambda: (self._run_depcheck(),
+                             self._update_depswatch(force=True)),
+                    "", amber_c if amber and not red else None)]
         if red:
-            entries.append(("Queue deps fix", self._deps_queue_fix))
+            entries.append(("Queue deps fix (%d missing)" % missing_n,
+                            self._deps_queue_fix, "", err_c))
         entries.append(("Fresh rescan (bypass cache)",
                         lambda: (self._run_depcheck(force=True),
-                                 self._update_depswatch(force=True))))
+                                 self._update_depswatch(force=True)),
+                        "", err_c if red else
+                        (amber_c if amber else None)))
         entries.append(("---", None))
         entries.append(("Deps watch on/off", self._deps_watch_toggle))
         entries.append(("Rescan chip",
@@ -5426,6 +5467,40 @@ class DXN1Studio:
         except Exception:  # noqa: BLE001 — a verb must never raise
             self.terminal.log("activity export unavailable here")
 
+    def _activity_autosnap_check(self, force=False):
+        """DS2 v2.51 — the diary writes itself: when the gate is on
+        and the clock says due, write the chronological JSON snapshot
+        into exports/, prune the old ones, and acknowledge with a
+        receipt of its own. Polite: checked 8s after boot (the toast
+        layer is alive by then) and re-armed every half hour after;
+        a full disk is a silent non-event. Never raises."""
+        path = None
+        pruned = 0
+        try:
+            log = getattr(self, "activity_log", None)
+            if log is not None:
+                from .activity import autosnap
+                path, pruned = autosnap(self.activity_log, self.config,
+                                        force=force)
+                if path:
+                    msg = ("Nightly receipts snapshot → %s" % path)
+                    if pruned:
+                        msg += " (%d old pruned)" % pruned
+                    self.toast(msg, "success")
+                    try:
+                        self.terminal.log(msg)
+                    except Exception:  # noqa: BLE001
+                        pass
+        except Exception:  # noqa: BLE001 — a snapshot must never raise
+            pass
+        finally:
+            try:
+                if self.root.winfo_exists():
+                    self.root.after(30 * 60 * 1000,
+                                    self._activity_autosnap_check)
+            except Exception:  # noqa: BLE001 — dying quietly
+                pass
+
     def _git_menu_entries(self):
         """DS2 v2.41 — the branch-chip context menu's rows, as
         ``(label, command)`` pairs (``("---", None)`` = separator).
@@ -5468,6 +5543,9 @@ class DXN1Studio:
         v2.47 — a row may be ``(label, command, accel)`` and the
         accelerator is advertised right-aligned, but ONLY where a
         real keybinding exists (the git menu's Enter-to-commit).
+        v2.51 — a row may be ``(label, command, accel, color)`` and
+        the label takes that foreground: the deps menu paints its
+        repair rows with the same severity the chip itself wears.
         The popup itself is best-effort — a menu must never break
         typing."""
         try:
@@ -5479,11 +5557,16 @@ class DXN1Studio:
             for entry in entries:
                 label, cmd = entry[0], entry[1]
                 accel = str(entry[2]) if len(entry) > 2 else ""
+                color = entry[3] if len(entry) > 3 else None
                 if label == "---":
                     menu.add_separator()
-                elif accel:
-                    menu.add_command(label=label, command=cmd,
-                                     accelerator=accel)
+                elif accel or color:
+                    kw = {}
+                    if accel:
+                        kw["accelerator"] = accel
+                    if color:
+                        kw["foreground"] = color
+                    menu.add_command(label=label, command=cmd, **kw)
                 else:
                     menu.add_command(label=label, command=cmd)
             try:
@@ -6593,6 +6676,9 @@ class SettingsDialog(tk.Toplevel):
             value=bool(cfg.get("toast_show_success", True)))
         self.toasterror_v = tk.BooleanVar(
             value=bool(cfg.get("toast_show_error", True)))
+        # DS2 v2.51: the diary writes itself (nightly snapshots)
+        self.activity_autosnap_v = tk.BooleanVar(
+            value=bool(cfg.get("activity_autosnap", False)))
         try:   # DS2 v2.36: update heartbeat interval, minutes
             _upd_min = max(15, min(360, int(
                 cfg.get("update_check_secs", 3600)) // 60))
@@ -6779,6 +6865,30 @@ class SettingsDialog(tk.Toplevel):
                  bg=t["card"], fg=t["text_secondary"], font=(FONT_UI, 8)
                  ).pack(anchor="w", padx=10, pady=(0, 6))
 
+        # --- activity (DS2 v2.51): the nightly auto-snapshot gate
+        secA = self._section(box, "Activity")
+        arow = tk.Frame(secA, bg=t["card"])
+        arow.pack(fill=tk.X, pady=3, ipady=4)
+        tk.Checkbutton(arow, variable=self.activity_autosnap_v,
+                       bg=t["card"], fg=t["text"],
+                       activebackground=t["card"],
+                       activeforeground=t["text"],
+                       selectcolor=t["editor"],
+                       highlightthickness=0, bd=0).pack(
+            side=tk.LEFT, padx=(12, 4))
+        tk.Label(arow, text="Nightly receipts snapshot",
+                 bg=t["card"], fg=t["text"],
+                 font=(FONT_UI, 10, "bold")).pack(side=tk.LEFT)
+        tk.Label(arow, text="  ·  every 24h the whole diary lands in "
+                            "exports/ as JSON — the last 14 are kept",
+                 bg=t["card"], fg=t["text_secondary"],
+                 font=(FONT_UI, 8)).pack(side=tk.LEFT)
+        tk.Label(secA, text="`activity snap` writes one now · "
+                            "`activity auto on|off` flips the gate from "
+                            "the terminal.",
+                 bg=t["card"], fg=t["text_secondary"], font=(FONT_UI, 8)
+                 ).pack(anchor="w", padx=10, pady=(0, 6))
+
         # --- agents
         sec3 = self._section(box, "DXN1 Agents")
         btn = tk.Label(sec3, text="Open agent settings…", bg=t["card"],
@@ -6919,6 +7029,9 @@ class SettingsDialog(tk.Toplevel):
         cfg.set("toast_show_info", bool(self.toastinfo_v.get()))
         cfg.set("toast_show_success", bool(self.toastsuccess_v.get()))
         cfg.set("toast_show_error", bool(self.toasterror_v.get()))
+        # DS2 v2.51: nightly receipts snapshots
+        cfg.set("activity_autosnap",
+                bool(self.activity_autosnap_v.get()))
         self.app._deps_sig_state = ""
         self.app._deps_probed_at = 0.0
         self.app._update_depswatch(force=True)

@@ -498,6 +498,17 @@
 | Git-graph zoom | `GitGraphWindow.zoom_step()` / `zoom_reset()`, keys `+` `−` `0` | A real row-density zoom (0.5×–3.0×): rows, lanes, dots, diagonal edges, click hit-testing and the scroll region rescale together, so a 200-commit repo reads as a trunk or as a spreadsheet at one keystroke; `F5` / `Ctrl+R` refresh from the keyboard |
 | Doc states the rule | `docs/KEYBINDINGS.md` — Tool windows (v2.48) | The keybindings doc gained the window keys and says the rule out loud: a key appears in a hint bar only if the code really binds it — unit-tested so it stays that way |
 
+## The Diary Writes Itself (v2.51.0)
+
+| Feature | Where | What it does |
+|---|---|---|
+| Nightly auto-snapshot | `activity.autosnap()`, gate `activity_autosnap` | When the gate is on, the whole receipt diary lands in `<config>/exports/activity-auto-<stamp>.json` every 24h (checked 8s after boot, then every half hour — the clock decides, not the session count); the ring order is preserved, the write is atomic, and the last 14 snapshots are kept — older ones are pruned by name, count reported |
+| Honest defaults | `activity.autosnap_due()` | The gate ships OFF — nothing writes behind your back until you ask; a missing last-run stamp means due the moment the gate turns on; a junk interval falls back to 24h; a full disk is a silent non-event (the diary itself survives) |
+| `activity snap` | terminal verb | Write a snapshot now, gate or no gate — the same code path the nightly clock uses, so the verb tests the machinery |
+| `activity auto on\|off` | terminal verb | Flip the nightly gate from the terminal; bare `activity auto` reports the state honestly |
+| Settings: Activity section | `app.py` settings window | The gate as a checkbox ("every 24h the whole diary lands in exports/ as JSON — the last 14 are kept") with the terminal verbs named underneath; persisted with every other setting |
+| Deps menu wears its severity | `_deps_menu_entries()` + `_render_chip_menu()` | The chip-menu renderer takes a 4th tuple element (foreground): the deps menu now paints its rows with the chip's own palette — red `Queue deps fix (N missing)` + red fresh rescan when imports are missing, amber rescans when the cache drifted — so the menu and the chip tell the same story in the same colors |
+
 ## Hint Bars Wave 3 (v2.50.0)
 
 | Feature | Where | What it does |
