@@ -2240,6 +2240,33 @@ class DXN1Studio:
             )
         except Exception:  # pragma: no cover — palette stays alive
             pass
+        # ---- DS2 safety: workspace snapshots (defensive)
+        try:
+            from .backup import open_snapshots as _open_snaps, \
+                create_snapshot as _snap
+
+            def _quick_snapshot():
+                if not self.project_dir:
+                    self.terminal.log("snapshot: open a workspace first")
+                    return
+                path, stats = _snap(self.project_dir,
+                                    label="manual")
+                self.terminal.log(
+                    f"snapshot: {os.path.basename(path)} "
+                    f"({stats['zipped']} files)")
+                self.toast("Snapshot saved", "success")
+
+            cmds += [
+                ("Snapshot — back up this workspace now", "",
+                 _quick_snapshot),
+                ("Browse snapshots…", "",
+                 lambda: _open_snaps(
+                     self.root, self.theme, self.config,
+                     workspace=self.project_dir,
+                     on_log=lambda m: self.terminal.log(m))),
+            ]
+        except Exception:  # pragma: no cover — palette stays alive
+            pass
         if self.config.get("agents_enabled"):
             cmds += [
                 ("Toggle DXN1 Agents panel", "", self.toggle_agents_panel),
