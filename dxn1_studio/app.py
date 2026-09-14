@@ -431,6 +431,11 @@ class DXN1Studio:
         self.status_agents.pack(side=tk.RIGHT, padx=(0, 10))
         tk.Label(right, text=f"v{APP_VERSION}-{APP_CHANNEL}", bg=t["statusbar"],
                  fg=t["text_muted"], font=(FONT_UI, 9)).pack(side=tk.RIGHT)
+        # DS2: plugin status items — one compact label fed by
+        # plugins.get_registry().status_text() (kept left of agents)
+        self.status_plugins = tk.Label(right, text="", bg=t["statusbar"],
+                                       fg=t.accent, font=(FONT_UI, 9))
+        self.status_plugins.pack(side=tk.RIGHT, padx=(0, 10))
 
         # toast layer (placed above the status bar, right aligned)
         self.toast_layer = tk.Frame(self.root, bg=t["bg"])
@@ -548,6 +553,7 @@ class DXN1Studio:
 
         # DXN1 Agents dock — built above; just refresh its status here
         self._refresh_agents_status()
+        self._refresh_plugin_status()   # DS2: plugins statusbar + 5s timer
 
     # --------------------------------------------------------- activity bar
     def _build_activity(self):
@@ -720,6 +726,7 @@ class DXN1Studio:
         self._build_toolbar()
         self.setup_menu()          # rebuild so agent entries appear/disappear
         self._refresh_agents_status()
+        self._refresh_plugin_status()   # DS2: pick up reloads immediately
         self._paint_activity()
 
     def toggle_agents_panel(self):
@@ -747,6 +754,42 @@ class DXN1Studio:
             text=f"◆ Agents: {llm.describe_backend(self.config)} · "
                  f"{'full access' if full else 'ask mode'}",
             fg=self.theme["success"] if full else self.theme["text_muted"])
+
+    def _refresh_plugin_status(self):
+        """DS2: pull plugin status items into the statusbar.
+
+        One compact label shows every registered plugin status item
+        (joined with ' · '). Fully defensive — plugins.py may be absent,
+        the registry empty, or a callback broken; the statusbar must
+        never suffer for it. Re-arms a light 5 s timer so items stay
+        fresh (session clocks, counts…) without any extra plumbing.
+        """
+        try:
+            text = ""
+            try:
+                from . import plugins as _plugins
+                vals = _plugins.get_registry().status_text(
+                    workspace=getattr(self, "project_dir", "") or "",
+                    path=getattr(self.editor, "file_path", "") or "")
+                parts = [v for (_k, v) in sorted(vals.items()) if v]
+                text = " · ".join(parts[:3])   # keep the bar calm
+            except Exception:       # noqa: BLE001 — no plugins, no text
+                text = ""
+            if hasattr(self, "status_plugins"):
+                self.status_plugins.config(text=text)
+        except Exception:           # noqa: BLE001 — statusbar stays alive
+            pass
+        # periodic re-arm (once; every call reschedules itself)
+        try:
+            if getattr(self, "_plugin_status_job", None):
+                try:
+                    self.root.after_cancel(self._plugin_status_job)
+                except Exception:   # noqa: BLE001
+                    pass
+            self._plugin_status_job = self.root.after(
+                5000, self._refresh_plugin_status)
+        except Exception:           # noqa: BLE001 — headless tests
+            pass
 
     def setup_menu(self):
         """Build the in-app themed menu bar (replaces the native one,
@@ -2027,6 +2070,18 @@ class DXN1Studio:
             for i, r in enumerate(recents, 1):
                 self.terminal.log(f"  {i}. {r}")
             return
+        if low == "stats":
+            # DS2: one-line file summary in the terminal, window via palette
+            try:
+                from .filestats import scan_workspace, summary_lines
+                line1, line2 = summary_lines(scan_workspace(
+                    getattr(self, "project_dir", "") or os.getcwd()))
+                self.terminal.log(f"File statistics — {line1}")
+                self.terminal.log(f"  {line2}")
+                self.terminal.log("  full report: palette → File statistics")
+            except Exception as exc:  # noqa: BLE001 — terminal stays alive
+                self.terminal.log(f"stats failed: {exc}")
+            return
         if low.startswith("goto "):
             num = text[5:].strip()
             if num.isdigit():
@@ -2300,6 +2355,32 @@ class DXN1Studio:
                  lambda: _open_scratch(
                      self.root, self.theme, self.config,
                      workspace=self.project_dir,
+                     on_log=lambda m: self.terminal.log(m))),
+            )
+        except Exception:  # pragma: no cover — palette stays alive
+            pass
+        # ---- DS2: file statistics explorer (defensive)
+        try:
+            from .filestats import open_stats as _open_filestats
+            cmds.append(
+                ("File statistics — what's in this workspace…", "DS2",
+                 lambda: _open_filestats(
+                     self.root, self.theme,
+                     workspace=getattr(self, "project_dir", "") or
+                     os.getcwd(),
+                     on_log=lambda m: self.terminal.log(m))),
+            )
+        except Exception:  # pragma: no cover — palette stays alive
+            pass
+        # ---- DS2: recent-files fuzzy picker (defensive)
+        try:
+            from .recents import open_recents as _open_recents
+            cmds.append(
+                ("Recent files…", "DS2",
+                 lambda: _open_recents(
+                     self.root, self.theme, self.config,
+                     on_open=self.open_file,
+                     root=getattr(self, "project_dir", "") or None,
                      on_log=lambda m: self.terminal.log(m))),
             )
         except Exception:  # pragma: no cover — palette stays alive

@@ -347,6 +347,73 @@ def test_version_is_ds2():
     assert len(parts) == 3 and int(parts[0]) >= 2, APP_VERSION
 
 
+# ------------------------------------------------------------- filestats
+def test_filestats_scan_and_sizes(tmp_path):
+    from dxn1_studio.filestats import (
+        human_size, scan_workspace, top_extensions, summary_lines)
+
+    assert human_size(0) == "0 B"
+    assert human_size(1024) == "1.00 KB"
+    assert human_size(5 * 1024 * 1024) == "5.00 MB"
+    assert human_size(None) == "0 B"
+
+    (tmp_path / "src").mkdir()
+    (tmp_path / "node_modules").mkdir()
+    (tmp_path / ".git").mkdir()
+    (tmp_path / "main.py").write_bytes(b"a" * 3000)
+    (tmp_path / "src" / "app.py").write_bytes(b"b" * 2000)
+    (tmp_path / "README.md").write_bytes(b"c" * 500)
+    (tmp_path / "node_modules" / "big.js").write_bytes(b"d" * 99999)
+    (tmp_path / "Makefile").write_bytes(b"e")
+
+    s = scan_workspace(tmp_path)
+    assert s["exists"] and s["total_files"] == 4
+    assert s["total_bytes"] == 3000 + 2000 + 500 + 1
+    assert s["by_ext"][".py"] == {"count": 2, "bytes": 5000}
+    assert ".js" not in s["by_ext"]              # skipped dir honored
+    assert s["no_ext"]["count"] == 1             # Makefile
+    assert s["largest"][0][1] == 3000            # main.py first
+    tops = top_extensions(s, 2)
+    assert tops[0][0] == ".py"
+    line1, line2 = summary_lines(s)
+    assert "4 files" in line1 and "node_modules" in line2
+    assert scan_workspace(tmp_path / "nope")["exists"] is False
+
+
+# --------------------------------------------------------------- recents
+def test_recents_ranking_and_load(tmp_path):
+    from dxn1_studio.recents import (
+        load_recents, filter_recents, display_row)
+
+    class Cfg:
+        def __init__(self, d):
+            self.d = d
+
+        def get(self, k, d=None):
+            return self.d.get(k, d)
+
+    assert load_recents(None) == []
+    assert load_recents(Cfg({})) == []
+
+    f1 = tmp_path / "main.py"
+    f2 = tmp_path / "src" / "util.py"
+    (tmp_path / "src").mkdir(parents=True)
+    f1.write_text("x")
+    f2.write_text("y")
+    cfg = Cfg({"recent_files": [str(f1), "missing.py", str(f2), str(f1)]})
+    recs = load_recents(cfg)
+    assert recs == [str(f1), str(f2)]            # dedupe + missing filter
+
+    assert filter_recents(recs, "") == recs      # empty keeps order
+    # basename prefix ranks above substring
+    assert filter_recents(recs, "util")[0] == str(f2)
+    assert filter_recents(recs, "main.py") == [str(f1)]
+    assert filter_recents(recs, "zzz") == []     # no match
+    assert str(f1) in filter_recents(recs, "mn")  # subsequence fallback
+    base, d = display_row(str(f2), tmp_path)
+    assert (base, d) == ("util.py", "src")
+
+
 # -------------------------------------------------------------- standalone
 if __name__ == "__main__":
     sys.exit(pytest.main([__file__, "-q", "--no-header"]))
