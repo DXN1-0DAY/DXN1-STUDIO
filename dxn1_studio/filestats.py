@@ -175,6 +175,37 @@ def summary_lines(stats):
     )
 
 
+def report_text(stats, markdown=False, ext_limit=30):
+    """Full report as plain text (clipboard/CLI) or Markdown (export)."""
+    if markdown:
+        lines = ["# File statistics — `%s`" % stats["root"], "",
+                 "**%s**" % summary_lines(stats)[0], "", "## By type", "",
+                 "| Ext | Files | Size |", "|---|--:|--:|"]
+        for ext, cnt, bts in top_extensions(stats, ext_limit):
+            lines.append("| `%s` | %d | %s |" % (ext, cnt, human_size(bts)))
+        if stats["no_ext"]["count"]:
+            lines.append("| (none) | %d | %s |"
+                         % (stats["no_ext"]["count"],
+                            human_size(stats["no_ext"]["bytes"])))
+        lines += ["", "## Largest files", ""]
+        for rel, bts in stats["largest"]:
+            lines.append("- `%s` — %s" % (rel, human_size(bts)))
+        return "\n".join(lines) + "\n"
+    lines = ["File statistics — %s" % stats["root"],
+             summary_lines(stats)[0], "", "By type:"]
+    for ext, cnt, bts in top_extensions(stats, ext_limit):
+        lines.append("  %-8s %6d files  %10s" % (ext, cnt, human_size(bts)))
+    if stats["no_ext"]["count"]:
+        lines.append("  %-8s %6d files  %10s"
+                     % ("(none)", stats["no_ext"]["count"],
+                        human_size(stats["no_ext"]["bytes"])))
+    lines.append("")
+    lines.append("Largest files:")
+    for rel, bts in stats["largest"]:
+        lines.append("  %10s  %s" % (human_size(bts), rel))
+    return "\n".join(lines)
+
+
 # ------------------------------------------------------------------ GUI
 _C = {}   # filled in open_stats from the live theme
 
@@ -291,19 +322,7 @@ def open_stats(master, theme, workspace=None, on_log=None):
         s = state["stats"]
         if not s:
             return
-        lines = ["File statistics — %s" % s["root"], summary_lines(s)[0], ""]
-        lines.append("By type:")
-        for ext, cnt, bts in top_extensions(s, 30):
-            lines.append("  %-8s %6d files  %10s" % (ext, cnt, human_size(bts)))
-        if s["no_ext"]["count"]:
-            lines.append("  %-8s %6d files  %10s"
-                         % ("(none)", s["no_ext"]["count"],
-                            human_size(s["no_ext"]["bytes"])))
-        lines.append("")
-        lines.append("Largest files:")
-        for rel, bts in s["largest"]:
-            lines.append("  %10s  %s" % (human_size(bts), rel))
-        text = "\n".join(lines)
+        text = report_text(s)
         try:
             win.clipboard_clear()
             win.clipboard_append(text)
@@ -314,6 +333,23 @@ def open_stats(master, theme, workspace=None, on_log=None):
         except Exception:           # noqa: BLE001
             pass
 
+    def export_report():
+        """Write the report next to the code: <ws>/.dxn1/filestats.md."""
+        s = state["stats"]
+        if not s or not s["exists"]:
+            return
+        target = os.path.join(ws, ".dxn1", "filestats.md")
+        try:
+            os.makedirs(os.path.dirname(target), exist_ok=True)
+            with open(target, "w", encoding="utf-8") as fh:
+                fh.write(report_text(s, markdown=True))
+            log("file stats: report written to %s" % target)
+            filter_lbl.config(text="saved .dxn1/filestats.md ✓")
+            win.after(1800, lambda: filter_lbl.config(
+                text=_filter_text()))
+        except OSError as exc:
+            log("file stats: export failed — %s" % exc)
+
     def open_folder():
         try:
             if os.path.isdir(ws):
@@ -323,6 +359,7 @@ def open_stats(master, theme, workspace=None, on_log=None):
             log("file stats: could not open folder")
 
     for text_, cmd in (("Copy report", copy_report),
+                       ("Export .md", export_report),
                        ("Open folder", open_folder),
                        ("Rescan", lambda: scan())):
         tk.Button(foot, text=text_, command=cmd, bg=_C["card"],
