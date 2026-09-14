@@ -415,6 +415,31 @@ def _store_cache(root, rep):
         pass
 
 
+def cache_state(root):
+    """DS2 v2.39: cheap drift probe for the statusbar watch chip.
+
+    Reads only the stored cache and the current fingerprint — never a
+    full scan. Returns one of three honest states:
+      ``{"state": "absent"}``  nothing stored yet (never scanned here)
+      ``{"state": "cached"}``  a stored report matches the workspace
+                               as it looks right now
+      ``{"state": "stale"}``   a stored report exists but files moved
+                               since it was written
+    Never raises — any trouble reads as ``absent``."""
+    root = str(root)
+    try:
+        import json
+        with open(_cache_path(root), "r", encoding="utf-8") as fh:
+            data = json.load(fh)
+        if isinstance(data, dict) and isinstance(data.get("report"), dict):
+            if data.get("sig") == cache_sig(root):
+                return {"state": "cached"}
+            return {"state": "stale"}
+    except Exception:  # noqa: BLE001 — no/trouble cache = never scanned
+        pass
+    return {"state": "absent"}
+
+
 def check_cached(root, use_cache=True):
     """``check()`` with a per-workspace cache
     (``<ws>/.dxn1/depcheck_cache.json``).
@@ -543,4 +568,17 @@ if __name__ == "__main__":
     repc4 = check_cached(base)
     assert not repc4.get("cached") and repc4["files"] == 3
     assert not os.path.exists(_cache_path(base) + ".tmp")
+    # cache_state: the watch-chip probe (v2.39)
+    empty = tempfile.mkdtemp(prefix="ds2-depstate-")
+    assert cache_state(empty)["state"] == "absent"
+    assert cache_state(base)["state"] == "cached"
+    with open(os.path.join(base, "drift.py"), "w") as fh:
+        fh.write("import neverpinned\n")
+    assert cache_state(base)["state"] == "stale"
+    os.remove(os.path.join(base, "drift.py"))
+    check_cached(base)                      # re-store: fresh again
+    assert cache_state(base)["state"] == "cached"
+    with open(_cache_path(base), "w", encoding="utf-8") as fh:
+        fh.write("{corrupt")
+    assert cache_state(base)["state"] == "absent"
     print("depcheck.py self-test OK")

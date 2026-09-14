@@ -4,6 +4,55 @@ All notable changes to DXN1 STUDIO. Format based on
 [Keep a Changelog](https://keepachangelog.com/); versioning is
 `MAJOR.MINOR.PATCH` while in **beta**.
 
+## [2.39.0] — 2026-09-15 · beta · "the drift you can see" (deps watch chip + terminal verbs browser)
+
+### Added
+- **Dependency watch chip** — the statusbar now watches your deps
+  for you: a quiet `deps ok` sits next to the session chip and turns
+  **amber — `● deps drift`** the moment the workspace fingerprint
+  moves past the last deps report. A file saved in the editor, a
+  module dropped in from outside the studio, a requirements edit —
+  the chip lights up without running anything. The probe is honest
+  and cheap: `depcheck.cache_state()` compares the stored cache
+  signature only (three states: `absent` / `cached` / `stale`), it
+  never rescans, it is throttled to one pass per 3 s, and a 30 s
+  poll catches drift while you are mid-thought. Click the chip to
+  rescan (a drifted workspace is a cache miss, so this is a real
+  scan) and it calms back down.
+- **`deps watch [on|off]`** — bare `deps watch` flips the chip,
+  `on`/`off` are explicit, junk arguments get an honest usage line,
+  and the preference persists (`deps_watch`, default on). The
+  `TERMINAL_HELP` deps row now reads `(fix / fresh / watch)`.
+- **Terminal verbs browser** — `verbs`, the Workshop ▸ *Terminal
+  Verbs* entry and the palette's *Terminal verbs…* open a themed,
+  searchable window listing every verb the terminal speaks (55+
+  after merging the `git` continuation line back into one honest
+  description). Live substring filter over verb + description (the
+  same first pass `help <q>` uses), a count label that follows the
+  filter, mouse-wheel scrolling and an honest "nothing matches —
+  try a shorter filter" empty state. One data source: `verbs.verb_rows()`
+  flattens the same `TERMINAL_HELP` tuple behind `help` and the cheat
+  sheet, so the three views can never disagree. Clicking a row drops
+  the verb into the terminal input and focuses it — Enter runs it;
+  nothing fires by accident.
+
+### Changed
+- Saving a file now nudges the watch chip (throttled), `_run_depcheck`
+  re-anchors the chip after every `deps` / `deps fresh` / `deps fix`
+  run, and boot draws it once alongside the other statusbar chips.
+- Architecture doc: 85 modules, 85 pytest groups, smoke_v390 row;
+  FEATURES gains the watch-chip rows and a Terminal Verbs Browser
+  section.
+
+### Tests
+- pytest: `test_deps_watch` (cache_state matrix, chip text/colour
+  states, click-to-rescan, toggle persistence, usage line) and
+  `test_verbs_window` (row flattening + git merge + uniqueness,
+  filter honesty, palette entries, `verbs` verb opens the window,
+  live filter + empty state via the new `search_entry`/`refilter`
+  hooks, click-prefills the terminal input) → 85 groups.
+- smoke_v390: 28 live checks, all green under Xvfb.
+
 ## [2.38.0] — 2026-09-15 · beta · "instant answers, honest invalidation" (deps cache + commands verb)
 
 ### Added

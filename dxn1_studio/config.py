@@ -36,6 +36,8 @@ DEFAULTS = {
     # --- DS2 v2.35: the polite updater -------------------------------------
     "updater_skip_version": "",    # version the user declined — no auto-nag
     "update_check_secs": 3600,     # heartbeat interval, clamped 900..21600
+    # --- DS2 v2.39: dependency watch chip -----------------------------------
+    "deps_watch": True,            # statusbar chip turns amber on drift
     "recent_projects": [],   # [{path, kind, opened}] — hub recents
     "last_project": "",      # most recently opened workspace path
     # --- wizard -----------------------------------------------------------

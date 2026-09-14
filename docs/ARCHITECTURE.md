@@ -9,10 +9,10 @@ dxn1_studio/
 ├── app.py            ← the studio: window, menus, palette, terminal, wiring
 ├── widgets.py        ← core widgets: file explorer, code editor, terminal
 ├── config.py/theme.py← persistence + theme engine (everything is themed)
-└── … 83 feature modules, one lane each, described below
+└── … 85 feature modules, one lane each, described below
 ```
 
-## Design rules (what keeps 84 modules coherent)
+## Design rules (what keeps 85 modules coherent)
 
 1. **One module = one lane.** Every feature lives in its own file
    with a public `open_*(parent, theme, …)` opener, so parallel
@@ -69,7 +69,7 @@ geometry memory).
 `unitconv` (unit converter), `charmap` (Unicode browser),
 `textcase` (identifier case converter), `pwdgen` (secrets-CSPRNG PassForge), `numbase` (bases 2-36 + bit inspector), `csvkit` (CSV Lab paste-&-peek), `mathpad` (safe expression calculator), `hexdump` (ByteSnoop hex inspector), `textdiff` (two-paste diff), `xmlbench` (XML pretty/minify/validate), `jwt`, `cronexp`,
 `envcheck`, `gen` (test data), `readability`, `usagedash`,
-`packages`, `doctor` (environment audit).
+`packages`, `doctor` (environment audit), `depcheck` (imports vs requirements, per-workspace cache), `verbs` (terminal verbs browser).
 
 ### AI surface
 `agent` (DXN1 Agents 2.0 panel), `llm` (pluggable backends),
@@ -86,7 +86,7 @@ geometry memory).
 
 | Harness | What it proves |
 |---|---|
-| `python3 -m pytest tests/` | 83 unit groups over every pure engine |
+| `python3 -m pytest tests/` | 85 unit groups over every pure engine |
 | `scripts/smoke_v290.py` (Xvfb) | 155 live-window checks across 26 feature windows |
 | `scripts/smoke_v310.py` (Xvfb) | 20 checks: fuzzy highlight runs, per-buffer cursor memory, session cursor merge |
 | `scripts/smoke_v320.py` (Xvfb) | 18 checks: autosave write/switch gates, crash simulation + engine recovery boot, installer `--version` |
@@ -96,6 +96,7 @@ geometry memory).
 | `scripts/smoke_v360.py` (Xvfb) | 16 checks: update heartbeat gating + junk clamp, live `deps` report (missing/unused/alias), `whatsnew` verb, settings round-trip (minutes → clamped seconds), palette fuzzy hits |
 | `scripts/smoke_v370.py` (Xvfb) | 15 checks: `deps fix` appends/dedupes/creates requirements.txt with alias-correct pins, second-run no-op, `help <verb>` exact/substring/fuzzy/honest-miss, bare `help` intact, Workshop Dependency Check entry |
 | `scripts/smoke_v380.py` (Xvfb) | 24 checks: deps cache fingerprints (stable/content-sensitive/root-listing), hit-after-store, honest invalidation, .dxn1 self-invalidation guard, corrupt-cache fallback, `deps fresh`, fix-sees-late-import, `commands` full/filtered/fuzzy/empty, palette help fallback |
+| `scripts/smoke_v390.py` (Xvfb) | 28 checks: cache_state absent/cached/stale/corrupt, verb_rows flattening + git merge + uniqueness, filter honesty, chip states (placeholder → ok → amber drift → click-rescan → off/on toggle + usage line), poll, palette entries, `verbs` window (live filter, honest empty, count label, prefill), Workshop entries |
 | `scripts/boot_qa.py` (Xvfb) | 20 checks booting the real studio: menus bound, palette entries live, modules import, scribe chip wired |
 | `python3 -m compileall -q dxn1_studio` | The tree always compiles — the gate before every tag |
 

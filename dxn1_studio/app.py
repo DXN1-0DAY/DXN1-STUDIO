@@ -68,6 +68,7 @@ TERMINAL_HELP = (
     ("find <text>", "find text in the current file"),
     ("palette", "open the command palette (Ctrl+K)"),
     ("commands", "list palette commands (optional filter)"),
+    ("verbs", "browse every terminal verb in a window"),
     ("todo", "scan the workspace for TODO / FIXME"),
     ("tools", "developer tools: regex, JSON, text, time"),
     ("cron <expr>", "decode a cron schedule + next runs"),
@@ -132,7 +133,7 @@ TERMINAL_HELP = (
     ("update", "check GitHub for a newer release"),
     ("whatsnew", "release notes — what changed between tags"),
     ("deps", "cross-check imports vs requirements*.txt "
-             "(fix / fresh)"),
+             "(fix / fresh / watch)"),
     ("hub", "open the Project Hub"),
     ("export", "export the workspace as a ZIP"),
     ("agent <request>", "talk to DXN1 Agents (if enabled)"),
@@ -720,6 +721,17 @@ class DXN1Studio:
         self.status_sesave.pack(side=tk.RIGHT, padx=(0, 12))
         self.status_sesave.bind("<Button-1>",
                                 lambda _e: self.save_session_now())
+        # DS2 v2.39: dependency watch chip — a quiet "deps ok" that
+        # turns amber the moment the workspace drifts from the last
+        # deps report; click it to rescan
+        self.status_deps = tk.Label(right, text="", bg=t["statusbar"],
+                                    fg=t["text_muted"],
+                                    font=(FONT_UI, 9), cursor="hand2")
+        self.status_deps.pack(side=tk.RIGHT, padx=(0, 12))
+        self.status_deps.bind("<Button-1>",
+                              lambda _e: self._deps_chip_click())
+        self._deps_sig_state = ""   # last state the chip was drawn for
+        self._deps_probed_at = 0.0  # throttle for the cheap-but-not-free probe
 
         # toast layer (placed above the status bar, right aligned)
         self.toast_layer = tk.Frame(self.root, bg=t["bg"])
@@ -1532,6 +1544,15 @@ class DXN1Studio:
                 command=_deps_menu)
         except Exception:  # pragma: no cover — menu stays alive
             pass
+        # DS2 v2.39: terminal verbs browser (defensive)
+        def _verbs_menu():
+            self.open_verbs_window()
+        try:
+            workshop_menu.add_command(
+                label="Terminal Verbs — every command, browsable…",
+                command=_verbs_menu)
+        except Exception:  # pragma: no cover — menu stays alive
+            pass
         workshop_menu.add_separator()
         workshop_menu.add_command(label="Token Usage Dashboard…",
                                   command=_open_usage_menu)
@@ -1894,6 +1915,8 @@ class DXN1Studio:
         self.root.after(1600, self._maybe_show_whatsnew)   # DS2: once/tag
         self.root.after(2500, self._clip_poll)   # DS2: clipboard history
         self.root.after(60000, self._autosave_session)   # DS2 v2.32
+        self.root.after(9000, self._deps_watch_poll)   # DS2 v2.39 drift
+        self._update_depswatch()                       #   chip first draw
 
     def _clip_poll(self):
         """DS2: background clipboard watcher (never raises)."""
@@ -2515,6 +2538,9 @@ class DXN1Studio:
                     pass
                 if not silent:
                     self.toast("Saved", "success")
+                # DS2 v2.39: a saved file is the classic deps drift —
+                # the throttle keeps this free for rapid saves
+                self._update_depswatch()
             except Exception as e:
                 errors.log_exception(f"save {self.editor.file_path}")
                 messagebox.showerror("Error", f"Failed to save file:\n{e}")
@@ -3522,6 +3548,10 @@ class DXN1Studio:
             self.show_whatsnew()
             return
         if low == "deps" or low.startswith("deps "):
+            rest = text[4:].strip().lower()
+            if rest.startswith("watch"):
+                self._deps_watch_toggle(rest[5:].strip())
+                return
             self._run_depcheck(
                 fix=(low == "deps fix" or low.startswith("deps fix ")),
                 force=(low == "deps fresh"
@@ -3535,6 +3565,9 @@ class DXN1Studio:
             return
         if low == "palette":
             self.open_palette()
+            return
+        if low in ("verbs", "verb"):
+            self.open_verbs_window()
             return
         if low.startswith("search "):
             self.show_sidebar_view("search")
@@ -4267,6 +4300,22 @@ class DXN1Studio:
                          "requirements…", "DS2", _deps_palette))
         except Exception:  # pragma: no cover — palette stays alive
             pass
+        # DS2 v2.39: dependency watch chip toggle (defensive)
+        def _deps_watch_palette():
+            self._deps_watch_toggle()
+        try:
+            cmds.append(("Dependency watch on/off — statusbar drift "
+                         "chip…", "DS2", _deps_watch_palette))
+        except Exception:  # pragma: no cover — palette stays alive
+            pass
+        # DS2 v2.39: terminal verbs browser (defensive)
+        def _verbs_palette():
+            self.open_verbs_window()
+        try:
+            cmds.append(("Terminal verbs — every command, "
+                         "browsable…", "DS2", _verbs_palette))
+        except Exception:  # pragma: no cover — palette stays alive
+            pass
         # DS2 v2.36: what's new on demand (defensive)
         def _whatsnew_palette():
             self.show_whatsnew()
@@ -4847,6 +4896,125 @@ class DXN1Studio:
         except Exception:  # noqa: BLE001 — dying root is fine
             pass
 
+    # ------------------------------------------------- DS2 v2.39 deps watch
+    def _deps_watch_state(self):
+        """Honest state for the watch chip, computed cheaply (no scan):
+        off — the watcher is disabled in settings
+        nows — no workspace open
+        absent — never scanned here (no usable cached report)
+        cached — the stored deps report matches the workspace
+        stale — the workspace moved since the report was stored"""
+        if not self.config.get("deps_watch", True):
+            return "off"
+        if not self.project_dir:
+            return "nows"
+        try:
+            from . import depcheck as _dc
+            return _dc.cache_state(self.project_dir).get("state",
+                                                         "absent")
+        except Exception:  # noqa: BLE001 — the chip never raises
+            return "absent"
+
+    def _update_depswatch(self, force=False):
+        """Redraw the dependency watch chip for the current state.
+
+        The probe stats every scanned file, so it is throttled to one
+        pass per 3 seconds unless ``force`` (a deps run or a click —
+        both just changed the world themselves). Never raises."""
+        import time as _time
+        try:
+            now = _time.time()
+            if not force and (now - self._deps_probed_at) < 3.0:
+                return
+            self._deps_probed_at = now
+            state = self._deps_watch_state()
+            if state == self._deps_sig_state:
+                return
+            self._deps_sig_state = state
+            chip = self.status_deps
+            t = self.theme
+            if state == "stale":
+                chip.config(text="● deps drift", fg="#f59e0b",
+                            font=(FONT_UI, 9, "bold"))
+            elif state == "cached":
+                chip.config(text="deps ok", fg=t["text_muted"],
+                            font=(FONT_UI, 9))
+            elif state == "absent":
+                chip.config(text="deps —", fg=t["text_muted"],
+                            font=(FONT_UI, 9))
+            else:  # off / nows — quietly empty
+                chip.config(text="", fg=t["text_muted"],
+                            font=(FONT_UI, 9))
+        except Exception:  # noqa: BLE001 — a chip must never break typing
+            pass
+
+    def _deps_chip_click(self):
+        """Click the drift chip: rescan deps (a drifted workspace is a
+        cache miss, so this is a real scan) and redraw the chip."""
+        self._run_depcheck()
+        self._update_depswatch(force=True)
+
+    def _deps_watch_toggle(self, arg=""):
+        """``deps watch [on|off]`` — the statusbar drift chip, and the
+        30s probe behind it. Bare ``deps watch`` flips the switch."""
+        arg = str(arg or "").strip().lower()
+        cur = bool(self.config.get("deps_watch", True))
+        if arg in ("on", "1", "true"):
+            new = True
+        elif arg in ("off", "0", "false"):
+            new = False
+        elif arg == "":
+            new = not cur
+        else:
+            self.terminal.log("usage: deps watch [on|off] — the chip "
+                              "turns amber when imports drift")
+            return
+        self.config.set("deps_watch", new)
+        self._deps_sig_state = ""      # force a redraw
+        self._update_depswatch(force=True)
+        self.terminal.log(
+            "deps watch %s — %s" % (
+                "on" if new else "off",
+                "the statusbar chip turns amber when the workspace "
+                "drifts from the last deps report"
+                if new else "the drift chip is hidden; `deps` still "
+                            "works exactly as before"))
+
+    def _deps_watch_poll(self):
+        """Every 30s: notice silent drift (files changed outside the
+        studio) and light the chip. Never raises, never stacks."""
+        try:
+            self._update_depswatch()
+        except Exception:  # noqa: BLE001 — polling must stay quiet
+            pass
+        try:
+            self.root.after(30000, self._deps_watch_poll)
+        except Exception:  # noqa: BLE001 — dying root is fine
+            pass
+
+    # ------------------------------------------------- DS2 v2.39 verbs win
+    def _prefill_terminal(self, verb):
+        """Drop a verb into the terminal input (from the verbs
+        browser) — Enter still runs it, the user stays in charge."""
+        try:
+            ent = self.terminal.input
+            ent.delete(0, tk.END)
+            ent.insert(0, str(verb))
+            ent.focus_set()
+        except Exception:  # noqa: BLE001 — best-effort prefill
+            pass
+
+    def open_verbs_window(self):
+        """The terminal-verbs browser — every verb the studio speaks,
+        searchable, one click from running."""
+        try:
+            from .verbs import open_verbs
+            open_verbs(self.root, self.theme,
+                       on_insert=self._prefill_terminal)
+        except Exception:
+            errors.log_exception("verbs window", quiet=True)
+            self.terminal.log("verbs: window unavailable — try `help`")
+
     def _run_depcheck(self, fix=False, force=False):
         """DS2 v2.36–v2.38: ``deps`` — imports vs requirements, in the
         terminal. Pure static analysis, never executes project code.
@@ -4873,6 +5041,9 @@ class DXN1Studio:
             if rep.get("cached"):
                 self.terminal.log("deps: served from cache (workspace "
                                   "unchanged) — `deps fresh` rescans")
+            # v2.39: any deps run re-anchors the watch chip
+            self._deps_sig_state = ""
+            self._update_depswatch(force=True)
             if not fix:
                 return
             pins = _dc.suggested_pins(rep.get("missing") or [])

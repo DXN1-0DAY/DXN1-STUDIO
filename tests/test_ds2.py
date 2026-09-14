@@ -3597,3 +3597,185 @@ def test_commands_verb(tmp_path):
         except tk.TclError:
             pass
         monkeypatch.undo()
+
+
+def test_deps_watch(tmp_path):
+    """DS2 v2.39 — the dependency watch chip: cache_state's three
+    honest states (absent / cached / stale), the chip's text+colour
+    for each, click-to-rescan, the `deps watch [on|off]` toggle with
+    its config persistence, and the usage line for junk arguments."""
+    import tkinter as tk
+    try:
+        root = tk.Tk(); root.withdraw()
+    except tk.TclError:
+        return
+    import dxn1_studio.config as cfgmod
+    from dxn1_studio import depcheck as dc
+    from dxn1_studio.app import TERMINAL_HELP
+    # engine: the three honest states, no scan needed
+    ws = tmp_path / "ws"
+    ws.mkdir()
+    (ws / "main.py").write_text("import yaml\n", encoding="utf-8")
+    (ws / "requirements.txt").write_text("PyYAML\n", encoding="utf-8")
+    assert dc.cache_state(str(ws))["state"] == "absent"
+    dc.check_cached(str(ws))
+    assert dc.cache_state(str(ws))["state"] == "cached"
+    (ws / "late.py").write_text("import uvicorn\n", encoding="utf-8")
+    assert dc.cache_state(str(ws))["state"] == "stale"
+    # the TERMINAL_HELP row advertises the new sub-verb
+    deps_rows = [r for r in TERMINAL_HELP if r[0] == "deps"]
+    assert deps_rows and "watch" in deps_rows[0][1]
+
+    import pytest
+    monkeypatch = pytest.MonkeyPatch()
+    monkeypatch.setattr(cfgmod, "CONFIG_DIR", str(tmp_path))
+    monkeypatch.setattr(cfgmod, "CONFIG_PATH",
+                        str(tmp_path / "config.json"))
+    monkeypatch.setenv("HOME", str(tmp_path))
+    from dxn1_studio.app import DXN1Studio
+    app = DXN1Studio(cfgmod.Config(), smoke_test=True, no_splash=True)
+    try:
+        logs = []
+        real_log = app.terminal.log
+        app.terminal.log = lambda s, *a, **k: logs.append(str(s))
+        app.project_dir = str(ws)
+        # remove the module-level cache so the app starts absent
+        import shutil
+        shutil.rmtree(str(ws / ".dxn1"), ignore_errors=True)
+        try:
+            # absent: a quiet "deps —" placeholder, click-worthy
+            app._update_depswatch(force=True)
+            assert app.status_deps.cget("text") == "deps —"
+            app.handle_terminal_command("deps")
+            assert app.status_deps.cget("text") == "deps ok"
+            # drift: a new file turns the chip amber without a scan
+            (ws / "late2.py").write_text("import httpx\n",
+                                         encoding="utf-8")
+            app._update_depswatch(force=True)
+            assert app.status_deps.cget("text") == "● deps drift"
+            assert app.status_deps.cget("fg") == "#f59e0b"
+            logs.clear()
+            # clicking the chip rescans and calms it back down
+            app._deps_chip_click()
+            assert app.status_deps.cget("text") == "deps ok"
+            assert any("file(s) scanned" in s for s in logs), logs
+            logs.clear()
+            # toggle off: chip hides, config remembers
+            app.handle_terminal_command("deps watch off")
+            assert app.config.get("deps_watch", True) is False
+            assert app.status_deps.cget("text") == ""
+            logs.clear()
+            # junk argument: honest usage, config untouched
+            app.handle_terminal_command("deps watch maybe")
+            assert any("usage: deps watch" in s for s in logs), logs
+            assert app.config.get("deps_watch", True) is False
+            logs.clear()
+            # bare `deps watch` flips it back on and redraws
+            app.handle_terminal_command("deps watch")
+            assert app.config.get("deps_watch", True) is True
+            assert app.status_deps.cget("text") == "deps ok"
+            logs.clear()
+            # the poll runs once without stacking or raising
+            app._deps_watch_poll()
+        finally:
+            app.terminal.log = real_log
+    finally:
+        try:
+            root.destroy()
+        except tk.TclError:
+            pass
+        monkeypatch.undo()
+
+
+def test_verbs_window(tmp_path):
+    """DS2 v2.39 — the terminal verbs browser: TERMINAL_HELP flattens
+    into complete (verb, description) rows with continuations merged,
+    the substring filter is honest (empty query = everything, junk =
+    nothing), the window opens with every row rendered, the terminal
+    `verbs` verb opens it too, and clicking a row drops the verb into
+    the terminal input."""
+    import tkinter as tk
+    try:
+        root = tk.Tk(); root.withdraw()
+    except tk.TclError:
+        return
+    import dxn1_studio.config as cfgmod
+    from dxn1_studio import verbs
+    from dxn1_studio.app import TERMINAL_HELP
+    rows = verbs.verb_rows(TERMINAL_HELP)
+    assert len(rows) >= 40, "the studio speaks plenty of verbs"
+    assert all(c and d for c, d in rows), "no empty verbs/descriptions"
+    verbs_list = [c for c, _ in rows]
+    assert len(verbs_list) == len(set(verbs_list)), "verbs unique"
+    # the git continuation line merged into one description
+    assert "git <args>" in verbs_list
+    assert "commit" in dict(rows)["git <args>"]
+    # filter: empty = everything, substring = honest, junk = nothing
+    assert verbs.filter_rows(rows, "") == rows
+    assert [c for c, _ in verbs.filter_rows(rows, "deps")] == ["deps"]
+    assert verbs.filter_rows(rows, "MARKDOWN"), "desc match, any case"
+    assert verbs.filter_rows(rows, "zzzqqqxxx") == []
+    # the browser lists itself now, and deps advertises watch
+    assert "verbs" in verbs_list
+    assert "watch" in dict(rows)["deps"]
+
+    import pytest
+    monkeypatch = pytest.MonkeyPatch()
+    monkeypatch.setattr(cfgmod, "CONFIG_DIR", str(tmp_path))
+    monkeypatch.setattr(cfgmod, "CONFIG_PATH",
+                        str(tmp_path / "config.json"))
+    monkeypatch.setenv("HOME", str(tmp_path))
+    from dxn1_studio.app import DXN1Studio
+    app = DXN1Studio(cfgmod.Config(), smoke_test=True, no_splash=True)
+    try:
+        # the palette registry carries the new entries
+        labels = [r[0] for r in app.palette_commands()]
+        assert any("Terminal verbs" in l for l in labels), labels[-6:]
+        assert any("Dependency watch" in l for l in labels)
+        # `verbs` opens the browser (a new Toplevel appears)
+        before = len([w for w in app.root.winfo_children()
+                      if isinstance(w, tk.Toplevel)])
+        app.handle_terminal_command("verbs")
+        after = len([w for w in app.root.winfo_children()
+                     if isinstance(w, tk.Toplevel)])
+        assert after == before + 1
+        # a standalone window: rows render, search filters live
+        picked = []
+        win = verbs.open_verbs(app.root, app.theme,
+                               on_insert=picked.append,
+                               rows=verbs.verb_rows(TERMINAL_HELP))
+        try:
+            assert win.winfo_exists()
+            ent = getattr(win, "search_entry", None)
+            assert ent is not None, "search entry present"
+            # drive the live filter through the documented hook
+            ent.delete(0, tk.END)
+            ent.insert(0, "zzzqqq")
+            win.refilter()
+            blob = ""
+            def _collect(w):
+                nonlocal blob
+                for ch in w.winfo_children():
+                    if isinstance(ch, tk.Label):
+                        blob += ch.cget("text") + "\n"
+                    _collect(ch)
+            _collect(win)
+            assert "nothing matches" in blob, blob
+            ent.delete(0, tk.END)
+            ent.insert(0, "deps")
+            win.refilter()
+            blob = ""
+            _collect(win)
+            assert "deps" in blob and "nothing matches" not in blob
+        finally:
+            win.destroy()
+        # clicking a row drops the verb into the terminal input,
+        # Enter still runs it — the user stays in charge
+        app._prefill_terminal("deps fix")
+        assert app.terminal.input.get() == "deps fix"
+    finally:
+        try:
+            root.destroy()
+        except tk.TclError:
+            pass
+        monkeypatch.undo()
