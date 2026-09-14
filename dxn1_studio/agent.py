@@ -1282,6 +1282,12 @@ class DXN1AgentPanel(tk.Frame):
         self.user_say(text)
         self._remember("user", text)
         self._last_user = text
+        # DS2: first-run checklist — the user talked to the agents
+        try:
+            from .checklist import mark
+            mark(self.app.config, "agent")
+        except Exception:
+            pass
         if low in LOCAL_EXACT or re.fullmatch(r"dxn1[\s_-]*studio", low):
             try:
                 self.handle(low if low in LOCAL_EXACT else "dxn1 studio")

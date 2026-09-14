@@ -166,6 +166,7 @@ class WelcomeWizard:
             self._slide_personalize(),
             self._slide_first_project(),
             self._slide_agents(),
+            self._slide_workflows(),
             self._slide_ready(),
         ]
         for s in self.slides:
@@ -409,6 +410,58 @@ class WelcomeWizard:
             card.config(highlightbackground=self.accent
                         if kind == self.kind_choice
                         else self.colors["card_border"])
+
+    # ------------------------------------------------------- slide 4b: DS2
+    def _slide_workflows(self):
+        """DS2: power-user cheat cards — the studio's best moves."""
+        s = WizardSlide(self.page, self)
+        wrap = tk.Frame(s, bg=self.colors["overlay"])
+        wrap.place(relx=0.5, rely=0.5, anchor="center")
+
+        tk.Label(wrap, text="Four moves worth knowing tonight",
+                 bg=self.colors["overlay"], fg=self.colors["text"],
+                 font=(FONT_UI, 22, "bold")).pack(anchor="w")
+        tk.Label(wrap, text="The shortcuts that make DS2 feel like it's reading "
+                            "your mind. All of them live in Ctrl+K too.",
+                 bg=self.colors["overlay"], fg=self.colors["secondary"],
+                 font=(FONT_UI, 11), wraplength=560, justify=tk.LEFT
+                 ).pack(anchor="w", pady=(4, 14))
+
+        moves = [
+            ("Ctrl+K", "Command palette",
+             "Every command, every feature — type to search, @ to jump to "
+             "symbols in this file."),
+            ("Ctrl+P", "Quick open",
+             "Fuzzy-jump to any file in the workspace without touching the "
+             "mouse."),
+            ("Select + ⚡", "AI quick actions",
+             "Select code, then palette → 'AI: run a quick action' — "
+             "explain, refactor, tests, bug fixes."),
+            ("remember:", "Teach the agent",
+             "Type 'remember: this project uses pytest' in the agent chat — "
+             "it recalls it every session."),
+        ]
+        grid = tk.Frame(wrap, bg=self.colors["overlay"])
+        grid.pack()
+        for i, (key, title, body) in enumerate(moves):
+            card = tk.Frame(grid, bg=self.colors["card"],
+                            highlightthickness=2,
+                            highlightbackground=self.colors["card_border"])
+            card.grid(row=i // 2, column=i % 2, padx=7, pady=7, ipadx=8,
+                      ipady=6, sticky="nsew")
+            krow = tk.Frame(card, bg=self.colors["card"])
+            krow.pack(anchor="w", padx=10, pady=(8, 0))
+            tk.Label(krow, text=key, bg=self.colors["card"],
+                     fg=self.accent, font=(FONT_MONO, 11, "bold")
+                     ).pack(side=tk.LEFT)
+            tk.Label(krow, text="   " + title, bg=self.colors["card"],
+                     fg=self.colors["text"], font=(FONT_UI, 11, "bold")
+                     ).pack(side=tk.LEFT)
+            tk.Label(card, text=body, bg=self.colors["card"],
+                     fg=self.colors["secondary"], font=(FONT_UI, 9),
+                     wraplength=250, justify=tk.LEFT, anchor="w"
+                     ).pack(anchor="w", padx=10, pady=(3, 10))
+        return s
 
     # ------------------------------------------------------------- slide 4
     def _slide_agents(self):

@@ -1,0 +1,174 @@
+"""DXN1 STUDIO — the DS2 cheat sheet (v1.7).
+
+One window that answers "what can this thing do?": keyboard shortcuts,
+palette power commands, the AI workflow, the visual git suite, memory
+and usage — grouped, searchable, and written like a human. Open it from
+Help → Cheat sheet or the palette ("Cheat sheet…").
+"""
+
+import tkinter as tk
+from tkinter import ttk
+
+from .theme import FONT_UI, FONT_MONO
+
+SHEETS = [
+    ("CORE MOVES", [
+        ("Ctrl+K", "Command palette — every command; type @ for symbols"),
+        ("Ctrl+P", "Quick open — fuzzy jump to any file"),
+        ("Ctrl+S", "Save"), ("Ctrl+N", "New file"),
+        ("Ctrl+O", "Open file"), ("F5", "Run the project"),
+        ("Ctrl+F", "Find in file (Ctrl+H replaces)"),
+        ("Ctrl+G", "Go to line"), ("Ctrl+W", "Close tab"),
+    ]),
+    ("EDITOR POWER (DS2)", [
+        ("Tab", "Expand snippets — def, class, try, with, fn…"),
+        ("Ctrl+F2", "Toggle bookmark on this line (F2 walks them)"),
+        ("Ctrl+/", "Toggle comment"), ("Alt+Up/Down", "Move line"),
+        ("Ctrl+Shift+D", "Duplicate line"), ("Ctrl+Shift+K", "Delete line"),
+        ("Ctrl+\\", "Split editor"),
+        ("Ctrl++ / Ctrl+-", "Bigger / smaller editor text"),
+    ]),
+    ("AI WORKFLOW (DS2)", [
+        ("Select → ⚡", "Quick actions: explain, refactor, tests, fix, "
+                        "types, docstring, optimize"),
+        ("AI: review file", "Whole-file AI review with severity findings"),
+        ("Pair mode", "Agent plans first → you approve → it builds in the "
+                      "sandbox"),
+        ("✨ AI msg", "AI drafts your commit message from the staged diff"),
+        ("remember: …", "Teach the agent a fact — recalled every session"),
+    ]),
+    ("GIT, VISUALIZED (DS2)", [
+        ("Graph", "Commit graph across all branches — click for details"),
+        ("Branches", "Branch manager: create, merge, rename, delete, track"),
+        ("⇄ Diff", "Word-level visual diff — split or unified view"),
+        ("✨ AI msg", "Commit message drafts live in the source control "
+                      "panel"),
+    ]),
+    ("INTELLIGENCE (DS2)", [
+        ("Agent memory", "Per-workspace facts + prefs, injected into every "
+                         "agent conversation"),
+        ("Token usage", "Where your tokens went: 14-day chart, per-model "
+                        "bars, cost estimates, CSV"),
+        ("remember: …", "Teach the agent instantly from the chat — no "
+                        "model call, instant confirmation"),
+    ]),
+    ("TERMINAL TALK", [
+        ("help", "List every studio command"),
+        ("run", "Execute the current project"),
+        ("git status", "Repo status without leaving the studio"),
+        ("todo", "Scan the workspace for TODO / FIXME"),
+        ("palette", "Open the command palette from the keyboard"),
+    ]),
+]
+
+
+class CheatSheet(tk.Toplevel):
+    """Searchable, grouped cheat sheet."""
+
+    def __init__(self, parent, theme):
+        super().__init__(parent)
+        self.t = theme
+        self.title("Cheat sheet — DXN1 STUDIO")
+        self.configure(bg=self.t["bg"])
+        self.geometry("720x640")
+        self.minsize(520, 420)
+        self.transient(parent.winfo_toplevel()
+                       if parent is not None else parent)
+        self._build()
+        self._render("")
+        self.bind("<Escape>", lambda e: self.destroy())
+        self._center()
+
+    def _center(self):
+        try:
+            self.update_idletasks()
+            w, h = 720, 640
+            x = max(0, (self.winfo_screenwidth() - w) // 2)
+            y = max(0, (self.winfo_screenheight() - h) // 3)
+            self.geometry(f"{w}x{h}+{x}+{y}")
+        except tk.TclError:
+            pass
+
+    def _build(self):
+        t = self.t
+        bar = tk.Frame(self, bg=t["header"], height=46)
+        bar.pack(fill=tk.X)
+        bar.pack_propagate(False)
+        tk.Label(bar, text="⌘  CHEAT SHEET", bg=t["header"], fg=t["text"],
+                 font=(FONT_UI, 11, "bold")).pack(side=tk.LEFT, padx=14)
+        self.search = tk.Entry(bar, bg=t["editor"], fg=t["text"],
+                               insertbackground=t["text"], relief=tk.FLAT,
+                               font=(FONT_UI, 10), width=30,
+                               highlightthickness=1,
+                               highlightbackground=t["border"],
+                               highlightcolor=t.accent)
+        self.search.pack(side=tk.RIGHT, padx=12, ipady=4)
+        self.search.insert(0, "filter…")
+        self.search.config(fg=t["text_muted"])
+        self.search.bind("<FocusIn>", self._s_in)
+        self.search.bind("<FocusOut>", self._s_out)
+        self.search.bind("<KeyRelease>", lambda e: self._render(
+            self.search.get() if self.search.get() != "filter…" else ""))
+
+        wrap = tk.Frame(self, bg=t["bg"])
+        wrap.pack(fill=tk.BOTH, expand=True)
+        self.canvas = tk.Canvas(wrap, bg=t["bg"], highlightthickness=0)
+        sb = ttk.Scrollbar(wrap, orient=tk.VERTICAL, command=self.canvas.yview)
+        self.inner = tk.Frame(self.canvas, bg=t["bg"])
+        self._win = self.canvas.create_window((0, 0), window=self.inner,
+                                              anchor="nw", width=690)
+        self.canvas.configure(yscrollcommand=sb.set)
+        self.canvas.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
+        sb.pack(side=tk.RIGHT, fill=tk.Y)
+        self.inner.bind("<Configure>", lambda e: self.canvas.configure(
+            scrollregion=self.canvas.bbox("all")))
+        self.canvas.bind("<Configure>", lambda e: self.canvas.itemconfigure(
+            self._win, width=e.width))
+
+    def _s_in(self, _e=None):
+        if self.search.get() == "filter…":
+            self.search.delete(0, tk.END)
+            self.search.config(fg=self.t["text"])
+
+    def _s_out(self, _e=None):
+        if not self.search.get():
+            self.search.insert(0, "filter…")
+            self.search.config(fg=self.t["text_muted"])
+
+    def _render(self, query):
+        for w in self.inner.winfo_children():
+            w.destroy()
+        t = self.t
+        q = (query or "").lower()
+        total = 0
+        for section, items in SHEETS:
+            rows = [(k, d) for k, d in items
+                    if not q or q in k.lower() or q in d.lower()]
+            if not rows:
+                continue
+            total += len(rows)
+            tk.Label(self.inner, text=section, bg=t["bg"],
+                     fg=t.accent, font=(FONT_UI, 9, "bold"),
+                     anchor="w").pack(fill=tk.X, padx=6, pady=(14, 3))
+            for key, desc in rows:
+                row = tk.Frame(self.inner, bg=t["card"],
+                               highlightthickness=1,
+                               highlightbackground=t["card_border"])
+                row.pack(fill=tk.X, pady=1)
+                tk.Label(row, text=key, bg=t["card"], fg=t["text"],
+                         font=(FONT_MONO, 9, "bold"), width=18,
+                         anchor="w").pack(side=tk.LEFT, padx=10, pady=5)
+                tk.Label(row, text=desc, bg=t["card"],
+                         fg=t["text_secondary"], font=(FONT_UI, 9),
+                         anchor="w", wraplength=460,
+                         justify=tk.LEFT).pack(side=tk.LEFT, fill=tk.X,
+                                               expand=True, padx=6, pady=5)
+        if not total:
+            tk.Label(self.inner, text="Nothing matches — try 'git', 'AI' "
+                     "or 'palette'.", bg=t["bg"], fg=t["text_muted"],
+                     font=(FONT_UI, 10)).pack(anchor="w", padx=8, pady=14)
+
+
+def open_cheatsheet(parent, theme):
+    """Convenience opener — mirrors the studio's one-call dialog style."""
+    return CheatSheet(parent, theme)

@@ -483,6 +483,17 @@ class DXN1Studio:
                                 minsize=190)
         self.show_sidebar_view("explorer", initial=True)
 
+        # DS2: first-run mastery checklist docked under the sidebar views
+        try:
+            from .checklist import FirstRunChecklist, visible_for
+            if visible_for(self.config):
+                self.checklist = FirstRunChecklist(
+                    self.sidebar_container, t, self.config,
+                    on_log=lambda msg: self.terminal.log(msg))
+                self.checklist.pack(side=tk.BOTTOM, fill=tk.X)
+        except Exception:
+            self.checklist = None
+
         self.right_panel = tk.PanedWindow(self.main_container,
                                           orient=tk.VERTICAL,
                                           bg=t["border"], sashwidth=3, bd=0)
@@ -888,6 +899,12 @@ class DXN1Studio:
                               command=lambda: self.check_for_updates(manual=True))
         help_menu.add_command(label="Keyboard Shortcuts",
                               command=self.show_shortcuts)
+        # DS2: the full cheat sheet — what this studio can do, grouped
+        def _open_cheatsheet():
+            from .cheatsheet import open_cheatsheet
+            open_cheatsheet(self.root, self.theme)
+        help_menu.add_command(label="DS2 Cheat Sheet…",
+                              command=_open_cheatsheet)
         help_menu.add_command(label="Replay Welcome & Tour",
                               command=self.start_wizard)
         help_menu.add_separator()
@@ -1169,6 +1186,7 @@ class DXN1Studio:
                                 projects.read_project_meta(path)["kind"])
 
     def _set_workspace(self, path, kind):
+        self._ds2_tick("open")
         self.project_dir = os.path.abspath(path)
         self.project_kind = kind
         meta = projects.read_project_meta(path)
@@ -1805,6 +1823,7 @@ class DXN1Studio:
     # ------------------------------------------------------------- run/stop
     def run_current(self):
         """F5 — run the active file, or the workspace entry script."""
+        self._ds2_tick("run")
         target = None
         if self.editor.file_path and self.editor.file_path.endswith(".py"):
             target = self.editor.file_path
@@ -2052,6 +2071,7 @@ class DXN1Studio:
 
     # ------------------------------------------------------------- palette
     def open_palette(self):
+        self._ds2_tick("palette")
         if self._palette is not None:
             try:
                 self._palette.destroy()
@@ -2188,6 +2208,17 @@ class DXN1Studio:
             pass
         return cmds
 
+    def _ds2_tick(self, step_id):
+        """DS2: tick a first-run checklist step (defensive, idempotent)."""
+        try:
+            from .checklist import mark
+            if mark(self.config, step_id):
+                card = getattr(self, "checklist", None)
+                if card is not None:
+                    card.refresh()
+        except Exception:
+            pass
+
     def _worktree_texts(self):
         """(HEAD text, working text) for the open file — diff support."""
         import subprocess as _sp
@@ -2245,6 +2276,7 @@ class DXN1Studio:
         self.terminal_visible = not self.terminal_visible
 
     def switch_theme(self):
+        self._ds2_tick("theme")
         self.config.set("theme", "light" if self.theme.is_dark else "dark")
         self.restart_requested = True
         self.root.after(120, self.root.destroy)

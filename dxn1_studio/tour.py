@@ -77,6 +77,21 @@ class InteractiveTour:
                 "your own key. Every edit and command lands as a card you "
                 "accept or decline, and it never leaves this workspace.",
                 "left"))
+            self.steps.append(TourStep(
+                None, "DS2: Pair mode & quick actions",
+                "Select code and run an AI quick action — explain, refactor, "
+                "tests, bug fixes. Or open Pair mode: the agent plans first, "
+                "you approve, then it builds inside the same sandbox. Both "
+                "live in the command palette under 'AI:'.",
+                "center"))
+        self.steps.append(TourStep(
+            None, "DS2: the studio remembers",
+            "Every workspace has a memory bank — facts the agent recalls in "
+            "every conversation (say 'remember: …' in the chat). The Token "
+            "Usage dashboard shows exactly where your tokens went, and the "
+            "visual Git suite gives you a commit graph, branch manager and "
+            "word-level diff viewer. All in the palette.",
+            "center"))
         self.steps.append(TourStep(
             None, "You're ready",
             "That's the studio — clean, fast and already yours. Start a new "

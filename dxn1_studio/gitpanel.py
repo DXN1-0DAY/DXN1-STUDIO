@@ -461,6 +461,11 @@ class GitPanel(tk.Frame):
         self.msg.delete(0, tk.END)
         self._placeholder()
         self.on_log(f"git commit: {message}")
+        try:  # DS2: first-run checklist
+            from .checklist import mark
+            mark(self.config, "commit")
+        except Exception:
+            pass
         self._say("Committed ✓")
         self.refresh()
 
