@@ -4,6 +4,22 @@ All notable changes to DXN1 STUDIO. Format based on
 [Keep a Changelog](https://keepachangelog.com/); versioning is
 `MAJOR.MINOR.PATCH` while in **beta**.
 
+## [2.12.0] — 2026-09-14 · beta · "order from chaos"
+
+### Added
+- **Line tools** (`linesort.py`, Edit menu, palette, terminal
+  `sort <mode>`, Ctrl+Alt+S/D/H/R) — sort A→Z / Z→A / by length,
+  dedupe (case- and whitespace-insensitive, first wins), seeded
+  shuffle, reverse and trailing-whitespace trim. Works on the
+  selection when there is one, the whole file otherwise; text outside
+  the range is preserved byte-for-byte and a trailing newline never
+  becomes a sortable phantom empty line.
+
+### Tests
+- Engine suite **42 cases** (+linesort: modes, ranges, seeded
+  determinism, newline-shape preservation, hostile-input safety);
+  boot QA 17/17.
+
 ## [2.11.0] — 2026-09-14 · beta · "heads down"
 
 ### Added
