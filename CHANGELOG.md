@@ -4,6 +4,22 @@ All notable changes to DXN1 STUDIO. Format based on
 [Keep a Changelog](https://keepachangelog.com/); versioning is
 `MAJOR.MINOR.PATCH` while in **beta**.
 
+## [2.11.0] — 2026-09-14 · beta · "heads down"
+
+### Added
+- **Focus timer** (`focus.py`, Workshop menu, palette, terminal
+  `focus` / `focus <minutes>`) — a pomodoro that lives in the IDE:
+  big clock, phase labels, session dots, start/pause/reset/skip and a
+  log line that celebrates finished blocks. The engine is a
+  deterministic state machine — transitions fire the exact second a
+  phase hits zero, long break every 4th block, custom minute blocks
+  via `focus 50`.
+
+### Tests
+- Engine suite **41 cases** (+focus state machine: roll-overs,
+  long-break cadence, paused no-ops, skip/reset semantics); smoke at
+  **31 checks**; boot QA 17/17.
+
 ## [2.10.0] — 2026-09-14 · beta · "trust, but verify"
 
 ### Added

@@ -14,7 +14,7 @@ CONFIG_DIR = os.path.join(os.path.expanduser("~"), ".dxn1-studio")
 CONFIG_PATH = os.path.join(CONFIG_DIR, "config.json")
 
 DEFAULTS = {
-    "version": "2.10.0",
+    "version": "2.11.0",
     "onboarded": False,      # has the welcome wizard been completed?
     "tour_done": False,      # has the interactive tour been finished/skipped?
     "name": "",              # display name used in greetings
