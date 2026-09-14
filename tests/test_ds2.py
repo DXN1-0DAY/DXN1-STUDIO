@@ -508,7 +508,10 @@ def test_whatsnew_parser_and_upgrade_gate():
 
     assert find_changelog().endswith("CHANGELOG.md")
     real = load_entries()
-    assert real and real[0]["version"] >= "2.4.0"
+    # semver-ish compare (2.10.0 > 2.9.0 — never compare version strings)
+    def _vkey(v):
+        return tuple(int(p) for p in str(v).split("."))
+    assert real and _vkey(real[0]["version"]) >= (2, 4, 0)
     assert new_entries(real, None) == real[:1]
     assert new_entries(real, "99.0.0") == []
     assert plain_bullet("**b** `c`") == "b c"
