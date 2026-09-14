@@ -393,6 +393,10 @@ class ProjectHub(tk.Toplevel):
                            font=(FONT_UI, 11, "bold"), cursor="hand2")
         explore.pack(side=tk.LEFT)
         explore.bind("<Button-1>", lambda e: self._finish_explore())
+        # DS2 v2.6: transient status flash for hub actions (context menu)
+        self.flash_lbl = tk.Label(bottom, text="", bg=C["overlay"],
+                                  fg=C["secondary"], font=(FONT_UI, 8))
+        self.flash_lbl.pack(side=tk.RIGHT, padx=(0, 14))
         clear = tk.Label(bottom, text="clear recents", bg=C["overlay"],
                          fg=C["muted"], font=(FONT_UI, 8, "underline"),
                          cursor="hand2")
@@ -487,11 +491,55 @@ class ProjectHub(tk.Toplevel):
                         r.get("path", ""))
             except Exception:
                 stats_map = {}
+        # DS2 v2.6: aggregate "at a glance" strip above the rows
+        self._refresh_insights(list(stats_map.values()), len(recents))
+        # DS2 v2.6: per-row current-branch chips (best effort, capped)
+        branch_map = {}
+        try:
+            from .workspace_stats import current_branch
+            for r in recents[:8]:
+                branch_map[r.get("path", "")] = current_branch(
+                    r.get("path", ""))
+        except Exception:
+            branch_map = {}
         for r in recents:
             self._recent_row(r, stats_map.get(r.get("path", ""), {}),
-                             r.get("path") in pinned)
+                             r.get("path") in pinned,
+                             branch_map.get(r.get("path", ""), ""))
 
-    def _recent_row(self, r, stats, is_pinned):
+    def _refresh_insights(self, stats_list, total_workspaces):
+        """DS2 v2.6: one-line aggregate strip above the recents rows.
+
+        Shows the sum of what you keep: workspaces, files, lines and
+        the dominant languages across everything the hub tracks.
+        Fully defensive — a stats failure just means no strip.
+        """
+        try:
+            old = getattr(self, "insights_row", None)
+            if old is not None and old.winfo_exists():
+                old.destroy()
+        except Exception:  # noqa: BLE001
+            pass
+        try:
+            from .workspace_stats import aggregate_insights, aggregate_line
+            line = aggregate_line(aggregate_insights(stats_list))
+        except Exception:  # noqa: BLE001
+            return
+        if not line:
+            return
+        extra = total_workspaces - len(stats_list)
+        if extra > 0:
+            line += f"  ·  +{extra} more"
+        self.insights_row = tk.Frame(self.recents_box, bg=C["overlay"])
+        tk.Label(self.insights_row, text="Σ", bg=C["overlay"],
+                 fg=self.accent, font=(FONT_UI, 11, "bold")
+                 ).pack(side=tk.LEFT)
+        tk.Label(self.insights_row, text="  at a glance:  " + line,
+                 bg=C["overlay"], fg=C["muted"], font=(FONT_UI, 8)
+                 ).pack(side=tk.LEFT)
+        self.insights_row.pack(anchor="w", pady=(0, 4))
+
+    def _recent_row(self, r, stats, is_pinned, branch=""):
         """DS2: one recent card — richer info line, pin + remove actions."""
         row = tk.Frame(self.recents_box, bg=C["card"], highlightthickness=1,
                        highlightbackground=self.accent if is_pinned
@@ -526,6 +574,10 @@ class ProjectHub(tk.Toplevel):
         tk.Label(row, text=rel_time(r.get("opened", "")),
                  bg=C["card"], fg=C["muted"], font=(FONT_UI, 8),
                  padx=6).pack(side=tk.LEFT)
+        if branch:   # DS2 v2.6: current git branch chip
+            tk.Label(row, text=f"⎇ {branch}", bg=C["card"],
+                     fg=self.accent, font=(FONT_MONO, 7, "bold"),
+                     padx=5, pady=1).pack(side=tk.LEFT)
         tk.Label(row, text=label, bg=C["card"], fg=C["secondary"],
                  font=(FONT_UI, 8), padx=6).pack(side=tk.LEFT)
         pin_lbl = tk.Label(row, text="⚑" if is_pinned else "⚐",
@@ -552,6 +604,111 @@ class ProjectHub(tk.Toplevel):
                 highlightbackground=self.accent))
             w.bind("<Leave>", lambda e: row.config(
                 highlightbackground=C["card_border"]))
+        # DS2 v2.6: right-click context menu on the card
+        for w in (row, mid):
+            w.bind("<Button-3>", lambda e, p=r["path"], k=r["kind"]:
+                   self._recent_menu(e, p, k))
+
+    # ------------------------------------------------ DS2 v2.6 hub actions
+    def _recent_menu(self, event, path, kind):
+        """Right-click actions for a recent workspace card."""
+        try:
+            is_pinned = path in (self.config.get("pinned_projects") or [])
+            menu = tk.Menu(self, tearoff=0, bg=C["card"], fg=C["text"],
+                           activebackground=self.accent,
+                           activeforeground="#ffffff",
+                           font=(FONT_UI, 9))
+            menu.add_command(label="Open workspace",
+                             command=lambda: self._finish_open(path, kind))
+            menu.add_command(label="Reveal in file manager",
+                             command=lambda: self._reveal(path))
+            menu.add_command(label="Open terminal here",
+                             command=lambda: self._open_terminal(path))
+            menu.add_command(label="Copy path",
+                             command=lambda: self._copy_path(path))
+            menu.add_separator()
+            menu.add_command(label="Snapshot now (zip backup)",
+                             command=lambda: self._snapshot(path))
+            menu.add_separator()
+            menu.add_command(label="⚐ Unpin" if is_pinned else "⚑ Pin",
+                             command=lambda: self._toggle_pin(path))
+            menu.add_command(label="✕ Remove from list",
+                             command=lambda: self._remove_recent(path))
+            try:
+                menu.tk_popup(event.x_root, event.y_root)
+            finally:
+                menu.grab_release()
+        except Exception:  # noqa: BLE001 — a menu must never crash the hub
+            pass
+        return "break"
+
+    def _reveal(self, path):
+        import subprocess
+        try:
+            subprocess.Popen(["xdg-open", path],
+                             stdout=subprocess.DEVNULL,
+                             stderr=subprocess.DEVNULL)
+            self._hub_flash("Revealed in file manager")
+        except Exception:  # noqa: BLE001
+            self._hub_flash("No file manager available")
+
+    def _open_terminal(self, path):
+        import subprocess
+        for term in ("x-terminal-emulator", "gnome-terminal", "konsole",
+                     "xfce4-terminal", "xterm"):
+            try:
+                subprocess.Popen([term, "--working-directory", path],
+                                 stdout=subprocess.DEVNULL,
+                                 stderr=subprocess.DEVNULL)
+                self._hub_flash(f"Opened {term}")
+                return
+            except FileNotFoundError:
+                continue
+            except Exception:  # noqa: BLE001
+                break
+        self._hub_flash("No terminal emulator found")
+
+    def _copy_path(self, path):
+        try:
+            self.clipboard_clear()
+            self.clipboard_append(path)
+            self._hub_flash("Path copied to clipboard")
+        except Exception:  # noqa: BLE001
+            pass
+
+    def _snapshot(self, path):
+        """Zip-backup a workspace straight from the hub (backup engine)."""
+        try:
+            from .backup import create_snapshot
+            snap_path, stats = create_snapshot(path, label="hub")
+            self._hub_flash(
+                f"Snapshot created — {stats.get('zipped', 0)} files")
+        except Exception as exc:  # noqa: BLE001
+            self._hub_flash(f"Snapshot failed: {exc}")
+
+    def _hub_flash(self, msg):
+        """Tiny status flash in the hub's bottom bar (auto-clears 4 s)."""
+        try:
+            lbl = getattr(self, "flash_lbl", None)
+            if lbl is None:
+                return
+            lbl.config(text=msg)
+            after_id = getattr(self, "_flash_after", None)
+            if after_id:
+                try:
+                    self.after_cancel(after_id)
+                except Exception:  # noqa: BLE001
+                    pass
+            self._flash_after = self.after(
+                4000, lambda: self._flash_clear(lbl))
+        except Exception:  # noqa: BLE001
+            pass
+
+    def _flash_clear(self, lbl):
+        try:
+            lbl.config(text="")
+        except Exception:  # noqa: BLE001
+            pass
 
     def _toggle_pin(self, path):
         pinned = list(self.config.get("pinned_projects") or [])

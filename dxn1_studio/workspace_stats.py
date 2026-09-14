@@ -125,3 +125,73 @@ def language_mix(stats, top=4):
         name, pct = mix[-1]
         mix[-1] = (name, pct + (100 - used))
     return mix
+
+
+# ------------------------------------------------------------ DS2 v2.6.0
+def current_branch(path):
+    """Best-effort current branch name for a git workspace ('' if none).
+
+    Never raises, never blocks: 4 s timeout, bare-HEAD and failures
+    both collapse to an empty string so callers can just skip the chip.
+    """
+    try:
+        proc = subprocess.run(
+            ["git", "rev-parse", "--abbrev-ref", "HEAD"], cwd=path,
+            capture_output=True, text=True, timeout=4)
+        if proc.returncode == 0:
+            name = proc.stdout.strip()
+            return "" if name in ("", "HEAD", "(unknown)") else name
+    except (OSError, subprocess.SubprocessError):
+        pass
+    return ""
+
+
+def aggregate_insights(stats_list):
+    """Roll several stats dicts into one hub summary. Pure, never raises.
+
+    Returns ``{"workspaces", "files", "lines", "mb", "top": [(lang, %)…],
+    "lines_total"}`` — falsy stats entries are skipped so callers can
+    pass the raw values of a stats_map without filtering.
+    """
+    files = 0
+    lines = 0
+    mb = 0.0
+    langs = {}
+    for s in stats_list if stats_list else []:
+        if not s:
+            continue
+        files += s.get("files", 0) or 0
+        lines += s.get("lines", 0) or 0
+        mb += s.get("size_mb", 0.0) or 0.0
+        for k, v in (s.get("languages") or {}).items():
+            langs[k] = langs.get(k, 0) + (v or 0)
+    total = sum(langs.values()) or 1
+    top = [(name, round(n * 100 / total)) for name, n in
+           sorted(langs.items(), key=lambda kv: -kv[1])[:3]]
+    used = sum(p for _n, p in top)
+    if top and used < 100:
+        name, pct = top[-1]
+        top[-1] = (name, pct + (100 - used))
+    return {
+        "workspaces": sum(1 for s in (stats_list or []) if s),
+        "files": files,
+        "lines": lines,
+        "mb": round(mb, 1),
+        "top": top,
+    }
+
+
+def aggregate_line(ag):
+    """One human line for the hub strip:
+    '2 workspaces · 1,204 files · 9,431 lines · Python 42% · 8.3 MB'.
+    """
+    if not ag or not ag.get("workspaces"):
+        return ""
+    parts = [f"{ag['workspaces']} workspace"
+             + ("s" if ag["workspaces"] != 1 else ""),
+             f"{ag.get('files', 0):,} files"]
+    if ag.get("lines"):
+        parts.append(f"{ag['lines']:,} lines")
+    parts.extend(f"{n} {p}%" for n, p in ag.get("top", []))
+    parts.append(f"{ag.get('mb', 0)} MB")
+    return "  ·  ".join(parts)
