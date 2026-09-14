@@ -292,3 +292,12 @@
 | `lang` terminal command | terminal, persisted via config `language` key | `lang` lists available packs and the current one; `lang es` / `lang zh` / `lang ja` activates a pack — eight ship built-in (en es fr de pt zh hi ja) and any file dropped in `~/.dxn1-studio/lang/<code>.json` joins the list automatically |
 | Boot persistence | `i18n.boot_from_config()` at studio start | The remembered language is honoured on every launch, so the choice survives restarts |
 | Translation template | `i18n.export_template(dest, code)` | Community packs start from a complete JSON template — honest groundwork for the tr() plumbing that now has a switchable substrate |
+
+## Character Map (v2.18.0 lane)
+
+| Feature | Where | What it does |
+|---|---|---|
+| Glyph browser | `charmap.py`, Workshop → *Character Map — browse & copy Unicode…*, palette, terminal `charmap` / `char` / `unicode` | 25 curated offline blocks — Arrows, Math Operators, Box Drawing, Block Elements, Geometric Shapes, Currency, Braille, Hiragana, Katakana, CJK samples, Fullwidth Forms and more — rendered in a click-to-copy glyph grid |
+| Three-way search | type in the search box | Matches block names (`box`), hex codepoints (`U+2192`, `0x00e9`, `2192`) or any literal character you paste; a failed search says so honestly instead of silently falling back |
+| Click-to-copy | clicking a glyph | Copies the character and prints `U+00E9 · é · LATIN SMALL LETTER E WITH ACUTE` (unnamed glyphs handled); *copy all shown* grabs the whole grid for pasting into an editor |
+| Pure engine | `block_names()` / `chars_in()` / `search()` / `describe()` | Junk-tolerant, bounded, fully unit-tested; the window never raises |
