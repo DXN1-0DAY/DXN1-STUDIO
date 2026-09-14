@@ -4,6 +4,20 @@ All notable changes to DXN1 STUDIO. Format based on
 [Keep a Changelog](https://keepachangelog.com/); versioning is
 `MAJOR.MINOR.PATCH` while in **beta**.
 
+## [2.3.0] — 2026-09-14 · beta · "fourteen ways to start"
+
+### Added
+- **Next.js + Svelte scaffolds** (`projects.py`) — the hub gallery now
+  ships **14 templates**: Next.js gets real pages, an API route and a
+  working package.json; Svelte gets App.svelte with a rune-ready
+  counter and vite config.
+- **Zen writing stats** (`zen.py`) — deep work, measured: honest
+  words-per-minute (paste spikes filtered), session peak, word-goal
+  percentage and an in-zen HUD card. Memory-only — nothing is
+  recorded anywhere.
+- **Plugin API** (`plugins.py`) — hooks, command registration and a
+  manager UI, pulling the roadmap's plugin system forward.
+
 ## [2.2.0] — 2026-09-14 · beta · "see the whole file"
 
 ### Added
