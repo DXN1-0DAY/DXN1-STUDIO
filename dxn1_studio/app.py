@@ -1234,6 +1234,15 @@ class DXN1Studio:
                 command=_open_numbase_menu)
         except Exception:  # pragma: no cover — menu stays alive
             pass
+        # DS2: csv lab (defensive)
+        def _open_csv_menu():
+            self.open_csv_lab()
+        try:
+            workshop_menu.add_command(
+                label="CSV Lab — paste & peek tables…",
+                command=_open_csv_menu)
+        except Exception:  # pragma: no cover — menu stays alive
+            pass
         workshop_menu.add_separator()
         workshop_menu.add_command(label="Token Usage Dashboard…",
                                   command=_open_usage_menu)
@@ -1709,6 +1718,14 @@ class DXN1Studio:
         try:
             from .numbase import open_numbase
             open_numbase(self.root, self.theme)
+        except Exception:  # noqa: BLE001 — menu stays alive
+            pass
+
+    def open_csv_lab(self):
+        """DS2: CSV table peeker."""
+        try:
+            from .csvkit import open_csv_lab
+            open_csv_lab(self.root, self.theme)
         except Exception:  # noqa: BLE001 — menu stays alive
             pass
 
@@ -2741,6 +2758,8 @@ class DXN1Studio:
                                 "with an entropy meter"),
                     ("base", "numbase — convert numbers between any "
                              "bases 2-36 + bit inspector"),
+                    ("csv", "CSV Lab — paste csv/tsv, peek the table, "
+                            "copy back as TSV"),
                     ("scribe <n>", "set the words-per-session goal for "
                                    "the statusbar writing meter"),
                     ("explain", "hand the last error to the agent"),
@@ -3030,6 +3049,12 @@ class DXN1Studio:
             self.open_numbase()
             self.terminal.log("NumBase opened — type a number, read "
                               "every base + bit inspector")
+            return
+        if low in ("csv", "csvlab", "tsv"):
+            # DS2: csv table peeker
+            self.open_csv_lab()
+            self.terminal.log("CSV Lab opened — paste csv/tsv, the "
+                              "table renders; copy back as TSV")
             return
         if low == "lang" or low.startswith("lang "):
             # DS2: switch the UI language pack (i18n activation)
@@ -3737,6 +3762,14 @@ class DXN1Studio:
         try:
             cmds.append(("NumBase — bin/oct/dec/hex + bases 2-36…",
                          "DS2", _open_numbase_palette))
+        except Exception:  # pragma: no cover — palette stays alive
+            pass
+        # DS2: csv lab (defensive)
+        def _open_csv_palette():
+            self.open_csv_lab()
+        try:
+            cmds.append(("CSV Lab — paste & peek tables…",
+                         "DS2", _open_csv_palette))
         except Exception:  # pragma: no cover — palette stays alive
             pass
         # DS2: scribe goal (defensive)

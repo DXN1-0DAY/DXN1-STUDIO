@@ -325,6 +325,27 @@ def main():
     check("numbase engine offline", format_base(255, 16) == "ff")
     nbwin.destroy()
 
+    # ---- CSV Lab (same smoke, new lane)
+    from dxn1_studio.csvkit import parse_csv, open_csv_lab
+    csvwin = open_csv_lab(root, theme)
+    csvwin.update_idletasks()
+    check("csv lab window opens", csvwin.winfo_exists())
+    check("csv lab renders sample", "3 rows" in
+          csvwin.status.cget("text"))
+    csvwin.delim.set("auto")
+    csvwin.input.delete("1.0", "end")
+    csvwin.input.insert("1.0", "x;y\n1;2")
+    csvwin.refresh()
+    check("csv lab auto sniff", "1 rows" in
+          csvwin.status.cget("text"))
+    csvwin.input.delete("1.0", "end")
+    csvwin.input.insert("1.0", "totally not a table... or is it")
+    csvwin.refresh()
+    check("csv lab junk tolerated", "0 rows × 1 cols" in
+          csvwin.status.cget("text"))  # a 1x1 table is honest CSV
+    check("csv lab engine offline", len(parse_csv("a,b\n1,2")) == 2)
+    csvwin.destroy()
+
     # ---- REST bench (same smoke, seventh lane)
     from dxn1_studio.restbench import (RestResponse, build_curl,
                                        format_size,

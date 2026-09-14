@@ -107,6 +107,8 @@ SHEETS = [
                     "toggled classes and an entropy meter"),
         ("base", "NumBase — read a number as bin/oct/dec/hex + any "
                  "base 2-36, with a bit inspector"),
+        ("csv", "CSV Lab — paste csv/tsv/semicolon/pipe, peek the "
+                "table, copy back out as TSV"),
         ("scribe <n>", "Writing meter — ✎ chip in the statusbar shows "
                        "words, WPM and goal progress; click for a "
                        "session toast")

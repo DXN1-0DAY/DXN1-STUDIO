@@ -335,3 +335,12 @@
 | Parser | `parse_number()` | Accepts +/- signs, `_` digit separators and the classic 0x/0o/0b prefixes (which override the chosen base); junk digits, empty prefixes and out-of-range bases return None instead of guessing |
 | Bit inspector | `inspect_bits()` | Bit length, popcount, big-endian hex bytes and a two's-complement note for negative values |
 | Round-trip proof | `tests/test_ds2.py` | Formatting then re-parsing 255 round-trips for every base 2..36 |
+
+## CSV Lab (rides the v2.22.0 finale tag)
+
+| Feature | Where | What it does |
+|---|---|---|
+| Table peeker | `csvkit.py`, Workshop → *CSV Lab — paste & peek tables…*, palette, terminal `csv` / `csvlab` / `tsv` | Paste CSV/TSV/semicolon/pipe data and the table renders instantly in a ttk treeview; the header row becomes column headings |
+| Delimiter sniffing | `sniff_delimiter()` | Auto-detects `,` `;` `\t` `|` from the sample; an "auto" radio plus explicit picks override it |
+| Honest parsing | `parse_csv()` / `table_stats()` | Stdlib csv parser (quoted fields with embedded delimiters work), blank rows skipped, ragged-width tables flagged; junk renders an empty grid instead of crashing |
+| TSV export | one click | The grid copies back out as tab-separated text — paste straight into a spreadsheet |

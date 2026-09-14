@@ -1825,3 +1825,35 @@ def test_numbase_engine():
     assert numbase.inspect_bits(0)["bit_length"] == 0
     assert numbase.inspect_bits(True) == {}
     assert numbase.inspect_bits("x") == {}
+
+
+def test_csvkit_engine():
+    """DS2 csvkit: sniffing, parsing, stats, TSV out."""
+    from dxn1_studio import csvkit
+    # delimiter sniffing
+    assert csvkit.sniff_delimiter("a,b\n1,2") == ","
+    assert csvkit.sniff_delimiter("a;b\n1;2") == ";"
+    assert csvkit.sniff_delimiter("a\tb\n1\t2") == "\t"
+    assert csvkit.sniff_delimiter("a|b\n1|2") == "|"
+    assert csvkit.sniff_delimiter("no delims") == ","
+    assert csvkit.sniff_delimiter(None) == ","
+    # parsing
+    rows = csvkit.parse_csv("name,age\nada,36")
+    assert rows == [["name", "age"], ["ada", "36"]]
+    assert csvkit.parse_csv("a;b", delimiter=";") == [["a", "b"]]
+    # quoted fields and embedded delimiters
+    assert csvkit.parse_csv('"x,y",z') == [["x,y", "z"]]
+    # blank rows skipped, junk tolerated
+    assert csvkit.parse_csv("a,b\n\n  \nc,d") == [["a", "b"], ["c", "d"]]
+    assert csvkit.parse_csv("") == []
+    assert csvkit.parse_csv(None) == []
+    # stats
+    st = csvkit.table_stats(rows)
+    assert st["rows"] == 2 and st["cols"] == 2
+    assert st["headers"] == ["name", "age"] and not st["ragged"]
+    assert csvkit.table_stats([["a", "b"], ["c"]])["ragged"] is True
+    assert csvkit.table_stats([])["rows"] == 0
+    # TSV export
+    tsv = csvkit.to_tsv(rows)
+    assert "name\tage" in tsv and "ada\t36" in tsv
+    assert csvkit.to_tsv([]) == ""
