@@ -2054,15 +2054,21 @@ class DXN1Studio:
             pass
 
     def _restore_session_tabs(self, project_path):
-        """Reopen the tabs (and active file) saved for this workspace."""
+        """Reopen the tabs (and active file) saved for this workspace.
+
+        DS2 v2.35: the engine snapshot is tried FIRST — every clean
+        exit refreshes it and the 60s autosave keeps it warm in
+        between, so a hard crash costs one minute of tabs instead of
+        resurrecting a week-old clean-exit record. The legacy
+        ``session_tabs`` config entry stays as the fallback for
+        pre-v2.30 installs."""
         if not self.config.get("restore_session", True):
+            return
+        if self._restore_engine_session(project_path):
             return
         sessions = self.config.get("session_tabs") or {}
         data = sessions.get(os.path.abspath(project_path))
         if not data:
-            # DS2 v2.32: no clean-exit record (crash / kill / power loss)
-            # — fall back to the crash-safe autosave snapshot instead.
-            self._restore_engine_session(project_path)
             return
         for path in data.get("tabs", []):
             if os.path.isfile(path) and path != self.editor.file_path:
@@ -4678,11 +4684,18 @@ class DXN1Studio:
                 except ValueError:
                     newer = False
                 if newer:
-                    # the full-screen Update Portal — no sneaky toasts
-                    updater.UpdatePortal(self, result["latest"],
-                                         result["url"], result["notes"])
-                    self.terminal.log(f"Update available: v{APP_VERSION} → "
-                                      f"v{result['latest']} — {result['url']}")
+                    if self._update_should_nag(result["latest"], manual):
+                        # the full-screen Update Portal — no sneaky toasts
+                        updater.UpdatePortal(self, result["latest"],
+                                             result["url"], result["notes"])
+                        self.terminal.log(f"Update available: v{APP_VERSION} → "
+                                          f"v{result['latest']} — {result['url']}")
+                    else:
+                        # DS2 v2.35: the polite updater — you declined this
+                        # exact version, so the boot check stays quiet.
+                        self.terminal.log(
+                            f"Update v{result['latest']} is out — you asked "
+                            "to skip it. Run `update` any time to reconsider.")
                 elif manual:
                     self.toast(f"You're on the latest "
                                f"(v{APP_VERSION})", "success")
@@ -4698,6 +4711,20 @@ class DXN1Studio:
         if not parts:
             raise ValueError(version)
         return tuple(int(p) for p in parts[:3]) + (0,) * (3 - len(parts[:3]))
+
+    def _update_should_nag(self, latest, manual=False):
+        """DS2 v2.35: the polite updater — honour "I'll stay on this
+        version". Manual checks (palette / menu / terminal ``update``)
+        always show the portal; the automatic boot check stays quiet
+        for a version you already declined. A newer release than the
+        skipped one nags again, as it should."""
+        if manual:
+            return True
+        try:
+            skipped = str(self.config.get("updater_skip_version", "") or "")
+            return skipped != str(latest or "")
+        except Exception:  # noqa: BLE001 — default is to speak up
+            return True
 
     # ----------------------------------------------------------- shortcuts
     def show_shortcuts(self):
@@ -4798,18 +4825,20 @@ class DXN1Studio:
             pass
 
     def _restore_engine_session(self, project_path):
-        """DS2 v2.32: reopen tabs from the autosave engine snapshot.
+        """DS2 v2.32/v2.35: reopen tabs from the engine snapshot.
 
-        Runs when no clean-exit record exists for this workspace — the
-        last autosaved snapshot (at most one minute old) becomes the
-        recovery point, cursors included. Best effort, never raises."""
+        The first choice at boot — the snapshot is refreshed by every
+        clean exit and by the 60s autosave, cursors included, so it is
+        always at least as fresh as the legacy clean-exit record.
+        Returns True when something was (re)opened, False when no
+        usable snapshot exists. Best effort, never raises."""
         try:
             from . import session as _ds2_session
             _ws = os.path.abspath(project_path)
             tabs, active, cursor = _ds2_session.restore_plan(
                 _ds2_session.load(_ws))
             if not tabs and not active:
-                return
+                return False
             for path in tabs:
                 if path != self.editor.file_path:
                     try:
@@ -4835,8 +4864,10 @@ class DXN1Studio:
                         f"{int(_c.get('line', 1))}.{int(_c.get('col', 0))}"
             except Exception:
                 pass
+            return True
         except Exception:
             errors.log_exception("engine session restore", quiet=True)
+            return False
 
     # ------------------------------------------------ DS2 v2.33: save now
     def save_session_now(self):

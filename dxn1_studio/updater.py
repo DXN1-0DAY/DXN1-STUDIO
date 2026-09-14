@@ -416,6 +416,10 @@ class UpdatePortal(tk.Toplevel):
                       fill="#ffffff", font=(FONT_UI, 14, "bold"))
         later = c.create_text(cx, by + 92, text="I'll stay on this version",
                               fill="#8b7bb8", font=(FONT_UI, 10, "underline"))
+        c.create_text(cx, by + 114,
+                      text=f"staying skips reminders for v{self.latest} — "
+                           "`update` in the terminal brings them back",
+                      fill="#6d5d9c", font=(FONT_UI, 9))
         for tag in (install, later):
             c.tag_bind(tag, "<Enter>", lambda e: c.config(cursor="hand2"))
             c.tag_bind(tag, "<Leave>", lambda e: c.config(cursor=""))
@@ -623,6 +627,13 @@ class UpdatePortal(tk.Toplevel):
                       fill="#fca5a5", font=(FONT_UI, 10))
 
     def decline(self):
+        # DS2 v2.35: remember the choice — the automatic check stops
+        # asking about this exact version (terminal ``update`` or the
+        # manual menu entry bring the portal right back).
+        try:
+            self.app.config.set("updater_skip_version", self.latest)
+        except Exception:  # noqa: BLE001 — the portal must never break
+            pass
         self._phase = "declined"
         self._paint()
 

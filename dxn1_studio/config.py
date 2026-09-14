@@ -33,6 +33,8 @@ DEFAULTS = {
     # --- DS2 v2.32: crash-safe session autosave ---------------------------
     "session_autosave": True,      # snapshot tabs+cursors every interval
     "session_autosave_secs": 60,   # interval, clamped 15..600 at runtime
+    # --- DS2 v2.35: the polite updater -------------------------------------
+    "updater_skip_version": "",    # version the user declined — no auto-nag
     "recent_projects": [],   # [{path, kind, opened}] — hub recents
     "last_project": "",      # most recently opened workspace path
     # --- wizard -----------------------------------------------------------
@@ -80,8 +82,13 @@ class Config:
     def save(self):
         try:
             os.makedirs(CONFIG_DIR, exist_ok=True)
-            with open(CONFIG_PATH, "w", encoding="utf-8") as fh:
+            # DS2 v2.35: write-then-replace — a crash mid-save can no
+            # longer tear config.json in half (corrupt prefs lost the
+            # session_tabs record too, defeating crash recovery).
+            tmp = CONFIG_PATH + ".tmp"
+            with open(tmp, "w", encoding="utf-8") as fh:
                 json.dump(self._data, fh, indent=2)
+            os.replace(tmp, CONFIG_PATH)
         except OSError:
             pass  # read-only home etc. — IDE keeps running with defaults
 

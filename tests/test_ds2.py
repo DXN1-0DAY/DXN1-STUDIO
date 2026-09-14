@@ -2944,3 +2944,195 @@ def test_hashes_sync():
              if listed[r] != sha(os.path.join(root, r))]
     assert not stale, (
         "HASHES.txt stale (run scripts/gen_hashes.py): " + ", ".join(stale))
+
+
+def test_update_skip_version(monkeypatch, tmp_path):
+    """DS2 v2.35 — the polite updater: declining the portal remembers
+    the exact version (the automatic boot check goes quiet for it),
+    manual checks still open the portal, and any newer release nags
+    again. Config saves are atomic — no torn tmp file left behind."""
+    import tkinter as tk
+    try:
+        root = tk.Tk(); root.withdraw()
+    except tk.TclError:
+        return
+    import dxn1_studio.config as cfgmod
+    monkeypatch.setattr(cfgmod, "CONFIG_DIR", str(tmp_path))
+    monkeypatch.setattr(cfgmod, "CONFIG_PATH",
+                        str(tmp_path / "config.json"))
+    monkeypatch.setenv("HOME", str(tmp_path))
+    from dxn1_studio.app import DXN1Studio
+    from dxn1_studio import updater
+    assert cfgmod.DEFAULTS["updater_skip_version"] == ""
+    app = DXN1Studio(cfgmod.Config(), smoke_test=True, no_splash=True)
+    try:
+        # default: nothing skipped yet → the boot check would speak up
+        assert app._update_should_nag("99.0.0") is True
+        assert app._update_should_nag("99.0.0", manual=True) is True
+
+        # a stub portal borrows the real decline() — no fullscreen Tk
+        class _StubPortal:
+            decline = updater.UpdatePortal.decline
+
+            def __init__(self, app, latest):
+                self.app, self.latest, self._phase = app, latest, "offer"
+
+            def _paint(self):
+                self.painted = True
+
+        portal = _StubPortal(app, "99.0.0")
+        portal.decline()
+        assert portal._phase == "declined"
+        assert app.config.get("updater_skip_version") == "99.0.0", \
+            "declining must remember the exact version"
+
+        # auto-check goes quiet for that version…
+        assert app._update_should_nag("99.0.0") is False
+        # …but speaks up for anything else…
+        assert app._update_should_nag("100.0.0") is True
+        # …and a manual check always shows the portal.
+        assert app._update_should_nag("99.0.0", manual=True) is True
+
+        # end to end: auto check with the skip set never builds a portal
+        import threading
+        import urllib.request
+        payload = json.dumps({"tag_name": "v99.0.0", "body": "- x",
+                              "html_url": "https://example.com/r"}).encode()
+
+        class _FakeResp:
+            def __enter__(self):
+                return self
+
+            def __exit__(self, *a):
+                return False
+
+            def read(self):
+                return payload
+
+        class _InlineThread:
+            """Run the worker synchronously — root.after from a
+            secondary thread needs a live mainloop, which the test
+            harness stubs out."""
+
+            def __init__(self, target=None, daemon=None, *a, **k):
+                self._target = target
+
+            def start(self):
+                self._target()
+
+        monkeypatch.setattr(urllib.request, "urlopen",
+                            lambda req, timeout=10: _FakeResp())
+        opened = []
+
+        class _NoPortal:
+            def __init__(self, *a, **k):
+                opened.append(a)
+
+        monkeypatch.setattr(updater, "UpdatePortal", _NoPortal)
+        monkeypatch.setattr(threading, "Thread", _InlineThread)
+        app.smoke_test = False          # lift the smoke-mode block
+        app._updater_shown = False
+        app.check_for_updates(manual=False)
+        for _ in range(50):
+            root.update()
+            if not app._updater_shown:
+                break
+            time.sleep(0.02)
+        assert app._updater_shown is False, "check never finished"
+        assert not opened, "skipped version must not open the portal"
+
+        # manual check with the same skip → the portal fires
+        app._updater_shown = False
+        app.check_for_updates(manual=True)
+        for _ in range(50):
+            root.update()
+            if not app._updater_shown:
+                break
+            time.sleep(0.02)
+        assert app._updater_shown is False
+        assert opened, "manual check must show the portal even when skipped"
+
+        # atomic config save — write-then-replace leaves no tmp debris
+        app.config.set("updater_skip_version", "99.0.0")
+        assert not os.path.exists(str(tmp_path / "config.json.tmp")), \
+            "atomic save must leave no tmp file behind"
+    finally:
+        try:
+            root.destroy()
+        except tk.TclError:
+            pass
+
+
+def test_engine_first_restore(monkeypatch, tmp_path):
+    """DS2 v2.35 — boot restore prefers the engine snapshot (fresh:
+    every clean exit refreshes it, the 60s autosave keeps it warm) over
+    a stale legacy clean-exit record; the legacy record stays as the
+    fallback when no snapshot exists. _restore_engine_session reports
+    whether it actually restored anything."""
+    import tkinter as tk
+    try:
+        root = tk.Tk(); root.withdraw()
+    except tk.TclError:
+        return
+    import dxn1_studio.config as cfgmod
+    monkeypatch.setattr(cfgmod, "CONFIG_DIR", str(tmp_path))
+    monkeypatch.setattr(cfgmod, "CONFIG_PATH",
+                        str(tmp_path / "config.json"))
+    monkeypatch.setenv("HOME", str(tmp_path))
+    from dxn1_studio.app import DXN1Studio
+    from dxn1_studio import session as sess
+    app = DXN1Studio(cfgmod.Config(), smoke_test=True, no_splash=True)
+    try:
+        proj = tmp_path / "proj"
+        proj.mkdir(exist_ok=True)
+        fa = proj / "alpha.py"
+        fa.write_text("def gmm(x):\n    return x\n" + "".join(
+            f"line {i}\n" for i in range(3, 13)), encoding="utf-8")
+        fb = proj / "beta.py"
+        fb.write_text("beta one\nbeta two\n", encoding="utf-8")
+        app.project_dir = str(proj)
+
+        # no snapshot yet → False, honest, nothing opens
+        assert app._restore_engine_session(str(proj)) is False
+
+        # a WEEK-OLD clean-exit record knows only beta…
+        app.config.set("session_tabs", {os.path.abspath(str(proj)): {
+            "tabs": [str(fb)], "active": str(fb)}})
+
+        # …but last night's autosave snapshot knows both + cursors
+        sess.save(str(proj), sess.snapshot(
+            [str(fa), str(fb)], active=str(fa),
+            cursor={str(fa): (7, 3), str(fb): (2, 0)},
+            workspace=str(proj)))
+        assert app._restore_engine_session(str(proj)) is True
+        root.update()
+        assert str(fa) in app._tab_frames and str(fb) in app._tab_frames, \
+            "engine snapshot (both files) must beat the stale record"
+        assert app.editor.file_path == str(fa)
+        assert app.editor.text.index("insert") == "7.3"
+
+        # the boot path must take the engine branch too
+        app2 = DXN1Studio(cfgmod.Config(), smoke_test=True, no_splash=True)
+        app2.project_dir = str(proj)
+        app2._restore_session_tabs(str(proj))
+        root.update()
+        assert str(fa) in app2._tab_frames and str(fb) in app2._tab_frames
+        assert app2.editor.file_path == str(fa)
+        assert app2.editor.text.index("insert") == "7.3", \
+            "engine cursors must survive the boot restore"
+        assert app2._buffer_cursors[str(fb)] == "2.0"
+
+        # fallback: wipe the snapshot → the legacy record restores beta
+        sess.clear(str(proj))
+        assert app._restore_engine_session(str(proj)) is False
+        app3 = DXN1Studio(cfgmod.Config(), smoke_test=True, no_splash=True)
+        app3.project_dir = str(proj)
+        app3._restore_session_tabs(str(proj))
+        root.update()
+        assert app3.editor.file_path == str(fb), \
+            "legacy clean-exit record is the fallback when no snapshot"
+    finally:
+        try:
+            root.destroy()
+        except tk.TclError:
+            pass

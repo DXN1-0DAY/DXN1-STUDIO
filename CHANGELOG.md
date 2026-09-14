@@ -4,6 +4,33 @@ All notable changes to DXN1 STUDIO. Format based on
 [Keep a Changelog](https://keepachangelog.com/); versioning is
 `MAJOR.MINOR.PATCH` while in **beta**.
 
+## [2.35.0] — 2026-09-14 · beta · "the boot path that never lies" (engine-first restore + polite updater)
+
+### Changed
+- **Engine-first boot restore** — reopening a workspace now tries the
+  crash-safe engine snapshot BEFORE the legacy clean-exit record.
+  Every clean exit refreshes the snapshot and the 60s autosave keeps
+  it warm in between, so it is always at least as fresh as the
+  `session_tabs` entry: a hard crash now costs one minute of open
+  tabs instead of resurrecting a week-old clean-exit tab set. The
+  legacy record stays as the fallback for pre-v2.30 installs, and
+  `_restore_engine_session` now reports whether it actually restored
+  anything (True/False).
+- **Atomic config saves** — `Config.save()` writes to a temp file and
+  `os.replace`s it into place: a crash mid-save can no longer tear
+  config.json in half (which also silently destroyed the session
+  records the crash recovery depends on).
+
+### Added
+- **The polite updater** — "I'll stay on this version" on the update
+  portal now remembers that exact release (`updater_skip_version`):
+  the automatic boot check goes quiet for it and logs a one-line
+  "run `update` to reconsider" in the terminal instead of forcing the
+  full-screen portal on you every launch. Manual checks (menu,
+  palette, terminal `update`) always open the portal, and any newer
+  release than the skipped one nags again, as it should. The offer
+  screen now says exactly that.
+
 ## [2.34.0] — 2026-09-14 · beta · "stream the difference" (delta updates)
 
 ### Added
