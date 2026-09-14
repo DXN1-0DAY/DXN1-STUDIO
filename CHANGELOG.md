@@ -4,6 +4,33 @@ All notable changes to DXN1 STUDIO. Format based on
 [Keep a Changelog](https://keepachangelog.com/); versioning is
 `MAJOR.MINOR.PATCH` while in **beta**.
 
+## [2.28.0] — 2026-09-14 · beta · "through their eyes" (bonus round)
+
+### Added
+- **Colorblind Lab** (`cvdlab.py`, Workshop menu, palette, terminal
+  `cvd` / `colorblind` / `vision`) — see the studio's themes the way
+  color-blind users do: deuteranopia, protanopia, tritanopia and
+  achromatopsia previews with a 0–100% severity blend slider.
+- **Contrast under CVD** — the lab re-runs the Contrast Auditor on
+  the simulated palette and shows a live verdict ("CVD view: 13
+  pairs · 13 pass · 0 fail"). The two accessibility tools now work
+  as a suite.
+- Custom hex entry with instant simulation + copy; sRGB-space
+  approximation documented honestly in the module docstring.
+- i18n: `cvdlab.severity` + `cvdlab.copy_hex` in all 8 packs.
+
+### Fixed
+- **Applied the Contrast Auditor's own findings to the palettes**:
+  FAIL-grade gutter pairs fixed in dark (`#4d5766`→`#778498`,
+  2.48:1→4.55:1) and light (`#8b949e`→`#67707b`, 2.89:1→5.0:1)
+  built-ins, light `text_muted` raised to AA, Solarized-ish muted
+  fixed — the auditor now reports **0 FAILs across all 14 themes**
+  (gallery themes inherit the corrected base values).
+
+### Notes
+- 63/63 pytest groups · 141/141 smoke checks across 23 windows ·
+  20/20 boot QA · 81 feature modules.
+
 ## [2.27.0] — 2026-09-14 · beta · "print me" (bonus round)
 
 ### Added

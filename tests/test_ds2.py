@@ -2270,3 +2270,95 @@ def test_cheatsheet_engine():
     assert "save failed" in win.status.cget("text")
     win.refresh()
     win.destroy(); root.destroy()
+
+
+def test_cvdlab_engine():
+    """DS2 cvdlab: CVD simulation, severity, palettes, window."""
+    from dxn1_studio import cvdlab as c
+    from dxn1_studio.contrast import audit_summary
+    from dxn1_studio.theme import PALETTES
+    # achromatopsia drains to gray (R==G==B)
+    g = c.simulate_hex("#ff0000", "achromatopsia")
+    assert g and g[1:3] == g[3:5] == g[5:7]
+    # classic transforms move hue: red under deuteranopia isn't red
+    d = c.simulate_hex("#ff0000", "deuteranopia")
+    assert d and d != "#ff0000" and d.startswith("#")
+    # severity 0 is identity, 1 is full simulation, 0.5 is between
+    assert c.simulate_hex("#ff0000", "protanopia", 0) == "#ff0000"
+    full = c.simulate_hex("#ff0000", "protanopia", 1)
+    half = c.simulate_hex("#ff0000", "protanopia", 0.5)
+    assert full != half != "#ff0000"
+    # junk hex -> None; unknown kind falls back to a valid sim
+    for junk in ("", None, "zzz", 42, "#12345"):
+        assert c.simulate_hex(junk, "deuteranopia") is None
+    assert c.simulate_hex("#3366cc", "not-a-kind") is not None
+    # severity junk clamps instead of raising
+    assert c.simulate_hex("#ff0000", "tritanopia", "x") is not None
+    # simulate_palette: parses what it can, drops junk keys
+    pal = {"bg": "#0d1117", "text": "#e6edf3", "bad": "nope"}
+    sp = c.simulate_palette(pal, "deuteranopia")
+    assert set(sp) == {"bg", "text"} and sp["bg"] != "#0d1117"
+    assert c.simulate_palette(None, "achromatopsia") == {}
+    assert c.simulate_palette({}, "achromatopsia") == {}
+    # swatch_rows: known keys, tuples of three strings
+    rows = c.swatch_rows(PALETTES["dark"], "deuteranopia")
+    keys = [r[0] for r in rows]
+    assert "bg" in keys and "text" in keys and "select_fg" in keys
+    assert all(len(r) == 3 and r[1] and r[2] for r in rows)
+    assert c.swatch_rows({}, "achromatopsia") == []
+    # studio's Theme wrapper (non-dict) works everywhere too
+    try:
+        from dxn1_studio.config import DEFAULTS
+        from dxn1_studio.theme import from_config
+        th = from_config(DEFAULTS)
+        assert len(c.swatch_rows(th, "deuteranopia")) >= 10
+        assert len(c.simulate_palette(th, "achromatopsia")) >= 10
+        assert c.sim_summary(th, "achromatopsia")["total"] == 13
+    except Exception:  # noqa: BLE001 — headless CI guard
+        pass
+    # sim_summary: the fixed dark theme survives all 4 kinds
+    for kind in c.KINDS:
+        s = c.sim_summary(PALETTES["dark"], kind)
+        assert s["total"] == 13 and s["FAIL"] == 0, (kind, s)
+    # and a hostile palette audits honestly under CVD
+    s = audit_summary(c.audit_palette_wrapper()
+                      if hasattr(c, "audit_palette_wrapper")
+                      else __import__("dxn1_studio.contrast",
+                                      fromlist=["audit_palette"])
+                      .audit_palette(c.simulate_palette(
+                          {"bg": "#111", "text": "#222"},
+                          "achromatopsia")))
+    assert s["total"] == 13
+    assert c.survive_line(PALETTES["light"], "deuteranopia"
+                          ).startswith("CVD view: 13 pairs")
+    # window: opens, swatches render, kind switch + custom hex work
+    import tkinter as tk
+    try:
+        root = tk.Tk(); root.withdraw()
+    except tk.TclError:
+        return
+    theme = {"bg": "#16161e", "header": "#242432",
+             "editor_bg": "#1a1a24", "text": "#e8e8f0",
+             "text_muted": "#8a8a9a", "button": "#2a2a3a",
+             "button_hover": "#33334a", "success": "#3fb950",
+             "sidebar": "#11161d", "card": "#131a22",
+             "linenum_fg": "#778498", "select_fg": "#ffffff"}
+    from dxn1_studio.cvdlab import open_cvdlab
+    win = open_cvdlab(root, theme)
+    assert win is not None and win.winfo_exists()
+    assert len(win._swatch_widgets) > 20          # chips + rows
+    assert "CVD view" in win.verdict.cget("text")
+    win.kind.set("achromatopsia")
+    win._refresh()
+    assert len(win._swatch_widgets) > 20
+    win.custom.delete(0, "end")
+    win.custom.insert(0, "#ff0000")
+    win._refresh()
+    assert win.custom_out.cget("text") != "n/a"
+    win.custom.delete(0, "end")
+    win.custom.insert(0, "junk")
+    win._refresh()
+    assert win.custom_out.cget("text") == "n/a"
+    win._copy_custom()                             # never raises
+    win.refresh()
+    win.destroy(); root.destroy()

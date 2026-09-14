@@ -110,6 +110,8 @@ TERMINAL_HELP = (
                  "fixes for every theme"),
     ("cheat", "Cheat Sheet — print-friendly HTML export of "
               "every command"),
+    ("cvd", "Colorblind Lab — preview themes under color "
+            "blindness"),
     ("scribe <n>", "set the words-per-session goal for "
                    "the statusbar writing meter"),
     ("explain", "hand the last error to the agent"),
@@ -1373,6 +1375,15 @@ class DXN1Studio:
                 command=_open_cheatsheet_menu)
         except Exception:  # pragma: no cover — menu stays alive
             pass
+        # DS2: colorblind lab (defensive)
+        def _open_cvd_menu():
+            self.open_cvdlab()
+        try:
+            workshop_menu.add_command(
+                label="Colorblind Lab — CVD preview of themes…",
+                command=_open_cvd_menu)
+        except Exception:  # pragma: no cover — menu stays alive
+            pass
         workshop_menu.add_separator()
         workshop_menu.add_command(label="Token Usage Dashboard…",
                                   command=_open_usage_menu)
@@ -1905,6 +1916,14 @@ class DXN1Studio:
             from .cheatsheet import open_cheatsheet
             open_cheatsheet(self.root, self.theme,
                             commands=TERMINAL_HELP)
+        except Exception:  # noqa: BLE001 — menu stays alive
+            pass
+
+    def open_cvdlab(self):
+        """DS2: colorblind preview of the current theme."""
+        try:
+            from .cvdlab import open_cvdlab
+            open_cvdlab(self.root, self.theme)
         except Exception:  # noqa: BLE001 — menu stays alive
             pass
 
@@ -3215,6 +3234,13 @@ class DXN1Studio:
                               "save a print-ready HTML copy from "
                               "the button")
             return
+        if low in ("cvd", "colorblind", "vision"):
+            # DS2: colorblind preview of the current theme
+            self.open_cvdlab()
+            self.terminal.log("Colorblind Lab opened — deuteranopia, "
+                              "protanopia, tritanopia, achromatopsia "
+                              "previews with contrast verdicts")
+            return
         if low == "lang" or low.startswith("lang "):
             # DS2: switch the UI language pack (i18n activation)
             from . import i18n as _i18n
@@ -3977,6 +4003,14 @@ class DXN1Studio:
         try:
             cmds.append(("Cheat Sheet — printable HTML export…",
                          "DS2", _open_cheatsheet_palette))
+        except Exception:  # pragma: no cover — palette stays alive
+            pass
+        # DS2: colorblind lab (defensive)
+        def _open_cvd_palette():
+            self.open_cvdlab()
+        try:
+            cmds.append(("Colorblind Lab — CVD preview of themes…",
+                         "DS2", _open_cvd_palette))
         except Exception:  # pragma: no cover — palette stays alive
             pass
         # DS2: scribe goal (defensive)

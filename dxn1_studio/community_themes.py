@@ -73,7 +73,7 @@ def _build_gallery():
         ("Solarized-ish", "light", _tint(l, {
             "bg": "#fdf6e3", "sidebar": "#f5eedb", "header": "#eee8d5",
             "editor": "#fdf6e3", "text": "#073642", "text_secondary":
-            "#586e75", "text_muted": "#93a1a1"})),
+            "#586e75", "text_muted": "#657474"})),
     ]
 
 

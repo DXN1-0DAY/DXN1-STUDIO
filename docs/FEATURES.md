@@ -410,3 +410,13 @@
 | Zero drift | `TERMINAL_HELP` / `default_sections()` | The command list is the same tuple the terminal's `help` prints (extracted to module level this release), so new features appear on the sheet automatically |
 | Preview + actions | window | Plain-text preview of the full sheet; save HTML anywhere, open in browser instantly (temp file fallback), copy HTML to clipboard |
 | Honest saves | `save_html()` | Empty paths, directories, and missing folders return real error strings — the window reports them, never crashes |
+
+## Colorblind Lab
+
+| Feature | Where | What it does |
+|---|---|---|
+| CVD preview | `cvdlab.py`, Workshop → *Colorblind Lab — CVD preview of themes…*, palette, terminal `cvd` / `colorblind` / `vision` | Renders the active theme's swatches the way color-blind users see them: deuteranopia, protanopia, tritanopia, achromatopsia |
+| Severity blend | `simulate_hex(hex, kind, severity)` | 0–100% slider blends original vs simulated for design tuning; severity 0 is identity |
+| Contrast under CVD | `sim_summary()` / `survive_line()` | Re-runs the Contrast Auditor on the simulated palette — a live "CVD view: 13 pairs · 13 pass · 0 fail" verdict |
+| Custom hex | window | Type any hex, see it simulated instantly, copy the result |
+| Honest engine | engine | sRGB-space approximation (design review, not clinical); junk hex returns None; Theme wrapper and plain dicts both accepted |

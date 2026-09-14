@@ -464,6 +464,26 @@ def main():
     check("cheatsheet engine offline", "@media print" in _bhtml(None))
     kwin.destroy()
 
+    # ---- Colorblind Lab (same smoke, new lane)
+    from dxn1_studio.cvdlab import (simulate_hex as _simh,
+                                    open_cvdlab)
+    vwin = open_cvdlab(root, theme)
+    vwin.update_idletasks()
+    check("cvdlab window opens", vwin.winfo_exists())
+    check("cvdlab swatches render", len(vwin._swatch_widgets) > 20
+          and "CVD view" in vwin.verdict.cget("text"))
+    vwin.kind.set("achromatopsia")
+    vwin._refresh()
+    check("cvdlab kind switch works", len(vwin._swatch_widgets) > 20)
+    vwin.custom.delete(0, "end")
+    vwin.custom.insert(0, "junk")
+    vwin._refresh()
+    check("cvdlab honest custom hex", "n/a" in
+          vwin.custom_out.cget("text"))
+    check("cvdlab engine offline", _simh("#ff0000", "achromatopsia")
+          != "#ff0000" and _simh("zz", "deuteranopia") is None)
+    vwin.destroy()
+
     # ---- REST bench (same smoke, seventh lane)
     from dxn1_studio.restbench import (RestResponse, build_curl,
                                        format_size,
