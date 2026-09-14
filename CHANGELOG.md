@@ -4,6 +4,33 @@ All notable changes to DXN1 STUDIO. Format based on
 [Keep a Changelog](https://keepachangelog.com/); versioning is
 `MAJOR.MINOR.PATCH` while in **beta**.
 
+## [2.44.0] — 2026-09-15 · beta · "the studio keeps its receipts" (activity log + scribe goal dialog)
+
+### Added
+- **Activity log** — toasts auto-dismissed after ~3.4 seconds and
+  were gone forever. Every notification is now archived in a capped
+  ring buffer (100 events, newest first) with its kind (info /
+  success / error) and timestamp, and opens in one themed,
+  searchable window: live substring filter with an honest empty
+  state, kind-colored dots, click a row to copy the message,
+  Clear wipes the slate.
+- **Terminal verb `activity`** (alias `notifications`) — opens the
+  Activity window; `help activity` explains it; the verbs browser
+  lists it.
+- **Palette row** — *Activity — recent notifications…*.
+- **Scribe goal dialog** — the ✎ chip menu's *Set writing goal…*
+  row now opens a themed dialog prefilled with the current goal:
+  type the count, press Set or Enter. Invalid input gets an inline
+  honest error and the dialog stays open; Escape cancels without
+  applying. Applying updates the chip, persists
+  `scribe_goal_words`, and confirms with a toast + terminal line.
+
+### Changed
+- **Nothing fires by accident, upgraded** — the goal row used to
+  prefill the terminal; now an explicit Set gesture commits the
+  goal. The terminal verb `scribe <words>` keeps working exactly
+  as before.
+
 ## [2.43.0] — 2026-09-15 · beta · "the whole family is chipped in" (scribe + autosave menus, Commit staged…)
 
 ### Added

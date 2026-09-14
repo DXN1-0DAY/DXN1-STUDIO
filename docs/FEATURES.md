@@ -481,11 +481,22 @@
 
 | Feature | Where | What it does |
 |---|---|---|
-| Scribe chip menu | right-click the scribe chip, app `_scribe_menu_entries()` | The writing lane's actions in one themed menu: **Session summary** (the same toast the click gives), **Set writing goal…** (queues `scribe goal ` in the terminal input — type the number, press Enter, nothing fires by accident), **Reset session meter** (words, wpm and the elapsed clock restart from now; the goal survives) |
+| Scribe chip menu | right-click the scribe chip, app `_scribe_menu_entries()` | The writing lane's actions in one themed menu: **Session summary** (the same toast the click gives), **Set writing goal…** (opens the themed goal dialog — see below), **Reset session meter** (words, wpm and the elapsed clock restart from now; the goal survives) |
+| Scribe goal dialog | menu row → `scribe.open_goal_dialog()` | A themed dialog prefilled with the current goal: type the count, press Set or Enter — an explicit gesture commits it, nothing fires by accident. Invalid input gets an inline honest error ("whole numbers only") and the dialog stays open; Escape cancels without applying. Applying updates the chip, persists `scribe_goal_words`, and confirms with a toast + terminal line; the terminal verb `scribe <words>` keeps working exactly as before |
 | Scribe meter reset | menu row, app `_scribe_reset_from_menu()` + `scribe.ScribeChip.reset()` | A fresh writing session without touching the goal — the chip repaints immediately and a toast confirms the reset |
 | Autosave chip menu | right-click the session chip, app `_sesave_menu_entries()` | The session lane's actions in one themed menu: **Snapshot session now**, **Browse snapshots…** (the existing snapshot browser), a separator, **Autosave on/off** |
 | Autosave toggle | menu row, app `_sesave_autosave_toggle()` | Flips `session_autosave` live — the 60s autosave loop reads the config every tick, so the switch lands on the next beat; a toast and a terminal line say which way it went |
 | Family tooltips | app `_chip_tip()` | All four chips (git, deps, session autosave, scribe) advertise their menus on hover: what the chip is, what a click does, that a right-click opens the lane's actions |
+
+## Activity Log (v2.44.0)
+
+| Feature | Where | What it does |
+|---|---|---|
+| Toast receipts | every `app.toast()` call, `activity.ActivityLog` | Every notification the studio whispers — confirmations, errors, snapshot acks — is archived in a capped ring buffer (100 events, newest first) with its kind (info / success / error) and a timestamp; a toast can never break the lane that produced the event |
+| Activity window | terminal `activity` / `notifications`, palette *Activity — recent notifications…*, `activity.open_activity()` | One themed window lists the receipts: kind-colored dots, HH:MM:SS stamps, live substring filter (the same first pass `help <q>` uses) with an honest "nothing here" empty state, and a count label that tells the truth |
+| Click to copy | window rows, `on_copy` callback | Clicking a row copies its message to the clipboard and fires a confirmation toast — a notification you looked away from can still become a bug report |
+| Clear | window header | One click wipes the slate — the ring, the rows and the count agree immediately |
+| Verbs registry | TERMINAL_HELP + `verbs` browser | `activity` is a first-class verb: `help activity` explains it, `help act` finds it fuzzily, and the Terminal Verbs browser lists it with the rest |
 
 ## Session Restore
 

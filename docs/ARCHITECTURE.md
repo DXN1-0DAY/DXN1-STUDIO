@@ -9,10 +9,10 @@ dxn1_studio/
 ├── app.py            ← the studio: window, menus, palette, terminal, wiring
 ├── widgets.py        ← core widgets: file explorer, code editor, terminal
 ├── config.py/theme.py← persistence + theme engine (everything is themed)
-└── … 85 feature modules, one lane each, described below
+└── … 86 feature modules, one lane each, described below
 ```
 
-## Design rules (what keeps 85 modules coherent)
+## Design rules (what keeps 86 modules coherent)
 
 1. **One module = one lane.** Every feature lives in its own file
    with a public `open_*(parent, theme, …)` opener, so parallel
@@ -86,7 +86,7 @@ geometry memory).
 
 | Harness | What it proves |
 |---|---|
-| `python3 -m pytest tests/` | 89 unit groups over every pure engine |
+| `python3 -m pytest tests/` | 90 unit groups over every pure engine |
 | `scripts/smoke_v290.py` (Xvfb) | 155 live-window checks across 26 feature windows |
 | `scripts/smoke_v310.py` (Xvfb) | 20 checks: fuzzy highlight runs, per-buffer cursor memory, session cursor merge |
 | `scripts/smoke_v320.py` (Xvfb) | 18 checks: autosave write/switch gates, crash simulation + engine recovery boot, installer `--version` |
@@ -101,6 +101,7 @@ geometry memory).
 | `scripts/smoke_v410.py` (Xvfb) | 18 checks: red-chip one-gesture repair (click queues `deps fix`, Enter pins, chip honest again, cache re-scanned), amber click stays a plain rescan, branch-chip context menu (repo rows, stage-all routing, copy-branch clipboard, open Source Control, honest plain-folder menu, renderer never raises), Settings watch-chip section round-trip (persist + live redraw both ways) |
 | `scripts/smoke_v420.py` (Xvfb) | 15 checks: deps-chip context menu (red-state rows, queue-fix prefill + Enter hint, rescan through the terminal, ok-state loses the repair row, fresh rescan bypasses cache, watch toggle silences the chip), branch-menu additions (AI draft opens panel + fires helper, push/pull route to the visible runner, plain folder stays honest), one shared popup renderer + right-click tooltips |
 | `scripts/smoke_v430.py` (Xvfb) | 18 checks: the chip family completes — scribe menu (summary/goal/reset with goal preserved), sesave menu (autosave toggle live both ways, honest no-workspace toast, real snapshot write with chip flash, browse routes to the browser), branch menu 'Commit staged…' (opens Source Control + focuses the box, real focus_message wired), one renderer driving all four menus, Button-3 on every chip, four tooltips, palette rows |
+| `scripts/smoke_v440.py` (Xvfb) | 18 checks: the studio keeps its receipts — toasts archive newest-first with kinds, the Activity window e2e (live filter narrowing, honest empty state, click-to-copy through the callback, Clear wipes ring + rows), the scribe goal dialog driven through the app's menu row (prefilled, junk gets an inline error, Set applies chip+config+toast+terminal, Escape cancels), `activity`/`notifications` verb routing, palette row, single archive hook |
 | `scripts/boot_qa.py` (Xvfb) | 20 checks booting the real studio: menus bound, palette entries live, modules import, scribe chip wired |
 | `python3 -m compileall -q dxn1_studio` | The tree always compiles — the gate before every tag |
 

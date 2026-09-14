@@ -10,10 +10,12 @@ Configure: terminal ``scribe <words>`` sets the goal.
 """
 
 import time
+import tkinter as tk
 
+from .theme import FONT_UI, FONT_MONO
 from .zen import SessionStats
 
-__all__ = ["ScribeChip", "chip_text"]
+__all__ = ["ScribeChip", "chip_text", "open_goal_dialog"]
 
 MIN_INTERVAL = 2.0          # seconds between fed observations
 
@@ -112,3 +114,95 @@ class ScribeChip:
         self._last_words = 0
         self._last_wpm = 0.0
         self._last_text = self.text()
+
+
+def open_goal_dialog(master, theme, current, on_set=None):
+    """DS2 v2.44 — a themed goal dialog for the scribe chip menu:
+    type a word count (or keep the prefilled current one), press Set
+    or Enter — nothing changes until then. Invalid input gets an
+    inline honest error and the dialog stays open. Returns the
+    Toplevel so callers (tests, smoke) can inspect it. Best-effort
+    by contract."""
+    win = tk.Toplevel(master)
+    win.title("Writing goal")
+    win.configure(bg=theme["card"])
+    win.transient(master)
+    win.resizable(False, False)
+
+    wrap = tk.Frame(win, bg=theme["card"], highlightthickness=1,
+                    highlightbackground=theme["card_border"])
+    wrap.pack(fill=tk.BOTH, expand=True, padx=1, pady=1)
+
+    tk.Label(wrap, text="WRITING GOAL", bg=theme["card"],
+             fg=theme["text"], font=(FONT_UI, 11,
+                                     "bold")).pack(
+        anchor="w", padx=16, pady=(14, 2))
+    tk.Label(wrap, text="Words for this writing session — the ✎ chip "
+                        "shows your progress toward it.",
+             bg=theme["card"], fg=theme["text_muted"],
+             font=(FONT_UI, 8), anchor="w", wraplength=260,
+             justify="left").pack(anchor="w", padx=16, pady=(0, 8))
+
+    var = tk.StringVar(value=str(int(current) if current else 0))
+    entry = tk.Entry(wrap, textvariable=var, bg=theme["editor"],
+                     fg=theme["text"], insertbackground=theme["text"],
+                     relief=tk.FLAT, font=(FONT_MONO, 11),
+                     highlightthickness=1,
+                     highlightbackground=theme["border"],
+                     highlightcolor=theme.accent, width=16,
+                     justify="center")
+    entry.pack(padx=16, ipady=5, fill=tk.X)
+
+    err = tk.Label(wrap, text="", bg=theme["card"], fg="#f85149",
+                   font=(FONT_UI, 8), anchor="w")
+    err.pack(anchor="w", padx=16, pady=(4, 0))
+
+    def _set(_event=None):
+        raw = var.get().strip()
+        try:
+            goal = int(raw)
+        except (TypeError, ValueError):
+            err.config(text="whole numbers only — e.g. 500")
+            return False
+        if goal < 0:
+            err.config(text="zero or more — e.g. 500 (0 = no goal)")
+            return False
+        try:
+            if on_set:
+                on_set(goal)
+        except Exception:  # noqa: BLE001 — the callback owns itself
+            pass
+        try:
+            win.destroy()
+        except Exception:  # noqa: BLE001 — dying root is fine
+            pass
+        return True
+
+    def _cancel(_event=None):
+        try:
+            win.destroy()
+        except Exception:  # noqa: BLE001 — dying root is fine
+            pass
+        return "break"
+
+    btns = tk.Frame(wrap, bg=theme["card"])
+    btns.pack(fill=tk.X, padx=16, pady=(10, 14))
+    set_btn = tk.Label(btns, text="✓  Set goal", bg=theme.accent,
+                       fg="#ffffff", font=(FONT_UI, 9, "bold"),
+                       cursor="hand2", padx=12, pady=5)
+    set_btn.pack(side=tk.LEFT)
+    set_btn.bind("<Button-1>", _set)
+    cancel_btn = tk.Label(btns, text="Cancel", bg=theme["card"],
+                          fg=theme["text_secondary"], cursor="hand2",
+                          padx=10, pady=5)
+    cancel_btn.pack(side=tk.LEFT, padx=(8, 0))
+    cancel_btn.bind("<Button-1>", _cancel)
+
+    entry.bind("<Return>", _set)
+    win.bind("<Escape>", _cancel)
+    try:
+        entry.focus_set()
+        entry.selection_range(0, tk.END)
+    except Exception:  # noqa: BLE001 — focus is garnish
+        pass
+    return win

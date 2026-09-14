@@ -4166,14 +4166,28 @@ def test_chip_family(tmp_path):
         labels = [lab for lab, _c in scribe_rows]
         assert labels == ["Session summary", "Set writing goal…",
                           "Reset session meter"], labels
-        # the goal row queues `scribe goal ` — type the number yourself
-        app.terminal.input.delete(0, tk.END)
-        logs.clear()
+        # the goal row opens the themed dialog; its Set applies the
+        # goal, persists it and confirms (an explicit gesture commits)
+        import dxn1_studio.scribe as scribe_mod
+        calls = []
+        orig_dialog = scribe_mod.open_goal_dialog
+        scribe_mod.open_goal_dialog = (
+            lambda master, theme, current, on_set=None:
+            calls.append((int(current), on_set)) or object())
+        current_goal = (int(app.scribe_chip.goal_words)
+                        if app.scribe_chip else 0)
         for lab, cmd in scribe_rows:
             if lab == "Set writing goal…":
                 cmd()
-        assert app.terminal.input.get() == "scribe goal "
-        assert any("scribe goal" in s for s in logs), logs
+        assert calls and calls[0][0] == current_goal, calls
+        toasts.clear()
+        if app.scribe_chip is not None:
+            calls[0][1](750)              # the dialog's Set button
+            assert app.scribe_chip.goal_words == 750
+            assert app.config.get("scribe_goal_words") == 750
+            assert any("750" in s for s in toasts), toasts
+        scribe_mod.open_goal_dialog = orig_dialog
+        app._scribe_chip_menu()            # renderer never raises
         # the reset row zeroes the meter (goal preserved) + feedback
         if app.scribe_chip is not None:
             app.scribe_chip.observe(1200, now=0.0)
@@ -4259,6 +4273,88 @@ def test_chip_family(tmp_path):
         app._deps_chip_menu()
     finally:
         app.terminal.log = real_log
+        try:
+            root.destroy()
+        except tk.TclError:
+            pass
+        monkeypatch.undo()
+
+
+def test_activity(tmp_path):
+    """DS2 v2.44 — the studio keeps its receipts: every toast is
+    archived in a capped ring (newest first), the Activity window
+    live-filters, the terminal verb (and its alias) opens it, and
+    Clear wipes the slate. Pure engine first, app wiring second."""
+    import tkinter as tk
+    try:
+        root = tk.Tk(); root.withdraw()
+    except tk.TclError:
+        return
+    import pytest
+    import dxn1_studio.config as cfgmod
+    from dxn1_studio.activity import ActivityLog, format_time
+
+    # --- pure engine: ring, cap, newest-first, filter, clear
+    log = ActivityLog(cap=3)
+    for i in range(5):
+        log.add("event %d" % i, "info", now=1000.0 + i)
+    assert log.count() == 3
+    msgs = [e["message"] for e in log.entries()]
+    assert msgs == ["event 4", "event 3", "event 2"], msgs
+    hits = log.filtered("3")
+    assert hits[0]["message"] == "event 3"
+    assert [e["message"] for e in log.filtered("EVENT")] == msgs
+    assert log.filtered("   ") == list(log.entries())
+    assert log.filtered("nothing-matches") == []
+    assert format_time(1000.0)            # formats without raising
+    log.clear()
+    assert log.count() == 0 and log.entries() == ()
+
+    # --- app wiring: toasts archive, verbs + palette open the window
+    monkeypatch = pytest.MonkeyPatch()
+    monkeypatch.setattr(cfgmod, "CONFIG_DIR", str(tmp_path))
+    monkeypatch.setattr(cfgmod, "CONFIG_PATH",
+                        str(tmp_path / "config.json"))
+    monkeypatch.setenv("HOME", str(tmp_path))
+    from dxn1_studio.app import DXN1Studio
+    import dxn1_studio.activity as act_mod
+    app = DXN1Studio(cfgmod.Config(), smoke_test=True, no_splash=True)
+    try:
+        logs = []
+        real_log = app.terminal.log
+        app.terminal.log = lambda s, *a, **k: logs.append(str(s))
+        app.toast("hello receipts", "success")
+        app.toast("bad day", "error")
+        assert app.activity_log.count() >= 2
+        newest = app.activity_log.entries()[0]
+        assert newest["message"] == "bad day" and newest["kind"] == "error"
+        # the verb (and its alias) opens the window — stubbed, no UI
+        opened = []
+        orig_open = act_mod.open_activity
+        act_mod.open_activity = (lambda master, theme, lg,
+                                 on_copy=None:
+                                 opened.append(lg) or object())
+        app.handle_terminal_command("activity")
+        app.handle_terminal_command("notifications")
+        assert len(opened) == 2 and opened[-1] is app.activity_log
+        act_mod.open_activity = orig_open
+        # the real window: constructs, counts honestly, wipes clean
+        win = act_mod.open_activity(app.root, app.theme,
+                                    app.activity_log)
+        win.update()
+
+        def _walk(w):
+            yield w
+            for c in w.winfo_children():
+                yield from _walk(c)
+        labels = [w.cget("text") for w in _walk(win)
+                  if isinstance(w, tk.Label)]
+        assert any(str(t) == "2 events" for t in labels), labels
+        win.destroy()
+        app.activity_log.clear()
+        assert app.activity_log.count() == 0
+        app.terminal.log = real_log
+    finally:
         try:
             root.destroy()
         except tk.TclError:

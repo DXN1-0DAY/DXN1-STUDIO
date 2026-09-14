@@ -71,15 +71,23 @@ try:
     check("scribe: the menu offers summary, goal and reset",
           labels == ["Session summary", "Set writing goal…",
                      "Reset session meter"])
-    # the goal row: one-gesture prefill, nothing fires by accident
+    # the goal row: opens the v2.44 dialog — nothing fires by accident
     app.terminal.input.delete(0, tk.END)
     logs.clear()
+    # v2.44: the goal row opens the themed dialog now (an explicit
+    # Set gesture commits it) — assert a Writing goal window appears
     for lab, cmd in rows:
         if lab == "Set writing goal…":
             cmd()
-    check("scribe: goal row queues `scribe goal ` + the hint",
-          app.terminal.input.get() == "scribe goal "
-          and any("scribe goal" in s for s in logs))
+    app.root.update()
+    goal_dlg = [w for w in app.root.winfo_children()
+                if isinstance(w, tk.Toplevel)
+                and str(w.title()) == "Writing goal"]
+    check("scribe: goal row opens the themed goal dialog",
+          bool(goal_dlg))
+    if goal_dlg:
+        goal_dlg[-1].destroy()
+        app.root.update()
     # the reset row: the meter restarts, the goal survives
     if app.scribe_chip is not None:
         app.scribe_chip.observe(1200, now=0.0)

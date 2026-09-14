@@ -1,4 +1,5 @@
 __init__.py
+activity.py
 agent.py
 ai_lint.py
 app.py

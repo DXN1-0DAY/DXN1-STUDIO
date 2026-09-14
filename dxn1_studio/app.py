@@ -132,6 +132,8 @@ TERMINAL_HELP = (
     ("zen", "toggle zen mode"),
     ("goto <line>", "jump to a line"),
     ("recent", "list recently opened files"),
+    ("activity", "recent studio notifications — searchable, "
+                 "click to copy"),
     ("update", "check GitHub for a newer release"),
     ("whatsnew", "release notes — what changed between tags"),
     ("deps", "cross-check imports vs requirements*.txt "
@@ -764,6 +766,13 @@ class DXN1Studio:
         self._chip_tip(self.status_scribe,
                        "Scribe meter — click for session details, "
                        "right-click for actions")
+        # DS2 v2.44: the studio keeps its receipts — every toast is
+        # archived in a ring buffer the Activity window can show
+        try:
+            from .activity import ActivityLog
+            self.activity_log = ActivityLog(cap=100)
+        except Exception:  # noqa: BLE001 — the log is optional
+            self.activity_log = None
 
         # toast layer (placed above the status bar, right aligned)
         self.toast_layer = tk.Frame(self.root, bg=t["bg"])
@@ -3583,6 +3592,9 @@ class DXN1Studio:
         if low in ("whatsnew", "whats new", "changelog"):
             self.show_whatsnew()
             return
+        if low in ("activity", "notifications"):
+            self._activity_open()
+            return
         if low == "deps" or low.startswith("deps "):
             rest = text[4:].strip().lower()
             if rest.startswith("watch"):
@@ -4395,6 +4407,14 @@ class DXN1Studio:
                          "DS2", _scribe_reset_palette))
         except Exception:  # pragma: no cover — palette stays alive
             pass
+
+        def _activity_palette():
+            self._activity_open()
+        try:
+            cmds.append(("Activity — recent notifications…",
+                         "DS2", _activity_palette))
+        except Exception:  # pragma: no cover — palette stays alive
+            pass
         # DS2: focus timer (defensive)
         def _open_focus():
             from .focus import open_focus
@@ -4484,6 +4504,13 @@ class DXN1Studio:
     # --------------------------------------------------------------- toast
     def toast(self, message, kind="info"):
         """Small notification card above the status bar; auto-dismisses."""
+        # DS2 v2.44: archive the whisper — toasts vanish, the log stays
+        log = getattr(self, "activity_log", None)
+        if log is not None:
+            try:
+                log.add(message, kind)
+            except Exception:  # noqa: BLE001 — never break the toast
+                pass
         t = self.theme
         colors = {"success": t["success"], "error": "#f85149",
                   "info": t.accent}
@@ -5095,12 +5122,35 @@ class DXN1Studio:
                 ("Reset session meter", self._scribe_reset_from_menu)]
 
     def _scribe_goal_from_menu(self):
-        """DS2 v2.43 — queue ``scribe goal `` in the terminal input:
-        type the number, press Enter — nothing fires by accident
-        (the same one-gesture contract as the deps repair row)."""
-        self._prefill_terminal("scribe goal ")
-        self.terminal.log("scribe goal is queued — type a word count "
-                          "and press Enter")
+        """DS2 v2.44 — a themed goal dialog: type the count, Set or
+        Enter — nothing changes until then (an explicit gesture
+        commits it, stricter than the old terminal prefill)."""
+        chip = self.scribe_chip
+        if chip is None:
+            self.terminal.log("scribe chip unavailable")
+            return
+        try:
+            from .scribe import open_goal_dialog
+
+            def _apply(goal):
+                chip.set_goal(int(goal))
+                try:
+                    self.config.set("scribe_goal_words", int(goal))
+                except Exception:  # noqa: BLE001
+                    pass
+                try:
+                    self.status_scribe.configure(text=chip.text())
+                except Exception:  # noqa: BLE001
+                    pass
+                self.toast("Writing goal set to %d words" % int(goal),
+                           "success")
+                self.terminal.log("scribe goal set to %d words"
+                                  % int(goal))
+
+            open_goal_dialog(self.root, self.theme,
+                             int(chip.goal_words or 0), on_set=_apply)
+        except Exception:  # noqa: BLE001 — a menu row must never raise
+            self.terminal.log("scribe goal dialog unavailable here")
 
     def _scribe_reset_from_menu(self):
         """DS2 v2.43 — zero the writing meter: words, wpm and the
@@ -5156,6 +5206,23 @@ class DXN1Studio:
         """DS2 v2.43 — right-click the autosave chip: snapshot,
         browse, toggle in one themed menu. Never raises."""
         self._render_chip_menu(self._sesave_menu_entries(), event)
+
+    # ---------------------------------------------------- DS2 v2.44 activity window
+    def _activity_open(self):
+        """DS2 v2.44 — the Activity window: every notification the
+        studio has whispered, live-filtered, click a row to copy it.
+        Never raises."""
+        log = getattr(self, "activity_log", None)
+        if log is None:
+            self.terminal.log("activity log unavailable here")
+            return
+        try:
+            from .activity import open_activity
+            open_activity(self.root, self.theme, log,
+                          on_copy=lambda m: self.toast(
+                              "Copied: %s" % m, "info"))
+        except Exception:  # noqa: BLE001 — best-effort window
+            self.terminal.log("activity log unavailable here")
 
     def _git_menu_entries(self):
         """DS2 v2.41 — the branch-chip context menu's rows, as
