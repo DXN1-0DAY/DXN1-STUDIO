@@ -4,6 +4,42 @@ All notable changes to DXN1 STUDIO. Format based on
 [Keep a Changelog](https://keepachangelog.com/); versioning is
 `MAJOR.MINOR.PATCH` while in **beta**.
 
+## [2.7.0] — 2026-09-14 · beta · "the pocket knife"
+
+### Added
+- **Developer tools window** (`devtools.py`, Help → *Developer Tools…*,
+  palette, terminal `tools`) — four tabs of everyday ammunition in one
+  themed window, every engine pure and unit-tested:
+  - **Regex tester** — live match list with spans, capture groups and
+    named-group hints; ignore-case / multiline / dotall toggles;
+    replace-with preview with backreferences; copy all rows; a
+    500-match cap keeps the UI honest on pathological patterns.
+  - **JSON workshop** — pretty (2/4), minify, validate, sort keys;
+    errors report the exact `line X, col Y` of the offending byte.
+  - **Text transformer** — `snake_case`, `camelCase`, `PascalCase`,
+    `kebab-case`, `CONST_CASE`, Title Case with real identifier
+    splitting (`HTTPServer2` → http, server, 2); base64 and URL
+    encode/decode; `\u`/`\U` escape round-trips including the astral
+    plane; MD5/SHA-1/SHA-256; word/char/line counts; *↑ use output as
+    input* chains transforms.
+  - **Time converter** — ticking ISO clock (local or UTC), epoch ↔ ISO
+    both directions (`Z`-suffix and naive-timestamp handling) and
+    relative labels (`3h ago`, `in 2d`).
+  - **Color lab** — hex ↔ rgb ↔ hsl live conversion with a swatch,
+    WCAG contrast ratio with AA/AAA grading against any second color,
+    and eight harmony swatches (complement, analogous, triadic,
+    lighter/darker) — click one to copy its hex.
+- **Terminal shortcuts** — `tools`, `devtools` and `regex` open the
+  window; `regex` seeds the pattern from the current editor selection.
+- **Welcome tour step** — the tour now introduces the pocket knife.
+
+### Tests
+- Engine suite grew to **32 cases** (identifier splitting, codec
+  round-trips, regex groups/flags/errors/cap, JSON line:col errors,
+  epoch/ISO round-trips, relative time, color conversions, WCAG
+  anchors, harmonies). New 22-check UI smoke (`scripts/smoke_v270.py`)
+  drives every tab end-to-end under Xvfb.
+
 ## [2.6.0] — 2026-09-14 · beta · "know your places"
 
 ### Added
