@@ -643,6 +643,77 @@ def main():
     qo.close()
     app2.root.destroy()
 
+    # ---- session restore (same smoke, twelfth lane — engine +
+    #      window with stub app + the real close-hook)
+    from dxn1_studio import session as sess
+    store = os.path.join(tmp, "sess-store")
+    pf = os.path.join(tmp, "proj"); os.makedirs(pf, exist_ok=True)
+    f1 = os.path.join(pf, "one.py"); open(f1, "w").write("a = 1\n" * 9)
+    f2 = os.path.join(pf, "two.py"); open(f2, "w").write("b = 2\n" * 9)
+    snap = sess.snapshot([f1, f2], active=f1,
+                         cursor={f1: (5, 2)}, workspace=pf)
+    ok, err = sess.save(pf, snap, base=store)
+    check("session engine roundtrip", ok
+          and sess.load(pf, base=store)["active"] == f1)
+    ghost = sess.snapshot(["/definitely/missing/zz.py"],
+                          active="/definitely/missing/zz.py",
+                          workspace=pf)
+    check("session plan filters ghosts",
+          sess.restore_plan(ghost) == ([], "", None))
+
+    from types import SimpleNamespace as _NS
+
+    class _StubEd:
+        file_path = ""
+        line = 0
+
+        def goto_line(self, n):
+            self.line = n
+    stub = _NS(editor=_StubEd(), opened=[])
+    stub.open_file = lambda p: stub.opened.append(p)
+    stub.editor.text = _NS(mark_set=lambda *a: None,
+                           see=lambda *a: None)
+    from dxn1_studio.session import open_session_restore
+    win = open_session_restore(root, {"bg": "#16161e",
+                                      "header": "#242432",
+                                      "text": "#e8e8f0",
+                                      "text_muted": "#8a8a9a",
+                                      "button": "#2a2a3a",
+                                      "button_hover": "#33334a",
+                                      "card": "#131a22"},
+                               app=stub, base=store)
+    check("session window opens + lists", win is not None
+          and len(win.tree.get_children()) == 1)
+    kids = win.tree.get_children()
+    win.tree.selection_set(kids[0])
+    win._on_select()
+    win.restore_selected()
+    check("session window restores via app",
+          stub.opened == [f1, f2] and stub.editor.line == 5)
+    win.clear_selected()
+    check("session window clears", len(win.tree.get_children()) == 0)
+    win.destroy()
+
+    from dxn1_studio.app import TERMINAL_HELP
+    check("session wiring present",
+          hasattr(DXN1Studio, "open_session_restore")
+          and any(e[0].startswith("session") for e in TERMINAL_HELP))
+
+    # close-hook: a real boot that opens a file, sets the cursor,
+    # then closes — the session must land on disk with the cursor
+    app3 = DXN1Studio(Config(), smoke_test=True, no_splash=True)
+    app3.root.update_idletasks()
+    probe = os.path.join(pf, "one.py")
+    app3.open_file(probe)
+    app3.editor.text.mark_set("insert", "5.2")
+    app3._on_close()
+    hook_data = sess.load(app3.project_dir or "")
+    check("close-hook saves session with cursor",
+          probe in (hook_data.get("tabs") or [])
+          and (hook_data.get("cursor") or {}).get(probe, {}).get("line")
+          == 5)
+    sess.clear(app3.project_dir or "")      # leave no scratch behind
+
     root.destroy()
 
     failed = [n for n, ok in CHECKS if not ok]

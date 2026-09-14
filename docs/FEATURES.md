@@ -429,3 +429,12 @@
 | Fuzzy symbols | palette `@` mode | Jump-to-symbol tolerates gaps: `@gmmthre` finds `gamma_three` |
 | Fuzzy Quick Open | `path_score()` | Subsequence match over paths with a +3 basename boost — files beat folders; deterministic tie-break keeps short paths first |
 | Never crashes | engine | `None` never matches, non-strings coerce via `str()`, broken key functions fall back to `str(item)`; empty queries preserve the original order; legacy substring filter stays as fallback |
+
+## Session Restore
+
+| Feature | Where | What it does |
+|---|---|---|
+| Close-hook snapshot | `session.py`, app close | Every close saves open tabs, the active file and the cursor position (line + column) to `~/.dxn1-studio/sessions/<workspace-hash>.json` — atomic write, up to 50 tabs |
+| Session manager | Workshop → *Session Restore — pick up where you left off…*, palette, terminal `session` / `sessions` / `resume` | Browse every saved workspace (tabs count + saved time), preview its files with the active one marked, restore with one click — files reopen and the cursor jumps back to its line |
+| Cursor memory | `snapshot()` / `restore_plan()` | `{path: (line, col)}` per session; only the position is restored that files still exist — ghost files are filtered, never error |
+| Durable store | engine | Corrupt JSON reads back as empty; save returns honest `(ok, error)`; up to 40 sessions kept, newest first; `base=` override makes the whole store testable |

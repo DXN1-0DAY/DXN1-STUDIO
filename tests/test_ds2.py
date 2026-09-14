@@ -2403,3 +2403,95 @@ def test_fuzzy_engine():
     assert f.path_score("app", "dxn1_studio/app.py") > \
         f.path_score("app", "d/a/p/p/x")
     assert f.path_score("zz", "nope.py") == -1
+
+
+def test_session_engine(tmp_path):
+    """DS2 v2.30 — session restore: snapshot, store, plan, window."""
+    s = __import__("dxn1_studio.session", fromlist=["snapshot"])
+    store = str(tmp_path / "sessions")
+    # workspace keys: stable, distinct, junk-safe
+    assert s.workspace_key(None) == "unknown"
+    assert s.workspace_key("/a") == s.workspace_key("/a")
+    assert s.workspace_key("/a") != s.workspace_key("/b")
+    # snapshot normalization: dedupe, junk-drop, cap 50
+    fa = tmp_path / "a.py"; fa.write_text("x = 1\n")
+    fb = tmp_path / "b.py"; fb.write_text("y = 2\n")
+    many = [str(tmp_path / f"m{i}.py") for i in range(60)]
+    snap = s.snapshot([str(fa), str(fa), 42, None, str(fb)] + many,
+                      active=str(fa),
+                      cursor={str(fa): (12, 4), "junk": "x",
+                              str(fb): (0, 0)},
+                      workspace=str(tmp_path))
+    assert len(snap["tabs"]) == 50 and snap["tabs"][0] == str(fa)
+    assert snap["tabs"][1] == str(fb)
+    assert snap["cursor"][str(fa)] == {"line": 12, "col": 4}
+    assert str(fb) not in snap["cursor"]      # line 0 dropped
+    assert snap["saved_at"]                    # timestamped
+    # roundtrip through the store
+    ok, err = s.save(str(tmp_path), snap, base=store)
+    assert ok and not err, err
+    loaded = s.load(str(tmp_path), base=store)
+    assert loaded["active"] == str(fa)
+    assert s.load(str(tmp_path / "nope"), base=store) == {}
+    # corrupt json is skipped by the scanner, never crashes
+    (tmp_path / "corrupt.json").write_text("{oops")
+    listed = s.list_sessions(base=store)
+    assert len(listed) == 1 and listed[0]["data"]["active"] == str(fa)
+    # describe is human and junk-safe
+    assert s.describe(snap).startswith("50 tabs · active a.py")
+    assert s.describe(None) == "empty session"
+    assert s.describe({}).startswith("0 tabs")
+    # restore_plan filters to files that still exist
+    tabs, active, cur = s.restore_plan(snap)
+    # only files that actually exist survive the plan (the 60
+    # m*.py were never written to disk) — cap still applies
+    assert tabs == [str(fa), str(fb)]
+    assert active == str(fa) and cur == (12, 4)
+    ghost = s.snapshot(["/definitely/missing/zz.py"],
+                       active="/definitely/missing/zz.py",
+                       workspace="/w")
+    assert s.restore_plan(ghost) == ([], "", None)
+    # clear + clear-missing both succeed
+    assert s.clear(str(tmp_path), base=store)[0] is True
+    assert s.load(str(tmp_path), base=store) == {}
+    assert s.clear("/never-saved", base=store)[0] is True
+    # window flow with a stub app
+    import tkinter as tk
+    try:
+        root = tk.Tk(); root.withdraw()
+    except tk.TclError:
+        return
+    ok, _ = s.save(str(tmp_path), snap, base=store)
+    assert ok
+    from types import SimpleNamespace
+
+    class StubEditor:
+        file_path = ""
+
+        def goto_line(self, n):
+            self.line = n
+    stub = SimpleNamespace(editor=StubEditor(), opened=[])
+    stub.open_file = lambda p: stub.opened.append(p)
+    stub.editor.text = SimpleNamespace(
+        mark_set=lambda *a: None, see=lambda *a: None)
+    from dxn1_studio.session import open_session_restore
+    win = open_session_restore(root, {"bg": "#16161e",
+                                      "header": "#242432",
+                                      "text": "#e8e8f0",
+                                      "text_muted": "#8a8a9a",
+                                      "button": "#2a2a3a",
+                                      "button_hover": "#33334a",
+                                      "card": "#131a22"},
+                               app=stub, base=store)
+    assert win is not None and win.winfo_exists()
+    assert len(win.tree.get_children()) == 1
+    key = win.tree.get_children()[0]
+    win.tree.selection_set(key)
+    win._on_select()
+    assert "a.py" in win.preview.cget("text")
+    win.restore_selected()
+    assert len(stub.opened) == 2 and stub.opened[0] == str(fa)
+    win.clear_selected()
+    assert len(win.tree.get_children()) == 0
+    win._refresh()                               # empty rescan is fine
+    win.destroy(); root.destroy()

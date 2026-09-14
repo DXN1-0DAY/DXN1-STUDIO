@@ -9,10 +9,10 @@ dxn1_studio/
 ├── app.py            ← the studio: window, menus, palette, terminal, wiring
 ├── widgets.py        ← core widgets: file explorer, code editor, terminal
 ├── config.py/theme.py← persistence + theme engine (everything is themed)
-└── … 82 feature modules, one lane each, described below
+└── … 83 feature modules, one lane each, described below
 ```
 
-## Design rules (what keeps 82 modules coherent)
+## Design rules (what keeps 83 modules coherent)
 
 1. **One module = one lane.** Every feature lives in its own file
    with a public `open_*(parent, theme, …)` opener, so parallel
@@ -87,7 +87,7 @@ geometry memory).
 | Harness | What it proves |
 |---|---|
 | `python3 -m pytest tests/` | 53 unit groups over every pure engine |
-| `scripts/smoke_v290.py` (Xvfb) | 148 live-window checks across 25 feature windows |
+| `scripts/smoke_v290.py` (Xvfb) | 155 live-window checks across 26 feature windows |
 | `scripts/boot_qa.py` (Xvfb) | 20 checks booting the real studio: menus bound, palette entries live, modules import, scribe chip wired |
 | `python3 -m compileall -q dxn1_studio` | The tree always compiles — the gate before every tag |
 

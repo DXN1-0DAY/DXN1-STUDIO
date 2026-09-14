@@ -117,6 +117,7 @@ TERMINAL_HELP = (
               "every command"),
     ("cvd", "Colorblind Lab — preview themes under color "
             "blindness"),
+    ("session", "list saved workspace sessions and restore one"),
     ("scribe <n>", "set the words-per-session goal for "
                    "the statusbar writing meter"),
     ("explain", "hand the last error to the agent"),
@@ -1406,6 +1407,15 @@ class DXN1Studio:
                 command=_open_cvd_menu)
         except Exception:  # pragma: no cover — menu stays alive
             pass
+        # DS2: session restore (defensive)
+        def _open_session_menu():
+            self.open_session_restore()
+        try:
+            workshop_menu.add_command(
+                label="Session Restore — pick up where you left off…",
+                command=_open_session_menu)
+        except Exception:  # pragma: no cover — menu stays alive
+            pass
         workshop_menu.add_separator()
         workshop_menu.add_command(label="Token Usage Dashboard…",
                                   command=_open_usage_menu)
@@ -1946,6 +1956,14 @@ class DXN1Studio:
         try:
             from .cvdlab import open_cvdlab
             open_cvdlab(self.root, self.theme)
+        except Exception:  # noqa: BLE001 — menu stays alive
+            pass
+
+    def open_session_restore(self):
+        """DS2: browse and restore saved workspace sessions."""
+        try:
+            from .session import open_session_restore
+            open_session_restore(self.root, self.theme, app=self)
         except Exception:  # noqa: BLE001 — menu stays alive
             pass
 
@@ -3263,6 +3281,17 @@ class DXN1Studio:
                               "protanopia, tritanopia, achromatopsia "
                               "previews with contrast verdicts")
             return
+        if low in ("session", "sessions", "resume"):
+            # DS2: session restore — manager window over saved sessions
+            try:
+                from . import session as _ds2_session
+                _n = len(_ds2_session.list_sessions())
+            except Exception:
+                _n = 0
+            self.open_session_restore()
+            self.terminal.log(f"Session Restore opened — {_n} saved "
+                              "workspace(s) on disk")
+            return
         if low == "lang" or low.startswith("lang "):
             # DS2: switch the UI language pack (i18n activation)
             from . import i18n as _i18n
@@ -4035,6 +4064,14 @@ class DXN1Studio:
                          "DS2", _open_cvd_palette))
         except Exception:  # pragma: no cover — palette stays alive
             pass
+        # DS2: session restore (defensive)
+        def _open_session_palette():
+            self.open_session_restore()
+        try:
+            cmds.append(("Session Restore — pick up where you left "
+                         "off…", "DS2", _open_session_palette))
+        except Exception:  # pragma: no cover — palette stays alive
+            pass
         # DS2: scribe goal (defensive)
         def _scribe_goal_palette():
             self._scribe_click()
@@ -4626,6 +4663,24 @@ class DXN1Studio:
                     dict(list(kept.items())[-20:]))
         except Exception:
             errors.log_exception("save session", quiet=True)
+        # DS2 v2.30: richer session snapshot with cursor position
+        try:
+            from . import session as _ds2_session
+            _cur = {}
+            try:
+                _ins = str(self.editor.text.index("insert")).split(".")
+                if self.editor.file_path:
+                    _cur[self.editor.file_path] = (int(_ins[0]),
+                                                   int(_ins[1]))
+            except Exception:
+                pass
+            _ws = self.project_dir or ""
+            _ds2_session.save(_ws, _ds2_session.snapshot(
+                list(self._tab_frames) if hasattr(self, "_tab_frames")
+                else [], active=self.editor.file_path or "",
+                cursor=_cur, workspace=_ws))
+        except Exception:
+            errors.log_exception("session snapshot", quiet=True)
         # DS2: remember window geometry for this screen shape
         try:
             from .geom import remember_root

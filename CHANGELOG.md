@@ -4,6 +4,34 @@ All notable changes to DXN1 STUDIO. Format based on
 [Keep a Changelog](https://keepachangelog.com/); versioning is
 `MAJOR.MINOR.PATCH` while in **beta**.
 
+## [2.30.0] — 2026-09-14 · beta · "pick up where you left off" (bonus round)
+
+### Added
+- **Session Restore** (`session.py`, Workshop menu, palette,
+  terminal `session` / `sessions` / `resume`) — a saved-session
+  browser: every workspace you close with files open gets a snapshot
+  (tabs, active file, cursor position), and one click reopens
+  everything with the cursor back on its line.
+- **Cursor memory** — the close hook records the exact insert
+  position (line + column) of the active file; restore jumps there
+  and scrolls it into view.
+- **Durable session store** — `~/.dxn1-studio/sessions/<hash>.json`
+  per workspace (sha1 key, same convention as agent chats), atomic
+  writes, newest-first browsing, up to 40 workspaces retained, up to
+  50 tabs each.
+
+### Changed
+- The existing lightweight auto-restore of tab paths on project open
+  (config key `session_tabs`) is unchanged — the JSON store is the
+  richer sibling with cursors and a manager UI, and both coexist.
+
+### Notes
+- Pure, junk-tolerant engine: corrupt JSON reads back as an empty
+  session, ghost files are filtered from restore plans, `base=`
+  overrides the storage dir for tests. i18n: `session.*` keys in all
+  8 packs. Smoke now also drives the real close hook (155 checks /
+  26 windows).
+
 ## [2.29.0] — 2026-09-14 · beta · "type a few letters" (bonus round)
 
 ### Added
