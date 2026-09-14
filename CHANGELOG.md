@@ -4,6 +4,41 @@ All notable changes to DXN1 STUDIO. Format based on
 [Keep a Changelog](https://keepachangelog.com/); versioning is
 `MAJOR.MINOR.PATCH` while in **beta**.
 
+## [2.5.0] — 2026-09-14 · beta · "the studio remembers"
+
+### Added
+- **Persistent bookmarks** (`bookmarks.py`) — the gutter bookmarks you
+  already use now survive restarts. Per-workspace
+  `.dxn1/bookmarks.json` (global fallback), restored whenever a file
+  opens, split-view aware, atomic writes, corrupt-file recovery, and a
+  workspace-wide **bookmark browser** with snippet previews, jump,
+  remove and clear-file. Palette → *Bookmarks — browse all…*.
+- **Prompt library** (`prompts.py`) — saved reusable asks for the
+  agent: six starters (explain / review / tests / refactor /
+  docstrings / commit message), `{file}`, `{selection}`, `{lang}`,
+  `{workspace}`, `{date}` placeholders that fill themselves in,
+  type-ahead picker, save-from-input, and one-key insert into the
+  agent chat. Palette → *Prompt library*.
+- **Line tools** (`widgets.py`, Edit menu) — Sort Lines A→Z / numeric
+  / Z→A and Remove Duplicate Lines on the selection; numeric sort
+  compares leading numbers so `2` beats `10`.
+- **Error explainer** (`app.py`, terminal `explain`) — a nonzero exit
+  plus a detected traceback prints a hint; `explain` (or the palette
+  entry) hands the block to the agent with a fix-me prompt. Clipboard
+  fallback when the agent panel is closed.
+- **What's New viewer** (`whatsnew.py`, Help → *What's New…*) — the
+  changelog rendered as a version rail + notes pane, and it auto-opens
+  exactly once after every upgrade (`last_seen_version` guard).
+- **Recent-files picker everywhere** — Ctrl+R and a File-menu entry
+  now open the fuzzy recents popup; the palette entry remains.
+- **File-statistics report export** — *Export .md* writes
+  `.dxn1/filestats.md` (markdown table + largest files); the engine
+  behind clipboard, CLI and export is shared.
+
+### Changed
+- Editor gutter click / F2 / Ctrl+F2 / Shift+F2 bookmark flow is
+  unchanged — but every toggle now persists immediately.
+
 ## [2.4.0] — 2026-09-14 · beta · "know your workspace"
 
 ### Added
