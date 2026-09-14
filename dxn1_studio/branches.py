@@ -15,6 +15,7 @@ import subprocess
 import tkinter as tk
 from tkinter import ttk
 
+from . import hints
 from .theme import FONT_UI, FONT_MONO
 
 
@@ -174,6 +175,12 @@ class BranchManager(tk.Toplevel):
         self._build_list()
         self._build_status()
         self.bind("<Escape>", lambda e: self.destroy())
+        self.bind("<F5>", lambda e: self.refresh())
+        hints.hint_bar(self, self.t,
+                       pairs=[("Return", "new branch"),
+                              ("F5", "refresh")],
+                       notes=["double-click a branch or tag to switch"],
+                       before=self.status)
         self._center()
         self.refresh()
 

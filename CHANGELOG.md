@@ -4,6 +4,45 @@ All notable changes to DXN1 STUDIO. Format based on
 [Keep a Changelog](https://keepachangelog.com/); versioning is
 `MAJOR.MINOR.PATCH` while in **beta**.
 
+## [2.50.0] — 2026-09-15 · beta · "every sign now hangs on a real key" (hint bars wave 3)
+
+### Added
+- **Ten more windows carry honest hint bars** — branches, template
+  gallery, SQLite Lab, XML bench, CSV lab, unit converter, Byte
+  snoop, Math pad, PassForge and both AI quick-action surfaces join
+  the family; every chip is still verified against a real binding
+  (`accel_pattern` + `tree_bound`) before it is allowed on the bar,
+  and bars now expose `bar.pairs` so their promises are
+  introspectable by tests instead of scraped from labels.
+- **The five converter-lab windows learned keys** — XML bench
+  (`Ctrl+P` pretty, `Ctrl+M` minify, `Ctrl+Shift+C` copy output),
+  CSV lab (`Ctrl+Shift+C` copy as TSV), Byte snoop (`Ctrl+Shift+C`
+  copy dump), PassForge (`F5` new password, `Ctrl+Shift+C` copy) and
+  the unit converter (`Ctrl+R` swap units, `Ctrl+Shift+C` copy
+  result) answered only to the mouse before this wave; the keys
+  came first, the sign second.
+- **AI quick actions go keyboard-native** — the streaming result
+  window copies its answer (`Ctrl+Shift+C`) and, when the action ran
+  on a code selection, replaces that selection (`Ctrl+R`) or inserts
+  below (`Ctrl+Shift+I`), with the bar honestly showing those two
+  chips only when the verbs exist; the launcher menu binds each
+  row's position so `1…7` runs that action straight from the menu.
+- **Gallery search jump** — the template gallery jumps to its search
+  box (`Ctrl+F`) and re-applies the filter (`F5`); branches gains
+  `F5` refresh beside its existing Esc/Return; math pad's entry
+  Return and SQLite Lab's `F5` run-query are finally advertised now
+  that a bar can vouch for them.
+
+### Changed
+- **Copy keys use the canonical spelling** — `Ctrl+Shift+C` arrives
+  at Tk as keysym `C`, so the window binds `<Control-C>`: the same
+  pattern wave 2 pinned for the translator. A deliberate side effect
+  is that text inputs keep their native `Ctrl+C` selection copy —
+  the unshifted `c` never matches the uppercase keysym — while the
+  hint text still says `Ctrl+Shift+C`, because that is what the
+  human presses and the verifier checks the binding the press
+  actually hits.
+
 ## [2.49.0] — 2026-09-15 · beta · "every door gets its sign" (hint bars wave 2 + two latent crash fixes)
 
 ### Fixed

@@ -5136,3 +5136,243 @@ def test_hint_wave2(tmp_path):
         root.destroy()
     except tk.TclError:
         pass
+
+def test_hint_wave3(tmp_path):
+    """DS2 v2.50 — the third wave of door signs: ten more windows get
+    honest hint bars, and every advertised key is really bound FIRST
+    (xmlbench/csvkit/unitconv/hexdump/mathpad/pwdgen had zero window
+    keys before this wave — copy keys use <Control-C>, the canonical
+    spelling of Ctrl+Shift+C, because Ctrl+Shift+c arrives as keysym
+    'C' and the input widgets keep their native Ctrl+c copy); the AI
+    quick-action result window and its launcher menu gain keys too,
+    with number keys running actions straight from the menu. Key
+    events ride the focus chain — the host root stays MAPPED."""
+    import tkinter as tk
+    try:
+        root = tk.Tk()
+        root.geometry("1x1+-2000+-2000")   # mapped, just out of sight
+    except tk.TclError:
+        return
+    from dxn1_studio import hints
+    from dxn1_studio.app import accel_pattern
+    from dxn1_studio.theme import Theme
+    from dxn1_studio.pwdgen import PassForge
+    from dxn1_studio.xmlbench import XmlBench
+    from dxn1_studio.csvkit import CsvLab
+    from dxn1_studio.unitconv import UnitConverter
+    from dxn1_studio.hexdump import ByteSnoop
+    from dxn1_studio.mathpad import MathPad
+    from dxn1_studio.branches import BranchManager
+    from dxn1_studio.gallery import TemplateGallery
+    from dxn1_studio.sqlitelab import SQLiteLab
+    from dxn1_studio.quick_actions import (ResultWindow, ActionsMenu,
+                                           ACTIONS)
+
+    t = Theme("dark", "violet")
+
+    def bar_of(win):
+        bars = [w for w in win.winfo_children()
+                if getattr(w, "filled", None)]
+        assert bars, "hint bar never filled"
+        return bars[0]
+
+    def chips(bar):
+        out = []
+        for w in bar.winfo_children():
+            try:
+                out.append(str(w.cget("text")))
+            except Exception:  # noqa: BLE001 — frames have no text
+                pass
+        return out
+
+    def honest(win, bar, expect):
+        """The bar is complete: every expected chip present, no hint
+        dropped, and every advertised key really bound in the tree."""
+        assert not bar.dropped_hints, bar.dropped_hints
+        ch = chips(bar)
+        for want in expect:
+            assert any(want in s for s in ch), (want, ch)
+        for entry in bar.pairs:
+            key = entry[0]
+            pat = accel_pattern(key)
+            assert pat and hints.tree_bound(win, pat), (key, pat)
+
+    # --- pwdgen: had ZERO window keys — now F5 new + Ctrl+Shift+C copy
+    pf = PassForge(root, t)
+    root.update()
+    b = bar_of(pf)
+    honest(pf, b, ["Esc", "F5", "new password", "Ctrl+Shift+C", "copy"])
+    first = pf.out.get()
+    pf.focus_force(); root.update()
+    pf.event_generate("<F5>", when="now"); root.update()
+    assert pf.out.get() != first
+    pf._copy()
+    assert root.clipboard_get() == pf.out.get()
+    pf.destroy()
+
+    # --- xmlbench: Ctrl+P pretty / Ctrl+M minify / Ctrl+Shift+C copy
+    xb = XmlBench(root, t, initial="<a><b>x</b></a>")
+    root.update()
+    b = bar_of(xb)
+    honest(xb, b, ["Ctrl+P", "pretty", "Ctrl+M", "minify",
+                   "Ctrl+Shift+C", "copy output", "live parse"])
+    xb.focus_force(); root.update()
+    xb.event_generate("<Control-p>", when="now"); root.update()
+    pretty = xb.output.get("1.0", "end-1c")
+    assert "<b>" in pretty and "\n" in pretty, pretty
+    xb.event_generate("<Control-m>", when="now"); root.update()
+    assert "\n" not in xb.output.get("1.0", "end-1c")
+    xb.event_generate("<Control-C>", when="now"); root.update()
+    assert "<" in root.clipboard_get()
+    xb.destroy()
+
+    # --- csvkit: Ctrl+Shift+C copies the table as TSV
+    cv = CsvLab(root, t, initial="a,b\n1,2\n3,4")
+    root.update()
+    b = bar_of(cv)
+    honest(cv, b, ["Ctrl+Shift+C", "copy as TSV", "live table"])
+    cv.focus_force(); root.update()
+    cv.event_generate("<Control-C>", when="now"); root.update()
+    clip = root.clipboard_get()
+    assert "a\tb" in clip and "3\t4" in clip, clip
+    cv.destroy()
+
+    # --- unitconv: Ctrl+R swaps units, Ctrl+Shift+C copies the result
+    uc = UnitConverter(root, t)
+    root.update()
+    b = bar_of(uc)
+    honest(uc, b, ["Ctrl+R", "swap units", "Ctrl+Shift+C", "copy result"])
+    frm, to = uc.frm.get(), uc.to.get()
+    uc.focus_force(); root.update()
+    uc.event_generate("<Control-r>", when="now"); root.update()
+    assert (uc.frm.get(), uc.to.get()) == (to, frm)
+    uc._copy()
+    assert root.clipboard_get().strip() != ""
+    uc.destroy()
+
+    # --- hexdump: Ctrl+Shift+C copies the dump
+    hx = ByteSnoop(root, t, initial="AB")
+    root.update()
+    b = bar_of(hx)
+    honest(hx, b, ["Ctrl+Shift+C", "copy dump", "hex + ascii"])
+    hx.focus_force(); root.update()
+    hx.event_generate("<Control-C>", when="now"); root.update()
+    assert "41" in root.clipboard_get()
+    hx.destroy()
+
+    # --- mathpad: Return already lived on the entry — now advertised
+    mp = MathPad(root, t, initial="6*7")
+    root.update()
+    b = bar_of(mp)
+    honest(mp, b, ["Return", "evaluate", "Ctrl+Shift+C", "copy result"])
+    assert hints.tree_bound(mp, "<Return>")   # entry descendant backs it
+    mp.entry.delete(0, "end"); mp.entry.insert(0, "2+3")
+    mp.entry.focus_force(); root.update()
+    mp.entry.event_generate("<Return>", when="now"); root.update()
+    assert "= 5" in mp.result.cget("text"), mp.result.cget("text")
+    mp._copy_result()
+    assert root.clipboard_get() == "5"
+    mp.destroy()
+
+    # --- branches: F5 refresh joins Esc/Return (needs a real repo)
+    repo = tmp_path / "branchrepo"
+    repo.mkdir()
+    env = dict(os.environ, GIT_AUTHOR_NAME="t", GIT_AUTHOR_EMAIL="a@b",
+               GIT_COMMITTER_NAME="t", GIT_COMMITTER_EMAIL="a@b")
+    subprocess.run(["git", "init", "-q", "-b", "main"], cwd=str(repo),
+                   env=env, capture_output=True)
+    subprocess.run(["git", "commit", "-qm", "x", "--allow-empty"],
+                   cwd=str(repo), env=env, capture_output=True)
+    bm = BranchManager(root, t, str(repo))
+    root.update()
+    b = bar_of(bm)
+    honest(bm, b, ["Return", "new branch", "F5", "refresh",
+                   "double-click"])
+    assert hints.tree_bound(bm, "<F5>")
+    bm.destroy()
+
+    # --- gallery: Ctrl+F really lands in the search box
+    gal = TemplateGallery(root, {"gallery_favs": []}, t.accent,
+                          lambda key: None)
+    root.update()
+    b = bar_of(gal)
+    honest(gal, b, ["Ctrl+F", "search", "F5", "re-filter", "star"])
+    gal.focus_force(); root.update()
+    gal.event_generate("<Control-f>", when="now"); root.update()
+    assert str(root.focus_get()) == str(gal.search)
+    gal.destroy()
+
+    # --- sqlitelab: its F5/Esc finally signed (bar only, no new keys)
+    db = tmp_path / "t.db"
+    sl = SQLiteLab(root, t, db_path=str(db))
+    root.update()
+    b = bar_of(sl)
+    honest(sl, b, ["Esc", "F5", "run query"])
+    sl.destroy()
+
+    # --- quick actions: result keys + launcher number keys
+    class _StubCfg:
+        def get(self, _k, d=None):
+            return d
+    class _StubApp:
+        def __init__(self, root):
+            self.root = root
+            self.theme = t
+            self.config = _StubCfg()
+            self.editor = type("E", (), {"text": tk.Text(root)})()
+            self.toast_msgs = []
+            self.toast = lambda m, kind="info": self.toast_msgs.append(m)
+    app = _StubApp(root)
+    rw = ResultWindow(root, t, "tw", "explain", app=app,
+                      code="print(1)\n", on_log=lambda m: None)
+    root.update()
+    b = bar_of(rw)
+    honest(rw, b, ["Ctrl+Shift+C", "copy answer", "Ctrl+R",
+                   "Ctrl+Shift+I"])
+    rw.text.insert("1.0", "THE-ANSWER")
+    rw.focus_force(); root.update()
+    rw.event_generate("<Control-C>", when="now"); root.update()
+    assert root.clipboard_get() == "THE-ANSWER"
+    rw.destroy()
+    picked = []
+    am = ActionsMenu(app)
+    root.update()
+    b = bar_of(am)
+    honest(am, b, ["Esc", "1", "2"])
+    assert len(am.pairs if hasattr(am, "pairs") else b.pairs) \
+        == len(ACTIONS)
+    am._pick = lambda a: picked.append(a)
+    am.focus_force(); root.update()
+    am.event_generate("<Key-2>", when="now"); root.update()
+    am.event_generate("<Key-1>", when="now"); root.update()
+    assert picked == [list(ACTIONS)[1], list(ACTIONS)[0]], picked
+    am.destroy()
+
+    # --- source agreement: the wave-3 windows really wire the keys
+    base = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+
+    def src(name):
+        with open(os.path.join(base, "dxn1_studio", name),
+                  encoding="utf-8") as fh:
+            return fh.read()
+    assert 'self.bind("<Control-C>"' in src("xmlbench.py")
+    assert 'self.bind("<Control-C>"' in src("csvkit.py")
+    assert 'self.bind("<Control-r>"' in src("unitconv.py")
+    assert 'self.bind("<Control-C>"' in src("hexdump.py")
+    assert 'self.bind("<Control-C>"' in src("mathpad.py")
+    assert 'self.bind("<Control-C>"' in src("pwdgen.py")
+    assert 'self.bind("<Control-C>"' in src("quick_actions.py")
+    assert 'self.bind(f"<Key-{i}>"' in src("quick_actions.py")
+    for mod in ("xmlbench.py", "csvkit.py", "unitconv.py", "hexdump.py",
+                "mathpad.py", "pwdgen.py", "branches.py", "gallery.py",
+                "sqlitelab.py", "quick_actions.py"):
+        assert "hints.hint_bar(" in src(mod), mod
+    doc = open(os.path.join(base, "docs", "KEYBINDINGS.md"),
+               encoding="utf-8").read()
+    assert "## Tool windows (v2.50)" in doc
+    assert "`Ctrl+P` / `Ctrl+M` | XML bench: pretty / minify" in doc
+    assert "`1…7` | AI quick actions menu: run that action" in doc
+    try:
+        root.destroy()
+    except tk.TclError:
+        pass

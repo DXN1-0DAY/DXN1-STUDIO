@@ -27,6 +27,7 @@ import tkinter as tk
 from tkinter import messagebox
 
 from . import APP_NAME
+from . import hints
 from . import projects
 from .theme import FONT_UI, FONT_MONO
 
@@ -522,6 +523,12 @@ class TemplateGallery(tk.Toplevel):
         self.transient(master)
         self.protocol("WM_DELETE_WINDOW", self.destroy)
         self.bind("<Escape>", lambda e: self.destroy())
+        self.bind("<Control-f>", lambda _e: self._focus_search())
+        self.bind("<F5>", lambda _e: self.apply_filter())
+        hints.hint_bar(self, _GAL_C,
+                       pairs=[("Ctrl+F", "search"),
+                              ("F5", "re-filter")],
+                       notes=["star a template to pin it on top"])
 
         self._build_header()
         self._build_body()

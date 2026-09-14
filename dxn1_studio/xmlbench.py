@@ -16,6 +16,7 @@ import tkinter as tk
 import xml.etree.ElementTree as ET
 from xml.etree.ElementTree import ParseError
 
+from . import hints
 from .i18n import tr
 
 __all__ = ["xml_pretty", "xml_minify", "xml_validate", "tag_stats",
@@ -234,6 +235,18 @@ class XmlBench(tk.Toplevel):
                   activebackground=t.get("button_hover", "#33334a"),
                   command=self._copy_out).pack(side=tk.RIGHT,
                                                padx=8, pady=4)
+
+        # keys first advertised by the bar below (v2.50 wave 3)
+        self.bind("<Escape>", lambda _e: self.destroy())
+        self.bind("<Control-p>", lambda _e: self._pretty())
+        self.bind("<Control-m>", lambda _e: self._minify())
+        # Ctrl+Shift+C, not Ctrl+C — the input keeps its native copy
+        self.bind("<Control-C>", lambda _e: self._copy_out())
+        hints.hint_bar(self, t,
+                       pairs=[("Ctrl+P", "pretty"),
+                              ("Ctrl+M", "minify"),
+                              ("Ctrl+Shift+C", "copy output")],
+                       notes=["live parse as you type"])
 
         self._after_id = None
         self._validate()

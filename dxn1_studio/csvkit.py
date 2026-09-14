@@ -16,6 +16,8 @@ import io
 import tkinter as tk
 from tkinter import ttk
 
+from . import hints
+
 __all__ = ["sniff_delimiter", "parse_csv", "table_stats", "to_tsv",
            "CsvLab", "open_csv_lab"]
 
@@ -176,6 +178,14 @@ class CsvLab(tk.Toplevel):
                   activebackground=t.get("button_hover", "#33334a"),
                   command=self._copy_tsv).pack(side=tk.RIGHT, padx=8,
                                                pady=4)
+
+        # keys first advertised by the bar below (v2.50 wave 3)
+        self.bind("<Escape>", lambda _e: self.destroy())
+        # Ctrl+Shift+C, not Ctrl+C — the input keeps its native copy
+        self.bind("<Control-C>", lambda _e: self._copy_tsv())
+        hints.hint_bar(self, t,
+                       pairs=[("Ctrl+Shift+C", "copy as TSV")],
+                       notes=["live table as you type"])
 
         self._after_id = None
         self.refresh()

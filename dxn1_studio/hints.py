@@ -125,6 +125,11 @@ def hint_bar(win, theme=None, pairs=(), notes=(), esc=True, before=None):
         bar = tk.Frame(win, bg=_color(theme, "header", _FB_HEADER))
         bar.dropped_hints = []
         bar.filled = False
+        try:
+            # introspectable honesty: what the bar claims, readable
+            bar.pairs = tuple(tuple(e) for e in pairs)
+        except Exception:  # noqa: BLE001 — garnish
+            bar.pairs = ()
 
         def _pack():
             try:

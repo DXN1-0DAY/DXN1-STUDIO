@@ -16,6 +16,7 @@ import threading
 import tkinter as tk
 
 from .theme import FONT_UI, FONT_MONO
+from . import hints
 from . import llm
 
 ACTIONS = {
@@ -230,6 +231,16 @@ class ResultWindow(tk.Toplevel):
                                fg=t["text_muted"], font=(FONT_UI, 8))
         self.status.pack(side=tk.RIGHT, padx=12)
 
+        # keys first advertised by the bar below (v2.50 wave 3)
+        self.bind("<Control-C>", lambda _e: self._copy())
+        pairs = [("Ctrl+Shift+C", "copy answer")]
+        if self.code is not None:
+            self.bind("<Control-r>", lambda _e: self._replace_sel())
+            self.bind("<Control-I>", lambda _e: self._insert_below())
+            pairs += [("Ctrl+R", "replace selection"),
+                      ("Ctrl+Shift+I", "insert below")]
+        hints.hint_bar(self, t, pairs=pairs, before=btns)
+
     def _btn(self, parent, text, cmd):
         b = tk.Label(parent, text=text, bg=self.t["card"],
                      fg=self.t["text"], font=(FONT_UI, 9, "bold"),
@@ -380,7 +391,7 @@ class ActionsMenu(tk.Toplevel):
                  fg=self.app.theme["text_muted"],
                  font=(FONT_UI, 8, "bold")).pack(fill=tk.X, padx=14,
                                                  pady=(12, 6))
-        for action_id, spec in ACTIONS.items():
+        for i, (action_id, spec) in enumerate(ACTIONS.items(), 1):
             row = tk.Label(self, text=f"  {spec['icon']}  {spec['label']}",
                            bg=self.app.theme["card"],
                            fg=self.app.theme["text"],
@@ -392,10 +403,16 @@ class ActionsMenu(tk.Toplevel):
                 bg=self.app.theme["card"]))
             row.bind("<Button-1>",
                      lambda e, a=action_id: self._pick(a))
+            # number keys run the action straight from the menu
+            self.bind(f"<Key-{i}>", lambda e, a=action_id: self._pick(a))
         tk.Label(self, text="works on the current selection",
                  bg=self.app.theme["card"], fg=self.app.theme["text_muted"],
                  font=(FONT_UI, 8)).pack(pady=(4, 10))
         self.bind("<Escape>", lambda e: self.destroy())
+        hints.hint_bar(self, self.app.theme,
+                       pairs=[(str(n), spec["label"].lower())
+                              for n, (_aid, spec)
+                              in enumerate(ACTIONS.items(), 1)])
         self._center()
 
     def _center(self):

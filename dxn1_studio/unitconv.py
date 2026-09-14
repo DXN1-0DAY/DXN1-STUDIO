@@ -15,6 +15,7 @@ Open with: Workshop menu, palette, terminal ``unit`` / ``convert``.
 import tkinter as tk
 from tkinter import ttk
 
+from . import hints
 from .i18n import tr
 
 __all__ = ["categories", "units", "convert", "convert_str",
@@ -235,6 +236,14 @@ class UnitConverter(tk.Toplevel):
                   activebackground=t.get("button_hover", "#33334a"),
                   command=self._copy).pack(side=tk.RIGHT, padx=8,
                                            pady=4)
+
+        # keys first advertised by the bar below (v2.50 wave 3)
+        self.bind("<Escape>", lambda _e: self.destroy())
+        self.bind("<Control-r>", lambda _e: self._swap())
+        self.bind("<Control-C>", lambda _e: self._copy())
+        hints.hint_bar(self, t,
+                       pairs=[("Ctrl+R", "swap units"),
+                              ("Ctrl+Shift+C", "copy result")])
 
         self._recat()
 

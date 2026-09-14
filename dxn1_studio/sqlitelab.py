@@ -25,6 +25,8 @@ import time
 import tkinter as tk
 from tkinter import filedialog, messagebox, ttk
 
+from . import hints
+
 __all__ = [
     "connect", "list_tables", "table_columns", "table_indexes",
     "sample_rows", "run_query", "export_csv", "markdown_table",
@@ -306,6 +308,9 @@ class SQLiteLab(tk.Toplevel):
         self.bind("<F5>", lambda _e: self.run_current_query())
         self.bind("<Escape>", lambda _e: self.destroy())
         self.protocol("WM_DELETE_WINDOW", self._close)
+        hints.hint_bar(self, t,
+                       pairs=[("F5", "run query")],
+                       before=self.status)
 
         if db_path and os.path.isfile(db_path):
             self.load_db(db_path)

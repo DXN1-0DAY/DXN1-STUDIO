@@ -18,6 +18,8 @@ import secrets
 import string
 import tkinter as tk
 
+from . import hints
+
 __all__ = ["pool_for", "generate", "entropy_bits", "strength_label",
            "PassForge", "open_passforge"]
 
@@ -185,6 +187,15 @@ class PassForge(tk.Toplevel):
                                bg=t.get("bg", "#16161e"),
                                fg=t.get("text_muted", "#8a8a9a"))
         self.status.pack(side=tk.RIGHT, padx=10)
+
+        # keys first advertised by the bar below (v2.50 wave 3)
+        self.bind("<Escape>", lambda _e: self.destroy())
+        self.bind("<F5>", lambda _e: self.refresh())
+        # Ctrl+Shift+C — the output Entry keeps its native copy
+        self.bind("<Control-C>", lambda _e: self._copy())
+        hints.hint_bar(self, self.theme,
+                       pairs=[("F5", "new password"),
+                              ("Ctrl+Shift+C", "copy")])
 
         self.refresh()
 

@@ -498,6 +498,18 @@
 | Git-graph zoom | `GitGraphWindow.zoom_step()` / `zoom_reset()`, keys `+` `−` `0` | A real row-density zoom (0.5×–3.0×): rows, lanes, dots, diagonal edges, click hit-testing and the scroll region rescale together, so a 200-commit repo reads as a trunk or as a spreadsheet at one keystroke; `F5` / `Ctrl+R` refresh from the keyboard |
 | Doc states the rule | `docs/KEYBINDINGS.md` — Tool windows (v2.48) | The keybindings doc gained the window keys and says the rule out loud: a key appears in a hint bar only if the code really binds it — unit-tested so it stays that way |
 
+## Hint Bars Wave 3 (v2.50.0)
+
+| Feature | Where | What it does |
+|---|---|---|
+| Ten more door signs | branches, gallery, sqlitelab, xmlbench, csvkit, unitconv, hexdump, mathpad, pwdgen, quick actions | Every remaining workshop window prints the honest bottom-edge bar — twenty-five windows now open their keys to the keyboard, and every chip is verified against a real binding through `accel_pattern` + `tree_bound` before it is allowed on the bar |
+| Five windows that had no keys at all | `xmlbench` / `csvkit` / `unitconv` / `hexdump` / `pwdgen` | The converter-lab windows answered only to the mouse. Each gained real window-level bindings before the bar was allowed to advertise them: XML bench pretty/minify/copy (`Ctrl+P`/`Ctrl+M`/`Ctrl+Shift+C`), CSV lab copy-as-TSV, Byte snoop copy-dump, PassForge new-password (`F5`) and copy, unit converter swap (`Ctrl+R`) and copy |
+| The canonical copy spelling | `<Control-C>` everywhere | `Ctrl+Shift+C` arrives at Tk as keysym `C` — the canonical pattern `<Control-C>` — which is also why text inputs keep their native `Ctrl+C` selection copy untouched: the unshifted `c` never matches the uppercase keysym. The hint text still says `Ctrl+Shift+C` because that is what the human presses; the verifier checks the binding the press really hits |
+| Introspectable honesty | `hints.hint_bar()` → `bar.pairs` | A bar now carries the claims it makes: `bar.pairs` lists every `(key, text)` pair it advertises, so tests (and the curious) can assert a bar's promises against the code without scraping labels — `dropped_hints` and `filled` were already readable |
+| AI result window keys | `quick_actions.ResultWindow`, `Ctrl+Shift+C` / `Ctrl+R` / `Ctrl+Shift+I` | The streaming answer window copies its answer, and — when the action ran on a code selection — replaces that selection or inserts below from the keyboard; the bar shows the replace/insert chips only when those verbs exist |
+| Number-key launcher | `ActionsMenu`, `1…7` | The AI quick-actions menu binds each row's position: press the number, run the action, menu closes. The bar advertises every row by number and label — all really bound |
+| Gallery search jump | `TemplateGallery`, `Ctrl+F` / `F5` | The template gallery (previously Esc-only) jumps to its search box and re-applies the filter from the keyboard |
+
 ## Hint Bars Wave 2 (v2.49.0)
 
 | Feature | Where | What it does |

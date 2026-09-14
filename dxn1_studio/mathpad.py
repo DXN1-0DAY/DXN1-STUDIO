@@ -22,6 +22,7 @@ import math
 import re
 import tkinter as tk
 
+from . import hints
 from .i18n import tr
 
 __all__ = ["CalcError", "evaluate", "fmt", "FUNCTIONS", "CONSTANTS",
@@ -270,6 +271,15 @@ class MathPad(tk.Toplevel):
                   activebackground=t.get("button_hover", "#33334a"),
                   command=self._copy_result).pack(side=tk.RIGHT,
                                                   padx=8, pady=4)
+
+        # keys first advertised by the bar below (v2.50 wave 3);
+        # Return already lives on the entry (verified via the tree)
+        self.bind("<Escape>", lambda _e: self.destroy())
+        # Ctrl+Shift+C — the history keeps its native selection copy
+        self.bind("<Control-C>", lambda _e: self._copy_result())
+        hints.hint_bar(self, t,
+                       pairs=[("Return", "evaluate"),
+                              ("Ctrl+Shift+C", "copy result")])
 
         self.do_eval()
 

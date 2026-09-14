@@ -84,6 +84,22 @@ really bind.
 | `Ctrl+Return` | Scratchpad: stamp a new bullet |
 | `Enter` / `Esc` | Writing-goal dialog: set / cancel |
 
+## Tool windows (v2.50)
+The third wave of door signs — ten more windows learned keys, and the
+bar still refuses to advertise anything the code does not really
+bind. Copy keys use `Ctrl+Shift+C` so text inputs keep their native
+`Ctrl+C` selection copy.
+| Keys | Action |
+|---|---|
+| `Ctrl+P` / `Ctrl+M` | XML bench: pretty / minify |
+| `Ctrl+Shift+C` | XML bench: copy output · CSV lab: copy as TSV · Byte snoop: copy dump · Math pad: copy result · PassForge: copy · Unit converter: copy result · AI result window: copy answer |
+| `Ctrl+R` | Unit converter: swap units |
+| `F5` | PassForge: new password · Branches: refresh · Template gallery: re-filter · SQLite Lab: run query |
+| `Return` | Math pad: evaluate · Branches: create the typed branch |
+| `Ctrl+F` | Template gallery: jump to search |
+| `Ctrl+R` / `Ctrl+Shift+I` | AI result window: replace selection / insert below |
+| `1…7` | AI quick actions menu: run that action |
+
 ## Terminal commands (type `help` in the terminal)
 `run`, `git …`, `db <file>`, `tree <dir>`, `hash <file>`,
 `focus <min>`, `clip`, `md`, `color`, `rest`, `scribe <n>`,

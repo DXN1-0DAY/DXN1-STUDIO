@@ -13,6 +13,7 @@ Open with: Workshop menu, palette, terminal ``hexdump`` / ``bytes``.
 import re
 import tkinter as tk
 
+from . import hints
 from .i18n import tr
 
 __all__ = ["hexdump", "from_hex", "to_hex", "byte_stats",
@@ -207,6 +208,14 @@ class ByteSnoop(tk.Toplevel):
                   activebackground=t.get("button_hover", "#33334a"),
                   command=self._copy_dump).pack(side=tk.RIGHT, padx=8,
                                                 pady=4)
+
+        # keys first advertised by the bar below (v2.50 wave 3)
+        self.bind("<Escape>", lambda _e: self.destroy())
+        # Ctrl+Shift+C, not Ctrl+C — the input keeps its native copy
+        self.bind("<Control-C>", lambda _e: self._copy_dump())
+        hints.hint_bar(self, t,
+                       pairs=[("Ctrl+Shift+C", "copy dump")],
+                       notes=["hex + ascii as you type"])
 
         self._after_id = None
         self.refresh()
