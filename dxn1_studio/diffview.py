@@ -16,6 +16,7 @@ import tkinter as tk
 from tkinter import ttk
 
 from .theme import FONT_UI, FONT_MONO
+from . import hints
 
 # ------------------------------------------------------------------ tints
 # Line/word colours per theme mode. These are the only fixed colours in
@@ -183,8 +184,48 @@ class DiffViewer(tk.Toplevel):
         self.bind("<Escape>", lambda e: self.destroy())
         self.bind("<F3>", lambda e: self.next_hunk())
         self.bind("<Shift-F3>", lambda e: self.prev_hunk())
+        self.bind("<Control-u>", lambda e: self.toggle_mode())
+        self.bind("<Control-c>", self._copy_patch)
+        self._build_hintbar()
         self.after(60, lambda: self.jump_to(0))
         self._center()
+
+    # ------------------------------------------------------------ chrome
+    def _build_footer(self):
+        """v2.49 — the summary strip along the bottom edge.
+
+        This method was called since v1.4 but never defined — every
+        diff window died with AttributeError the moment it opened
+        (the engine below was fine, so the tests never noticed).
+        Now it carries its weight: a one-line verdict of what changed.
+        """
+        t = self.t
+        add, dele, mod = diff_stats(self.rows)
+        hunks = len(self.jumps)
+        text = ("%s → %s   ·   %d rows   ·   +%d −%d%s   ·   "
+                "%s" % (self.old_label, self.new_label, len(self.rows),
+                        add, dele, " ~%d" % mod if mod else "",
+                        ("%d changed hunk%s"
+                         % (hunks, "" if hunks == 1 else "s"))
+                        if hunks else "no changes"))
+        bar = tk.Frame(self, bg=t["header"], height=26)
+        bar.pack(fill=tk.X, side=tk.BOTTOM)
+        bar.pack_propagate(False)
+        tk.Label(bar, text=text, bg=t["header"], fg=t["text_muted"],
+                 font=(FONT_UI, 8), anchor="w").pack(
+            fill=tk.X, padx=12)
+        self._footer = bar  # the hint bar packs itself below this
+
+    def _build_hintbar(self):
+        """v2.49 — the honest door sign (only really-bound keys)."""
+        self.hintbar = hints.hint_bar(
+            self, self.t,
+            pairs=(("F3", "next change", "F3"),
+                   ("Shift+F3", "previous change", "\u21e7F3"),
+                   ("Ctrl+U", "split / unified"),
+                   ("Ctrl+C", "copy patch")),
+            notes=("click \u2039 \u203a to step changes",),
+            before=getattr(self, "_footer", None))
 
     # ------------------------------------------------------------ chrome
     def _center(self):
@@ -445,6 +486,12 @@ class DiffViewer(tk.Toplevel):
                                   self.old_label, self.new_label)
         self.clipboard_clear()
         self.clipboard_append(patch)
+        try:  # v2.49 — the footer echoes the gesture
+            self.hunk_lbl.config(text="patch copied")
+            self.after(1400, lambda: self.hunk_lbl.config(
+                text=self._hunk_text()))
+        except Exception:  # noqa: BLE001 — garnish
+            pass
 
     def jump_to(self, idx):
         if not self.jumps:

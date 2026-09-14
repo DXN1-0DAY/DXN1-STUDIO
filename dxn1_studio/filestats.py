@@ -25,6 +25,7 @@ import os
 import shutil
 
 from . import APP_NAME
+from . import hints
 
 # Directories that never contain "your" code — always skipped.
 SKIP_DIRS = {
@@ -569,6 +570,20 @@ def open_stats(master, theme, workspace=None, on_log=None):
             render_tree()
 
     win.bind("<Escape>", clear_filter)
+
+    # v2.49 — real keys for the mouse actions, advertised honestly
+    win.bind("<Control-c>", lambda e: copy_report())
+    win.bind("<Control-e>", lambda e: export_report())
+    win.bind("<F5>", lambda e: scan())
+    hints.hint_bar(
+        win, theme,
+        pairs=(("Ctrl+C", "copy report"),
+               ("Ctrl+E", "export .md"),
+               ("F5", "rescan"),
+               ("Escape", "clear filter", "Esc")),
+        notes=("click a bar to filter",
+               "double-click a file to copy its path"),
+        esc=False, before=foot)
 
     def scan():
         status.config(text="scanning…", fg=accent)

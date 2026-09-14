@@ -498,6 +498,20 @@
 | Git-graph zoom | `GitGraphWindow.zoom_step()` / `zoom_reset()`, keys `+` `−` `0` | A real row-density zoom (0.5×–3.0×): rows, lanes, dots, diagonal edges, click hit-testing and the scroll region rescale together, so a 200-commit repo reads as a trunk or as a spreadsheet at one keystroke; `F5` / `Ctrl+R` refresh from the keyboard |
 | Doc states the rule | `docs/KEYBINDINGS.md` — Tool windows (v2.48) | The keybindings doc gained the window keys and says the rule out loud: a key appears in a hint bar only if the code really binds it — unit-tested so it stays that way |
 
+## Hint Bars Wave 2 (v2.49.0)
+
+| Feature | Where | What it does |
+|---|---|---|
+| Diff viewer footer, at last | `DiffViewer._build_footer()` | The method had been *called* since v1.4 but never defined — every diff window died with AttributeError the instant it opened (the pure engine below it tested fine, so nobody noticed). Now the bottom edge carries a one-line verdict: `before → after · 14 rows · +4 −2 ~1 · 3 changed hunks`, and the header counter echoes "patch copied" when you copy |
+| Diff viewer keys | `F3` / `Shift+F3` / `Ctrl+U` / `Ctrl+C` | The hunk navigation the mouse could already do (‹ ›) is now keyboard-native: step changes, flip split/unified view, copy the clean patch — and the honest hint bar advertises exactly these, nothing more |
+| The graph finally draws its diagonals | `GitGraphWindow._draw()` | `lane_of` was referenced on every edge but only ever defined inside `assign_lanes` — any repo with ≥2 commits died mid-draw with NameError, silently: every prior check looked before the 80ms refresh timer fired, so the graph checks passed vacuously on an empty canvas. The map is now rebuilt per draw, and the wave-2 tests drive a real merge topology (4 commits, 2 parent edges, 27 canvas items) so the diagonals can never silently vanish again |
+| Lane hover tooltip | `GitGraphWindow._show_tip()` / `_hide_tip()` | Hovering a graph row whispers the whole truth: the full commit subject (the canvas truncates at 72 chars — the tooltip never does), every ref, and the author/date line; it hides on off-row, on leave, on click, clamps its position to the screen, and never raises |
+| DevTools tab keys | `DevTools.select_tab()`, `Ctrl+1…5` | The five tabs (regex, JSON, text, time, color) answer from the keyboard — and the bar advertises all five, one chip each |
+| Text diff + cheat sheet keys | `Ctrl+Shift+C`, `Ctrl+S`, `Esc` | The paste-diff window copies its diff and closes from the keyboard; the cheat sheet copies its HTML, saves it, closes — both advertise only what is really bound |
+| File stats keys | `Ctrl+C` / `Ctrl+E` / `F5` | Copy report, export the markdown, rescan — the three mouse buttons gained honest keyboard paths, and the Esc chip says "clear filter" (what it really does) instead of the default "close" |
+| Scratchpad's verified sign | `scratch.py` | The hand-written "- Ctrl+Enter: stamp…" label is replaced by a real hint bar — same promise, now verified against the actual bindings instead of trusted |
+| Goal dialog whispers | `scribe.open_goal_dialog()` | The writing-goal dialog carries the standard bar: `Enter set goal · Esc close` — both really bound |
+
 ## Honest Keys (v2.47.0)
 
 | Feature | Where | What it does |

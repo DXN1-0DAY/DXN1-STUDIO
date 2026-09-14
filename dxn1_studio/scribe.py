@@ -200,6 +200,12 @@ def open_goal_dialog(master, theme, current, on_set=None):
 
     entry.bind("<Return>", _set)
     win.bind("<Escape>", _cancel)
+    try:  # v2.49 — the honest door sign (Enter really sets, Esc cancels)
+        from . import hints
+        hints.hint_bar(win, theme,
+                       pairs=(("Return", "set goal", "Enter"),))
+    except Exception:  # noqa: BLE001 — garnish
+        pass
     try:
         entry.focus_set()
         entry.selection_range(0, tk.END)

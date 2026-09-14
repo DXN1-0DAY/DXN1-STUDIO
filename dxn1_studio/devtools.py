@@ -22,6 +22,7 @@ from urllib.parse import quote, unquote
 
 from .theme import FONT_UI, FONT_MONO
 from .i18n import tr
+from . import hints
 
 MAX_MATCHES = 500  # keep the UI honest on huge inputs
 
@@ -444,8 +445,28 @@ class DevTools(tk.Toplevel):
         self._tab_color()
         self.nb.select(0)
         self.bind("<Escape>", lambda e: self.destroy())
+        # v2.49 — the tabs answer to the keyboard: Ctrl+1…5 select,
+        # and the hint bar advertises exactly what is really bound.
+        self._tabs = ("regex", "json", "text", "time", "color")
+        for _i in range(len(self._tabs)):
+            self.bind("<Control-%d>" % (_i + 1),
+                      lambda e, i=_i: self.select_tab(i))
+        self._build_hintbar()
         self.protocol("WM_DELETE_WINDOW", self._close)
         self._center()
+
+    def select_tab(self, index):
+        """v2.49 — keyboard tab switching (Ctrl+1…5). Never raises."""
+        try:
+            self.nb.select(index)
+        except Exception:  # noqa: BLE001 — a stray index is garnish
+            pass
+
+    def _build_hintbar(self):
+        self.hintbar = hints.hint_bar(
+            self, self.t,
+            pairs=tuple(("Ctrl+%d" % (i + 1), name)
+                        for i, name in enumerate(self._tabs)))
 
     # ------------------------------------------------------------- chrome
 

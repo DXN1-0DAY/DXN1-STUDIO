@@ -16,6 +16,7 @@ import os
 import time
 
 from . import APP_NAME
+from . import hints
 
 GLOBAL_SCRATCH = os.path.join(os.path.expanduser("~"), ".dxn1-studio",
                               "scratch.md")
@@ -125,11 +126,12 @@ class Scratchpad:
         self.text.bind("<KeyRelease>", self._schedule_save)
         self.text.bind("<Control-Return>", self._stamp)
 
-        hint = ("- Ctrl+Enter: stamp a new bullet   ·   Esc: close "
-                "(saved)")
-        tk.Label(self.win, text=hint, bg=_SC_C["bg"], fg=_SC_C["muted"],
-                 font=("sans-serif", 8)).pack(anchor="w", padx=14,
-                                              pady=(0, 10))
+        # v2.49 — the honest door sign replaces the hand-written hint
+        # label: same promise, now verified against the real bindings.
+        self.win._scratch_hint = hints.hint_bar(
+            self.win, theme,
+            pairs=(("Ctrl+Return", "stamp a new bullet"),),
+            notes=("auto-saved as you type",))
 
         self.win.protocol("WM_DELETE_WINDOW", self._close)
 

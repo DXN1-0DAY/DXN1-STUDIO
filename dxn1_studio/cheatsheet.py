@@ -244,6 +244,17 @@ class CheatSheet(tk.Toplevel):
                       command=cmd).pack(side=tk.RIGHT, padx=(0, 6),
                                         pady=4)
 
+        # v2.49 — real keys + the honest door sign
+        self.bind("<Escape>", lambda e: self.destroy())
+        self.bind("<Control-C>", lambda e: self._copy_html())
+        self.bind("<Control-s>", lambda e: self._save_as())
+        from . import hints
+        self.hintbar = hints.hint_bar(
+            self, self.theme,
+            pairs=(("Ctrl+Shift+C", "copy HTML"),
+                   ("Ctrl+S", "save HTML")),
+            notes=("print-ready — opens in any browser"))
+
     # ------------------------------------------------------------ actions
     def _html(self):
         return build_html(default_sections(self.commands))

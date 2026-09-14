@@ -4894,3 +4894,245 @@ def test_hint_bars(tmp_path):
         except tk.TclError:
             pass
         monkeypatch.undo()
+
+
+def test_hint_wave2(tmp_path):
+    """DS2 v2.49 — the second wave of door signs: the diff viewer's
+    never-defined _build_footer is finally built (it crashed every
+    open since v1.4), the git graph's lane_of NameError is fixed (the
+    diagonals finally draw — and the old checks drove it vacuously,
+    before the 80ms refresh timer ever fired), six more windows carry
+    honest hint bars with real keys, and hovering a graph row whispers
+    the full truth. Key events ride the focus chain — the host root
+    stays MAPPED (off-screen) or the events are silently dropped."""
+    import tkinter as tk
+    try:
+        root = tk.Tk()
+        root.geometry("1x1+-2000+-2000")   # mapped, just out of sight
+    except tk.TclError:
+        return
+    from dxn1_studio import hints
+    from dxn1_studio.theme import Theme
+    from dxn1_studio.diffview import DiffViewer
+    from dxn1_studio.gitgraph import GitGraphWindow, fetch_commits
+
+    t = Theme("dark", "violet")
+
+    def chips(bar):
+        out = []
+        for w in bar.winfo_children():
+            try:
+                out.append(str(w.cget("text")))
+            except Exception:  # noqa: BLE001 — frames have no text
+                pass
+        return out
+
+    def tip_texts(tip):
+        out = []
+        for w in tip.winfo_children():
+            for c in w.winfo_children():
+                out.append(str(c.cget("text")))
+        return out
+
+    # --- the diff viewer: the crash fix + real keys + an honest bar
+    dv = DiffViewer(root, t, "alpha\nbeta\ngamma",
+                    "alpha\nbeta TWO\ngamma\ndelta",
+                    old_label="before", new_label="after", title="td")
+    root.update()
+    assert dv.mode == "split"
+    assert dv.hintbar.filled and not dv.hintbar.dropped_hints
+    dch = chips(dv.hintbar)
+    assert "F3" in dch and "\u21e7F3" in dch and "next change" in dch
+    assert "Ctrl+U" in dch and "Ctrl+C" in dch
+    assert "click \u2039 \u203a to step changes" in dch
+    assert dv.bind("<Control-u>") and dv.bind("<Control-c>")
+    assert dv.bind("<F3>") and dv.bind("<Shift-F3>")
+    # the footer verdict exists (the v1.4 AttributeError regression)
+    labels = []
+    for w in dv.winfo_children():
+        for c in w.winfo_children():
+            try:
+                labels.append(str(c.cget("text")))
+            except Exception:  # noqa: BLE001
+                pass
+    assert any("+2" in s and "\u22121" in s and "2 changed hunks" in s
+               for s in labels), labels
+    # Ctrl+U really toggles (split panes die in unified — refocus!)
+    dv.left.focus_set(); root.update()
+    dv.left.event_generate("<Control-u>"); root.update()
+    assert dv.mode == "unified"
+    dv._focus_text.focus_set(); root.update()
+    dv._focus_text.event_generate("<Control-u>"); root.update()
+    assert dv.mode == "split"
+    # Ctrl+C copies the clean unified patch
+    dv._focus_text.event_generate("<Control-c>"); root.update()
+    assert "beta TWO" in root.clipboard_get()
+    # F3 walks the hunks (boot already jumped to 0), Shift+F3 walks back
+    dv._focus_text.event_generate("<F3>"); root.update()
+    assert dv.jump_at == 1
+    dv._focus_text.event_generate("<Shift-F3>"); root.update()
+    assert dv.jump_at == 0
+    dv.destroy()
+
+    # --- the git graph: real rows, real diagonals, no NameError
+    repo = tmp_path / "mergerepo"
+    repo.mkdir()
+    env = dict(os.environ, GIT_AUTHOR_NAME="t", GIT_AUTHOR_EMAIL="a@b",
+               GIT_COMMITTER_NAME="t", GIT_COMMITTER_EMAIL="a@b")
+
+    def g(*args):
+        subprocess.run(["git"] + list(args), cwd=str(repo), env=env,
+                       capture_output=True, text=True)
+    subprocess.run(["git", "init", "-q", "-b", "main"], cwd=str(repo))
+    g("commit", "-qm", "base", "--allow-empty")
+    g("checkout", "-qb", "feature")
+    g("commit", "-qm", "feature work", "--allow-empty")
+    g("checkout", "-q", "main")
+    g("commit", "-qm", "on main", "--allow-empty")
+    g("merge", "--no-ff", "feature", "-m", "merge feature")
+    commits, err = fetch_commits(str(repo), 200)
+    assert not err and len(commits) == 4
+    gw = GitGraphWindow(root, t, str(repo))
+    gw.refresh()                     # drive it — no timer racing
+    root.update()
+    assert len(gw.rows) == 4
+    gw._draw()                       # the v1.4 NameError dies here
+    items = len(gw.canvas.find("all"))
+    assert items > 25, items         # dots + trunk + diagonals + text
+    merge_edges = [e for _l, c, e in gw.rows
+                   if c["subject"] == "merge feature"][0]
+    assert len(merge_edges) == 2     # both parents connect
+    # hover a row: the full truth (untruncated subject + refs)
+    ev = type("E", (), {"x": 100, "y": 20})()
+    gw._on_hover(ev); root.update()
+    assert gw._tip is not None and gw._tip_sha == gw.rows[0][1]["sha"]
+    tt = tip_texts(gw._tip)
+    assert "merge feature" in tt and "feature" in " ".join(tt)
+    gw._on_hover(type("E", (), {"x": 100, "y": 2})()); root.update()
+    assert gw._tip is None and gw._tip_sha is None   # off-row hides
+    gw._on_hover(ev); root.update()
+    gw._on_leave(); root.update()
+    assert gw._tip is None                           # leave hides
+    gw._on_hover(ev); root.update()
+    gw._on_click(ev); root.update()
+    assert gw._tip is None                           # click hides
+    assert gw.selected_sha == gw.rows[0][1]["sha"]
+    gch = chips(gw.hintbar)
+    assert "hover a commit for the full message" in gch
+    gw.destroy()
+
+    # --- devtools: the tabs answer to Ctrl+1…5, advertised honestly
+    from dxn1_studio.devtools import DevTools
+    dt = DevTools(root, t); root.update()
+    assert dt.hintbar.filled and not dt.hintbar.dropped_hints
+    dch = chips(dt.hintbar)
+    for i in range(1, 6):
+        assert "Ctrl+%d" % i in dch
+    assert "regex" in dch and "color" in dch
+    dt.focus_set(); root.update()
+    dt.event_generate("<Control-3>"); root.update()
+    assert dt.nb.index(dt.nb.select()) == 2
+    dt.event_generate("<Control-1>"); root.update()
+    assert dt.nb.index(dt.nb.select()) == 0
+    dt.select_tab(4)
+    assert dt.nb.index(dt.nb.select()) == 4
+    dt.select_tab(99)                # never raises
+    dt.destroy()
+
+    # --- textdiff: Esc closes, Ctrl+Shift+C copies, honest bar
+    from dxn1_studio.textdiff import TextDiff
+    td = TextDiff(root, t, initial=""); root.update()
+    assert td.hintbar.filled and not td.hintbar.dropped_hints
+    tch = chips(td.hintbar)
+    assert "Ctrl+Shift+C" in tch and "copy diff" in tch and "Esc" in tch
+    assert "type in either pane — the diff follows" in tch
+    td.focus_set(); root.update()
+    td.event_generate("<Control-C>"); root.update()
+    assert "copied" in str(td.status.cget("text"))
+    td.event_generate("<Escape>"); root.update()
+    assert not td.winfo_exists()
+
+    # --- cheatsheet: copy/save HTML from the keyboard
+    from dxn1_studio.cheatsheet import CheatSheet
+    cs = CheatSheet(root, t); root.update()
+    assert cs.hintbar.filled and not cs.hintbar.dropped_hints
+    cch = chips(cs.hintbar)
+    assert "Ctrl+Shift+C" in cch and "copy HTML" in cch
+    assert "Ctrl+S" in cch and "Esc" in cch
+    assert cs.bind("<Control-s>")    # save-as is really bound
+    cs.focus_set(); root.update()
+    cs.event_generate("<Control-C>"); root.update()
+    assert "HTML copied" in str(cs.status.cget("text"))
+    cs.destroy()
+
+    # --- filestats: real keys for the mouse actions
+    import dxn1_studio.filestats as fsmod
+    ws = tmp_path / "statsws"
+    ws.mkdir()
+    for name in ("a.py", "b.py", "c.md"):
+        (ws / name).write_text("x" * 100)
+    fw = fsmod.open_stats(root, t, workspace=str(ws), on_log=lambda m: None)
+    root.update()
+    fbars = [w for w in fw.winfo_children() if getattr(w, "filled", None)]
+    assert fbars and not fbars[0].dropped_hints
+    fch = chips(fbars[0])
+    assert "Ctrl+C" in fch and "copy report" in fch
+    assert "Ctrl+E" in fch and "export .md" in fch
+    assert "F5" in fch and "rescan" in fch
+    assert "Esc" in fch and "clear filter" in fch    # honest, not "close"
+    assert "click a bar to filter" in fch
+    assert "double-click a file to copy its path" in fch
+    fw.focus_set(); root.update()
+    fw.event_generate("<Control-c>"); root.update()
+    assert "File statistics" in root.clipboard_get()
+    fw.destroy()
+
+    # --- scratchpad: the hand-written hint is now a verified bar
+    from dxn1_studio.scratch import open_scratchpad
+    sp = open_scratchpad(root, t); root.update()
+    bar = sp.win._scratch_hint
+    assert bar.filled and not bar.dropped_hints
+    sch = chips(bar)
+    assert "Ctrl+Return" in sch and "stamp a new bullet" in sch
+    assert "auto-saved as you type" in sch and "Esc" in sch
+    sp.win.destroy()
+
+    # --- the scribe goal dialog whispers its own keys
+    from dxn1_studio.scribe import open_goal_dialog
+    gd = open_goal_dialog(root, t, 500, on_set=lambda gv: None)
+    root.update()
+    gbars = [w for w in gd.winfo_children() if getattr(w, "filled", None)]
+    assert gbars and not gbars[0].dropped_hints
+    gdc = chips(gbars[0])
+    assert "Enter" in gdc and "set goal" in gdc and "Esc" in gdc
+    gd.destroy()
+
+    # --- source + doc agreement for the whole wave
+    base = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+
+    def src(mod):
+        return open(os.path.join(base, "dxn1_studio", mod),
+                    encoding="utf-8").read()
+    assert "def _build_footer" in src("diffview.py")
+    assert "before=getattr(self, \"_footer\", None)" in src("diffview.py")
+    gsrc = src("gitgraph.py")
+    assert "lane_of = {cm[\"sha\"]: ln for ln, cm, _e in self.rows}" in gsrc
+    assert "def _show_tip" in gsrc and "def _hide_tip" in gsrc
+    assert 'self.bind("<Control-%d>" % (_i + 1)' in src("devtools.py")
+    assert 'win.bind("<Control-c>"' in src("filestats.py")
+    assert 'self.bind("<Control-C>"' in src("textdiff.py")
+    assert 'self.bind("<Control-C>"' in src("cheatsheet.py")
+    assert 'hints.hint_bar(' in src("scribe.py")
+    assert 'Ctrl+Enter: stamp' not in src("scratch.py")   # label is gone
+    doc = open(os.path.join(base, "docs", "KEYBINDINGS.md"),
+               encoding="utf-8").read()
+    assert "## Tool windows (v2.49)" in doc
+    assert "`F3` / `Shift+F3` | Diff viewer: step changes" in doc
+    assert "`Ctrl+U` | Diff viewer: split / unified" in doc
+    assert "`Ctrl+1…5` | DevTools: switch tab" in doc
+    assert "`Ctrl+Shift+C` | Text diff / Cheat sheet: copy" in doc
+    assert "`Ctrl+C` / `Ctrl+E` | File stats: copy / export report" in doc
+    try:
+        root.destroy()
+    except tk.TclError:
+        pass

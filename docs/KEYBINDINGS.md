@@ -67,6 +67,23 @@ a key appears there only if the code really binds it.
 | `Enter` | Bookmarks: jump · Recents/Outline: open/jump |
 | `↑` / `↓` | Recents / Outline: move the selection |
 
+## Tool windows (v2.49)
+The second wave of door signs — six more windows learned keys, and
+the hint bar still refuses to advertise anything the code does not
+really bind.
+| Keys | Action |
+|---|---|
+| `F3` / `Shift+F3` | Diff viewer: step changes |
+| `Ctrl+U` | Diff viewer: split / unified view |
+| `Ctrl+C` | Diff viewer: copy the clean patch |
+| `Ctrl+1…5` | DevTools: switch tab (regex, JSON, text, time, color) |
+| `Ctrl+Shift+C` | Text diff / Cheat sheet: copy |
+| `Ctrl+S` | Cheat sheet: save the HTML |
+| `Ctrl+C` / `Ctrl+E` | File stats: copy / export report |
+| `F5` | File stats: rescan |
+| `Ctrl+Return` | Scratchpad: stamp a new bullet |
+| `Enter` / `Esc` | Writing-goal dialog: set / cancel |
+
 ## Terminal commands (type `help` in the terminal)
 `run`, `git …`, `db <file>`, `tree <dir>`, `hash <file>`,
 `focus <min>`, `clip`, `md`, `color`, `rest`, `scribe <n>`,

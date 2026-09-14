@@ -140,6 +140,8 @@ class GitGraphWindow(tk.Toplevel):
         self.rows = []
         self.selected_sha = None
         self.zoom = 1.0                     # v2.48 — row-density zoom
+        self._tip = None                    # v2.49 — hover tooltip
+        self._tip_sha = None
         self.title("Git Graph — DXN1 STUDIO")
         self.configure(bg=self.t["bg"])
         self.geometry("860x640")
@@ -171,7 +173,8 @@ class GitGraphWindow(tk.Toplevel):
                    ("+", "zoom in", "+ / −"),
                    ("-", "zoom out", "−"),
                    ("0", "zoom reset", "0")),
-            notes=("click a commit for details",))
+            notes=("click a commit for details",
+                   "hover a commit for the full message"))
 
     # ------------------------------------------------------------ chrome
     def _center(self):
@@ -220,8 +223,7 @@ class GitGraphWindow(tk.Toplevel):
         self.canvas.configure(yscrollcommand=sb.set)
         self.canvas.bind("<Button-1>", self._on_click)
         self.canvas.bind("<Motion>", self._on_hover)
-        self.canvas.bind("<Leave>", lambda e: self.canvas.config(
-            cursor="arrow"))
+        self.canvas.bind("<Leave>", self._on_leave)
         self.canvas.bind("<MouseWheel>",
                          lambda e: self.canvas.yview_scroll(
                              -1 if e.delta > 0 else 1, "units"))
@@ -313,6 +315,11 @@ class GitGraphWindow(tk.Toplevel):
             current = head.strip()
         prev_y = None
         lane_last_y = {}
+        # v2.49 BUGFIX — lane_of was referenced here since v1.4 but only
+        # ever defined inside assign_lanes, so every draw of a repo with
+        # ≥2 commits died mid-loop with NameError (silently: the 80ms
+        # refresh timer rarely fired before the old checks looked).
+        lane_of = {cm["sha"]: ln for ln, cm, _e in self.rows}
         for idx, (lane, commit, edges) in enumerate(self.rows):
             y = idx * rh + int(rh * 0.6)
             x = 20 + lane * lw
@@ -392,11 +399,78 @@ class GitGraphWindow(tk.Toplevel):
     def _on_hover(self, event):
         idx = self._hit(event.x, event.y)
         self.canvas.config(cursor="hand2" if idx is not None else "arrow")
+        if idx is None:
+            self._hide_tip()
+            return
+        _lane, commit, _e = self.rows[idx]
+        if commit["sha"] == self._tip_sha:
+            return                      # already whispering about this row
+        self._hide_tip()
+        self._show_tip(commit, event)
+
+    def _on_leave(self, _event=None):
+        try:
+            self.canvas.config(cursor="arrow")
+        except Exception:  # noqa: BLE001 — dying canvas is fine
+            pass
+        self._hide_tip()
+
+    def _show_tip(self, commit, event):
+        """v2.49 — the lane hover tooltip: the full subject (never
+        truncated), every ref, and the author line. The canvas row is
+        a summary; the tooltip is the whole truth. Never raises."""
+        try:
+            t = self.t
+            tip = tk.Toplevel(self)
+            try:
+                tip.wm_overrideredirect(True)
+            except Exception:  # noqa: BLE001 — decoration is garnish
+                pass
+            tip.configure(bg=t["card_border"])
+            body = tk.Frame(tip, bg=t["card"])
+            body.pack(fill=tk.BOTH, expand=True, padx=1, pady=1)
+            tk.Label(body, text=commit["subject"], bg=t["card"],
+                     fg=t["text"], font=(FONT_UI, 9, "bold"), anchor="w",
+                     wraplength=380, justify="left").pack(
+                fill=tk.X, padx=10, pady=(7, 2))
+            tk.Label(body, text="%s · %s · %s" % (commit["sha7"],
+                                                   commit["author"],
+                                                   commit["when"]),
+                     bg=t["card"], fg=t["text_muted"],
+                     font=(FONT_MONO, 8), anchor="w").pack(
+                fill=tk.X, padx=10, pady=(0, 7 if not commit["refs"] else 0))
+            if commit["refs"]:
+                tk.Label(body, text=", ".join(commit["refs"]),
+                         bg=t["card"], fg=t.accent,
+                         font=(FONT_UI, 8, "bold"), anchor="w",
+                         wraplength=380, justify="left").pack(
+                    fill=tk.X, padx=10, pady=(0, 7))
+            # clamp to ≥0 — a negative "+-x+y" geometry is Tcl-invalid
+            # and would silently kill the tooltip off-screen
+            x = max(0, self.winfo_rootx() + event.x + 14)
+            y = max(0, self.winfo_rooty() + event.y + 18)
+            tip.wm_geometry("+%d+%d" % (x, y))
+            self._tip = tip
+            self._tip_sha = commit["sha"]
+        except Exception:  # noqa: BLE001 — a tooltip must never raise
+            self._tip = None
+            self._tip_sha = None
+
+    def _hide_tip(self, _event=None):
+        tip = self._tip
+        self._tip = None
+        self._tip_sha = None
+        try:
+            if tip is not None:
+                tip.destroy()
+        except Exception:  # noqa: BLE001 — never raise on cleanup
+            pass
 
     def _on_click(self, event):
         idx = self._hit(event.x, event.y)
         if idx is None:
             return
+        self._hide_tip()
         _lane, commit, _e = self.rows[idx]
         self.selected_sha = commit["sha"]
         self._draw()

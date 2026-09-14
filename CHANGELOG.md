@@ -4,6 +4,69 @@ All notable changes to DXN1 STUDIO. Format based on
 [Keep a Changelog](https://keepachangelog.com/); versioning is
 `MAJOR.MINOR.PATCH` while in **beta**.
 
+## [2.49.0] — 2026-09-15 · beta · "every door gets its sign" (hint bars wave 2 + two latent crash fixes)
+
+### Fixed
+- **The diff viewer opens again** — `DiffViewer.__init__` had called
+  `self._build_footer()` since v1.4 but the method was never defined:
+  every diff window died with AttributeError the moment it opened.
+  The pure diff engine below it was fully tested, the window itself
+  had zero coverage, and the crash was never noticed. The footer now
+  exists and carries its weight: a one-line verdict of what changed
+  (`before → after · 14 rows · +4 −2 ~1 · 3 changed hunks`), and the
+  header hunk counter echoes "patch copied" when the patch is copied.
+- **The git graph finally draws its diagonals** — `_draw()` referenced
+  `lane_of` on every parent edge, but that map was only ever defined
+  inside `assign_lanes()`: any repository with ≥ 2 commits died
+  mid-draw with NameError, leaving a partial graph (or raising on a
+  direct call). The bug shipped with v1.4 and survived 57 tags because
+  every prior check drove the graph **vacuously** — the 80 ms refresh
+  timer had not fired yet, so `rows` was still empty and the broken
+  code path never ran while the assertions counted the one "No
+  commits yet" text as painted rows. `_draw()` now rebuilds the map
+  from its own rows, and the wave-2 tests/smoke drive a real merge
+  topology (4 commits, 2 parent edges, 27+ canvas items) so the
+  vacuous pass can never repeat.
+- **Off-screen tooltips cannot silently die** — a negative cursor
+  position produced `"+-x+y"` geometry, which Tk rejects; the tooltip
+  position is clamped to ≥ 0 so the hover whisper survives any
+  screen arrangement (and the never-raise contract stays honest).
+
+### Added
+- **Hint bars wave 2** — six more windows carry the honest door sign,
+  and most gained real keys to advertise:
+  - **Diff viewer**: `F3` / `Shift+F3` step changes, `Ctrl+U` flips
+    split/unified view, `Ctrl+C` copies the clean patch — the
+    navigation the ‹ › buttons already offered is keyboard-native,
+    and the bar lists exactly what is bound.
+  - **Developer tools**: the five tabs answer to `Ctrl+1…5`
+    (`select_tab()` never raises on a stray index) — regex, JSON,
+    text, time and color are one keystroke apart, and the bar shows
+    a chip per tab.
+  - **File statistics**: `Ctrl+C` copies the report, `Ctrl+E` exports
+    the markdown, `F5` rescans — the three mouse buttons gained
+    keyboard paths; the Esc chip honestly reads "clear filter" (what
+    it really does) instead of the default "close".
+  - **Text diff**: `Ctrl+Shift+C` copies the diff, `Esc` closes —
+    chosen over `Ctrl+C` so selecting text in the panes keeps its
+    native meaning.
+  - **Cheat sheet**: `Ctrl+Shift+C` copies the HTML, `Ctrl+S` opens
+    Save-as, `Esc` closes.
+  - **Scratchpad**: the hand-written "- Ctrl+Enter: stamp…" label is
+    replaced by a verified hint bar — the same promise, now checked
+    against the real bindings instead of trusted.
+  - **Writing-goal dialog**: the standard bar whispers `Enter set
+    goal · Esc close`, both really bound.
+- **Lane hover tooltip** — hovering a graph row shows the whole
+  truth: the full commit subject (the canvas row truncates at 72
+  characters; the tooltip never does), every ref on the commit, and
+  the author · date line. It hides on off-row hover, on leave and on
+  click; the graph's hint bar note advertises it ("hover a commit
+  for the full message").
+- **Keybindings doc — Tool windows (v2.49)** — the second wave's
+  keys are documented with the same rule stated out loud, and the
+  test suite pins every new row against the source.
+
 ## [2.48.0] — 2026-09-15 · beta · "the way out is written on the door" (honest hint bars + git-graph zoom)
 
 ### Added

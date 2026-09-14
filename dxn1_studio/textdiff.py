@@ -196,6 +196,16 @@ class TextDiff(tk.Toplevel):
         self._after_id = None
         self.refresh()
 
+        # v2.49 — real keys + the honest door sign
+        self.bind("<Escape>", lambda e: self.destroy())
+        self.bind("<Control-C>", lambda e: self._copy_diff())
+        from . import hints
+        self.hintbar = hints.hint_bar(
+            self, self.theme,
+            pairs=(("Ctrl+Shift+C", "copy diff"),),
+            notes=("type in either pane — the diff follows",
+                   "word / char / line modes above"))
+
     def _pane(self, parent, label, col):
         frame = tk.Frame(parent, bg=self.theme.get("bg", "#16161e"))
         frame.grid(row=0, column=col, sticky="nsew",
