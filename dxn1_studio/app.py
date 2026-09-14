@@ -732,6 +732,7 @@ class DXN1Studio:
         self.status_deps.pack(side=tk.RIGHT, padx=(0, 12))
         self.status_deps.bind("<Button-1>",
                               lambda _e: self._deps_chip_click())
+        self.status_deps.bind("<Button-3>", self._deps_chip_menu)
         self._deps_sig_state = ""   # last state the chip was drawn for
         self._deps_probed_at = 0.0  # throttle for the cheap-but-not-free probe
         # DS2 v2.40: git lane chip — the branch name sits quietly in the
@@ -748,9 +749,11 @@ class DXN1Studio:
         self._git_sig_state = ""    # last state the git chip was drawn for
         self._git_probed_at = 0.0   # throttle — one git call max per 3s
         self._chip_tip(self.status_git,
-                       "Source control — click to open the git panel")
+                       "Source control — click opens the panel, "
+                       "right-click for actions")
         self._chip_tip(self.status_deps,
-                       "Dependency watch — click to rescan deps")
+                       "Dependency watch — click rescans, "
+                       "right-click for actions")
         self._chip_tip(self.status_sesave,
                        "Session autosave — click to snapshot now")
         self._chip_tip(self.status_scribe,
@@ -5017,6 +5020,48 @@ class DXN1Studio:
                               "press Enter to pin the missing "
                               "imports")
 
+    def _deps_queue_fix(self):
+        """DS2 v2.42 — the menu's repair row: same one-gesture flow
+        as the red chip click (queue ``deps fix``, Enter runs it —
+        nothing fires by accident)."""
+        self._prefill_terminal("deps fix")
+        self.terminal.log("deps fix is queued in the input — "
+                          "press Enter to pin the missing imports")
+
+    def _deps_menu_entries(self):
+        """DS2 v2.42 — the deps-chip context menu's rows as
+        ``(label, command)`` pairs (``("---", None)`` = separator).
+        The repair row appears only when the last report actually
+        found missing imports — honest per state, same contract as
+        the branch chip's menu. Pure data, rendered by
+        `_deps_chip_menu`."""
+        entries = [("Rescan deps",
+                    lambda: (self._run_depcheck(),
+                             self._update_depswatch(force=True)))]
+        red = False
+        try:
+            state, missing_n = self._deps_watch_state()
+            red = state == "cached" and missing_n > 0
+        except Exception:  # noqa: BLE001 — menu still opens
+            red = False
+        if red:
+            entries.append(("Queue deps fix", self._deps_queue_fix))
+        entries.append(("Fresh rescan (bypass cache)",
+                        lambda: (self._run_depcheck(force=True),
+                                 self._update_depswatch(force=True))))
+        entries.append(("---", None))
+        entries.append(("Deps watch on/off", self._deps_watch_toggle))
+        entries.append(("Rescan chip",
+                        lambda: self._update_depswatch(force=True)))
+        return entries
+
+    def _deps_chip_menu(self, event=None):
+        """DS2 v2.42 — right-click the drift chip: the lane's actions
+        in one themed menu (rescan, the repair row when the chip is
+        red, a cache-bypassing fresh scan, the watch toggle). Never
+        raises."""
+        self._render_chip_menu(self._deps_menu_entries(), event)
+
     def _git_menu_entries(self):
         """DS2 v2.41 — the branch-chip context menu's rows, as
         ``(label, command)`` pairs (``("---", None)`` = separator).
@@ -5034,6 +5079,12 @@ class DXN1Studio:
             entries.append(("Commit graph", self._open_git_graph_chip))
             entries.append(("Stage all changes",
                             lambda: self.run_command("git add -A")))
+            entries.append(("Draft AI commit message",
+                            self._ai_commit_from_chip))
+            entries.append(("Push to origin",
+                            lambda: self.run_command("git push")))
+            entries.append(("Pull from upstream",
+                            lambda: self.run_command("git pull")))
             branch = str(st.get("branch") or "")
             if branch:
                 entries.append(("Copy branch name",
@@ -5043,17 +5094,19 @@ class DXN1Studio:
                         lambda: self._update_gitchip(force=True)))
         return entries
 
-    def _git_chip_menu(self, event=None):
-        """DS2 v2.41 — right-click the branch chip: the lane's actions
-        in one themed menu (open Source Control, commit graph, stage
-        everything, copy the branch name, rescan). Never raises."""
+    def _render_chip_menu(self, entries, event=None):
+        """DS2 v2.42 — one themed popup renderer for every statusbar
+        chip menu (git, deps, …): ``(label, command)`` rows,
+        ``("---", None)`` = separator, popped at the cursor. The
+        popup itself is best-effort — a menu must never break
+        typing."""
         try:
             t = self.theme
             menu = tk.Menu(self.root, tearoff=0, bg=t["sidebar"],
                            fg=t["text"], activebackground=t["hover"],
                            activeforeground=t["text"],
                            font=(FONT_UI, 9))
-            for label, cmd in self._git_menu_entries():
+            for label, cmd in entries:
                 if label == "---":
                     menu.add_separator()
                 else:
@@ -5066,6 +5119,27 @@ class DXN1Studio:
                 menu.grab_release()
         except Exception:  # noqa: BLE001 — a menu must never break typing
             pass
+
+    def _git_chip_menu(self, event=None):
+        """DS2 v2.41 — right-click the branch chip: the lane's actions
+        in one themed menu (open Source Control, commit graph, stage
+        everything, AI commit draft, push/pull, copy the branch name,
+        rescan). Never raises."""
+        self._render_chip_menu(self._git_menu_entries(), event)
+
+    def _ai_commit_from_chip(self):
+        """DS2 v2.42 — the branch chip menu's AI entry: bring the
+        Source Control panel forward and fire its ✨ AI message flow
+        (the panel guards repo/brain state itself — the menu only
+        opens the door). Never raises."""
+        try:
+            self.show_sidebar_view("git")
+        except Exception:  # noqa: BLE001 — the panel may be absent
+            pass
+        try:
+            self.git_view.ai_message()
+        except Exception:  # noqa: BLE001 — best-effort draft
+            self.terminal.log("git: AI message unavailable here")
 
     def _open_git_graph_chip(self):
         """Commit graph from the chip menu — same window the palette

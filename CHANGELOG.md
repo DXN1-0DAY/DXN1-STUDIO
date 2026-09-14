@@ -4,6 +4,36 @@ All notable changes to DXN1 STUDIO. Format based on
 [Keep a Changelog](https://keepachangelog.com/); versioning is
 `MAJOR.MINOR.PATCH` while in **beta**.
 
+## [2.42.0] — 2026-09-15 · beta · "every chip has a menu" (deps menu + AI draft + push/pull)
+
+### Added
+- **Deps chip context menu** — right-click the dependency chip for
+  the lane's actions in one themed menu: Rescan deps, Fresh rescan
+  (bypass cache), Deps watch on/off, Rescan chip. The menu is
+  honest per state: the **Queue deps fix** repair row appears only
+  when the last report actually found missing imports (the chip is
+  red) — it queues `deps fix` in the terminal input exactly like
+  the red chip click, and Enter still runs it.
+- **Branch chip menu: Draft AI commit message** — one menu row
+  brings the Source Control panel forward and fires its ✨ AI
+  helper: the panel reads the diff, drafts a Conventional Commits
+  message, and the user edits/commits as always (the panel guards
+  repo and brain state itself — the menu only opens the door).
+- **Branch chip menu: Push to origin / Pull from upstream** — the
+  two everyday git verbs join the menu, routed through the visible
+  terminal runner so output, errors and credentials stay exactly
+  where they always are.
+
+### Changed
+- **One shared popup renderer** — `_render_chip_menu` now drives
+  every statusbar chip menu (branch + deps): one themed Menu
+  builder, `(label, command)` rows, `("---", None)` separators,
+  cursor-anchored popup, best-effort by contract. Both menus never
+  raise.
+- Chip tooltips now advertise the right-click ("click opens the
+  panel, right-click for actions") instead of describing only the
+  click gesture.
+
 ## [2.41.0] — 2026-09-15 · beta · "one gesture to repair" (chip gestures + context menu + settings)
 
 ### Added
