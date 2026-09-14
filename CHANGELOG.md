@@ -4,6 +4,12 @@ All notable changes to DXN1 STUDIO. Format based on
 [Keep a Changelog](https://keepachangelog.com/); versioning is
 `MAJOR.MINOR.PATCH` while in **beta**.
 
+## [2.16.0] — 2026-09-14 · beta · "the studio keeps score"
+
+### Added
+- **Scribe mini chip** (`scribe.py`, statusbar, terminal `scribe` / `scribe 750`) — a live `✎ 1,234 w · 27 wpm · 45%` writing meter in the statusbar: throttled word-count sampling (never lags typing), trailing WPM with paste-spike cap, session word goal with click-for-toast summary; zen mode's tracker engine reused under the hood.
+- **Filestats scan history** (`filestats.py`, `.dxn1/filestats_history.json`) — every File statistics scan now records a snapshot and renders a `▁▂▃▄▅▆▇█` sparkline of the last 40 scans with a `+12 files · +340 KB vs previous scan` delta line; deduped, capped at 60 points, corrupt-store tolerant.
+
 ## [2.15.0] — 2026-09-14 · beta · "tools that talk to the world"
 
 ### Added
