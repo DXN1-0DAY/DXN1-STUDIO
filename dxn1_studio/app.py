@@ -406,6 +406,13 @@ class DXN1Studio:
         self.root.geometry("1280x820")
         self.root.minsize(940, 580)
         self.root.configure(bg=self.theme["bg"])
+        # DS2: restore remembered per-screen geometry (defensive)
+        try:
+            from .geom import restore_root
+            restore_root(self.root, self.config, min_w=940,
+                         min_h=580)
+        except Exception:  # noqa: BLE001 — boot must never die here
+            pass
 
         self.open_files = {}
         self.active_file = None
@@ -4008,6 +4015,12 @@ class DXN1Studio:
                     dict(list(kept.items())[-20:]))
         except Exception:
             errors.log_exception("save session", quiet=True)
+        # DS2: remember window geometry for this screen shape
+        try:
+            from .geom import remember_root
+            remember_root(self.root, self.config)
+        except Exception:  # noqa: BLE001 — exit must never block
+            pass
         self.root.destroy()
 
     def _schedule_smoke_test(self):

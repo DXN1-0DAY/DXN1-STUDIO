@@ -235,6 +235,31 @@ def main():
     check("restbench shows ok response", "201" in
           rwin.status_lbl.cget("text"))
     rwin.destroy()
+
+    # ---- window geometry memory (same smoke, eighth lane)
+    from dxn1_studio.geom import (recall, remember, restore_root,
+                                  screen_signature)
+    gcfg = type("G", (), {})()
+    gcfg.data = {}
+
+    def _get(k, d=None):
+        return gcfg.data.get(k, d)
+
+    def _set(k, v):
+        gcfg.data[k] = v
+    gcfg.get, gcfg.set = _get, _set
+    sw, sh = root.winfo_screenwidth(), root.winfo_screenheight()
+    check("geom recall empty", recall(gcfg, sw, sh) == "")
+    remember(gcfg, "700x500+20+15", sw, sh)
+    check("geom recall roundtrip", recall(gcfg, sw, sh) ==
+          "700x500+20+15")
+    remember(gcfg, "%dx%d+50+60" % (sw * 3, sh * 3), sw, sh)
+    got = restore_root(root, gcfg, min_w=200, min_h=150)
+    check("geom restore clamps", got.startswith(
+        "%dx%d" % (sw, sh)))
+    root.update_idletasks()
+    check("geom applied to root", root.geometry().startswith(
+        "%dx%d" % (sw, sh)))
     root.destroy()
 
     failed = [n for n, ok in CHECKS if not ok]

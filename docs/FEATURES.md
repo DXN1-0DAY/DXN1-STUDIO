@@ -233,3 +233,14 @@
 | Response viewer | response pane | Response headers in muted ink, JSON bodies auto-pretty-printed, status line always visible; a 30-entry history ring remembers recent exchanges |
 | Copy as curl | toolbar button | Any request converts to a copy-pasteable `curl` command with proper shell quoting (apostrophes included) |
 | Offline-testable | `tests/test_ds2.py` | The suite runs against a local `http.server` (round-trip POST with headers + body, GET, connection-refused path) plus opener injection — zero external network |
+
+## Window Geometry Memory (v2.15.0 lane)
+
+| Feature | Where | What it does |
+|---|---|---|
+| Per-screen memory | `geom.py`, config key `window_geometry_by_screen` | Every screen shape (`1920x1080`, `2560x1440`, …) gets its own remembered window geometry — dock at the 4K monitor, undock on the laptop panel, and the studio opens right-sized for whichever display it finds |
+| Restore on boot | app boot, defensive | The saved geometry for the current screen replaces the default `1280x820` at startup; nothing stored → boot is unchanged |
+| Save on close | `_on_close`, defensive | The live window position/size is snapshotted before exit; maximized/fullscreen states are skipped (they are window-manager states, not geometry) |
+| Clamp safety | `clamp_geometry` | Restored windows can never open off-screen or bigger than the display — a geometry left over from a since-disconnected monitor is pulled back inside the visible area |
+| LRU store | `remember()` | At most 8 screen shapes are kept (oldest evicted); re-remembering a shape moves it instead of duplicating; stored junk is ignored on recall |
+| Tests | `tests/test_ds2.py` | Parse/make round-trips (including negative offsets), clamping edge cases, LRU cap, signature isolation and junk-recall safety |

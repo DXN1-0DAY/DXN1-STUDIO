@@ -1481,3 +1481,59 @@ def test_restbench_engine():
                         reason="OK").summary().count("·") == 2
     assert "ERROR" in RestResponse(method="GET", url="u",
                                    error="x").summary()
+
+
+def test_window_geometry_memory():
+    # DS2 v2.15.0 lane — per-screen geometry persistence
+    from dxn1_studio.geom import (clamp_geometry, make_geometry,
+                                  parse_geometry, recall, remember,
+                                  screen_signature)
+
+    class FakeConfig:
+        def __init__(self):
+            self.data = {}
+
+        def get(self, key, default=None):
+            return self.data.get(key, default)
+
+        def set(self, key, value):
+            self.data[key] = value
+
+    # parse/make round-trips; junk never raises
+    assert parse_geometry("1280x820+40+30") == (1280, 820, 40, 30)
+    assert parse_geometry("800x600") == (800, 600, 0, 0)
+    assert parse_geometry("900x600-10+5") == (900, 600, -10, 5)
+    assert parse_geometry("banana") is None
+    assert parse_geometry(None) is None
+    assert make_geometry(1280, 820, 40, 30) == "1280x820+40+30"
+    assert make_geometry(800, 600) == "800x600+0+0"
+
+    # clamping: oversized → screen-sized; off-screen → pulled back
+    assert clamp_geometry(4000, 3000, 100, 100, 1920, 1080) == \
+        (1920, 1080, 100, 100)
+    assert clamp_geometry(200, 150, 5000, -300, 1920, 1080) == \
+        (200, 150, 1720, 0)
+    assert clamp_geometry(10, 10, 0, 0, 1920, 1080, min_w=200,
+                          min_h=150) == (200, 150, 0, 0)
+
+    cfg = FakeConfig()
+    assert recall(cfg, 1920, 1080) == ""
+    assert remember(cfg, "1280x820+40+30", 1920, 1080) is True
+    assert recall(cfg, 1920, 1080) == "1280x820+40+30"
+    assert recall(cfg, 2560, 1440) == ""      # other screen shapes
+    # same shape re-remembered moves the entry (never duplicates)
+    assert remember(cfg, "1600x900+10+10", 1920, 1080) is True
+    store = cfg.get("window_geometry_by_screen")
+    assert list(store) == ["1920x1080"]
+    assert store["1920x1080"] == "1600x900+10+10"
+    # LRU keeps at most 8 screen shapes
+    for i in range(12):
+        remember(cfg, "%dx%d+0+0" % (1000 + i, 700), 1000 + i, 700)
+    store = cfg.get("window_geometry_by_screen")
+    assert len(store) == 8
+    assert "1011x700" in store and "1000x700" not in store
+    # stored junk is ignored on recall
+    cfg2 = FakeConfig()
+    cfg2.set("window_geometry_by_screen", {"1920x1080": "bogus"})
+    assert recall(cfg2, 1920, 1080) == ""
+    assert screen_signature(1920, 1080) == "1920x1080"
