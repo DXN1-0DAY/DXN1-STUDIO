@@ -4,7 +4,7 @@
 
 # DXN1 STUDIO
 
-**The clean, modern IDE. Built for flow.**
+**The clean, modern IDE. Built for flow. Now with a brain.**
 
 A from-scratch desktop IDE in pure Python + Tkinter — animated boot splash,
 Project Hub, workspaces, syntax highlighting, a Git panel, command palette
@@ -13,7 +13,7 @@ with `@` symbol jump, sandboxed AI agents on a **resilient free cloud stack**
 frameworks. ~10 MB of Python.
 
 [![CI](https://github.com/DXN1-termux/DXN1-STUDIO/actions/workflows/ci.yml/badge.svg)](https://github.com/DXN1-termux/DXN1-STUDIO/actions/workflows/ci.yml)
-[![Version](https://img.shields.io/badge/version-1.9.0--beta-7c3aed?style=flat-square)](CHANGELOG.md)
+[![Version](https://img.shields.io/badge/version-2.0.0--beta-7c3aed?style=flat-square)](CHANGELOG.md)
 [![Python](https://img.shields.io/badge/python-3.8%2B-3776ab?style=flat-square&logo=python&logoColor=white)](https://www.python.org)
 [![Platform](https://img.shields.io/badge/platform-Linux%20%7C%20Termux%20%7C%20macOS%20%7C%20Windows-24292f?style=flat-square)](#requirements)
 [![License](https://img.shields.io/badge/license-MIT-3fb950?style=flat-square)](LICENSE)
@@ -31,8 +31,36 @@ Xvfb — nothing is mocked.*
 
 ---
 
+## ⚡ DXN1 STUDIO 2 — the DS2 sprint
+
+DXN1 STUDIO 2 (**DS2**) is a feature sprint that supercharges the studio
+while keeping its soul: pure Python, no Electron, no frameworks, no
+bloat. Six releases in one push — here's the tour:
+
+| | Feature | One-liner |
+|---|---|---|
+| ⎇ | **Visual Git Suite** | A word-level **diff viewer** (split + unified), an interactive **commit graph** across all branches, and a full **branch manager** — merge, rename, track, force-delete with two-click confirms |
+| ◈ | **Agent memory** | Per-workspace memory bank — say `remember: …` in the chat and the agent recalls it every session, injected straight into its system prompt |
+| ⌁ | **Token usage dashboard** | Where your tokens went: 14-day chart, per-model bars, cost estimates, CSV export |
+| ⚡ | **AI quick actions** | Select code → Explain / Refactor / Docstring / Tests / Fix bugs / Type hints / Optimize — streamed, with one-click Insert or Replace-selection |
+| ✨ | **AI commit messages** | The ✨ chip in Source Control drafts a Conventional Commits message from your staged diff |
+| ◉ | **AI review** | "Gutter eyes" — whole-file review with severity-coloured findings that jump to the line |
+| ⇉ | **Pair mode** | Plan → agree → build: the agent writes a numbered plan, you approve it, then it executes through the same sandboxed engine |
+| ⌘ | **Cheat sheet + checklist** | A searchable shortcut/feature reference (Help → DS2 Cheat Sheet) and a first-run starter checklist |
+| ⌂ | **Project Hub v2** | Pinned workspaces, live per-project stats, instant search, **12 scaffolds** — Rust and Go included |
+| ◑ | **Theme gallery** | 12 curated palettes with live swatch previews, plus a safe custom-theme engine (broken themes can't break the studio) |
+| ⏺ | **Editor power tools** | Macro recorder, multi-cursor engine, snippet system with tabstops and variables |
+
+**Every DS2 feature is a palette command** — hit `Ctrl+K` and type.
+Full details: [`docs/FEATURES.md`](docs/FEATURES.md) ·
+Architecture: [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) ·
+Shortcuts: [`docs/KEYBINDINGS.md`](docs/KEYBINDINGS.md)
+
+---
+
 ## Table of contents
 
+- [⚡ DXN1 STUDIO 2 — the DS2 sprint](#-dxn1-studio-2--the-ds2-sprint)
 - [Screenshots](#screenshots)
 - [Why DXN1 STUDIO](#why-dxn1-studio)
 - [Install](#install)

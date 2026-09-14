@@ -4,6 +4,39 @@ All notable changes to DXN1 STUDIO. Format based on
 [Keep a Changelog](https://keepachangelog.com/); versioning is
 `MAJOR.MINOR.PATCH` while in **beta**.
 
+## [2.0.0] — 2026-09-14 · beta · **"DXN1 STUDIO 2" — the DS2 grand release**
+
+Six releases in one sprint: the visual git suite, a remembering agent,
+seven AI quick actions, pair programming with a plan-first engine, a
+smarter welcome, a grown-up Project Hub, and a theme gallery — all in
+pure Python + Tk, all defensively wired, all themed end-to-end.
+
+### Highlights
+- **Visual Git Suite** — word-level diff viewer (split/unified), commit
+  graph with real lane routing, branch manager with merge/track/force.
+- **The agent remembers** — per-workspace memory bank injected into
+  every conversation; `remember:` teaches it instantly.
+- **Token usage dashboard** — 14-day chart, per-model bars, cost
+  estimates, CSV export.
+- **AI quick actions** — Explain / Refactor / Docstring / Tests / Fix /
+  Types / Optimize on any selection, streamed with insert-or-replace.
+- **AI commit messages** — ✨ AI msg drafts Conventional Commits from
+  the staged diff.
+- **AI review** — whole-file findings with severity colours.
+- **Pair mode** — plan → approve → build through the sandboxed engine.
+- **Onboarding v2** — workflow wizard slide, tour covering every DS2
+  power, the DS2 Cheat Sheet (Help → DS2 Cheat Sheet…).
+- **Project Hub v2** — pins, live workspace stats, instant search,
+  Rust + Go scaffolds (12 templates).
+- **Theme gallery** — 12 palettes, live swatches, safe custom-theme
+  engine; themes are data and can be shared as JSON.
+- **Editor power tools** — macros, multi-cursor, snippet engine.
+
+### Docs
+- `docs/FEATURES.md` — the full DS2 feature index
+- `docs/ARCHITECTURE.md` — the layer cake, module contract, theme engine
+- `docs/KEYBINDINGS.md` — every shortcut
+
 ## [1.9.0] — 2026-09-14 · beta · "paint it your way"
 
 ### Added
