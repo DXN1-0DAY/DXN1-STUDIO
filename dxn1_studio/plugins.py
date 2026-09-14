@@ -227,6 +227,13 @@ class PluginRegistry:
         self.hooks = {}                 # hook -> [(plugin, fn)]
         self.status_items = {}          # (plugin, key) -> fn
 
+    def log(self, msg):
+        """Public logging channel (used by the manager UI too)."""
+        try:
+            self._log(msg)
+        except Exception:               # noqa: BLE001 — logging never raises
+            pass
+
     # -- approval bookkeeping -------------------------------------------
     def approved(self, manifest):
         if self.config is None:

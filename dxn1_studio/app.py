@@ -1294,6 +1294,12 @@ class DXN1Studio:
         self._record_recent_file(filepath)
         self.terminal.log(f"Opened: {filepath}")
         self.add_tab(os.path.basename(filepath), filepath)
+        try:  # DS2: plugin on_open hook — broken plugins never break opens
+            from . import plugins as _plugins
+            _plugins.get_registry().fire_open(
+                filepath, content, workspace=self.project_dir)
+        except Exception:
+            pass
 
     def open_search_match(self, path, line, col):
         self.open_file(path)
@@ -1422,6 +1428,13 @@ class DXN1Studio:
                 self._sync_split(self.editor.get_content(),
                                  self.editor.file_path)
                 self.terminal.log(f"Saved: {self.editor.file_path}")
+                try:  # DS2: plugin on_save hook — best effort
+                    from . import plugins as _plugins
+                    _plugins.get_registry().fire_save(
+                        self.editor.file_path, self.editor.get_content(),
+                        workspace=self.project_dir)
+                except Exception:
+                    pass
                 if not silent:
                     self.toast("Saved", "success")
             except Exception as e:
@@ -2191,6 +2204,30 @@ class DXN1Studio:
             )
         except Exception:  # pragma: no cover — palette stays alive
             pass
+        # ---- DS2 platform: plugins (defensive)
+        try:
+            from . import plugins as _plugins
+            _reg = _plugins.get_registry(
+                self.config, log=lambda m: self.terminal.log(m))
+            try:  # ship the sample pack into the global plugin dir once
+                _plugins.write_sample_plugins(_plugins.GLOBAL_PLUGIN_DIR)
+            except Exception:
+                pass
+
+            def _open_plugins():
+                _plugins.open_manager(
+                    self.root, self.theme, self.config,
+                    workspace=self.project_dir,
+                    on_log=lambda m: self.terminal.log(m),
+                    on_commands_changed=None)
+
+            cmds.append(("Plugin manager — extend the studio", "",
+                         _open_plugins))
+            for _c in _reg.commands:
+                cmds.append((f"{_c['label']} · plugin:{_c['plugin']}", "",
+                             lambda c=_c: self._run_plugin_command(c)))
+        except Exception:  # pragma: no cover — palette stays alive
+            pass
         if self.config.get("agents_enabled"):
             cmds += [
                 ("Toggle DXN1 Agents panel", "", self.toggle_agents_panel),
@@ -2316,6 +2353,39 @@ class DXN1Studio:
         except OSError:
             new = ""
         return old, new
+
+    def _plugin_context(self):
+        """Context dict handed to plugin commands (fail-soft fields)."""
+        ctx = {"path": "", "text": "", "selection": "",
+               "workspace": getattr(self, "project_dir", "") or ""}
+        try:
+            ctx["path"] = getattr(self.editor, "file_path", "") or \
+                getattr(self.editor, "path", "") or ""
+            if ctx["path"]:
+                ctx["text"] = self.editor.get_content()
+            ctx["selection"] = self.editor.text.get("sel.first", "sel.last")
+        except Exception:  # noqa: BLE001 — context is best-effort
+            pass
+        return ctx
+
+    def _run_plugin_command(self, command):
+        """Run one plugin command; string results insert at the cursor."""
+        result = None
+        try:
+            result = command["fn"](self._plugin_context())
+        except Exception as exc:  # noqa: BLE001
+            self.terminal.log(f"plugin command failed: {exc}")
+            self.toast("Plugin error", "error")
+            return
+        if isinstance(result, str) and result:
+            try:
+                self.editor.text.insert("insert", result)
+                self.terminal.log(
+                    f"plugin inserted {len(result)} chars")
+            except Exception:  # noqa: BLE001
+                self.terminal.log(result)
+        elif result is not None:
+            self.terminal.log(str(result))
 
     # --------------------------------------------------------------- toast
     def toast(self, message, kind="info"):

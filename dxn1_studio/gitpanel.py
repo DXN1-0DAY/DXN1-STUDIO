@@ -461,6 +461,12 @@ class GitPanel(tk.Frame):
         self.msg.delete(0, tk.END)
         self._placeholder()
         self.on_log(f"git commit: {message}")
+        try:  # DS2: plugin on_commit hook — best effort
+            from . import plugins as _pl
+            _pl.get_registry().fire_commit(message,
+                                           workspace=self.workspace)
+        except Exception:
+            pass
         try:  # DS2: first-run checklist
             from .checklist import mark
             mark(self.config, "commit")
