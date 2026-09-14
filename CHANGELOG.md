@@ -4,6 +4,20 @@ All notable changes to DXN1 STUDIO. Format based on
 [Keep a Changelog](https://keepachangelog.com/); versioning is
 `MAJOR.MINOR.PATCH` while in **beta**.
 
+## [2.2.0] — 2026-09-14 · beta · "see the whole file"
+
+### Added
+- **Editor minimap** (`minimap.py`) — the VS Code trick, the honest
+  way: every line is a thin block coloured by role (keywords glow,
+  comments dim, blanks vanish), with a draggable viewport rectangle.
+  Polls the buffer cheaply, hides for short files. Palette →
+  *Editor minimap on/off*.
+- **Task runner** (`term.py`) — project tasks without ceremony: a
+  `.dxn1/tasks.json` defines named commands ("test": "pytest -q"),
+  sensible defaults per project kind ship built-in, and Task Runner
+  executes through the studio's own process runner so output lands in
+  the terminal. Palette → *Task runner*.
+
 ## [2.1.0] — 2026-09-14 · beta · "the studio speaks your language"
 
 ### Added
