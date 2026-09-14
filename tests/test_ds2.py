@@ -563,3 +563,53 @@ def test_sniff_encoding_labels(tmp_path):
     assert DXN1Studio._sniff_encoding(str(p_bom)) == "UTF-8 BOM"
     assert DXN1Studio._sniff_encoding(str(p_bin)) in ("non-UTF8", "UTF-16")
     assert DXN1Studio._sniff_encoding(str(tmp_path / "nope.py")) == ""
+
+
+# ------------------------------------------ error-block extraction v2.6.0
+def test_extract_error_block_pytest_and_traceback():
+    from dxn1_studio.app import extract_error_block as ex
+
+    pytest_out = (
+        "running...\n"
+        "================================== FAILURES"
+        " ==================================\n"
+        "________________________________ test_add"
+        " ________________________________\n\n"
+        "    def test_add():\n"
+        ">       assert add(1, 2) == 4\n"
+        "E       assert 3 == 4\n"
+        "E        +  where 3 = add(1, 2)\n\n"
+        "tests/test_x.py:12: AssertionError\n"
+        "========================= short summary info"
+        " =========================\n"
+        "FAILED tests/test_x.py::test_add - assert 3 == 4\n")
+    block = ex(pytest_out)
+    assert "FAILED tests/test_x.py::test_add" in block
+    assert "assert 3 == 4" in block          # assert context came along
+    assert "running..." not in block          # banner walk-up worked
+
+    # unittest header form
+    uni = ".....\nFAIL: test_divide (t.TestDiv)\nZeroDivisionError: division by zero\n"
+    assert "FAIL: test_divide" in ex(uni) and "ZeroDivisionError" in ex(uni)
+
+    # classic traceback still detected
+    tb = "before\nTraceback (most recent call last):\n  File \"x.py\", line 1\nNameError: name 'x' is not defined\n"
+    assert "Traceback (most recent call last)" in ex(tb)
+    assert "NameError" in ex(tb)
+
+    # false positives must NOT match
+    assert ex("Failed to open file\nall good\n") == ""
+    assert ex("fail-safe mode enabled\n") == ""
+    assert ex("") == ""
+    assert ex("hello world\nnothing here\n") == ""
+
+    # most recent failure wins (two FAILED lines)
+    two = pytest_out + "FAILED tests/test_y.py::test_b - boom\n"
+    assert "test_b" in ex(two)
+
+
+def test_extract_error_block_line_cap():
+    from dxn1_studio.app import extract_error_block as ex
+    tb = ("Traceback (most recent call last):\n"
+          + "".join(f"  line {i}\n" for i in range(100)))
+    assert len(ex(tb, max_lines=10).split("\n")) <= 10

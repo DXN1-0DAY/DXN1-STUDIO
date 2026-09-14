@@ -51,6 +51,60 @@ TEXT_EXTS = {".py", ".pyw", ".pyi", ".js", ".ts", ".jsx", ".tsx", ".html",
              ".rs", ".go", ".c", ".h", ".cpp", ".java", ".sql", ".env"}
 
 
+def extract_error_block(text, max_lines=60, max_chars=4000):
+    """DS2 v2.6: pull the most recent error block out of terminal text.
+
+    Understands three shapes, checked in order of recency-signal:
+
+    1. **pytest/unittest failures** — a ``FAILED tests/...`` summary
+       line, a ``FAIL: test_x`` header or a bare ``error:`` line; the
+       block walks up to the ``=== FAILURES ===`` banner, a
+       ``____ test_x ____`` underline or the ``FAIL:`` header itself
+       (max 40 lines) so the assert context comes along.
+    2. **Classic tracebacks** — from the
+       ``Traceback (most recent call last)`` / ``…Error:`` line down,
+       capped at ``max_lines``.
+
+    Pure function — returns ``''`` when nothing matches, never raises.
+    """
+    if not text:
+        return ""
+    lines = text.split("\n")
+    n = len(lines)
+    # 1) pytest / unittest failure summaries (bottom-up, latest wins)
+    #    — guarded so ordinary lines like "Failed to open file" or
+    #    "fail-safe" never match: a pytest summary carries a path (::,
+    #    .py), unittest headers say "FAIL: test_x (module.Class)".
+    for i in range(n - 1, -1, -1):
+        low = lines[i].strip().lower()
+        is_pytest = (low.startswith("failed ")
+                     and ("::" in low or ".py" in low or " - " in low))
+        is_unittest = (low.startswith("fail:")
+                       and ("test" in low or "(" in low))
+        if is_pytest or is_unittest:
+            top = i
+            for j in range(i - 1, max(-1, i - 40), -1):
+                s = lines[j].strip().lower()
+                if s.startswith(("=== failures", "____ ")):
+                    top = j
+                    break
+            # pytest: the summary line is the payload (context is above);
+            # unittest: the details (exception line etc.) sit BELOW the
+            # FAIL: header — take up to 12 lines down.
+            bottom = i + 1 if is_pytest else min(n, i + 13)
+            block = "\n".join(lines[top:bottom])
+            return block.strip()[:max_chars]
+    # 2) classic traceback / compiler error (bottom-up, first hit wins)
+    for i in range(n - 1, -1, -1):
+        low = lines[i].lower()
+        if ("traceback (most recent call last)" in low
+                or low.rstrip().endswith("error:")
+                or (": error" in low) or ("syntaxerror" in low)):
+            block = "\n".join(lines[i:i + max_lines])
+            return block.strip()[:max_chars]
+    return ""
+
+
 class CommandPalette(tk.Toplevel):
     """Fuzzy command launcher (Ctrl+K / Ctrl+Shift+P)."""
 
@@ -2138,25 +2192,12 @@ class DXN1Studio:
             self.root.after(120, self._poll_process)
 
     def _last_error_text(self, max_lines=60):
-        """The most recent traceback/error block in the terminal, or ''."""
+        """The most recent traceback/pytest/unittest error block, or ''."""
         try:
-            out = self.terminal.output
-            text = out.get("end-%dc" % 20000, "end-1c")   # cheap tail window
-            lines = text.split("\n")
+            text = self.terminal.output.get("end-%dc" % 20000, "end-1c")
         except Exception:           # noqa: BLE001 — terminal stays alive
             return ""
-        start = None
-        for i in range(len(lines) - 1, -1, -1):
-            low = lines[i].lower()
-            if ("traceback (most recent call last)" in low
-                    or low.rstrip().endswith("error:")
-                    or (": error" in low) or ("syntaxerror" in low)):
-                start = i
-                break
-        if start is None:
-            return ""
-        block = lines[start:start + max_lines]
-        return "\n".join(block).strip()
+        return extract_error_block(text, max_lines=max_lines)
 
     def explain_last_error(self):
         """DS2: hand the last traceback to the agent chat (or clipboard)."""
