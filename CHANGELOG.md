@@ -4,6 +4,51 @@ All notable changes to DXN1 STUDIO. Format based on
 [Keep a Changelog](https://keepachangelog.com/); versioning is
 `MAJOR.MINOR.PATCH` while in **beta**.
 
+## [2.8.0] — 2026-09-14 · beta · "the workshop"
+
+### Fixed
+- **The menu bar was dead.** The themed top bar's render loop destroyed
+  every `tk.Menu` created as a child of the bar, so all six menus
+  (File, Edit, View, Tools, Help) pointed at destroyed Tcl commands
+  and never opened. Menus are now parented to the root and excluded
+  from the render clear-loop; re-renders (theme switches) are verified
+  safe. Every one of the 61 menu entries now carries a live binding.
+
+### Added
+- **Workshop menu** — one place for every DS2 tool window: Developer
+  Tools, Cron Explainer, Readability Report, JWT Decoder, .env Lint &
+  Mask, Data Generator and the Token Usage dashboard.
+- **Cron decoder ring** (`cronexp.py`, palette, terminal `cron <expr>`)
+  — any cron string becomes a plain-English sentence ("at 09:00, on
+  MON"), a field-by-field table (names, steps, ranges, lists,
+  7==Sunday, `@hourly`…`@reboot`) and the next five run times,
+  computed by a built-in minute-stepper with month fast-forward.
+- **Readability report** (`readability.py`, palette, terminal
+  `readability`) — Flesch Reading Ease with a human verdict,
+  Flesch–Kincaid grade, Gunning Fog, complex-word %, the sentences
+  over 25 words and a word-pressure table; copies as markdown.
+- **JWT decoder** (`jwt.py`, palette, terminal `jwt <token>`) —
+  header + payload pretty-printed, time claims humanized ("expires in
+  1h 59m" / "expired 3d ago"), claims table with iss/sub/aud/jti up
+  front. Decode only — and it says so.
+- **.env lint & mask** (`envcheck.py`, palette, terminal `env`) —
+  lints duplicate keys, invalid key characters, spaces around `=`,
+  unquoted spaces, ` # ` comment pitfalls, unclosed quotes, empty
+  values — and produces a share-safe masked copy (secret keys starred,
+  `postgres://user:***@host` URLs).
+- **Data generator** (`gen.py`, palette, terminal `gen`) — RFC 4122
+  UUID v4, spec-length ULIDs (26-char Crockford, newest first),
+  nanoids, hex tokens, class-guaranteed passwords, PINs, lorem and
+  fake users/events as ready-to-paste JSON — all via the `secrets`
+  module.
+- **Terminal help refresh** — `tools`, `cron`, `readability`, `jwt`,
+  `env`, `gen` and `explain` now listed.
+
+### Tests
+- Engine suite grew to **37 cases**; the UI smoke grew to **28
+  checks** (`scripts/smoke_v280.py`), and a new boot QA asserts all
+  six menus are alive with bound commands after render and re-render.
+
 ## [2.7.0] — 2026-09-14 · beta · "the pocket knife"
 
 ### Added
