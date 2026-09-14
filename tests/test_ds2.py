@@ -4713,3 +4713,184 @@ def test_honest_keys(tmp_path):
         except tk.TclError:
             pass
         monkeypatch.undo()
+
+
+# --------------------------------------------------- hint bars (v2.48)
+def test_hint_bars(tmp_path):
+    """DS2 v2.48 — the honest hint bars: a key hint is rendered only
+    if the window tree really binds it (the same accel_pattern the
+    palette audit uses), Esc appears only when Escape is really
+    bound, unbacked hints are dropped and reported, the bar never
+    raises, the git graph answers to F5/Ctrl+R/+/-/0 with real
+    row-density zoom, and the wired windows + keybindings doc all
+    agree with the code."""
+    import tkinter as tk
+    try:
+        root = tk.Tk(); root.withdraw()
+    except tk.TclError:
+        return
+    import pytest
+    import dxn1_studio.config as cfgmod
+    from dxn1_studio import hints
+    from dxn1_studio.theme import Theme
+    from dxn1_studio.activity import ActivityLog, open_activity
+    from dxn1_studio.gitgraph import GitGraphWindow, ROW_H
+
+    t = Theme("dark", "violet")
+
+    # --- pure units: tree_bound walks descendants, variants agree
+    win = tk.Toplevel(root)
+    entry = tk.Entry(win)
+    entry.pack()
+    entry.bind("<Return>", lambda e: None)
+    root.bind("<Key-0>", lambda e: None)
+    assert hints.tree_bound(win, "<Return>")       # on a descendant
+    assert not hints.tree_bound(win, "<Control-q>")
+    assert not hints.tree_bound(win, "")           # nothing claimed
+    assert hints.tree_bound(root, "<0>")           # <Key-0> variant
+    assert hints.tree_bound(root, "<Key-0>")
+    assert hints.esc_bound(win) is False
+    win.bind("<Escape>", lambda e: win.destroy())
+    assert hints.esc_bound(win) is True
+
+    # --- honesty: unbacked hints are dropped and reported
+    bar = hints.hint_bar(win, t,
+                         pairs=(("Return", "open", "Enter"),
+                                ("Ctrl+Z", "undo")),
+                         notes=("a note",), before=entry)
+    win.update()
+    assert bar is not None and bar.filled
+    assert bar.dropped_hints == ["Ctrl+Z"]
+    chips = [str(w.cget("text")) for w in bar.winfo_children()]
+    assert "Esc" in chips and "close" in chips     # Escape really bound
+    assert "Enter" in chips and "open" in chips
+    assert "a note" in chips                       # notes never lie
+    assert "Ctrl+Z" not in chips                   # the refused lie
+    bar.refresh()                                  # idempotent
+    assert bar.filled
+    win.destroy()
+
+    # --- an all-honest-empty bar hides instead of lying with space
+    win2 = tk.Toplevel(root)
+    bar2 = hints.hint_bar(win2, t, esc=False)
+    win2.update()
+    assert bar2.filled and bar2.winfo_manager() == ""   # packed out
+    # a destroyed host must not raise the house down
+    win2.destroy()
+    assert hints.hint_bar(win2, t, pairs=(("F5", "x"),)) is None
+
+    # --- the git graph: real zoom + real keys + an honest bar
+    repo = tmp_path / "graphrepo"
+    repo.mkdir()
+    subprocess.run(["git", "init", "-q"], cwd=str(repo))
+    for i in range(3):
+        subprocess.run(["git", "-c", "user.email=a@b", "-c",
+                        "user.name=t", "commit", "-qm", "c%d" % i,
+                        "--allow-empty"], cwd=str(repo))
+    gw = GitGraphWindow(root, t, str(repo))
+    gw.update()
+    assert gw.hintbar.filled and not gw.hintbar.dropped_hints
+    gchips = [str(w.cget("text")) for w in gw.hintbar.winfo_children()]
+    assert "F5" in gchips and "0" in gchips and "close" in gchips
+    assert gw.bind("<F5>") and gw.bind("<Control-r>")
+    assert gw.bind("<Key-plus>") and gw.bind("<Key-minus>")
+    assert gw.bind("<Key-0>")
+    assert gw.zoom == 1.0 and gw._rh() == ROW_H
+    z = gw.zoom_step(0.25)
+    assert z == 1.25 and gw._rh() == int(ROW_H * 1.25)
+    assert gw.zoom_step(9.0) == 3.0                # clamped high
+    assert gw.zoom_step(-9.0) == 0.5               # clamped low
+    assert gw.zoom_reset() == 1.0 and gw._rh() == ROW_H
+    gw._draw()                                     # zoomed draw never raises
+    gw.zoom_step(1.0)
+    gw._draw()
+    gw.destroy()
+
+    # --- the activity window: new real keys, advertised honestly
+    monkeypatch = pytest.MonkeyPatch()
+    monkeypatch.setattr(cfgmod, "CONFIG_DIR", str(tmp_path))
+    monkeypatch.setattr(cfgmod, "CONFIG_PATH",
+                        str(tmp_path / "config.json"))
+    monkeypatch.setenv("HOME", str(tmp_path))
+    from dxn1_studio.app import DXN1Studio
+    app = DXN1Studio(cfgmod.Config(), smoke_test=True, no_splash=True)
+    try:
+        log = ActivityLog(cap=50)
+        log.add("seed whisper", "info")
+        awin = open_activity(app.root, app.theme, log)
+        awin.update()
+        assert awin.bind("<Escape>") and awin.bind("<Control-f>")
+        assert awin.bind("<Control-l>")
+        bars = [w for w in awin.winfo_children()
+                if getattr(w, "filled", None)]
+        assert bars, "activity window must carry its hint bar"
+        abar = bars[0]
+        assert not abar.dropped_hints
+        achips = [str(w.cget("text")) for w in abar.winfo_children()]
+        assert "Ctrl+F" in achips and "filter" in achips
+        assert "Ctrl+L" in achips and "clear" in achips
+        assert "click a row to copy" in achips
+        # Ctrl+L really wipes (the receipt log clears) — key events
+        # ride the focus chain, so focus the filter entry first (its
+        # bindtags include the window where the binding lives)
+        log.add("to be wiped", "info")
+        fltr = None
+
+        def _find_entry(w):
+            nonlocal fltr
+            for c in w.winfo_children():
+                if isinstance(c, tk.Entry):
+                    fltr = c
+                    return
+                _find_entry(c)
+        _find_entry(awin)
+        assert fltr is not None
+        fltr.focus_set()
+        awin.update()
+        fltr.event_generate("<Control-l>")
+        awin.update()
+        assert log.count() == 0
+        awin.destroy()
+
+        # --- the rest of the family is wired (source agreement)
+        base = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+
+        def src(mod):
+            return open(os.path.join(base, "dxn1_studio", mod),
+                        encoding="utf-8").read()
+        rsrc = src("recents.py")
+        assert 'hints.hint_bar(self.win' in rsrc
+        assert '("Up", "move"' in rsrc and '("Return", "open"' in rsrc
+        assert 'before=self.list_frame' in rsrc
+        osrc = src("outline.py")
+        assert 'hints.hint_bar(self.win' in osrc
+        assert '("Return", "jump"' in osrc
+        bsrc = src("bookmarks.py")
+        assert 'pairs=(("Return", "jump", "Enter"),)' in bsrc
+        assert "before=foot" in bsrc
+        wsrc = src("whatsnew.py")
+        assert 'notes=("click a version to read its notes",)' in wsrc
+        dsrc = src("doctor.py")
+        assert 'self.win.bind("<F5>"' in dsrc
+        assert 'self.win.bind("<Control-C>"' in dsrc
+        assert '"Ctrl+Shift+C", "copy report"' in dsrc
+        usrc = src("usagedash.py")
+        assert 'self.bind("<F5>"' in usrc and "before=self.status" in usrc
+        gsrc = src("gitgraph.py")
+        assert 'self.bind("<Key-plus>"' in gsrc
+        assert "hints.hint_bar(" in gsrc
+
+        # --- the keybindings doc agrees with the code
+        doc = open(os.path.join(base, "docs", "KEYBINDINGS.md"),
+                   encoding="utf-8").read()
+        assert "## Tool windows (v2.48)" in doc
+        assert "`F5` / `Ctrl+R` | Git Graph / Doctor" in doc
+        assert "`Ctrl+F` | Activity: refocus the filter box" in doc
+        assert "`Ctrl+L` | Activity: clear the receipt log" in doc
+        assert "`Ctrl+Shift+C` | Doctor: copy the report" in doc
+    finally:
+        try:
+            root.destroy()
+        except tk.TclError:
+            pass
+        monkeypatch.undo()

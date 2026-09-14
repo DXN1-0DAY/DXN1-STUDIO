@@ -559,6 +559,17 @@ def open_activity(master, theme, log, on_copy=None, on_change=None,
     copyall_btn.bind("<Button-1>", _copy_all)
     saveas_btn.bind("<Button-1>", _saveas)
 
+    # DS2 v2.48 — the window answers to keys, and the bar says so
+    from . import hints
+    win.bind("<Escape>", lambda e: win.destroy())
+    win.bind("<Control-f>", lambda e: (entry.focus_set(), "break")[1])
+    win.bind("<Control-l>", _wipe)
+    hints.hint_bar(win, theme,
+                   pairs=(("Ctrl+F", "filter", "Ctrl+F"),
+                          ("Ctrl+L", "clear", "Ctrl+L")),
+                   notes=("click a row to copy",),
+                   before=wrap)
+
     _refilter()
     try:
         entry.focus_set()

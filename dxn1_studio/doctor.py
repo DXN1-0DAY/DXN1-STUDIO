@@ -405,6 +405,18 @@ class DoctorWindow:
                                font=("sans-serif", 8))
         self.status.pack(side="right")
 
+        # v2.48 — the doctor answers to keys, and the bar says so
+        from . import hints
+        self.win.bind("<F5>", lambda e: self.refresh())
+        self.win.bind("<Control-r>", lambda e: self.refresh())
+        self.win.bind("<Control-C>", lambda e: self._copy())
+        hints.hint_bar(self.win,
+                       {"header": "#10151c", "text_muted": "#6e7a8a",
+                        "accent": self.accent},
+                       pairs=(("F5", "rerun", "F5"),
+                              ("Ctrl+Shift+C", "copy report", "Ctrl+Shift+C")),
+                       esc=True)
+
         self.refresh()
         self._center()
 

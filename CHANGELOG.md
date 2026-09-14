@@ -4,6 +4,50 @@ All notable changes to DXN1 STUDIO. Format based on
 [Keep a Changelog](https://keepachangelog.com/); versioning is
 `MAJOR.MINOR.PATCH` while in **beta**.
 
+## [2.48.0] — 2026-09-15 · beta · "the way out is written on the door" (honest hint bars + git-graph zoom)
+
+### Added
+- **Honest hint bars** — a new `dxn1_studio/hints.py` module prints
+  a themed bar along the bottom edge of the studio's tool windows
+  listing the keys that window really answers to. The contract is
+  the v2.47 honest-keys one, extended to every window: a key hint is
+  rendered only if its exact Tk event pattern (via `accel_pattern`)
+  is genuinely bound on the window or any descendant; the `Esc`
+  chip appears only when `<Escape>` is really bound; an unbacked
+  hint is dropped and reported in `dropped_hints` instead of being
+  shown as a lie; mouse notes ("click a row to copy") describe the
+  mouse, so they can never lie about keys. Verification runs on the
+  first idle moment after construction (bindings made after the bar
+  is created are still counted) and can be re-run via `refresh()`;
+  a bar that would render nothing hides itself, and a bar on a
+  dying window quietly disappears — a hint bar never raises.
+- **Eight windows carry the door sign** — the git graph
+  (`F5 refresh · +/− zoom · 0 reset · Esc close · click a commit
+  for details`), the Activity window (`Ctrl+F filter · Ctrl+L
+  clear · Esc close · click a row to copy` — its first keyboard
+  bindings at all), bookmarks (`Enter jump · double-click a row`),
+  the recents picker and the outline/symbol picker (`↑↓ move ·
+  Enter open/jump · type to filter`), the environment doctor (`F5`
+  or `Ctrl+R` rerun · `Ctrl+Shift+C` copy report · `Esc close`),
+  token usage (`F5 refresh · Esc close`) and What's New (`Esc
+  close · click a version to read its notes`).
+- **Git-graph zoom** — `+` / `−` step a real row-density zoom
+  (0.5×–3.0×, `0` resets): rows, lanes, dots, edges and click
+  hit-testing all rescale together; `F5` / `Ctrl+R` refresh the
+  graph from the keyboard. The canvas answers the way the bar
+  advertises, because the bar verified the bindings before
+  painting them.
+- **Keybindings doc — Tool windows section** — `docs/KEYBINDINGS.md`
+  gained the v2.48 window keys and now states the rule out loud:
+  a key appears in a hint bar only if the code really binds it.
+
+### Fixed
+- `accel_pattern("+")` translated a bare plus key to `""` (the
+  split logic ate it) — bare `+` / `-` now translate to
+  `<plus>` / `<minus>`; the v2.48 smoke pins all four spellings
+  (`+`, `-`, `Ctrl++`, `Ctrl+-`) so the graph's zoom hints can
+  never silently vanish.
+
 ## [2.47.0] — 2026-09-15 · beta · "honest keys and a quieter voice" (accelerator audit + toast mute + export formats)
 
 ### Added

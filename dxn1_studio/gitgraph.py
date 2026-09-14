@@ -18,6 +18,7 @@ import subprocess
 import tkinter as tk
 from tkinter import ttk
 
+from . import hints
 from .theme import FONT_UI, FONT_MONO
 
 # GitHub-graph lane colours — vivid enough for dark, deep enough for light
@@ -138,6 +139,7 @@ class GitGraphWindow(tk.Toplevel):
         self.commits = []
         self.rows = []
         self.selected_sha = None
+        self.zoom = 1.0                     # v2.48 — row-density zoom
         self.title("Git Graph — DXN1 STUDIO")
         self.configure(bg=self.t["bg"])
         self.geometry("860x640")
@@ -147,10 +149,29 @@ class GitGraphWindow(tk.Toplevel):
 
         self._build_header()
         self._build_canvas()
+        self._build_hintbar()
         self._build_detail()
         self.bind("<Escape>", lambda e: self.destroy())
+        # v2.48 — the graph answers to keys, and the bar says so
+        self.bind("<F5>", lambda e: self.refresh())
+        self.bind("<Control-r>", lambda e: self.refresh())
+        self.bind("<Key-plus>", lambda e: self.zoom_step(0.25))
+        self.bind("<Key-equal>", lambda e: self.zoom_step(0.25))
+        self.bind("<Key-minus>", lambda e: self.zoom_step(-0.25))
+        self.bind("<Key-0>", lambda e: self.zoom_reset())
         self.after(80, self.refresh)
         self._center()
+
+    # ------------------------------------------------------------ chrome
+    def _build_hintbar(self):
+        """v2.48 — the honest door sign (only really-bound keys)."""
+        self.hintbar = hints.hint_bar(
+            self, self.t,
+            pairs=(("F5", "refresh", "F5"),
+                   ("+", "zoom in", "+ / −"),
+                   ("-", "zoom out", "−"),
+                   ("0", "zoom reset", "0")),
+            notes=("click a commit for details",))
 
     # ------------------------------------------------------------ chrome
     def _center(self):
@@ -237,6 +258,28 @@ class GitGraphWindow(tk.Toplevel):
             btn.bind("<Button-1>", lambda e, k=key: self._detail_action(k))
             self._detail_btns[key] = btn
 
+    # ------------------------------------------------------------ zoom
+    def zoom_step(self, delta):
+        """v2.48 — nudge the row-density zoom (clamped 0.5–3.0)."""
+        try:
+            self.zoom = round(min(3.0, max(0.5, self.zoom + delta)), 2)
+        except Exception:  # noqa: BLE001 — zoom is garnish
+            self.zoom = 1.0
+        self._draw()
+        return self.zoom
+
+    def zoom_reset(self):
+        """v2.48 — back to the comfortable default density."""
+        self.zoom = 1.0
+        self._draw()
+        return self.zoom
+
+    def _rh(self):
+        return max(14, int(ROW_H * self.zoom))
+
+    def _lw(self):
+        return max(12, int(LANE_W * self.zoom))
+
     # ------------------------------------------------------------ render
     def refresh(self):
         commits, err = fetch_commits(self.repo, 200,
@@ -260,8 +303,9 @@ class GitGraphWindow(tk.Toplevel):
                           text="No commits yet — or this folder is not a "
                                "repository.")
             return
-        c.configure(scrollregion=(0, 0, 1000, len(self.rows) * ROW_H + 40))
-        graph_w = LANE_W * 9
+        rh, lw = self._rh(), self._lw()
+        c.configure(scrollregion=(0, 0, 1000, len(self.rows) * rh + 40))
+        graph_w = lw * 9
         # current head for decoration boldness
         current = ""
         ok, head, _ = _run_git(self.repo, "rev-parse", "--abbrev-ref", "HEAD")
@@ -270,12 +314,12 @@ class GitGraphWindow(tk.Toplevel):
         prev_y = None
         lane_last_y = {}
         for idx, (lane, commit, edges) in enumerate(self.rows):
-            y = idx * ROW_H + 18
-            x = 20 + lane * LANE_W
+            y = idx * rh + int(rh * 0.6)
+            x = 20 + lane * lw
             color = LANE_COLORS[lane % len(LANE_COLORS)]
             # vertical continuation lines for every active lane
             for li in range(min(lane_count_max(self.rows), 9)):
-                lx = 20 + li * LANE_W
+                lx = 20 + li * lw
                 if li in lane_last_y:
                     c.create_line(lx, lane_last_y[li], lx, y,
                                   fill=LANE_COLORS[li % len(LANE_COLORS)],
@@ -284,15 +328,15 @@ class GitGraphWindow(tk.Toplevel):
             for parent_sha, pl in edges.items():
                 if parent_sha in lane_of:
                     prow = lane_of[parent_sha]
-                    py = prow * ROW_H + 18
-                    px = 20 + prow * LANE_W
+                    py = prow * rh + int(rh * 0.6)
+                    px = 20 + prow * lw
                     if py > y:  # parent below (newer rows are drawn first)
                         c.create_line(x, y, px, py,
                                       fill=color, width=1,
                                       smooth=True, splinesteps=4)
             # dot
             selected = commit["sha"] == self.selected_sha
-            r = DOT_R + (2 if selected else 0)
+            r = max(3, int(DOT_R * self.zoom)) + (2 if selected else 0)
             outline = t["text"] if selected else t["bg"]
             c.create_oval(x - r, y - r, x + r, y + r, fill=color,
                           outline=outline, width=1 if selected else 0)
@@ -330,16 +374,17 @@ class GitGraphWindow(tk.Toplevel):
                 c.addtag_withtag(f"rowdata:{commit['sha']}", item)
         # invisible row bands for clicks
         for idx, (lane, commit, _e) in enumerate(self.rows):
-            y0 = idx * ROW_H
-            band = c.create_rectangle(0, y0, 1000, y0 + ROW_H, fill="",
+            y0 = idx * rh
+            band = c.create_rectangle(0, y0, 1000, y0 + rh, fill="",
                                       outline="", width=0)
             c.addtag_withtag(f"rowdata:{commit['sha']}", band)
             c.tag_lower(band)
 
     # ------------------------------------------------------------ events
     def _hit(self, x, y):
-        """Map canvas coords → row index."""
-        idx = int((self.canvas.canvasy(y) - 18 + ROW_H / 2) // ROW_H)
+        """Map canvas coords → row index (zoom-aware)."""
+        rh = self._rh()
+        idx = int((self.canvas.canvasy(y) - int(rh * 0.6) + rh / 2) // rh)
         if 0 <= idx < len(self.rows):
             return idx
         return None

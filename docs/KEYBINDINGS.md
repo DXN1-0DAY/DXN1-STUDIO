@@ -53,6 +53,20 @@ all of this by name — the terminal (`help`) knows them as commands.
 | `Ctrl+K` | Command palette (everything above, by name) |
 | `Ctrl+Alt+Z` | Toggle zen mode |
 
+## Tool windows (v2.48)
+Every tool window prints an honest hint bar along its bottom edge —
+a key appears there only if the code really binds it.
+| Keys | Action |
+|---|---|
+| `F5` / `Ctrl+R` | Git Graph / Doctor: refresh / rerun |
+| `+` / `−` | Git Graph: zoom rows in / out (`0` resets) |
+| `Ctrl+F` | Activity: refocus the filter box |
+| `Ctrl+L` | Activity: clear the receipt log |
+| `Ctrl+Shift+C` | Doctor: copy the report |
+| `F5` | Token usage: refresh |
+| `Enter` | Bookmarks: jump · Recents/Outline: open/jump |
+| `↑` / `↓` | Recents / Outline: move the selection |
+
 ## Terminal commands (type `help` in the terminal)
 `run`, `git …`, `db <file>`, `tree <dir>`, `hash <file>`,
 `focus <min>`, `clip`, `md`, `color`, `rest`, `scribe <n>`,

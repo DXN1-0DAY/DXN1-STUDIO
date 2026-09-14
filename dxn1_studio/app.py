@@ -258,7 +258,9 @@ def accel_pattern(accel):
     flag it instead of guessing."""
     try:
         s = str(accel).strip()
-        if s.endswith("++"):
+        if s in ("+", "-"):               # a bare plus/minus key
+            key, mods_s = s, ""
+        elif s.endswith("++"):
             key, mods_s = "+", s[:-2]
         elif s.endswith("+-"):
             key, mods_s = "-", s[:-2]

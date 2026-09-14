@@ -9,10 +9,10 @@ dxn1_studio/
 ├── app.py            ← the studio: window, menus, palette, terminal, wiring
 ├── widgets.py        ← core widgets: file explorer, code editor, terminal
 ├── config.py/theme.py← persistence + theme engine (everything is themed)
-└── … 86 feature modules, one lane each, described below
+└── … 87 feature modules, one lane each, described below
 ```
 
-## Design rules (what keeps 86 modules coherent)
+## Design rules (what keeps 87 modules coherent)
 
 1. **One module = one lane.** Every feature lives in its own file
    with a public `open_*(parent, theme, …)` opener, so parallel
@@ -105,6 +105,7 @@ geometry memory).
 | `scripts/smoke_v450.py` (Xvfb) | 16 checks: the receipts survive the night — a seeded activity.json reloads at boot marked previous-session, a toast lands on top and persists atomically, the window shows the "since last time" divider with relative stamps ("just now" / "1h ago"), Clear through the app's real on_change empties ring + file, the next toast re-seeds, a torn file loads as None |
 | `scripts/smoke_v460.py` (Xvfb) | 22 checks: the receipts go where you send them — kind dots hide/restore each kind with an honest count (an unnamed kind survives every filter state), Copy all puts the chronological diary on the clipboard and acknowledges, Save as file… drives the real dialog seam to a real atomic file (a cancelled dialog writes nothing), the verbs `activity copy` / `activity export [path]` + honest nonsense hint, help rows, opener wiring |
 | `scripts/smoke_v470.py` (Xvfb) | 17 checks: honest keys and a quieter voice — every advertised palette accelerator is really bound (19 audited via accel_pattern/looks_like_accel), category tags never chased, the git menu advertises Enter only where a repo exists, the keybindings doc agrees with the code, a muted toast kind keeps its receipt while the screen stays quiet (Settings Toasts section round-trips), `activity export json|csv` + fmt-override + typed-.csv Save-as all follow the extension |
+| `scripts/smoke_v480.py` (Xvfb) | 25 checks: the way out is written on the door — honesty units (descendant bindings, esc truth both ways, unbacked hint dropped + reported, notes render, empty bar hides, destroyed host never raises), the git graph e2e (honest bar with F5/+/0/close, all keys really bound, zoom steps/clamps/resets/redraws), the Activity window's first keyboard lane (bar + real Ctrl+F/Ctrl+L/Esc), recents and whatsnew bars e2e, the rest of the family source-wired, doc agreement, the bare plus/minus translator pinned, the palette audit regression |
 | `scripts/boot_qa.py` (Xvfb) | 20 checks booting the real studio: menus bound, palette entries live, modules import, scribe chip wired |
 | `python3 -m compileall -q dxn1_studio` | The tree always compiles — the gate before every tag |
 

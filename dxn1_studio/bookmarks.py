@@ -308,6 +308,14 @@ def open_browser(master, theme, workspace=None, on_jump=None, on_log=None):
     tree.bind("<Double-1>", do_jump)
     tree.bind("<Return>", do_jump)
     win.bind("<Escape>", lambda e: win.destroy())
+    # v2.48 — the honest door sign (only keys the browser really binds)
+    from . import hints
+    hints.hint_bar(win,
+                   {"header": _C["statusbar"], "text_muted": _C["muted"],
+                    "accent": accent},
+                   pairs=(("Return", "jump", "Enter"),),
+                   notes=("double-click a row to jump",),
+                   before=foot)
     # expose internals — tests and plugins may drive the browser
     win.tree = tree
     win.do_jump = do_jump

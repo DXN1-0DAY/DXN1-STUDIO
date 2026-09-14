@@ -231,5 +231,12 @@ def open_whatsnew(master, theme, root_dir=None, highlight=None,
              bg=_C["statusbar"], fg=accent, font=font(9)
              ).pack(side=tk.LEFT, padx=12)
     win.bind("<Escape>", lambda e: win.destroy())
+    # v2.48 — the honest door sign
+    from . import hints
+    hints.hint_bar(win,
+                   {"header": _C["statusbar"], "text_muted": _C["muted"],
+                    "accent": accent},
+                   notes=("click a version to read its notes",),
+                   before=foot)
     log("what's new: %d releases" % len(entries))
     return win

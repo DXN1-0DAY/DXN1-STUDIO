@@ -159,6 +159,15 @@ class RecentPicker:
         self.shown = list(self.recents)   # initial view: full recents list
 
         self._render()
+        # v2.48 — the honest door sign (arrows/Enter live on the entry)
+        from . import hints
+        hints.hint_bar(self.win,
+                       {"header": _C["card"], "text_muted": _C["muted"],
+                        "accent": self.accent},
+                       pairs=(("Up", "move", "\u2191\u2193"),
+                              ("Return", "open", "Enter")),
+                       notes=("type to filter",),
+                       before=self.list_frame)
         self.win.update_idletasks()
         w = 560
         h = min(520, max(160, self.win.winfo_reqheight()))

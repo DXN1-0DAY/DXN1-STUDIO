@@ -488,6 +488,16 @@
 | Autosave toggle | menu row, app `_sesave_autosave_toggle()` | Flips `session_autosave` live — the 60s autosave loop reads the config every tick, so the switch lands on the next beat; a toast and a terminal line say which way it went |
 | Family tooltips | app `_chip_tip()` | All four chips (git, deps, session autosave, scribe) advertise their menus on hover: what the chip is, what a click does, that a right-click opens the lane's actions |
 
+## Hint Bars (v2.48.0)
+
+| Feature | Where | What it does |
+|---|---|---|
+| Honest hint bars | `hints.hint_bar()`, eight tool windows | Every tool window prints a themed bar along its bottom edge listing the keys it really answers to — git graph (`F5 refresh · +/− zoom · 0 reset`), Activity (`Ctrl+F filter · Ctrl+L clear`), bookmarks (`Enter jump`), recents/outline (`↑↓ move · Enter open`), doctor (`F5 rerun · Ctrl+Shift+C copy report`), usage (`F5 refresh`), What's New — with a muted mouse note where the mouse is the tool ("click a row to copy") |
+| The honesty contract | `hints.tree_bound()` + `accel_pattern()` | A key hint is rendered only if its exact Tk event pattern is genuinely bound on the window or any descendant (both `<0>` and `<Key-0>` spellings count); the `Esc` chip appears only when `<Escape>` is really bound; an unbacked hint is dropped and reported in `dropped_hints` instead of being shown as a lie — the door sign cannot outlive the door's truth |
+| Never raises | `hints.hint_bar()` | Verification runs on the first idle moment after construction (bindings made after the bar is created are still counted) and re-runs via `refresh()`; a bar with nothing honest to say hides itself; a bar on a dying window quietly disappears — a hint bar never raises, a window never loses content to garnish |
+| Git-graph zoom | `GitGraphWindow.zoom_step()` / `zoom_reset()`, keys `+` `−` `0` | A real row-density zoom (0.5×–3.0×): rows, lanes, dots, diagonal edges, click hit-testing and the scroll region rescale together, so a 200-commit repo reads as a trunk or as a spreadsheet at one keystroke; `F5` / `Ctrl+R` refresh from the keyboard |
+| Doc states the rule | `docs/KEYBINDINGS.md` — Tool windows (v2.48) | The keybindings doc gained the window keys and says the rule out loud: a key appears in a hint bar only if the code really binds it — unit-tested so it stays that way |
+
 ## Honest Keys (v2.47.0)
 
 | Feature | Where | What it does |

@@ -184,6 +184,13 @@ class UsageDashboard(tk.Toplevel):
         self._build_header()
         self._build_body()
         self._build_status()
+        # v2.48 — the dashboard answers to keys, and the bar says so
+        from . import hints
+        self.bind("<F5>", lambda e: self.refresh())
+        self.hintbar = hints.hint_bar(
+            self, self.t,
+            pairs=(("F5", "refresh", "F5"),),
+            esc=True, before=self.status)
         self.bind("<Escape>", lambda e: self.destroy())
         self.refresh()
         self._center()

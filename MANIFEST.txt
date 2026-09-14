@@ -36,6 +36,7 @@ gitgraph.py
 gitpanel.py
 hasher.py
 hexdump.py
+hints.py
 hub.py
 i18n.py
 jwt.py
