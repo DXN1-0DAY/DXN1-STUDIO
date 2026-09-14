@@ -1,0 +1,40 @@
+name: CI
+
+on:
+  push:
+    branches: [master, main]
+  pull_request:
+    branches: [master, main]
+  workflow_dispatch:
+
+jobs:
+  selftest:
+    name: Python ${{ matrix.python }} · headless self-test
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        python: ["3.10", "3.12"]
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python ${{ matrix.python }}
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python }}
+
+      - name: Install Tk + headless X
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y python3-tk xvfb
+          python -m pip install --upgrade pip
+          python -m pip install Pillow
+
+      - name: Byte-compile every module
+        run: python -m compileall -q dxn1_studio
+
+      - name: Boot the studio (headless smoke test)
+        run: xvfb-run -a python3 dxn1-studio --smoke-test
+
+      - name: Verify installer syntax
+        run: bash -n install.sh

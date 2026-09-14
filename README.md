@@ -13,7 +13,7 @@ with `@` symbol jump, sandboxed AI agents on a **resilient free cloud stack**
 frameworks. ~10 MB of Python.
 
 [![CI](https://github.com/DXN1-termux/DXN1-STUDIO/actions/workflows/ci.yml/badge.svg)](https://github.com/DXN1-termux/DXN1-STUDIO/actions/workflows/ci.yml)
-[![Version](https://img.shields.io/badge/version-1.1.3--beta-7c3aed?style=flat-square)](CHANGELOG.md)
+[![Version](https://img.shields.io/badge/version-1.1.4--beta-7c3aed?style=flat-square)](CHANGELOG.md)
 [![Python](https://img.shields.io/badge/python-3.8%2B-3776ab?style=flat-square&logo=python&logoColor=white)](https://www.python.org)
 [![Platform](https://img.shields.io/badge/platform-Linux%20%7C%20Termux%20%7C%20macOS%20%7C%20Windows-24292f?style=flat-square)](#requirements)
 [![License](https://img.shields.io/badge/license-MIT-3fb950?style=flat-square)](LICENSE)
@@ -98,6 +98,12 @@ Xvfb — nothing is mocked.*
 <td width="50%" align="center">
 <img src="assets/screens/04_quick_open.png" alt="Quick open" width="100%"/><br/>
 <b>Quick open</b> — Ctrl+P, fuzzy across the whole workspace
+</td>
+</tr>
+<tr>
+<td colspan="2" align="center">
+<img src="assets/screens/12_replace_bar.png" alt="Find and replace" width="100%"/><br/>
+<b>Find &amp; Replace</b> — Ctrl+H, live hits, Replace all as one undo step
 </td>
 </tr>
 <tr>
@@ -199,7 +205,7 @@ Replay the wizard or tour anytime from the **Help** menu — or type
 
 ## Project Hub
 
-Every session starts at the Hub — nine scaffolds and counting:
+Every session starts at the Hub — ten scaffolds and counting:
 
 | | |
 |---|---|
@@ -208,6 +214,7 @@ Every session starts at the Hub — nine scaffolds and counting:
 | **New FastAPI App** | JSON route starter + requirements |
 | **New CLI Tool** | argparse app with subcommands, flags and help text |
 | **New Static Website** | HTML + CSS + JS, no build step, no dependencies |
+| **New Canvas Game** | a complete playable game loop — arrows/WASD, lives, score, restart |
 | **New Tkinter App** | native desktop starter |
 | **New Python Package** | src-style module + tests + `pyproject.toml` |
 | **Empty Workspace** | a clean folder, your ideas |
@@ -230,7 +237,8 @@ Reopen via **File → Project Hub**.
 - **Line ops** — toggle comment (Ctrl+/), duplicate, delete, move lines
 - **Bookmarks** — click a line number or Ctrl+F2; F2 / Shift+F2 walk them
 - **Snippets** — Tab expands `ifmain`, `pdb`, `smain`; plain indent otherwise
-- In-file find bar (Ctrl+F) with hit counting and prev/next, Go to Line
+- In-file find bar (Ctrl+F) with hit counting and prev/next, **Find &
+  Replace** (Ctrl+H) with Replace all as one undoable step, Go to Line
   (Ctrl+G), word wrap toggle, Ctrl+ +/− text size, auto-save option
 - Full undo/redo history; word/selection/line counts in the status bar
 
@@ -238,7 +246,8 @@ Reopen via **File → Project Hub**.
 - **Activity bar** — slim icon rail: Explorer, Search, **Source Control**,
   Packages + Hub and Agents shortcuts
 - **Command palette** — Ctrl+K, fuzzy over every command; type **`@`** to
-  jump to any `def` / `class` in the open file
+  jump to symbols — Python & JS/TS, plus Go, Rust, Java, Kotlin, C/C++,
+  C#, Swift, Dart and PHP outlines
 - **Quick open** — Ctrl+P, fuzzy across the entire workspace
 - **Find-in-files** — workspace-wide search, grouped results, click to jump
   to the exact line
@@ -299,7 +308,7 @@ open file.
 | Brain | What it is | Cost |
 |-------|------------|------|
 | **Local skills** | The offline rule engine | free, no setup |
-| **Free cloud** | Keyless cloud models with **automatic failover** to GitHub Models when a GitHub login exists — the header chip always names the provider that answered | free, rate-limited |
+| **Free cloud** | Keyless cloud models with **automatic failover** — proper web headers keep the anonymous route open, provider out-of-budget boilerplate is detected and skipped, GitHub Models takes over when a GitHub login exists. The header chip always names the provider that answered | free, rate-limited |
 | **BYOK** | Your key on any OpenAI-compatible provider — OpenRouter, Groq, Google AI Studio, Mistral, OpenAI, Ollama (local), custom endpoint | your key; OpenRouter `:free` models cost nothing |
 | **GitHub Models** | Free tier tracked via your GitHub login | free, rate-limited |
 | **Kilo gateway** | Free-model routing through an in-studio HTTP client — deliberately *not* a bundled Kilo instance, so it adds near-zero RAM instead of hundreds of MB | your Kilo token |
@@ -366,6 +375,7 @@ uninstall. Power users can pip-install anything from the same view.
 | Ctrl+K or Ctrl+Shift+P | command palette — type `@` for symbols |
 | Ctrl+P | quick open a file |
 | Ctrl+F | find in file |
+| Ctrl+H | find & replace (Replace all = one undo step) |
 | Ctrl+G | go to line |
 | Ctrl+/ | toggle comment |
 | Ctrl+Shift+D / Ctrl+Shift+K | duplicate / delete line |

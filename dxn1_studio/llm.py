@@ -31,8 +31,12 @@ import urllib.error
 import urllib.parse
 import urllib.request
 
-UA = "DXN1-Studio/1.1.3 (agents)"
+UA = "DXN1-Studio/1.1.4 (agents)"
 TIMEOUT = 120
+# Pollinations' anonymous tier checks that requests come from a web
+# origin — an https Referer keeps the keyless route open (plain API
+# calls without one get 403'd). Points at the project page.
+REFERRER = "https://dxn1-termux.github.io/DXN1-STUDIO/"
 
 # ------------------------------------------------------------------ presets
 # id -> label, base_url, suggested models, note, key hint, free tier?
@@ -195,6 +199,30 @@ class BackendError(Exception):
     """Raised with a human-friendly message when a chat call fails."""
 
 
+# Providers under load sometimes answer HTTP 200 with boilerplate error
+# prose instead of a completion ("the API key used for this request has
+# reached its budget" …). Guard so that junk never reaches the chat as
+# if it were an answer. Short + specific phrases keeps false positives
+# away from legit answers that merely discuss rate limits.
+_PROVIDER_ERROR_MARKS = (
+    "reached its budget",
+    "api key used for this request",
+    "insufficient_quota",
+    "billing details",
+    "exceeded your current quota",
+)
+
+
+def _looks_like_provider_error(text):
+    """True when a completion is actually provider boilerplate."""
+    if not text:
+        return False
+    # boilerplate always opens the message — judge the leading chunk so
+    # a long markdown-wrapped notice still trips the check
+    low = text[:240].lower()
+    return any(mark in low for mark in _PROVIDER_ERROR_MARKS)
+
+
 # ------------------------------------------------------------------ plumbing
 def _host(url):
     """Short host label for error messages."""
@@ -350,7 +378,9 @@ class PollinationsBackend(OpenAICompatBackend):
     def __init__(self, config=None):
         model = (config.get("agents_model") or "").strip() if config else ""
         super().__init__(self.BASE, "", model or FREE_MODELS[0],
-                         label="Free cloud")
+                         label="Free cloud",
+                         extra_headers={"Referer": REFERRER,
+                                        "User-Agent": UA})
         self._chain = [m for m in FREE_MODELS if m != self.model]
 
     def _attempt(self, model, messages, max_tokens, temperature):
@@ -363,9 +393,20 @@ class PollinationsBackend(OpenAICompatBackend):
         model = self.model
         while True:
             try:
-                return self._attempt(model, messages, max_tokens, temperature)
+                text = self._attempt(model, messages, max_tokens,
+                                     temperature)
+                if _looks_like_provider_error(text):
+                    # HTTP 200, but the body is provider boilerplate —
+                    # treat exactly like a failed request and fall over
+                    raise BackendError("provider answered with an "
+                                       "out-of-budget notice")
+                return text
             except BackendError as exc:
                 tried.append(f"{model}: {exc}")
+                # a 403/401 means the anonymous POST tier itself is closed
+                # for this IP — no point walking the remaining models
+                if "HTTP 403" in str(exc) or "HTTP 401" in str(exc):
+                    self._chain = []
                 if self._chain:
                     model = self._chain.pop(0)
                     continue
@@ -405,6 +446,7 @@ class PollinationsBackend(OpenAICompatBackend):
         url = FREE_GET_URL + self._flatten(messages)
         req = urllib.request.Request(url, method="GET")
         req.add_header("User-Agent", UA)
+        req.add_header("Referer", REFERRER)
         try:
             with urllib.request.urlopen(req, timeout=TIMEOUT) as resp:
                 text = resp.read().decode("utf-8", "replace").strip()
@@ -414,6 +456,9 @@ class PollinationsBackend(OpenAICompatBackend):
             raise BackendError(f"GET route unreachable — {exc}") from exc
         if not text:
             raise BackendError("GET route returned an empty answer")
+        if _looks_like_provider_error(text):
+            raise BackendError("GET route answered with an out-of-budget "
+                               "notice")
         return text
 
 

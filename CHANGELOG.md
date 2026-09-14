@@ -4,6 +4,36 @@ All notable changes to DXN1 STUDIO. Format based on
 [Keep a Changelog](https://keepachangelog.com/); versioning is
 `MAJOR.MINOR.PATCH` while in **beta**.
 
+## [1.1.4] — 2026-09-14 · beta
+
+### Fixed
+- **The free cloud brain is alive again.** Pollinations started
+  requiring a web `Referer` on anonymous calls — every request got
+  HTTP 403 and the keyless tier looked dead. The client now sends the
+  right headers on both the JSON and plain-text routes, and skips
+  pointless model retries when the provider answers 403/401.
+- **Provider boilerplate never poses as an answer.** When a provider
+  answers HTTP 200 with "the API key used for this request has reached
+  its budget" prose, the stack now treats it as a failure and falls
+  over (or surfaces the friendly setup guidance) instead of printing
+  the junk into the chat.
+
+### Added
+- **Find & Replace** — the find bar grew a replace row (`Ctrl+H`, or
+  the `⌄ replace` chevron): live hit counter, Replace current, Replace
+  all as a single undoable step, and a status line that tells you
+  exactly what happened.
+- **Canvas Game project template** — a complete, playable orb-dodging
+  game loop (arrows/WASD, lives, score ramp, R to restart) as a new
+  scaffold on the Hub and in the wizard. The Hub template grid now
+  sits flush at ten cards — no lone-hole row.
+- **`@` symbols for C-family languages** — `Ctrl+K` `@` now outlines
+  Go, Rust, Java, Kotlin, C/C++, C#, Swift, Dart and PHP files
+  (functions, structs, impls, classes), with control-flow keywords
+  filtered so `while` never shows up as a function.
+- Fresh hub hero artwork — the concentric-squares motif is no longer
+  clipped by the banner edge.
+
 ## [1.1.3] — 2026-09-14 · beta
 
 ### Added

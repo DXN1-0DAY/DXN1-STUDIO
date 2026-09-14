@@ -798,6 +798,8 @@ class DXN1Studio:
                               command=lambda: txt().event_generate("<<Paste>>"))
         edit_menu.add_command(label="Find…", command=self.toggle_find,
                               accelerator="Ctrl+F")
+        edit_menu.add_command(label="Replace…", command=self.open_replace,
+                              accelerator="Ctrl+H")
         edit_menu.add_command(label="Go to Line…", command=self.goto_line_dialog,
                               accelerator="Ctrl+G")
         edit_menu.add_separator()
@@ -936,6 +938,12 @@ class DXN1Studio:
         self.root.bind("<Control-p>", lambda e: self.open_quick_open())
         self.root.bind("<Control-P>", lambda e: self.open_quick_open())
         self.root.bind("<Control-f>", lambda e: self.toggle_find())
+        # Ctrl+H: the Text class binding maps it to backspace, so the
+        # editor widget itself gets a break-binding to swallow that, and
+        # the toplevel binding covers every other focus target
+        self.editor.text.bind("<Control-h>",
+                              lambda e: (self.open_replace(), "break")[1])
+        self.root.bind("<Control-h>", lambda e: self.open_replace())
         self.root.bind("<Control-w>", lambda e: self.close_active_tab())
         self.root.bind("<Control-Tab>", lambda e: self.cycle_tab(1))
         self.root.bind("<Control-plus>", lambda e: self.change_font_size(1))
@@ -1562,6 +1570,7 @@ class DXN1Studio:
         bar = tk.Frame(parent, bg=t["header"])
         row = tk.Frame(bar, bg=t["header"])
         row.pack(fill=tk.X, padx=10, pady=6)
+        self._find_row = row
         tk.Label(row, text="⌕", bg=t["header"], fg=t.accent,
                  font=(FONT_UI, 11, "bold")).pack(side=tk.LEFT)
         self.find_var = tk.StringVar()
@@ -1583,11 +1592,92 @@ class DXN1Studio:
                            cursor="hand2", padx=8)
             btn.pack(side=tk.LEFT)
             btn.bind("<Button-1>", lambda e, d=delta: self._find_next(d))
+        self.replace_chevron = tk.Label(row, text="⌄ replace", bg=t["header"],
+                                        fg=t["text_secondary"],
+                                        font=(FONT_UI, 9), cursor="hand2",
+                                        padx=8)
+        self.replace_chevron.pack(side=tk.LEFT)
+        self.replace_chevron.bind("<Button-1>",
+                                  lambda e: self.toggle_replace())
         x = tk.Label(row, text="✕", bg=t["header"], fg=t["text_muted"],
                      font=(FONT_UI, 10), cursor="hand2", padx=8)
         x.pack(side=tk.RIGHT)
         x.bind("<Button-1>", lambda e: self.toggle_find(show=False))
+
+        # ---- replace row (hidden until the chevron or Ctrl+H) ----
+        self.replace_row = tk.Frame(bar, bg=t["header"])
+        tk.Label(self.replace_row, text="→", bg=t["header"],
+                 fg=t["text_muted"],
+                 font=(FONT_UI, 11, "bold")).pack(side=tk.LEFT)
+        self.replace_var = tk.StringVar()
+        rentry = tk.Entry(self.replace_row, textvariable=self.replace_var,
+                          bg=t["editor"], fg=t["text"],
+                          insertbackground=t["text"], relief=tk.FLAT,
+                          font=(FONT_MONO, 10), highlightthickness=1,
+                          highlightbackground=t["border"],
+                          highlightcolor=t.accent, width=28)
+        rentry.pack(side=tk.LEFT, padx=(8, 6), ipady=4)
+        rentry.bind("<Return>", lambda e: self._replace_current())
+        rbtn = tk.Label(self.replace_row, text="Replace", bg=t["card"],
+                        fg=t["text"], font=(FONT_UI, 9, "bold"),
+                        cursor="hand2", padx=9, pady=3)
+        rbtn.pack(side=tk.LEFT, padx=2)
+        rbtn.bind("<Button-1>", lambda e: self._replace_current())
+        rabtn = tk.Label(self.replace_row, text="Replace all", bg=t["card"],
+                         fg=t["text"], font=(FONT_UI, 9, "bold"),
+                         cursor="hand2", padx=9, pady=3)
+        rabtn.pack(side=tk.LEFT, padx=2)
+        rabtn.bind("<Button-1>", lambda e: self._replace_all())
+        self.replace_status = tk.Label(self.replace_row, text="", bg=t["header"],
+                                       fg=t["text_muted"], font=(FONT_UI, 9))
+        self.replace_status.pack(side=tk.LEFT, padx=6)
         return bar
+
+    def toggle_replace(self, show=None):
+        """Show/hide the replace row under the find bar."""
+        visible = self.replace_row.winfo_ismapped()
+        if show is None:
+            show = not visible
+        if show and not visible:
+            self.replace_row.pack(fill=tk.X, padx=10, pady=(0, 6),
+                                  after=self._find_row)
+            self.replace_chevron.config(text="⌃ replace")
+        elif not show and visible:
+            self.replace_row.pack_forget()
+            self.replace_chevron.config(text="⌄ replace")
+            self.replace_status.config(text="")
+
+    def open_replace(self):
+        """Ctrl+H — find bar with the replace row visible."""
+        if not self.findbar.winfo_ismapped():
+            self.toggle_find(show=True)
+        self.toggle_replace(show=True)
+        for w in self.replace_row.winfo_children():
+            if isinstance(w, tk.Entry):
+                w.focus_set()
+                break
+
+    def _replace_current(self):
+        needle, repl = self.find_var.get(), self.replace_var.get()
+        if not needle:
+            return
+        if self.editor.replace_current(needle, repl):
+            self.replace_status.config(text="replaced 1",
+                                       fg=self.theme.accent)
+        else:
+            self.replace_status.config(text="no selection — pick a hit first",
+                                       fg=self.theme["text_muted"])
+        self._find_live()
+
+    def _replace_all(self):
+        needle, repl = self.find_var.get(), self.replace_var.get()
+        if not needle:
+            return
+        count = self.editor.replace_all(needle, repl)
+        self.replace_status.config(
+            text=(f"replaced {count}" if count else "no hits"),
+            fg=(self.theme.accent if count else self.theme["text_muted"]))
+        self._find_live()
 
     def toggle_find(self, show=None):
         visible = self.findbar.winfo_ismapped()
@@ -1604,6 +1694,8 @@ class DXN1Studio:
                         break
         elif not show and visible:
             self.editor.clear_find()
+            self.replace_row.pack_forget()
+            self.replace_chevron.config(text="⌄ replace")
             self.findbar.pack_forget()
             self.editor.text.focus_set()
 
@@ -2729,9 +2821,55 @@ class DXN1Studio:
                 dlg._filter_settings("wrap")
                 dlg.destroy()
                 self.terminal.log("Symbols + bookmarks + snippets passed")
-                self.root.after(400, step10)
+                self.root.after(400, step9j)
             except Exception:
                 bail("step9i-symbols-bookmarks-snippets")
+
+        def step9j():
+            try:
+                # --- v1.1.4: replace bar (open_replace + replace_all UI)
+                self.open_replace()
+                self.root.update()
+                assert self.replace_row.winfo_ismapped(), \
+                    "replace row missing"
+                self.find_var.set("__name__")
+                self.replace_var.set("__core__")
+                self._find_live()
+                self._replace_all()
+                assert "__core__" in self.editor.get_content(), \
+                    "replace_all UI failed"
+                self.toggle_replace(show=False)
+                self.toggle_find(show=False)
+                # --- v1.1.4: C-family symbols via the palette
+                go_path = os.path.join(self.project_dir, "notes.go")
+                with open(go_path, "w", encoding="utf-8") as fh:
+                    fh.write("package main\n\nfunc main() {\n}\n\n"
+                             "func Add(a int, b int) int {\n\treturn a\n}\n")
+                self.open_file(go_path)
+                syms = self.editor.symbols()
+                names = [n for _, _, n in syms]
+                assert "main" in names and "Add" in names, syms
+                # --- v1.1.4: game template scaffolds + compiles
+                import py_compile
+                gpath, gkind = projects.scaffold(
+                    "game", tmp, "Smoke Game")
+                assert gkind == "game"
+                py_compile.compile(os.path.join(gpath, "main.py"),
+                                       doraise=True)
+                # --- v1.1.4: free-brain guard stays honest
+                from .llm import _looks_like_provider_error
+                assert _looks_like_provider_error(
+                    "The API key used for this request has reached its "
+                    "budget. Please [raise ...]"), "guard missed budget"
+                assert not _looks_like_provider_error(
+                    "def fix(): return rate_limit_explained"), \
+                    "guard false positive"
+                from .llm import PollinationsBackend
+                pb = PollinationsBackend(self.config)
+                self.terminal.log("v1.1.4 checks passed")
+                self.root.after(400, step10)
+            except Exception:
+                bail("step9j-v114")
 
         def step10():
             try:

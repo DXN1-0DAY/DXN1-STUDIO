@@ -29,11 +29,12 @@ TEMPLATE_INFO = {
     "package": ("Python Package", "Module + tests + pyproject — pip-installable.", "pkg"),
     "cli":     ("CLI Tool",       "argparse app — flags, help, subcommands.", "cli"),
     "static":  ("Static Website", "HTML + CSS + JS — no build step, no deps.", "web"),
+    "game":    ("Canvas Game",     "Tkinter game loop — keys, score, restart. F5 to play.", "game"),
     "empty":   ("Empty Workspace", "A clean folder for your own ideas.", "folder"),
 }
 
 KIND_ORDER = ("python", "flask", "fastapi", "requests",
-              "tkinter", "package", "cli", "static", "empty")
+              "tkinter", "package", "cli", "static", "game", "empty")
 
 
 def slugify(name):
@@ -155,6 +156,122 @@ def main():
 
 if __name__ == "__main__":
     main()
+'''
+
+_GAME_APP = '''"""{name} — a Canvas game, scaffolded by DXN1 STUDIO.
+
+A complete mini game in one file: arrow keys / WASD to move, catch the
+purple orbs, dodge the red ones. Three lives, score ramps up, R to
+restart. Built on a plain Tkinter Canvas + after() loop — no deps.
+"""
+
+import random
+import tkinter as tk
+
+W, H = 640, 420
+PLAYER_SPEED = 6
+SPAWN_MS = 900               # new falling block every …
+TICK_MS = 16                 # ~60 fps
+
+GOOD, BAD = "#7c3aed", "#e5484d"
+
+
+class Game:
+    def __init__(self, root):
+        self.root = root
+        self.canvas = tk.Canvas(root, width=W, height=H, bg="#0d0b14",
+                                highlightthickness=0)
+        self.canvas.pack()
+        root.title("{name}")
+        root.bind("<KeyPress>", self.on_key)
+        root.bind("<KeyRelease>", self.on_keyup)
+        self.reset()
+        self.loop()
+
+    # ------------------------------------------------------------- state
+    def reset(self):
+        self.px = W // 2                 # player x (paddle near the bottom)
+        self.keys = set()
+        self.blocks = []                 # [x, y, speed, good]
+        self.score = 0
+        self.lives = 3
+        self.over = False
+        self.root.after(SPAWN_MS, self.spawn)
+
+    # ------------------------------------------------------------ helpers
+    def spawn(self):
+        if not self.over:
+            good = random.random() < 0.7          # 70% goodies
+            self.blocks.append([random.randint(16, W - 16), -16,
+                                random.uniform(2.2, 4.6), good])
+        self.root.after(max(280, SPAWN_MS - self.score * 6), self.spawn)
+
+    def on_key(self, event):
+        key = event.keysym.lower()
+        if key in ("left", "a"):
+            self.keys.add("L")
+        elif key in ("right", "d"):
+            self.keys.add("R")
+        elif key == "r" and self.over:
+            self.over = False
+            self.reset()
+
+    def on_keyup(self, event):
+        key = event.keysym.lower()
+        if key in ("left", "a"):
+            self.keys.discard("L")
+        elif key in ("right", "d"):
+            self.keys.discard("R")
+
+    # --------------------------------------------------------------- loop
+    def loop(self):
+        c = self.canvas
+        c.delete("all")
+        if not self.over:
+            if "L" in self.keys:
+                self.px = max(28, self.px - PLAYER_SPEED)
+            if "R" in self.keys:
+                self.px = min(W - 28, self.px + PLAYER_SPEED)
+            alive = []
+            for b in self.blocks:
+                b[1] += b[2]
+                caught = abs(b[0] - self.px) < 42 and 6 < b[1] < 34
+                if caught:
+                    if b[3]:
+                        self.score += 1
+                    else:
+                        self.lives -= 1
+                        if self.lives <= 0:
+                            self.over = True
+                    continue
+                if b[1] < H + 20:
+                    alive.append(b)
+            self.blocks = alive
+        # ---- draw
+        c.create_rectangle(self.px - 40, H - 26, self.px + 40, H - 12,
+                           fill="#ffffff", outline="")
+        for x, y, _, good in self.blocks:
+            c.create_oval(x - 9, y - 9, x + 9, y + 9,
+                          fill=GOOD if good else BAD, outline="")
+        c.create_text(14, 12, anchor="nw", fill="#c9c2e8", font=(
+            "TkFixedFont", 11), text=f"score {{self.score}}   "
+                                     f"lives {{'●' * max(0, self.lives)}}")
+        if self.over:
+            c.create_rectangle(0, H // 2 - 44, W, H // 2 + 44,
+                               fill="#0d0b14", stipple="gray50")
+            c.create_text(W // 2, H // 2 - 12, fill="#ffffff",
+                          font=("TkDefaultFont", 18, "bold"),
+                          text=f"Game over — score {{self.score}}")
+            c.create_text(W // 2, H // 2 + 16, fill="#c9c2e8",
+                          font=("TkFixedFont", 11),
+                          text="press R to restart")
+        self.root.after(TICK_MS, self.loop)
+
+
+if __name__ == "__main__":
+    root = tk.Tk()
+    Game(root)
+    root.mainloop()
 '''
 
 _STATIC_HTML = '''<!DOCTYPE html>
@@ -380,6 +497,8 @@ def template_files(kind, name):
             "style.css": _STATIC_CSS.format(name=name),
             "script.js": _STATIC_JS.format(name=name),
         }
+    if kind == "game":
+        return {"main.py": _GAME_APP.format(name=name)}
     if kind == "empty":
         return {"README.md": _README_MD.format(name=name)}
     return {}

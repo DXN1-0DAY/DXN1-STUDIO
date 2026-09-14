@@ -820,6 +820,21 @@ class CodeEditor(tk.Frame):
         }
         rules.update({e: rules[".js"] for e in
                       (".jsx", ".ts", ".tsx", ".mjs")})
+        # C-family + friends: functions and classes share one pattern —
+        # a name followed by ( ... ) up to an optional brace, or
+        # struct/impl/trait/enum/interface declarations. Keyword guard
+        # keeps control flow (while/for/switch…) out of the outline.
+        c_like = _re.compile(
+            r"^(?:\s*)(?:(?:public|private|protected|static|final|abstract|"
+            r"virtual|override|async|pub|unsafe|extern|inline|const)\s+)*"
+            r"(?:struct|impl|trait|enum|interface|class)\s+([A-Za-z_]\w*)"
+            r"|(?:\s*)(?:[A-Za-z_][\w:<>,\s\*&]*?\s+)?"
+            r"(?!while\b|for\b|switch\b|if\b|else\b|return\b|sizeof\b|"
+            r"match\b|use\b|new\b|catch\b|do\b)"
+            r"([A-Za-z_]\w*)\s*\([^;{)]*\)\s*(?:[^;{]*\{)?\}?\s*$")
+        for e in (".c", ".h", ".cpp", ".hpp", ".java", ".kt", ".rs",
+                  ".go", ".cs", ".swift", ".dart", ".php"):
+            rules[e] = c_like
         rule = rules.get(ext)
         if rule is None:
             # generic fallback: markdown headings only
@@ -842,10 +857,18 @@ class CodeEditor(tk.Frame):
                 if ext == ".py":
                     out.append((i, m.group(1), m.group(2)))
                 else:
-                    kind = "class" if line.lstrip().startswith("class") \
+                    stripped = line.lstrip()
+                    is_type = _re.match(
+                        r"^(?:\s*)(?:(?:public|private|protected|static|"
+                        r"final|abstract|virtual|override|async|pub|unsafe|"
+                        r"extern|inline|const)\s+)*"
+                        r"(?:struct|impl|trait|enum|interface|class)\b",
+                        line)
+                    kind = "class" if (is_type or
+                                       stripped.startswith("class")) \
                         else "function"
                     name = next((g for g in m.groups() if g), "")
-                    if name:
+                    if name and not name[0].isdigit():
                         out.append((i, kind, name))
         return out[:200]
 
@@ -899,6 +922,72 @@ class CodeEditor(tk.Frame):
     def clear_find(self):
         for tag in ("find_all", "find_cur"):
             self.text.tag_remove(tag, "1.0", "end")
+
+    # ------------------------------------------------------------- replace
+    def replace_current(self, needle, repl):
+        """Replace the currently highlighted find_cur match. Returns
+        True when a match was replaced."""
+        if not needle:
+            return False
+        try:
+            rng = self.text.tag_prevrange("find_cur", "end")
+        except tk.TclError:
+            rng = None
+        if not rng:
+            return False
+        self.text.tag_remove("find_cur", "1.0", "end")
+        self.text.delete(rng[0], rng[1])
+        self.text.insert(rng[0], repl)
+        self.text.mark_set("insert", f"{rng[0]}+{len(repl)}c")
+        self.text.see(rng[0])
+        self.modified = True
+        return True
+
+    def replace_all(self, needle, repl):
+        """Replace every literal occurrence of needle. Runs as one
+        undoable edit. Returns the number of replacements."""
+        if not needle:
+            return 0
+        content = self.text.get("1.0", "end-1c")
+        count = content.count(needle)
+        if not count:
+            return 0
+        # one undo step for the whole pass: bracket the group with
+        # explicit separators (autoseparators only fire *before* each
+        # mod while enabled — without a leading separator the undo
+        # would swallow whatever edit happened before this call)
+        self.text.configure(autoseparators=False)
+        try:
+            self.text.edit_separator()
+            pos = 0
+            while True:
+                idx = content.find(needle, pos)
+                if idx < 0:
+                    break
+                start = f"1.0+{idx}c"
+                end = f"1.0+{idx + len(needle)}c"
+                self.text.delete(start, end)
+                self.text.insert(start, repl)
+                # recompute offsets after every edit — lengths shift
+                after = self.text.index(f"{start}+{len(repl)}c")
+                pos = self._offset_of(after)
+                content = self.text.get("1.0", "end-1c")
+            self.text.edit_separator()
+        finally:
+            self.text.configure(autoseparators=True)
+        self.modified = True
+        self.update_line_numbers()
+        self.highlighter.schedule(delay=0)
+        return count
+
+    def _offset_of(self, index):
+        """Tk index -> character offset from start of text."""
+        line, col = index.split(".")
+        line = int(line)
+        if line == 1:
+            return int(col)
+        return len(self.text.get("1.0", f"{line - 1}.end")) + \
+            int(col) + (line - 1)
 
 
 # =====================================================================
