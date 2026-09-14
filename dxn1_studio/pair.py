@@ -258,3 +258,7 @@ def open_pair_session(app):
         except Exception:
             pass
         return None
+
+
+# DS2 alias — app.py's palette block opens pair mode by this name
+open_pair = open_pair_session
