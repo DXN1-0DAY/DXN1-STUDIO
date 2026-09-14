@@ -876,6 +876,17 @@ class DXN1Studio:
                               command=lambda: self.editor.move_line(-1))
         edit_menu.add_command(label="Move Line Down", accelerator="Alt+Down",
                               command=lambda: self.editor.move_line(1))
+        # DS2: line tools — sort & dedupe on the selection
+        edit_menu.add_command(label="Sort Lines (A→Z)",
+                              command=lambda: self.editor.sort_lines())
+        edit_menu.add_command(label="Sort Lines (Numeric)",
+                              command=lambda: self.editor.sort_lines(
+                                  numeric=True))
+        edit_menu.add_command(label="Sort Lines (Z→A)",
+                              command=lambda: self.editor.sort_lines(
+                                  reverse=True))
+        edit_menu.add_command(label="Remove Duplicate Lines",
+                              command=lambda: self.editor.unique_lines())
         edit_menu.add_separator()
         edit_menu.add_command(label="Bigger Text", accelerator="Ctrl++",
                               command=lambda: self.change_font_size(1))

@@ -901,6 +901,75 @@ class CodeEditor(tk.Frame):
         except tk.TclError:
             pass
 
+    def _selected_or_current_block(self):
+        """(first, last) 1-based line numbers of the selection, or the
+        current line when nothing is selected."""
+        t = self.text
+        rng = t.tag_ranges("sel")
+        if rng:
+            first = int(str(rng[0]).split(".")[0])
+            last = int(str(rng[1]).split(".")[0])
+        else:
+            first = last = int(t.index("insert").split(".")[0])
+        return first, last
+
+    def sort_lines(self, reverse=False, numeric=False):
+        """Sort the selected block (or current line). Case-insensitive
+        by default; ``numeric`` compares leading numbers so '2' beats
+        '10'. Returns the number of lines touched (0 on failure)."""
+        t = self.text
+        try:
+            first, last = self._selected_or_current_block()
+            block = t.get(f"{first}.0", f"{last}.end")
+            lines = block.split("\n")
+            if numeric:
+                import re as _re
+                key_fn = lambda ln: (  # noqa: E731
+                    float(_re.match(r"\s*(-?\d+(?:\.\d+)?)", ln).group(1))
+                    if _re.match(r"\s*-?\d+(?:\.\d+)?", ln) else float("inf"),
+                    ln.lower())
+                lines.sort(key=key_fn, reverse=reverse)
+            else:
+                lines.sort(key=lambda ln: ln.lower(), reverse=reverse)
+            t.delete(f"{first}.0", f"{last}.end")
+            t.insert(f"{first}.0", "\n".join(lines))
+            t.tag_remove("sel", "1.0", "end")
+            t.tag_add("sel", f"{first}.0", f"{last}.end")
+            t.mark_set("insert", f"{first}.0")
+            t.see("insert")
+            self._on_key()
+            return len(lines)
+        except tk.TclError:
+            return 0
+
+    def unique_lines(self):
+        """Drop duplicate lines in the selection (keeps first seen,
+        case-sensitive). Returns how many duplicates were removed."""
+        t = self.text
+        try:
+            first, last = self._selected_or_current_block()
+            block = t.get(f"{first}.0", f"{last}.end")
+            lines = block.split("\n")
+            seen, out = set(), []
+            for ln in lines:
+                if ln in seen:
+                    continue
+                seen.add(ln)
+                out.append(ln)
+            removed = len(lines) - len(out)
+            if removed:
+                t.delete(f"{first}.0", f"{last}.end")
+                t.insert(f"{first}.0", "\n".join(out))
+                t.tag_remove("sel", "1.0", "end")
+                t.tag_add("sel", f"{first}.0",
+                          f"{first + len(out) - 1}.end")
+                t.mark_set("insert", f"{first}.0")
+                t.see("insert")
+                self._on_key()
+            return removed
+        except tk.TclError:
+            return 0
+
     def goto_line(self, number):
         """Jump to a 1-based line, clamped. Returns True on success."""
         t = self.text
