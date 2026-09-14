@@ -184,6 +184,24 @@ def main():
     check("status shows render stats", "render" in
           mwin.status.cget("text"))
     mwin.destroy()
+
+    # ---- color kit (same smoke, sixth lane)
+    from dxn1_studio.colorkit import open_colorkit, shade_ramp
+    cwin = open_colorkit(root, theme, initial="#7c3aed")
+    cwin.update_idletasks()
+    check("colorkit window opens", cwin.winfo_exists())
+    check("colorkit info formats", "rgb(124, 58, 237)" in
+          cwin.info.cget("text"))
+    check("colorkit contrast panel", "vs black" in
+          cwin.contrast.cget("text"))
+    check("colorkit ramp chips", len(cwin.ramp.winfo_children()) == 9)
+    check("colorkit ramp engine", len(shade_ramp("#123abc", 7)) == 7)
+    cwin.entry.delete(0, "end")
+    cwin.entry.insert(0, "not-a-color")
+    cwin.refresh()
+    check("colorkit junk tolerated", "enter a color" in
+          cwin.info.cget("text"))
+    cwin.destroy()
     root.destroy()
 
     failed = [n for n, ok in CHECKS if not ok]

@@ -89,6 +89,8 @@ SHEETS = [
                  "paste back (Ctrl+Shift+V)"),
         ("md", "Markdown preview — live dual-pane render, tables + "
                "code blocks, copy/export HTML (F5)"),
+        ("color", "Color Kit — hex/rgb/hsl at a glance, WCAG contrast "
+                  "verdicts, click-to-copy shade ramps"),
     ]),
     ("TERMINAL TALK", [
         ("help", "List every studio command"),

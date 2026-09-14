@@ -1319,3 +1319,46 @@ def test_markdown_preview_engine():
     # hostile input never raises
     assert parse_blocks("") == [] and parse_blocks(None) == []
     assert markdown_to_html("```\nunclosed")  # still renders
+
+
+def test_colorkit_engine():
+    # DS2 v2.15.0 lane — color conversion / contrast / ramps
+    from dxn1_studio.colorkit import (contrast_ratio, darken, hex_to_rgb,
+                                      hsl_to_rgb, lighten, mix,
+                                      normalize_hex, rgb_to_hex,
+                                      rgb_to_hsl, shade_ramp)
+
+    # normalization: 3/6 digits, optional hash, whitespace; junk → None
+    assert normalize_hex("#7C3AED") == "#7c3aed"
+    assert normalize_hex("abc") == "#aabbcc"
+    assert normalize_hex("  #aabbcc  ") == "#aabbcc"
+    assert normalize_hex("zzz") is None and normalize_hex(None) is None
+    assert normalize_hex("#aabbccd") is None
+
+    # round-trips: hex → rgb → hsl → rgb → hex is stable
+    assert hex_to_rgb("#7c3aed") == (124, 58, 237)
+    assert rgb_to_hex(124, 58, 237) == "#7c3aed"
+    h, s, l = rgb_to_hsl(124, 58, 237)
+    assert hsl_to_rgb(h, s, l) == (124, 58, 237)
+
+    # clamping keeps 0-255 guarantees
+    assert rgb_to_hex(300, -5, 0) == "#ff0000"
+
+    # WCAG contrast: known anchors + junk safe
+    assert contrast_ratio("#ffffff", "#ffffff") == 1.0
+    assert contrast_ratio("#000000", "#ffffff") == 21.0
+    assert contrast_ratio("#777777", "#ffffff") > 4.4
+    assert contrast_ratio("zzz", "#fff") == 0.0
+
+    # lighten/darken/mix move monotonically, junk → None
+    a = "#345"
+    assert hex_to_rgb(lighten(a, 20))[0] > hex_to_rgb(a)[0]
+    assert hex_to_rgb(darken(a, 20))[0] < hex_to_rgb(a)[0]
+    assert mix(a, "#000", 1.0) == "#000000"
+    assert mix(a, "#000", 0.0) == normalize_hex(a)
+    assert mix("zzz", "#000") is None
+
+    # ramps: deterministic, original preserved mid-ramp, junk-safe
+    r1, r2 = shade_ramp("#7c3aed", 9), shade_ramp("#7c3aed", 9)
+    assert r1 == r2 and len(r1) == 9 and r1[4] == "#7c3aed"
+    assert shade_ramp("zzz", 9) == [] and shade_ramp("#fff", 1) == []

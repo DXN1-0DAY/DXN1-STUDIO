@@ -1136,6 +1136,15 @@ class DXN1Studio:
                 command=_open_md_menu)
         except Exception:  # pragma: no cover — menu stays alive
             pass
+        # DS2: color kit (defensive)
+        def _open_color_menu():
+            self.open_colorkit()
+        try:
+            workshop_menu.add_command(
+                label="Color Kit — convert & contrast…",
+                command=_open_color_menu)
+        except Exception:  # pragma: no cover — menu stays alive
+            pass
         workshop_menu.add_separator()
         workshop_menu.add_command(label="Token Usage Dashboard…",
                                   command=_open_usage_menu)
@@ -1510,6 +1519,14 @@ class DXN1Studio:
                     or getattr(self.editor, "path", "") or "")
             open_markdown_preview(self.root, self.theme,
                                   text=text, path=path)
+        except Exception:  # noqa: BLE001 — menu stays alive
+            pass
+
+    def open_colorkit(self):
+        """DS2: color conversion / contrast workbench."""
+        try:
+            from .colorkit import open_colorkit
+            open_colorkit(self.root, self.theme)
         except Exception:  # noqa: BLE001 — menu stays alive
             pass
 
@@ -2526,6 +2543,8 @@ class DXN1Studio:
                     ("clip", "clipboard history — paste earlier copies"),
                     ("md", "live markdown preview — dual-pane, HTML "
                            "export"),
+                    ("color", "color kit — hex/rgb/hsl, WCAG "
+                              "contrast, shade ramps"),
                     ("explain", "hand the last error to the agent"),
                     ("git <args>", "run git in the workspace (status, add,"),
                     ("", "commit, log… output streams below"),
@@ -2764,6 +2783,12 @@ class DXN1Studio:
             self.open_markdown_preview()
             self.terminal.log("Markdown preview opened — edit left, "
                               "render right, F5 re-renders")
+            return
+        if low in ("color", "colorkit", "color kit"):
+            # DS2: color conversion workbench
+            self.open_colorkit()
+            self.terminal.log("Color Kit opened — paste a hex, get "
+                              "rgb/hsl/contrast/ramps")
             return
         if low.startswith("goto "):
             num = text[5:].strip()
@@ -3357,6 +3382,14 @@ class DXN1Studio:
         try:
             cmds.append(("Markdown preview — live dual-pane render…",
                          "DS2", _open_md_palette))
+        except Exception:  # pragma: no cover — palette stays alive
+            pass
+        # DS2: color kit (defensive)
+        def _open_color_palette():
+            self.open_colorkit()
+        try:
+            cmds.append(("Color Kit — hex/rgb/hsl + contrast…",
+                         "DS2", _open_color_palette))
         except Exception:  # pragma: no cover — palette stays alive
             pass
         # DS2: focus timer (defensive)

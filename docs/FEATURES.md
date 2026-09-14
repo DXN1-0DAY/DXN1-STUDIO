@@ -214,3 +214,12 @@
 | HTML export | *Copy HTML* / *Export HTML…* buttons | One click copies a full standalone HTML document (embedded CSS) or saves it next to your notes |
 | Forgiving parser | engine, unit-tested | Unclosed fences, missing blank lines, snake_case text and empty input all degrade gracefully — the renderer never loses characters or raises |
 | Tests | `tests/test_ds2.py` | Every block kind, inline style, table cells, paragraph folding, HTML escaping and hostile-input paths covered |
+
+## Color Kit (v2.15.0 lane)
+
+| Feature | Where | What it does |
+|---|---|---|
+| Conversion workbench | `colorkit.py`, Workshop → *Color Kit — convert & contrast…*, palette, terminal `color` / `colorkit` | Paste any color (`#7c3aed`, `7c3aed`, `#abc`) and instantly see hex, `rgb()`, `hsl()` and a tkinter-ready form |
+| WCAG contrast | contrast panel | Live contrast ratios against white and black with the AA 4.5:1 verdict and a "best partner" recommendation for text color |
+| Shade ramps | click-to-copy chips | A deterministic 9-step light→dark ramp through your color — every chip copies its hex to the clipboard |
+| Pure engine | `tests/test_ds2.py` | normalize/hex↔rgb↔hsl round-trips, 0-255 clamping, WCAG luminance math, mix/lighten/darken monotonicity and junk-input safety all unit-tested |
