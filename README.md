@@ -6,13 +6,14 @@
 
 **The clean, modern IDE. Built for flow.**
 
-A from-scratch desktop IDE in pure Python + Tkinter — boot splash, Project Hub,
-workspaces, syntax highlighting, command palette, sandboxed AI agents on
-**free cloud models** (no account, no API key) or your own key. No Electron.
-No Node. No frameworks. ~10 MB of Python.
+A from-scratch desktop IDE in pure Python + Tkinter — animated boot splash,
+Project Hub, workspaces, syntax highlighting, a Git panel, command palette
+with `@` symbol jump, sandboxed AI agents on a **resilient free cloud stack**
+(no account, no API key) or your own key. No Electron. No Node. No
+frameworks. ~10 MB of Python.
 
 [![CI](https://github.com/DXN1-termux/DXN1-STUDIO/actions/workflows/ci.yml/badge.svg)](https://github.com/DXN1-termux/DXN1-STUDIO/actions/workflows/ci.yml)
-[![Version](https://img.shields.io/badge/version-1.1.2--beta-7c3aed?style=flat-square)](CHANGELOG.md)
+[![Version](https://img.shields.io/badge/version-1.1.3--beta-7c3aed?style=flat-square)](CHANGELOG.md)
 [![Python](https://img.shields.io/badge/python-3.8%2B-3776ab?style=flat-square&logo=python&logoColor=white)](https://www.python.org)
 [![Platform](https://img.shields.io/badge/platform-Linux%20%7C%20Termux%20%7C%20macOS%20%7C%20Windows-24292f?style=flat-square)](#requirements)
 [![License](https://img.shields.io/badge/license-MIT-3fb950?style=flat-square)](LICENSE)
@@ -39,6 +40,7 @@ Xvfb — nothing is mocked.*
 - [First launch](#first-launch)
 - [Project Hub](#project-hub)
 - [The IDE](#the-ide)
+- [Source Control — Git without leaving the studio](#source-control--git-without-leaving-the-studio)
 - [DXN1 Agents](#dxn1-agents)
 - [Packages — lightweight by default](#packages--lightweight-by-default)
 - [Export](#export)
@@ -55,7 +57,7 @@ Xvfb — nothing is mocked.*
 <tr>
 <td width="50%" align="center">
 <img src="assets/screens/01_project_hub.png" alt="Project Hub" width="100%"/><br/>
-<b>Project Hub</b> — scaffold, open, clone from GitHub, or jump back into a recent workspace
+<b>Project Hub</b> — nine scaffolds, open any folder, clone from GitHub, or jump back into a recent workspace
 </td>
 <td width="50%" align="center">
 <img src="assets/screens/02_ide_agents.png" alt="IDE with DXN1 Agents" width="100%"/><br/>
@@ -64,34 +66,54 @@ Xvfb — nothing is mocked.*
 </tr>
 <tr>
 <td width="50%" align="center">
-<img src="assets/screens/04_command_palette.png" alt="Command palette" width="100%"/><br/>
-<b>Command palette</b> — Ctrl+K, fuzzy over every studio command
+<img src="assets/screens/11_git_panel.png" alt="Git panel" width="100%"/><br/>
+<b>Source Control panel</b> — stage, unstage, commit and browse history without leaving the studio
 </td>
 <td width="50%" align="center">
-<img src="assets/screens/07_light_theme.png" alt="Light theme" width="100%"/><br/>
-<b>Light theme</b> — dark & light, six accent colours, editor text size to taste
+<img src="assets/screens/06_command_palette.png" alt="Command palette" width="100%"/><br/>
+<b>Command palette</b> — Ctrl+K over every command, type <code>@</code> to jump to symbols
 </td>
 </tr>
 </table>
 
 <details>
-<summary><b>More screenshots</b> — wizard, agent skills, packages</summary>
+<summary><b>More screenshots</b> — wizard, split editor, quick open, packages, light theme, splash</summary>
 
 <table>
 <tr>
 <td width="50%" align="center">
-<img src="assets/screens/06_wizard.png" alt="Welcome wizard" width="100%"/><br/>
+<img src="assets/screens/08_wizard.png" alt="Welcome wizard" width="100%"/><br/>
 <b>Welcome wizard</b> — name, theme, first project, optional agents — five steps
 </td>
 <td width="50%" align="center">
+<img src="assets/screens/05_split_view.png" alt="Split view" width="100%"/><br/>
+<b>Split editor</b> — same buffer, edit on either side (Ctrl+\)
+</td>
+</tr>
+<tr>
+<td width="50%" align="center">
 <img src="assets/screens/03_agent_skills.png" alt="Agent skills" width="100%"/><br/>
-<b>Agent skills</b> — offline helpers that work with zero setup
+<b>Agent skills</b> — offline helpers plus one-tap quick actions
+</td>
+<td width="50%" align="center">
+<img src="assets/screens/04_quick_open.png" alt="Quick open" width="100%"/><br/>
+<b>Quick open</b> — Ctrl+P, fuzzy across the whole workspace
+</td>
+</tr>
+<tr>
+<td width="50%" align="center">
+<img src="assets/screens/07_packages.png" alt="Packages view" width="100%"/><br/>
+<b>Packages view</b> — the one opt-in place for the heavy stuff
+</td>
+<td width="50%" align="center">
+<img src="assets/screens/09_light_theme.png" alt="Light theme" width="100%"/><br/>
+<b>Light theme</b> — dark & light, six accent colours, editor text size to taste
 </td>
 </tr>
 <tr>
 <td colspan="2" align="center">
-<img src="assets/screens/05_packages.png" alt="Packages view" width="72%"/><br/>
-<b>Packages view</b> — the one opt-in place for the heavy stuff
+<img src="assets/screens/10_splash.png" alt="Boot splash" width="45%"/><br/>
+<b>Boot splash</b> — brand card, shimmer progress, rotating status lines
 </td>
 </tr>
 </table>
@@ -104,8 +126,9 @@ Xvfb — nothing is mocked.*
 |---|---|---|
 | RAM at idle | ~60–90 MB (it's Tkinter) | 400 MB – 1.5 GB |
 | Install size | ~10 MB, one curl command | 300+ MB |
-| Startup | instant, logo splash 2s | spinner city |
-| AI agents | free cloud brain, **no account needed**, sandboxed to your workspace | BYOK only, often cloud-tied |
+| Startup | instant, animated brand splash | spinner city |
+| AI agents | free cloud stack, **no account needed**, sandboxed to your workspace | BYOK only, often cloud-tied |
+| Git | stage / commit / log built in | usually an extension |
 | Dependencies | Python 3.8 + Tkinter. That's the list | ships a browser |
 | Network stack | stdlib `urllib` | bundled Chromium |
 
@@ -142,7 +165,7 @@ export PATH="$HOME/.local/bin:$PATH"
 
 ## Launch
 
-The boot sequence: logo card for ~2 seconds, then the studio rises.
+The boot sequence: animated brand card for ~2 seconds, then the studio rises.
 
 ```bash
 dxn1 studio          # the classic way
@@ -162,7 +185,8 @@ dxn1 studio --smoke-test      # headless self-check (CI-safe, temp config)
 
 ## First launch
 
-1. **Boot splash** — the logo card, two seconds, done
+1. **Boot splash** — brand card with a shimmer bar and rotating status lines
+   (click to skip)
 2. **Welcome wizard** — hero splash + your display name
 3. **Make it yours** — dark/light theme, six accent colours, editor text size
 4. **First project** — tell the studio what you're building (or skip)
@@ -170,17 +194,22 @@ dxn1 studio --smoke-test      # headless self-check (CI-safe, temp config)
 6. **Project Hub** — create your first workspace or explore the studio
 7. **Guided tour** — a short spotlight walk across the real UI
 
-Replay the wizard or tour anytime from the **Help** menu.
+Replay the wizard or tour anytime from the **Help** menu — or type
+`dxn1 studio` in the terminal to replay the splash, because why not.
 
 ## Project Hub
 
-Every session starts at the Hub:
+Every session starts at the Hub — nine scaffolds and counting:
 
 | | |
 |---|---|
 | **New Python Script** | ready-to-run `main.py`, zero dependencies |
 | **New Flask Web App** | `app.py` + template + `requirements.txt` |
+| **New FastAPI App** | JSON route starter + requirements |
+| **New CLI Tool** | argparse app with subcommands, flags and help text |
+| **New Static Website** | HTML + CSS + JS, no build step, no dependencies |
 | **New Tkinter App** | native desktop starter |
+| **New Python Package** | src-style module + tests + `pyproject.toml` |
 | **Empty Workspace** | a clean folder, your ideas |
 | **Open existing folder** | any folder becomes a tracked workspace |
 | **Clone from GitHub** | paste `owner/repo` or a URL, watch `git clone` live |
@@ -194,29 +223,54 @@ Reopen via **File → Project Hub**.
 **Editing**
 - Syntax highlighting for Python, HTML/CSS/JS, JSON, Markdown and more —
   regex-based, zero dependencies, theme-aware
-- Tab buffers with unsaved ● markers, Ctrl+W close, Ctrl+Tab cycle
-- In-file find bar (Ctrl+F) with hit counting and prev/next
-- Word wrap toggle, Ctrl+ +/− editor text size, auto-save option
-- Full undo/redo history
+- Tab buffers with unsaved ● markers, Ctrl+W close, Ctrl+Tab cycle,
+  right-click tabs for *close others / close all / copy path / reveal*
+- Auto-indent (deeper after `:`), auto-close brackets and quotes with
+  type-over, matching-bracket spotlight, current-line wash
+- **Line ops** — toggle comment (Ctrl+/), duplicate, delete, move lines
+- **Bookmarks** — click a line number or Ctrl+F2; F2 / Shift+F2 walk them
+- **Snippets** — Tab expands `ifmain`, `pdb`, `smain`; plain indent otherwise
+- In-file find bar (Ctrl+F) with hit counting and prev/next, Go to Line
+  (Ctrl+G), word wrap toggle, Ctrl+ +/− text size, auto-save option
+- Full undo/redo history; word/selection/line counts in the status bar
 
 **Moving around**
-- **Activity bar** — slim icon rail: Explorer, Search, Packages + Hub and
-  Agents shortcuts
-- **Command palette** — Ctrl+K / Ctrl+Shift+P, fuzzy over every command
+- **Activity bar** — slim icon rail: Explorer, Search, **Source Control**,
+  Packages + Hub and Agents shortcuts
+- **Command palette** — Ctrl+K, fuzzy over every command; type **`@`** to
+  jump to any `def` / `class` in the open file
+- **Quick open** — Ctrl+P, fuzzy across the entire workspace
 - **Find-in-files** — workspace-wide search, grouped results, click to jump
   to the exact line
+- **Split editor** (Ctrl+\) — one buffer, two live views
+- **Zen mode** (Ctrl+Alt+Z) — everything away but the editor
 
 **Running**
 - **F5** executes the active file (or the workspace's `app.py`/`main.py`)
   and streams output live into the terminal
-- **Interactive terminal** with studio commands: `run`, `stop`, `clear`,
-  `packages`, `search`, `find`, `palette`, `hub`, `export`, `agent`, `settings`
-- Git branch shown in the status bar when the workspace is a repo
+- **Interactive terminal** with studio commands (below) — ANSI stripped,
+  progress-bar friendly, log capped so long runs stay light
+- **Searchable settings** (Ctrl+,) — type to filter every preference row
 
 **Quality of life**
-- Toasts for saves, exports, errors
+- Themed in-app menu bar — dark mode never flashes a system-white strip
+- Toasts for saves, exports, errors; session restore reopens your tabs
+- Update checker against GitHub releases (Help → Check for Updates)
 - Uncaught exceptions land in `~/.dxn1-studio/logs/studio.log` with a
   friendly toast instead of a dead window
+
+## Source Control — Git without leaving the studio
+
+The **Source Control** sidebar speaks plain `git` through `subprocess` —
+no libraries, no daemons:
+
+- branch chip + changed files grouped into **Staged** and **Changes**
+- per-file stage / unstage (`+` / `−`), **Stage all**, one-click **Commit**
+  (auto-stages when nothing is staged yet)
+- recent **history** list, untracked files flagged, merge conflicts marked
+- a folder with no repo gets a one-click **git init** card
+- `git <anything>` works in the terminal too — `git status`, `git log`,
+  `git diff` stream live into the output pane
 
 ## DXN1 Agents
 
@@ -236,12 +290,16 @@ explain                     → analyzes the editor buffer
 shell python -V             → proposes raw commands (you approve)
 ```
 
+Plus **quick actions** — one tap above the input:
+`✦ Explain` · `✦ Tests` · `✦ Bugs` · `✦ Docs` fire crafted prompts at the
+open file.
+
 ### Model brains — pick one in Settings → DXN1 Agents
 
 | Brain | What it is | Cost |
 |-------|------------|------|
 | **Local skills** | The offline rule engine | free, no setup |
-| **Free cloud** | Pollinations — no account, no API key, **no login at all**; anonymous usage tracked per IP | free, rate-limited |
+| **Free cloud** | Keyless cloud models with **automatic failover** to GitHub Models when a GitHub login exists — the header chip always names the provider that answered | free, rate-limited |
 | **BYOK** | Your key on any OpenAI-compatible provider — OpenRouter, Groq, Google AI Studio, Mistral, OpenAI, Ollama (local), custom endpoint | your key; OpenRouter `:free` models cost nothing |
 | **GitHub Models** | Free tier tracked via your GitHub login | free, rate-limited |
 | **Kilo gateway** | Free-model routing through an in-studio HTTP client — deliberately *not* a bundled Kilo instance, so it adds near-zero RAM instead of hundreds of MB | your Kilo token |
@@ -305,14 +363,24 @@ uninstall. Power users can pip-install anything from the same view.
 |---|---|
 | Ctrl+N / Ctrl+O / Ctrl+S | new / open / save |
 | Ctrl+W · Ctrl+Tab | close tab · cycle tabs |
-| Ctrl+K or Ctrl+Shift+P | command palette |
+| Ctrl+K or Ctrl+Shift+P | command palette — type `@` for symbols |
+| Ctrl+P | quick open a file |
 | Ctrl+F | find in file |
+| Ctrl+G | go to line |
+| Ctrl+/ | toggle comment |
+| Ctrl+Shift+D / Ctrl+Shift+K | duplicate / delete line |
+| Alt+Up / Alt+Down | move line up / down |
+| Tab | expand snippet (`ifmain` · `pdb` · `smain`) |
+| Ctrl+F2 · F2 · Shift+F2 | bookmark line · next · previous |
+| Ctrl+\ | split editor |
+| Ctrl+Alt+Z | zen mode |
 | F5 | run project |
 | Ctrl+, | settings |
 
 Terminal one-liners: `run` · `stop` · `clear` · `packages` · `search <q>` ·
-`find <text>` · `palette` · `hub` · `export` · `agent <request>` · `settings`
-— and `dxn1 studio` replays the boot splash, because why not.
+`find <text>` · `palette` · `todo` · `git <args>` · `goto <line>` · `recent` ·
+`hub` · `export` · `agent <request>` · `settings` — and `dxn1 studio` replays
+the boot splash, because why not.
 
 ## Requirements
 
@@ -320,6 +388,7 @@ Terminal one-liners: `run` · `stop` · `clear` · `packages` · `search <q>` ·
 |---|---|
 | Python | 3.8+ |
 | Tkinter | usually bundled; Debian/Ubuntu/Termux: `apt install python3-tk` |
+| git | optional — powers the Source Control panel and GitHub cloning |
 | Pillow | optional — crisp image scaling, falls back automatically |
 | Everything else | opt-in via the Packages view |
 
@@ -334,21 +403,22 @@ DXN1-STUDIO/
 ├── DXN1 STUDIO              # yes, a launcher with a space
 ├── dxn1-studio              # classic entry point
 ├── dxn1_studio/
-│   ├── app.py               # Main window, activity bar, palette, boot flow
+│   ├── app.py               # Main window, menu bar, palette, tabs, boot flow
 │   ├── config.py            # ~/.dxn1-studio/config.json persistence
 │   ├── theme.py             # Dark/light palettes + accent colours
 │   ├── widgets.py           # Explorer, highlighting editor, terminal
 │   ├── search.py            # Find-in-files sidebar view
+│   ├── gitpanel.py          # Source Control sidebar (stage/commit/log)
 │   ├── onboarding.py        # 5-step welcome wizard (theme, project, brain)
 │   ├── tour.py              # Interactive guided tour
 │   ├── projects.py          # Workspace scaffolds + recent registry
 │   ├── hub.py               # Project Hub (scaffold / open / clone GitHub)
-│   ├── splash.py            # Boot splash (logo card)
+│   ├── splash.py            # Animated brand boot splash
 │   ├── packages.py          # Optional dependency view + window
 │   ├── export.py            # ZIP / file export
 │   ├── agent.py             # DXN1 Agents panel, brain settings, Connect flow
 │   ├── sandbox.py           # Workspace jail, tool protocol, agent engine
-│   ├── llm.py               # Backends: free cloud, BYOK, GitHub Models, Kilo
+│   ├── llm.py               # Backends: free stack, BYOK, GitHub Models, Kilo
 │   └── errors.py            # Global error logging + toasts
 ├── assets/                  # Logo, banner, real UI screenshots
 ├── install.sh               # Curl-based installer
@@ -359,10 +429,12 @@ DXN1-STUDIO/
 
 ## Roadmap
 
-- [ ] **v1.2** — main-UI expansion: split editors, more wizard choices,
-      searchable settings
-- [ ] **v1.3** — more free providers + a usage dashboard
-- [ ] **v1.4** — git panel: stage, diff, commit without leaving the studio
+- [x] **v1.2** — split editors, CLI & static-site scaffolds, searchable
+      settings, `@` symbols, bookmarks, snippets
+- [x] **v1.3** — free-brain failover stack (keyless → GitHub Models),
+      source-control panel, animated splash
+- [ ] **v1.4** — visual diff viewer, branch manager and a git graph
+- [ ] **v1.5** — token usage dashboard + per-workspace agent memory
 - [ ] **v2.0** — plugin API + community themes
 
 ## Contributing

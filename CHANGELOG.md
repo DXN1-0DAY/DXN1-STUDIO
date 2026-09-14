@@ -4,6 +4,62 @@ All notable changes to DXN1 STUDIO. Format based on
 [Keep a Changelog](https://keepachangelog.com/); versioning is
 `MAJOR.MINOR.PATCH` while in **beta**.
 
+## [1.1.3] — 2026-09-14 · beta
+
+### Added
+- **Source Control panel** — a Git sidebar that speaks plain `git`:
+  branch chip, changed files with staged/unstaged sections, per-file
+  stage/unstage, one-click commit (auto-stages when nothing is staged),
+  recent history, `git init` offer for plain folders, conflict markers.
+  Reachable from the activity bar, the toolbar, the View menu and
+  `git <args>` terminal commands that stream output live.
+- **Free-brain failover stack** — the "Free cloud" brain is no longer a
+  single vendor: keyless cloud models first, transparent failover to
+  GitHub Models when a GitHub login exists, and the header chip always
+  names the provider that actually answered.
+- **`@` symbols in the command palette** — type `@` in Ctrl+K to jump to
+  any `def` / `class` in the open file (JS/TS functions and Markdown
+  headings too).
+- **Bookmarks** — click a line number (or Ctrl+F2) to bookmark; F2 /
+  Shift+F2 walk them; accent-highlighted in the gutter.
+- **Tab snippets** — Tab expands `ifmain`, `pdb` and `smain` in Python
+  files; plain indent otherwise (never steals focus).
+- **Agent quick actions** — one-tap chips above the agent input:
+  Explain file · Write tests · Find bugs · Docstrings.
+- **Searchable settings** — type in Settings to filter rows across every
+  section; empty cards collapse away.
+- **New project kinds** — CLI Tool (argparse with subcommands) and
+  Static Website (HTML + CSS + JS), on the Hub and in the wizard.
+- **Animated boot splash** — baked brand card (logo, wordmark, version
+  chip) with fade-in, shimmer progress bar and rotating status lines.
+  Click to skip; `dxn1 studio` in the terminal replays it.
+- Word count, selection stats and bookmark state in the status bar;
+  per-tab context menu (close others / close all / copy path / reveal in
+  file manager); "Reveal in File Manager" in the explorer menu too.
+- Workspace session restore, auto-save, update checker against GitHub
+  releases, and a shortcuts cheat-sheet.
+
+### Changed
+- **Themed in-app menu bar** — the native menubar (un-themeable white on
+  Linux) is replaced by a dark bar that matches the studio: brand mark,
+  version chip, hover states, fully styled dropdowns.
+- Project Hub: uniform card grid, slimmer regenerated hero artwork that
+  blends into the background, tighter geometry — all nine templates plus
+  recents fit without clipping.
+- Terminal: ANSI escapes stripped, carriage-return progress bars
+  resolved, log capped so long runs can't eat memory.
+
+### Fixed
+- Gutter current-line number rendered with a literal `_` suffix instead
+  of an accent highlight.
+- Command palette and Quick Open kept their opening size after the
+  result list shrank, leaving a large dead area.
+- Git panel listed an untracked directory as a nameless row (now
+  `status -uall`) and showed `HEAD` on fresh repositories (now resolves
+  the unborn branch name).
+- Source-control panel constructed before the terminal existed during
+  boot (attribute-order crash on first launch).
+
 ## [1.1.2] — 2026-09-14 · beta
 
 ### Added

@@ -19,7 +19,7 @@ from .onboarding import load_scaled
 from . import projects
 from .theme import FONT_UI, FONT_MONO
 
-HUB_W, HUB_H = 940, 720
+HUB_W, HUB_H = 940, 830
 
 ASSETS_DIR = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "assets")
 
@@ -312,10 +312,10 @@ class ProjectHub(tk.Toplevel):
         close.pack(side=tk.RIGHT)
         close.bind("<Button-1>", lambda e: self._finish_explore())
 
-        hero = load_scaled(os.path.join(ASSETS_DIR, "hub_hero.png"), 880, 170)
+        hero = load_scaled(os.path.join(ASSETS_DIR, "hub_hero.png"), 880, 120)
         if hero:
             self._imgrefs.append(hero)
-            tk.Label(self, image=hero, bg=C["overlay"]).pack(pady=(12, 0))
+            tk.Label(self, image=hero, bg=C["overlay"]).pack(pady=(10, 0))
 
         name = self.config.get("name") or "developer"
         tk.Label(self, text=f"Welcome back, {name}. Where to?",
@@ -332,7 +332,7 @@ class ProjectHub(tk.Toplevel):
         cards = tk.Frame(self, bg=C["overlay"])
         cards.pack(anchor="w", padx=32)
         for i, kind in enumerate(projects.KIND_ORDER):
-            self._new_card(cards, kind, i % 4, 0)
+            self._new_card(cards, kind, i % 4, i // 4)
 
         actions = tk.Frame(self, bg=C["overlay"])
         actions.pack(anchor="w", padx=32, pady=(8, 0))
@@ -366,9 +366,13 @@ class ProjectHub(tk.Toplevel):
     def _card_shell(self, parent, col, row):
         card = tk.Frame(parent, bg=C["card"], highlightthickness=2,
                         highlightbackground=C["card_border"],
-                        highlightcolor=self.accent, cursor="hand2")
-        card.grid(row=row, column=col, padx=6, ipadx=4, ipady=4, sticky="nsew")
+                        highlightcolor=self.accent, cursor="hand2",
+                        height=96, width=200)
+        card.grid_propagate(False)          # every card identical size
+        card.grid(row=row, column=col, padx=6, ipadx=4, ipady=4,
+                  sticky="nsew")
         parent.grid_columnconfigure(col, weight=1, uniform="hubcards")
+        parent.grid_rowconfigure(row, weight=1)
         return card
 
     def _hover(self, card):
@@ -382,15 +386,16 @@ class ProjectHub(tk.Toplevel):
         card = self._card_shell(parent, col, row)
         tk.Label(card, text=icon, bg=C["card"], fg=self.accent,
                  font=(FONT_MONO, 9, "bold"), padx=6, pady=2
-                 ).pack(padx=12, pady=(12, 2), anchor="w")
+                 ).pack(padx=12, pady=(9, 1), anchor="w")
         tk.Label(card, text=label, bg=C["card"], fg=C["text"],
                  font=(FONT_UI, 11, "bold"), wraplength=170,
                  justify=tk.LEFT).pack(padx=12, anchor="w")
         tk.Label(card, text=pitch, bg=C["card"], fg=C["secondary"],
-                 font=(FONT_UI, 9), wraplength=170, justify=tk.LEFT
-                 ).pack(padx=12, pady=(3, 12), anchor="w")
+                 font=(FONT_UI, 9), wraplength=180, justify=tk.LEFT
+                 ).pack(padx=12, pady=(2, 9), anchor="w")
         for w in card.winfo_children():
             w.bind("<Button-1>", lambda e, k=kind: self.create_workspace(k))
+        card.bind("<Button-1>", lambda e, k=kind: self.create_workspace(k))
         self._hover(card)
 
     def _action_card(self, parent, action, label, pitch, col):
@@ -398,16 +403,17 @@ class ProjectHub(tk.Toplevel):
         icon = "⌂" if action == "open" else "⬇"
         tk.Label(card, text=icon, bg=C["card"], fg=self.accent,
                  font=(FONT_MONO, 9, "bold"), padx=6, pady=2
-                 ).pack(padx=12, pady=(12, 2), anchor="w")
+                 ).pack(padx=12, pady=(9, 1), anchor="w")
         tk.Label(card, text=label, bg=C["card"], fg=C["text"],
                  font=(FONT_UI, 11, "bold"), wraplength=170,
                  justify=tk.LEFT).pack(padx=12, anchor="w")
         tk.Label(card, text=pitch, bg=C["card"], fg=C["secondary"],
-                 font=(FONT_UI, 9), wraplength=170, justify=tk.LEFT
-                 ).pack(padx=12, pady=(3, 12), anchor="w")
+                 font=(FONT_UI, 9), wraplength=180, justify=tk.LEFT
+                 ).pack(padx=12, pady=(2, 9), anchor="w")
         cmd = self.open_existing if action == "open" else self.open_clone
         for w in card.winfo_children():
             w.bind("<Button-1>", lambda e, c=cmd: c())
+        card.bind("<Button-1>", lambda e, c=cmd: c())
         self._hover(card)
 
     def _refresh_recents(self):

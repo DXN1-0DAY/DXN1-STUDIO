@@ -25,10 +25,10 @@ EDITOR_SIZES = (("small", 10, "Small"), ("medium", 11, "Medium"),
 
 # wizard brain quick-picks: key -> (title, sub, setup_pending)
 BRAIN_CHOICES = (
-    ("free",  "Free cloud",       "No account · no key · no login at all", ""),
-    ("local", "Offline skills",   "Instant · no network · no key",         ""),
-    ("kilo",  "Google-login free","Kilo gateway · sign in with Google",    "kilo"),
-    ("byok",  "My own API key",   "BYOK · OpenRouter, Groq, Gemini…",      "byok"),
+    ("free",  "Free cloud",       "Keyless · auto-fails-over to GitHub Models", ""),
+    ("local", "Offline skills",   "Instant · no network · no key",              ""),
+    ("kilo",  "Google-login free","Kilo gateway · sign in with Google",         "kilo"),
+    ("byok",  "My own API key",   "BYOK · OpenRouter, Groq, Gemini…",           "byok"),
 )
 
 PROJECT_CHOICES = (

@@ -39,32 +39,33 @@ class InteractiveTour:
         self.steps = [
             TourStep("activity", "The Activity Bar",
                      "One slim rail for the big moves: Explorer, Search, "
-                     "Packages, the Project Hub and DXN1 Agents. The accent "
-                     "edge shows where you are.",
+                     "Source Control, Packages, the Project Hub and DXN1 "
+                     "Agents. The accent edge shows where you are.",
                      "right"),
             TourStep("sidebar", "File Explorer",
                      "Your whole workspace with expandable folders. Click any "
-                     "file to open it instantly in the editor.",
+                     "file to open it instantly in the editor. Right-click "
+                     "for rename, duplicate, run and reveal.",
                      "right"),
             TourStep("tabs_frame", "Editor Tabs",
                      "Every file lands here as a tab — the ● dot means unsaved "
                      "changes. Ctrl+W closes, Ctrl+Tab cycles, middle-click "
-                     "closes too.",
+                     "closes too, right-click for close-others and copy path.",
                      "below"),
-            TourStep("toolbar", "Run, Packages & Export",
+            TourStep("toolbar", "Run, Git & Export",
                      "One strip for the power stuff: Run (F5) executes your "
-                     "code and streams output to the terminal, Packages "
-                     "installs optional extras like Flask, Export zips the "
-                     "whole workspace to share.",
+                     "code and streams output to the terminal, Git stages and "
+                     "commits your work, Packages installs optional extras "
+                     "like Flask, Export zips the whole workspace to share.",
                      "below"),
             TourStep("editor", "The Editor",
-                     "Syntax highlighting, line numbers, unlimited undo. Press "
-                     "Ctrl+F to find in the file, Ctrl+K for the command "
-                     "palette, Ctrl+ +/- for text size.",
+                     "Syntax highlighting, auto-indent, auto-close brackets. "
+                     "Ctrl+F finds, Ctrl+K then @ jumps to symbols, F2 walks "
+                     "your bookmarks, Tab expands snippets like ifmain.",
                      "left"),
             TourStep("terminal", "Terminal with Studio Commands",
                      "Activity is echoed here — and you can type too. Try "
-                     "“run”, “search fixme”, “palette” or the classic "
+                     "“run”, “git status”, “todo”, “palette” or the classic "
                      "“dxn1 studio”. “help” lists everything.",
                      "above"),
         ]

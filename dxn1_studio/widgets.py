@@ -21,6 +21,10 @@ TREE_SKIP = {".git", "__pycache__", ".venv", "venv", "node_modules",
              ".dxn1-studio", ".pytest_cache", ".mypy_cache", "dist",
              "build", ".idea", ".vs"}
 
+# ANSI escape sequences (colours, cursor moves) — stripped in the terminal
+_ANSI_RE = re.compile(r"\x1b\[[0-9;?]*[A-Za-z]|\x1b\][^\x07]*\x07|\x1b.")
+
+
 
 # =====================================================================
 #  syntax highlighting — one master regex per language, zero deps
@@ -188,10 +192,12 @@ class Highlighter:
 class FileTree(tk.Frame):
     """Project explorer sidebar — expandable folders, click to open."""
 
-    def __init__(self, parent, theme, on_file_select=None, start_dir=None):
+    def __init__(self, parent, theme, on_file_select=None, start_dir=None,
+                 on_context=None):
         super().__init__(parent, bg=theme["sidebar"])
         self.theme = theme
         self.on_file_select = on_file_select
+        self.on_context = on_context
         self.current_dir = start_dir or os.path.expanduser("~")
         self._open = {self.current_dir}
 
@@ -274,6 +280,14 @@ class FileTree(tk.Frame):
         label.bind("<Leave>", lambda e: label.config(bg=self.theme["sidebar"]))
         return frame, label
 
+    def _popup_context(self, path, is_dir, event):
+        if self.on_context:
+            try:
+                self.on_context(path, is_dir, event.x_root, event.y_root)
+            except Exception:
+                pass
+        return "break"
+
     def _render(self, dirpath, container, depth):
         try:
             entries = sorted(os.listdir(dirpath),
@@ -300,6 +314,8 @@ class FileTree(tk.Frame):
                     "<Button-1>",
                     lambda e, d=full, b=childbox, dep=depth:
                     self._toggle(d, b, dep))
+                label.bind("<Button-3>",
+                           lambda e, p=full: self._popup_context(p, True, e))
             else:
                 row, label = self._row(container, depth)
                 label.config(text=f"   {entry}")
@@ -307,6 +323,8 @@ class FileTree(tk.Frame):
                     label.bind(
                         "<Button-1>",
                         lambda e, p=full: self.on_file_select(p))
+                label.bind("<Button-3>",
+                           lambda e, p=full: self._popup_context(p, False, e))
 
     def _toggle(self, dirpath, childbox, depth=0):
         try:
@@ -366,18 +384,36 @@ class CodeEditor(tk.Frame):
                                     command=self.text.xview)
         self.text.configure(xscrollcommand=self.xscroll.set)
 
-        # find tags
+        # find / decoration tags
         self.text.tag_configure("find_all",
                                 background=self.theme["hover"])
         self.text.tag_configure("find_cur",
                                 background=self.theme.accent,
                                 foreground="#ffffff")
+        self.text.tag_configure("cur_line", background=self.theme["hover"])
+        self.text.tag_configure("bracket",
+                                background=self.theme["hover"],
+                                foreground=self.theme.accent)
 
         self.highlighter = Highlighter(self.text, theme)
 
+        # typing helpers (flipped from Settings / app config)
+        self.auto_indent = True
+        self.auto_close = True
+
         self.text.bind("<KeyRelease>", self._on_key)
+        self.text.bind("<ButtonRelease-1>", self._on_cursor)
         self.text.bind("<MouseWheel>", self.update_line_numbers)
-        self.text.bind("<ButtonRelease-1>", self.update_line_numbers)
+        self.text.bind("<Return>", self._on_return)
+        self.text.bind("<Key>", self._on_typing)
+        self.text.bind("<Tab>", self._on_tab)
+
+        # bookmarks: line numbers kept in-session, shown in the gutter
+        self.bookmarks = set()
+        self.line_numbers.tag_configure("cur", foreground=theme.accent,
+                                        font=(FONT_MONO, 11, "bold"))
+        self.line_numbers.tag_configure("bm", foreground=theme.accent)
+        self.line_numbers.bind("<Button-1>", self._gutter_click)
         self._sync_xscroll()
         self.update_line_numbers()
 
@@ -392,6 +428,274 @@ class CodeEditor(tk.Frame):
         self.modified = True
         self.update_line_numbers()
         self.highlighter.schedule()
+        self._decorate_cursor()
+
+    def _on_cursor(self, event=None):
+        self.update_line_numbers()
+        self._decorate_cursor()
+
+    # ---------------------------------------------------- cursor decoration
+    def _decorate_cursor(self):
+        """Current-line wash + matching-bracket spotlight."""
+        t = self.text
+        try:
+            t.tag_remove("cur_line", "1.0", "end")
+            t.tag_remove("bracket", "1.0", "end")
+            t.tag_add("cur_line", "insert linestart", "insert lineend+1c")
+            pair = self._matching_bracket()
+            if pair:
+                t.tag_add("bracket", pair[0], pair[1])
+        except tk.TclError:
+            pass
+
+    _PAIRS = {"(": ")", "[": "]", "{": "}",
+              ")": "(", "]": "[", "}": "{"}
+
+    # Tab-expandable typing helpers (per language, stdlib-first)
+    SNIPPETS = {
+        ".py": {"ifmain": 'if __name__ == "__main__":\n    main()',
+                 "pdb": "import pdb; pdb.set_trace()",
+                 "smain": "def main():\n    pass"},
+    }
+
+
+    def _matching_bracket(self):
+        """Index pair for the bracket at/next to the cursor, else None."""
+        t = self.text
+        try:
+            insert = t.index("insert")
+            content = t.get("1.0", "end-1c")
+            if len(content) > 200_000:
+                return None
+            abs_off = len(t.get("1.0", insert))
+            for probe in (abs_off - 1, abs_off):
+                if probe < 0 or probe >= len(content):
+                    continue
+                ch = content[probe]
+                closer = self._PAIRS.get(ch)
+                if not closer:
+                    continue
+                going_forward = ch in "([{"
+                depth = 0
+                rng = range(probe, len(content)) if going_forward \
+                    else range(probe, -1, -1)
+                for i in rng:
+                    c = content[i]
+                    if c == ch:
+                        depth += 1
+                    elif c == closer:
+                        depth -= 1
+                        if depth == 0:
+                            i0, i1 = sorted((probe, i))
+                            return (f"1.0+{i0}c", f"1.0+{i1 + 1}c")
+                break
+        except tk.TclError:
+            return None
+        return None
+
+    # ------------------------------------------------------- typing helpers
+    def _on_return(self, event=None):
+        """Auto-indent Enter — keeps the leading whitespace, one level
+        deeper after ':' , and opens a cuddled block inside pairs."""
+        if not self.auto_indent or self.text.tag_ranges("sel"):
+            return None                      # default behaviour
+        t = self.text
+        try:
+            line = t.get("insert linestart", "insert lineend")
+            col = int(t.index("insert").split(".")[1])
+            before, after = line[:col], line[col:]
+        except tk.TclError:
+            return None
+        indent = before[: len(before) - len(before.lstrip())]
+        stripped = before.strip()
+        next_char = (after.lstrip()[:1] or "")
+        insert_text = "\n" + indent
+        if stripped.endswith((":", "(", "[", "{")):
+            insert_text += "    "
+        if stripped.endswith(("{", "(", "[")) and \
+                next_char in ("}", ")", "]"):
+            # cuddled block: cursor lands on the empty middle line
+            t.insert("insert", insert_text + "\n" + indent)
+            t.mark_set("insert", f"insert -{len(indent) + 1}c")
+            t.see("insert")
+            self._on_key()
+            return "break"
+        t.insert("insert", insert_text)
+        t.see("insert")
+        self._on_key()
+        return "break"
+
+    _CLOSERS = {"(": ")", "[": "]", "{": "}", '"': '"', "'": "'"}
+
+    def _on_typing(self, event=None):
+        """Auto-close brackets/quotes + type-over — VSCode muscle memory."""
+        if not self.auto_close or event is None or event.char == "":
+            return None
+        ch = event.char
+        if ch not in self._CLOSERS and ch not in ")]}":
+            return None
+        if event.state & 0x0004 or event.state & 0x0001:   # ctrl / alt
+            return None
+        t = self.text
+        try:
+            sel = t.tag_ranges("sel")
+            nxt = t.get("insert") or ""
+            prev = t.get("insert -1c") or ""
+            if ch in self._CLOSERS:
+                closer = self._CLOSERS[ch]
+                if sel:
+                    t.insert(sel[1], closer)
+                    t.insert(sel[0], ch)
+                    t.tag_add("sel", f"{sel[0]} +1c", f"{sel[1]} +1c")
+                    self._on_key()
+                    return "break"
+                if ch in "\"'" and (prev.isalnum() or prev in "\"'"):
+                    return None                # plain apostrophe, don't pair
+                if ch in "\"'" and nxt.isalnum():
+                    return None
+                t.insert("insert", ch + closer)
+                t.mark_set("insert", "insert -1c")
+                self._on_key()
+                return "break"
+            # type-over: typing a closer that's already next to the cursor
+            if ch in ")]}" and nxt == ch:
+                t.mark_set("insert", "insert +1c")
+                self._on_key()
+                return "break"
+        except tk.TclError:
+            return None
+        return None
+
+    # ----------------------------------------------------------- line ops
+    def toggle_comment(self):
+        """Ctrl+/ — comment/uncomment the selected (or current) lines."""
+        prefixes = {".py": "#", ".pyw": "#", ".pyi": "#",
+                    ".js": "//", ".ts": "//", ".jsx": "//", ".tsx": "//",
+                    ".css": "/*", ".json": "#", ".yml": "#", ".yaml": "#",
+                    ".sh": "#", ".toml": "#", ".rs": "//", ".c": "//",
+                    ".h": "//", ".cpp": "//", ".java": "//", ".go": "//"}
+        ext = os.path.splitext(self.file_path or "")[1].lower() or ".py"
+        if ext == ".html" or ext == ".xml":
+            open_p, close_p = "<!-- ", " -->"
+        else:
+            open_p, close_p = prefixes.get(ext, "#"), ""
+        t = self.text
+        try:
+            rng = t.tag_ranges("sel")
+            if rng:
+                first = int(str(rng[0]).split(".")[0])
+                last = int(str(rng[1]).split(".")[0])
+            else:
+                first = last = int(t.index("insert").split(".")[0])
+        except tk.TclError:
+            return
+        lines = [t.get(f"{i}.0", f"{i}.end") for i in range(first, last + 1)]
+        non_empty = [ln for ln in lines if ln.strip()]
+        if not non_empty:
+            return
+        if close_p:
+            commented = all(ln.lstrip().startswith(open_p.strip())
+                            for ln in non_empty)
+        else:
+            commented = all(
+                ln.lstrip().startswith(open_p) for ln in non_empty)
+        for i in range(first, last + 1):
+            ln = t.get(f"{i}.0", f"{i}.end")
+            if commented:
+                if close_p:
+                    ln = ln.replace(open_p.strip(), "", 1)
+                    ln = ln.replace(close_p.strip(), "", 1)
+                else:
+                    ln = ln.replace(open_p, "", 1)
+                t.delete(f"{i}.0", f"{i}.end")
+                t.insert(f"{i}.0", ln)
+            else:
+                if not ln.strip():
+                    continue
+                stripped = len(ln) - len(ln.lstrip())
+                if close_p:
+                    t.insert(f"{i}.{len(ln)}", " " + close_p)
+                    t.insert(f"{i}.{stripped}", open_p)
+                else:
+                    t.insert(f"{i}.{stripped}", open_p)
+        t.tag_add("sel", f"{first}.0", f"{last}.end")
+        self._on_key()
+
+    def duplicate_line(self):
+        """Ctrl+Shift+D — clone the current line below."""
+        t = self.text
+        try:
+            ln = t.get("insert linestart", "insert lineend")
+            t.insert("insert lineend", "\n" + ln)
+            t.mark_set("insert", "insert +1l linestart")
+            t.see("insert")
+            self._on_key()
+        except tk.TclError:
+            pass
+
+    def delete_line(self):
+        """Ctrl+Shift+K — remove the current line."""
+        t = self.text
+        try:
+            if t.compare("end-1c", "==", "1.0"):
+                t.delete("1.0", "end")
+            elif t.compare("insert lineend", ">=", "end-1c"):
+                t.delete("insert linestart-1c", "end")
+            else:
+                t.delete("insert linestart", "insert lineend+1c")
+            t.see("insert")
+            self._on_key()
+        except tk.TclError:
+            pass
+
+    def move_line(self, delta):
+        """Alt+Up / Alt+Down — shuffle the current line (or selection)."""
+        t = self.text
+        try:
+            rng = t.tag_ranges("sel")
+            if rng:
+                first = int(str(rng[0]).split(".")[0])
+                last = int(str(rng[1]).split(".")[0])
+            else:
+                first = last = int(t.index("insert").split(".")[0])
+            target = first + delta
+            if target < 1 or target > int(t.index("end-1c").split(".")[0]):
+                return
+            block = t.get(f"{first}.0", f"{last}.end")
+            if delta < 0:
+                anchor = t.get(f"{target}.0", f"{target}.end")
+                t.delete(f"{target}.0", f"{target}.end")
+                t.insert(f"{target}.0", block + "\n")
+                t.insert(f"{last + 1}.0", anchor)
+                t.delete(f"{last + 1}.0", f"{last + 1}.end")
+            else:
+                anchor = t.get(f"{target}.0", f"{target}.end")
+                t.delete(f"{target}.0", f"{target + 1}.0")
+                t.insert(f"{last}.0", anchor + "\n")
+                t.insert(f"{last + 1}.0", block)
+            t.tag_remove("sel", "1.0", "end")
+            t.tag_add("sel", f"{first + delta}.0",
+                      f"{last + delta}.end")
+            t.mark_set("insert", f"{first + delta}.0")
+            t.see("insert")
+            self._on_key()
+        except tk.TclError:
+            pass
+
+    def goto_line(self, number):
+        """Jump to a 1-based line, clamped. Returns True on success."""
+        t = self.text
+        try:
+            total = int(t.index("end-1c").split(".")[0])
+            line = max(1, min(int(number), total))
+            t.mark_set("insert", f"{line}.0")
+            t.see("insert")
+            self._decorate_cursor()
+            self.update_line_numbers()
+            t.focus_set()
+            return True
+        except (tk.TclError, ValueError):
+            return False
 
     def set_font_size(self, size):
         size = max(8, min(20, int(size)))
@@ -405,12 +709,93 @@ class CodeEditor(tk.Frame):
     def update_line_numbers(self, event=None):
         lines = self.text.get("1.0", tk.END).count("\n")
         current = self.text.index("insert").split(".")[0]
-        self.line_numbers.config(state="normal")
-        self.line_numbers.delete("1.0", tk.END)
+        g = self.line_numbers
+        g.config(state="normal")
+        g.delete("1.0", tk.END)
         for i in range(1, lines + 1):
-            mark = f"{i}_" if str(i) == current else f"{i}"
-            self.line_numbers.insert(tk.END, f"{mark}\n")
-        self.line_numbers.config(state="disabled")
+            g.insert(tk.END, f"{i}\n")
+        g.config(state="disabled")
+        # current line: bold accent number; bookmarks: accent numbers
+        g.tag_remove("cur", "1.0", "end")
+        g.tag_remove("bm", "1.0", "end")
+        try:
+            if 1 <= int(current) <= lines:
+                g.tag_add("cur", f"{current}.0", f"{current}.end")
+            for ln in self.bookmarks:
+                if 1 <= ln <= lines:
+                    g.tag_add("bm", f"{ln}.0", f"{ln}.end")
+        except tk.TclError:
+            pass
+
+    def _gutter_click(self, event=None):
+        """Click a line number to bookmark / unbookmark it."""
+        if event is None:
+            return
+        try:
+            idx = self.line_numbers.index(f"@{event.x},{event.y}")
+            ln = int(str(idx).split(".")[0])
+        except (tk.TclError, ValueError):
+            return
+        self.toggle_bookmark(ln)
+
+    # ------------------------------------------------------------ bookmarks
+    def toggle_bookmark(self, line=None):
+        """Bookmark the given (or current) line; returns True if added."""
+        t = self.text
+        if line is None:
+            line = int(t.index("insert").split(".")[0])
+        line = max(1, int(line))
+        if line in self.bookmarks:
+            self.bookmarks.discard(line)
+            added = False
+        else:
+            self.bookmarks.add(line)
+            added = True
+        self.update_line_numbers()
+        return added
+
+    def _jump_bookmark(self, lines):
+        if not lines:
+            return False
+        cur = int(self.text.index("insert").split(".")[0])
+        target = min(lines, key=lambda ln: (abs(ln - cur), -ln))
+        return self.goto_line(target)
+
+    def next_bookmark(self):
+        below = sorted(ln for ln in self.bookmarks
+                       if ln > int(self.text.index("insert").split(".")[0]))
+        wrapped = sorted(self.bookmarks)
+        return self._jump_bookmark(below or wrapped)
+
+    def prev_bookmark(self):
+        above = sorted((ln for ln in self.bookmarks
+                        if ln < int(self.text.index("insert").split(".")[0])),
+                       reverse=True)
+        wrapped = sorted(self.bookmarks, reverse=True)
+        return self._jump_bookmark(above or wrapped)
+
+    # -------------------------------------------------------------- snippets
+    def _on_tab(self, event=None):
+        """Tab expands a snippet when the word before the cursor matches;
+        otherwise a plain indent is inserted (never moves focus)."""
+        if self.text.tag_ranges("sel"):
+            return None                      # indent the selection as usual
+        t = self.text
+        try:
+            word = t.get("insert linestart", "insert")
+        except tk.TclError:
+            return None
+        table = self.SNIPPETS.get(os.path.splitext(
+            self.file_path or "")[1].lower(), self.SNIPPETS[".py"])
+        expansion = table.get(word.strip())
+        if not word.strip() or expansion is None:
+            t.insert("insert", "    ")
+            self._on_key()
+            return "break"
+        t.delete("insert -%dc" % len(word.strip()), "insert")
+        t.insert("insert", expansion)
+        self._on_key()
+        return "break"
 
     def set_content(self, content, path=None):
         self.text.delete("1.0", tk.END)
@@ -418,8 +803,51 @@ class CodeEditor(tk.Frame):
         self.modified = False
         if path is not None:
             self.file_path = path
+        self.bookmarks.clear()
         self.update_line_numbers()
         self.highlighter.set_language(self.file_path)
+
+    def symbols(self):
+        """Regex outline of the file: [(line, kind, name)] for the palette."""
+        import re as _re
+        ext = os.path.splitext(self.file_path or "")[1].lower()
+        rules = {
+            ".py": _re.compile(
+                r"^(?:\s*)(def|class)\s+([A-Za-z_]\w*)"),
+            ".js": _re.compile(
+                r"^(?:\s*)(?:function\s+(\w+)|(?:const|let|var)\s+(\w+)"
+                r"\s*=\s*(?:async\s*)?(?:function|\()|class\s+(\w+))"),
+        }
+        rules.update({e: rules[".js"] for e in
+                      (".jsx", ".ts", ".tsx", ".mjs")})
+        rule = rules.get(ext)
+        if rule is None:
+            # generic fallback: markdown headings only
+            if ext == ".md":
+                md = _re.compile(r"^(#{1,3})\s+(.{1,60})")
+                out = []
+                for i, line in enumerate(
+                        self.text.get("1.0", "end-1c").splitlines(), 1):
+                    m = md.match(line)
+                    if m:
+                        out.append((i, "h" * len(m.group(1)),
+                                    m.group(2).strip()))
+                return out
+            return []
+        out = []
+        for i, line in enumerate(
+                self.text.get("1.0", "end-1c").splitlines(), 1):
+            m = rule.match(line)
+            if m:
+                if ext == ".py":
+                    out.append((i, m.group(1), m.group(2)))
+                else:
+                    kind = "class" if line.lstrip().startswith("class") \
+                        else "function"
+                    name = next((g for g in m.groups() if g), "")
+                    if name:
+                        out.append((i, kind, name))
+        return out[:200]
 
     def get_content(self):
         return self.text.get("1.0", tk.END)
@@ -550,8 +978,18 @@ class Terminal(tk.Frame):
         self._append(f"! {message}\n")
 
     def _append(self, text):
+        # strip ANSI escapes + resolve carriage returns (progress bars)
+        if "\x1b" in text or "\r" in text:
+            text = _ANSI_RE.sub("", text).replace("\r\n", "\n") \
+                .replace("\r", "\n")
         self.output.config(state="normal")
         self.output.insert(tk.END, text)
+        # keep the log bounded — drop the oldest half past 6k lines
+        try:
+            if int(self.output.index("end-1c").split(".")[0]) > 6000:
+                self.output.delete("1.0", "3000.0")
+        except tk.TclError:
+            pass
         self.output.see(tk.END)
         self.output.config(state="disabled")
 

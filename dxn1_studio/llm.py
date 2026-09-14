@@ -8,9 +8,10 @@ already running.
 Backends
 --------
 local    The agent's built-in offline skills (rule engine, no network).
-free     Pollinations — free cloud models with **no account, no API key,
-         no login at all**. Usage is tracked anonymously (per IP) on their
-         side; from the studio's side it's a single tiny POST per turn.
+free     The free stack — tries keyless cloud models first (Pollinations),
+         then transparently fails over to GitHub Models when a GitHub
+         login exists, and reports which brain answered. One setting,
+         zero accounts required, three ways to stay online.
 byok     Bring Your Own Key — any OpenAI-compatible endpoint:
          OpenRouter, Groq, Google AI Studio, Mistral, OpenAI, Ollama…
 github   GitHub Models — free tier, authenticated with your existing
@@ -27,9 +28,10 @@ import os
 import shutil
 import subprocess
 import urllib.error
+import urllib.parse
 import urllib.request
 
-UA = "DXN1-Studio/1.1.2 (agents)"
+UA = "DXN1-Studio/1.1.3 (agents)"
 TIMEOUT = 120
 
 # ------------------------------------------------------------------ presets
@@ -107,7 +109,7 @@ BACKEND_KINDS = ("local", "free", "byok", "github", "kilo")
 
 BACKEND_INFO = {
     "local":  ("Local skills", "Offline rule engine — zero network, zero setup."),
-    "free":   ("Free cloud", "No account, no key, no login — anonymous & free."),
+    "free":   ("Free cloud", "Keyless, with auto-failover to GitHub Models."),
     "byok":   ("BYOK", "Your own API key on any OpenAI-compatible provider."),
     "github": ("GitHub Models", "Free tier tracked via your GitHub login."),
     "kilo":   ("Kilo gateway", "Free models — Google login, token pasted in-app."),
@@ -117,6 +119,76 @@ BACKEND_INFO = {
 # "openai" is the provider's stable alias (currently maps to openai-fast);
 # the second entry covers renames so the brain survives provider reshuffles.
 FREE_MODELS = ("openai", "openai-fast")
+FREE_GET_URL = "https://text.pollinations.ai/"
+
+
+class AutoFreeBackend:
+    """The 'free' brain as a resilient stack, not a single vendor.
+
+    Order: Pollinations (keyless, anonymous) -> GitHub Models (free tier
+    through your existing GitHub login, when a token is available). The
+    first provider that answers wins for the rest of the session, and
+    ``display`` always shows which brain is actually talking so the
+    status bar is never a guess.
+    """
+
+    def __init__(self, config=None):
+        self.config = config
+        self._poll = PollinationsBackend(config)
+        self._gh = None              # built lazily — needs a token
+        self._active = self._poll
+        self._gh_failed = False
+
+    # keep usage accounting on whichever backend is active
+    @property
+    def last_usage(self):
+        return getattr(self._active, "last_usage", None)
+
+    @property
+    def total_tokens(self):
+        return getattr(self._active, "total_tokens", 0)
+
+    @property
+    def provider_name(self):
+        if self._active is self._poll:
+            return "pollinations"
+        return "github models"
+
+    @property
+    def display(self):
+        name = self.provider_name
+        model = getattr(self._active, "model", "") or "default model"
+        return f"Free cloud · {name} · {model}"
+
+    def _github(self):
+        if self._gh_failed or self._gh is not None:
+            return self._gh
+        try:
+            self._gh = GitHubModelsBackend(self.config)
+        except BackendError:
+            self._gh_failed = True      # no login — don't retry every turn
+            self._gh = None
+        return self._gh
+
+    def chat(self, messages, max_tokens=2048, temperature=0.3):
+        try:
+            text = self._poll.chat(messages, max_tokens=max_tokens,
+                                   temperature=temperature)
+            self._active = self._poll
+            return text
+        except BackendError as poll_exc:
+            gh = self._github()
+            if gh is not None:
+                try:
+                    text = gh.chat(messages, max_tokens=max_tokens,
+                                   temperature=temperature)
+                    self._active = gh
+                    return text
+                except BackendError:
+                    pass
+            # both clouds failed — surface the keyless error (it is the
+            # one every user can act on without any account)
+            raise poll_exc
 
 
 class BackendError(Exception):
@@ -297,12 +369,52 @@ class PollinationsBackend(OpenAICompatBackend):
                 if self._chain:
                     model = self._chain.pop(0)
                     continue
+                # last resort: the provider's plain-GET route — a different
+                # code path that keeps the brain alive if the POST API moves
+                try:
+                    return self._get_fallback(messages)
+                except BackendError as exc2:
+                    tried.append(f"get-route: {exc2}")
                 raise BackendError(
                     "the free cloud tier didn't answer ("
                     + (" · ".join(tried[:2]))
                     + "). It's rate-limited per IP — try again shortly, or "
                       "switch to a free Google-login brain (Kilo / GitHub "
                       "Models) or BYOK in Settings → DXN1 Agents.") from None
+
+    @staticmethod
+    def _flatten(messages):
+        """Squash a chat transcript into one plain prompt for the GET route."""
+        parts = []
+        for msg in messages:
+            role = msg.get("role", "user")
+            content = (msg.get("content") or "").strip()
+            if not content:
+                continue
+            if role == "system":
+                parts.append(f"[instructions] {content}")
+            elif role == "assistant":
+                parts.append(f"[assistant said] {content}")
+            else:
+                parts.append(content)
+        prompt = "\n\n".join(parts)[-6000:]
+        return urllib.parse.quote(prompt, safe="")
+
+    def _get_fallback(self, messages):
+        """Plain-text GET route — no JSON, no body, maximum compatibility."""
+        url = FREE_GET_URL + self._flatten(messages)
+        req = urllib.request.Request(url, method="GET")
+        req.add_header("User-Agent", UA)
+        try:
+            with urllib.request.urlopen(req, timeout=TIMEOUT) as resp:
+                text = resp.read().decode("utf-8", "replace").strip()
+        except urllib.error.HTTPError as exc:
+            raise BackendError(f"HTTP {exc.code} on the GET route") from exc
+        except (urllib.error.URLError, TimeoutError) as exc:
+            raise BackendError(f"GET route unreachable — {exc}") from exc
+        if not text:
+            raise BackendError("GET route returned an empty answer")
+        return text
 
 
 # ---------------------------------------------------------------- GitHub free
@@ -395,7 +507,7 @@ def build_backend(config):
     kind = (config.get("agents_backend") or "local").strip()
     try:
         if kind == "free":
-            return PollinationsBackend(config)
+            return AutoFreeBackend(config)
         if kind == "byok":
             preset_id = config.get("agents_provider") or "openrouter"
             preset = PRESETS.get(preset_id, PRESETS["openrouter"])
@@ -444,8 +556,13 @@ class BrokenBackend:
 def describe_backend(config):
     """Short status-bar description of the active brain."""
     kind = (config.get("agents_backend") or "local").strip()
-    backend = build_backend(config) if kind != "local" else None
-    if kind == "local" or backend is None:
+    if kind == "local":
+        return "local skills"
+    if kind == "free":
+        # build the stack without any network calls — pure wiring
+        return AutoFreeBackend(config).display
+    backend = build_backend(config)
+    if backend is None:
         return "local skills"
     if isinstance(backend, BrokenBackend):
         return "setup needed"

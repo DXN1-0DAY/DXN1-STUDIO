@@ -176,6 +176,33 @@ class DXN1AgentPanel(tk.Frame):
         self.canvas.yview_scroll(-1 * (event.delta // 120), "units")
 
     def _build_input(self):
+        # one-tap quick actions — crafted prompts for the active file
+        quick = tk.Frame(self, bg=self.t["sidebar"])
+        quick.pack(fill=tk.X, padx=10, pady=(0, 6))
+        for label, prompt in (
+                ("✦ Explain", "explain"),
+                ("✦ Tests", "Write tests for the file currently open "
+                 "in the editor. Read it first, then create a pytest-style "
+                 "test file tests/test_<name>.py with plain asserts."),
+                ("✦ Bugs", "Review the file currently open in the "
+                 "editor for bugs and edge cases. List your findings "
+                 "concisely — propose fixes, don't apply them without "
+                 "asking."),
+                ("✦ Docs", "Add a short docstring to every def and "
+                 "class that is missing one in the file open in the "
+                 "editor. Change nothing else.")):
+            chip = tk.Label(quick, text=label, bg=self.t["card"],
+                            fg=self.t["text_secondary"], cursor="hand2",
+                            font=(FONT_UI, 8, "bold"), padx=8, pady=3,
+                            highlightthickness=1,
+                            highlightbackground=self.t["card_border"])
+            chip.pack(side=tk.LEFT, padx=(0, 4))
+            chip.bind("<Button-1>", lambda e, p=prompt: self.route(p))
+            chip.bind("<Enter>", lambda e, c=chip: c.config(
+                fg=self.t.accent))
+            chip.bind("<Leave>", lambda e, c=chip: c.config(
+                fg=self.t["text_secondary"]))
+
         row = tk.Frame(self, bg=self.t["sidebar"])
         row.pack(fill=tk.X, padx=10, pady=(0, 2))
 
@@ -834,7 +861,7 @@ class AgentSettingsDialog(tk.Toplevel):
         if self.kind_v.get() not in llm.BACKEND_KINDS:
             self.kind_v.set("local")
         kinds = (("local", "Local skills", "Offline · no network · no key"),
-                 ("free", "Free cloud", "No account · no key · no login"),
+                 ("free", "Free cloud", "Keyless · auto-failover to GitHub Models"),
                  ("byok", "BYOK", "Your API key · OpenRouter, Groq, Gemini…"),
                  ("github", "GitHub Models", "Free tier · your GitHub login"),
                  ("kilo", "Kilo gateway", "Free models · Google login · tiny client"))
@@ -1004,12 +1031,11 @@ class AgentSettingsDialog(tk.Toplevel):
     def _build_free_sub(self, cfg):
         f = tk.Frame(self._detail, bg=self.t["card"])
         self._subframes["free"] = f
-        tk.Label(f, text="Free cloud models (via Pollinations) — no account, "
-                         "no API key, no login. Usage is tracked anonymously "
-                         "per IP on the provider's side; the studio sends one "
-                         "tiny HTTP request per turn. Heavily rate-limited "
-                         "sometimes — if it stays quiet, switch to a "
-                         "Google-login brain or BYOK.",
+        tk.Label(f, text="The free stack — keyless cloud models first, then "
+                         "automatic failover to GitHub Models when a GitHub "
+                         "login is detected (gh CLI / token). No account, no "
+                         "API key, no setup. The header chip always shows "
+                         "which brain actually answered.",
                  bg=self.t["card"], fg=self.t["text_secondary"],
                  font=(FONT_UI, 9), wraplength=470, justify=tk.LEFT
                  ).pack(anchor="w", pady=(2, 2))

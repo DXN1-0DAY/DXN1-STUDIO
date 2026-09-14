@@ -1,5 +1,5 @@
 #!/bin/bash
-# DXN1 STUDIO Installer v1.1.2
+# DXN1 STUDIO Installer v1.1.3
 # Usage: curl -fsSL https://raw.githubusercontent.com/DXN1-termux/DXN1-STUDIO/master/install.sh | bash
 
 set -e
@@ -9,7 +9,7 @@ BIN_DIR="$HOME/.local/bin"
 REPO="https://raw.githubusercontent.com/DXN1-termux/DXN1-STUDIO/master"
 
 echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-echo "   DXN1 STUDIO Installer v1.1.2 (beta)"
+echo "   DXN1 STUDIO Installer v1.1.3 (beta)"
 echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
 echo ""
 

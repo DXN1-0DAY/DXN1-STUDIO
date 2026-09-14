@@ -72,8 +72,22 @@ class PackagesView(tk.Frame):
         self._build_custom_row()
         self._build_catalog()
         self._build_log()
+        self._poll_job = None
+        self.bind("<Destroy>", self._cancel_poll, add="+")
         self._poll_queue()
         self._refresh_all()
+
+    def _cancel_poll(self, event=None):
+        """Stop the polling loop before the widget goes away, so no
+        stray Tcl timer fires on a dead command (console warning)."""
+        if event is not None and event.widget is not self:
+            return
+        if getattr(self, "_poll_job", None) is not None:
+            try:
+                self.after_cancel(self._poll_job)
+            except Exception:  # noqa: BLE001
+                pass
+            self._poll_job = None
 
     # ------------------------------------------------------------------ ui
     def _build_custom_row(self):
@@ -298,7 +312,11 @@ class PackagesView(tk.Frame):
                             pass
         except queue.Empty:
             pass
-        self.after(120, self._poll_queue)
+        try:
+            if self.winfo_exists():
+                self._poll_job = self.after(120, self._poll_queue)
+        except tk.TclError:
+            pass
 
 
 class PackageManager(tk.Toplevel):
