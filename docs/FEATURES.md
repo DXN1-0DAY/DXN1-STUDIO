@@ -140,3 +140,16 @@
 | Time converter | Dev tools → *Time* | Ticking ISO clock (local or UTC), epoch ↔ ISO both directions, `Z`-suffix and naive-timestamp handling, relative labels (`3h ago`, `in 2d`) |
 | Color lab | Dev tools → *Color* | hex ↔ rgb ↔ hsl live conversion with swatch, WCAG contrast ratio + AA/AAA grade against any second color, eight harmony swatches (complement, analogous, triadic, lighter/darker) — click one to copy its hex |
 | Terminal shortcuts | terminal `tools` / `devtools` / `regex` | Opens the window; `regex` seeds the pattern from the current editor selection |
+
+## The SQLite Lab (v2.9.0)
+
+| Feature | Where | What it does |
+|---|---|---|
+| Database browser | `sqlitelab.py`, Workshop → *SQLite Browser…*, palette, terminal `db` / `db <file>` | Point it at any `.db` / `.sqlite` file (auto-discovers them in the workspace) and get tables, views, row counts, schema, live queries and exports in one window |
+| Read-only by default | SQLite Lab toolbar | Opens via SQLite URI `mode=ro` so browsing can never corrupt your data; flip the top-right toggle for a read-write session when you really mean it |
+| Tables sidebar | SQLite Lab left pane | Tables and views with live row counts; double-click to browse rows, single-click loads the schema tab |
+| Browse grid | *Browse* tab | Sample rows (50–5000 limit spinner) with long cells truncated and BLOBs summarized (`<2 bytes>`); export to CSV or copy as a GitHub-flavored markdown table |
+| Schema dive | *Schema* tab | Every column with type / null / default / pk flags, plus the index list with columns and unique/pk origin flags |
+| Query bench | *Query* tab, F5 | One statement at a time — SELECT fills a grid (capped at 500 rows), writes report affected counts and refresh the sidebar; errors land in the status line, never a crash |
+| DB intel | *Info* tab | SQLite version, file size from page math, page/freelist counts, journal mode, encoding, table/view census |
+| Pure engine | `tests/test_ds2.py` | connect / introspection / sample / query / export / markdown / finder all unit-tested — writes blocked read-only, affected counts correct, quoting safe (`qident`), markdown pipes escaped |

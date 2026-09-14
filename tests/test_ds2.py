@@ -968,3 +968,83 @@ def test_gen_engine():
     assert "unknown" in err and out == ""
     out, err = g.generate("PIN (6)", 1000)   # clamped, never dies
     assert err == ""
+
+
+def test_sqlitelab_engine():
+    # DS2 v2.9.0 — the SQLite Lab: pure engine checks on a scratch DB
+    import csv
+    import os
+    import sqlite3
+    import tempfile
+
+    from dxn1_studio import sqlitelab as sl
+
+    tmp = tempfile.mkdtemp(prefix="ds2-sqlab-")
+    db = os.path.join(tmp, "test.db")
+    raw = sqlite3.connect(db)
+    raw.execute(
+        "CREATE TABLE users (id INTEGER PRIMARY KEY, name TEXT NOT NULL)")
+    raw.execute("CREATE INDEX name_idx ON users (name)")
+    raw.execute("CREATE VIEW v_adults AS SELECT id FROM users")
+    raw.execute("INSERT INTO users (name) VALUES ('ada'), ('grace')")
+    raw.commit()
+    raw.close()
+
+    conn = sl.connect(db, read_only=True)
+    tabs = sl.list_tables(conn)
+    assert [(t["name"], t["kind"]) for t in tabs] == [
+        ("users", "table"), ("v_adults", "view")]
+    assert tabs[0]["rows"] == 2 and tabs[1]["rows"] is None
+
+    cols = sl.table_columns(conn, "users")
+    assert [c["name"] for c in cols] == ["id", "name"]
+    assert cols[0]["pk"] == 1 and cols[1]["notnull"]
+
+    ix = sl.table_indexes(conn, "users")
+    assert ix and ix[0]["name"] == "name_idx" and ix[0]["cols"] == ["name"]
+
+    c, r, err = sl.sample_rows(conn, "users")
+    assert err == "" and c == ["id", "name"] and len(r) == 2
+
+    # long cells truncate; missing tables return an error string
+    db2 = os.path.join(tmp, "test2.db")
+    raw2 = sqlite3.connect(db2)
+    raw2.execute("CREATE TABLE blobby (t TEXT, b BLOB)")
+    raw2.execute("INSERT INTO blobby VALUES (?, ?)", ("x" * 300, b"\x00\x01"))
+    raw2.commit()
+    raw2.close()
+    conn2 = sl.connect(db2)
+    c2, r2, _ = sl.sample_rows(conn2, "blobby")
+    assert r2[0][0].endswith("…") and len(r2[0][0]) == 160
+    assert r2[0][1] == "<2 bytes>"
+    assert sl.sample_rows(conn2, "nope")[2] != ""
+
+    # queries: grid, errors, readonly block, rw writes with affected count
+    res = sl.run_query(conn, "SELECT COUNT(*) AS n FROM users")
+    assert res["kind"] == "rows" and res["rows"] == [["2"]]
+    assert "syntax" in sl.run_query(conn, "SELEC 1")["error"]
+    res = sl.run_query(conn, "INSERT INTO users (name) VALUES ('x')")
+    assert res["kind"] == "error" and "readonly" in res["error"]
+    rw = sl.connect(db, read_only=False)
+    res = sl.run_query(rw, "INSERT INTO users (name) VALUES ('kim')")
+    assert res["kind"] == "ok" and res["affected"] == 1
+    assert sl.run_query(rw, "SELECT COUNT(*) FROM users")["rows"] == [["3"]]
+
+    # markdown + csv round-trips
+    md = sl.markdown_table(["a", "b|c"],
+                           [["1", "x"], ["2", "y"], ["3", "z"]], max_rows=2)
+    assert "\\|c" in md and "1 more rows" in md
+    out = os.path.join(tmp, "out.csv")
+    assert sl.export_csv(["a", "b"], [["1", "x"]], out) == 1
+    with open(out, newline="") as fh:
+        rows = list(csv.reader(fh))
+    assert rows[0] == ["a", "b"] and rows[1] == ["1", "x"]
+
+    # info, finder, quoting, human sizes, empty dbs
+    info = dict(sl.db_info(conn))
+    assert "SQLite version" in info and "File size (data)" in info
+    assert db in sl.find_databases(tmp) and db2 in sl.find_databases(tmp)
+    assert sl.qident('we"ird') == '"we""ird"'
+    assert sl.human_size(0) == "0 B" and "KB" in sl.human_size(2048)
+    assert sl.human_size("junk") == "?"
+    assert sl.list_tables(sqlite3.connect(":memory:")) == []

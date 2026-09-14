@@ -74,6 +74,8 @@ SHEETS = [
                 "smells — and copy a masked version"),
         ("gen", "Test data generator — UUID v4, ULID, nanoid, passwords, "
                 "lorem, fake users/events as JSON"),
+        ("db <file>", "SQLite Lab — browse tables, schema dive, run "
+                      "queries, export CSV/markdown (read-only default)"),
     ]),
     ("TERMINAL TALK", [
         ("help", "List every studio command"),

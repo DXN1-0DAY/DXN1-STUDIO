@@ -1024,6 +1024,14 @@ class DXN1Studio:
                     pass
             return _go
 
+        def _open_sqlite_menu():
+            try:
+                from .sqlitelab import open_sqlitelab
+                open_sqlitelab(self.root, self.theme,
+                               workspace=self.project_dir or "")
+            except Exception:  # pragma: no cover — menu stays alive
+                pass
+
         def _open_readability_menu():
             try:
                 from .readability import open_readability
@@ -1064,6 +1072,9 @@ class DXN1Studio:
         workshop_menu.add_command(
             label="Data Generator…",
             command=_ws("gen", "open_generator"))
+        workshop_menu.add_command(
+            label="SQLite Browser…",
+            command=_open_sqlite_menu)
         workshop_menu.add_separator()
         workshop_menu.add_command(label="Token Usage Dashboard…",
                                   command=_open_usage_menu)
@@ -2380,6 +2391,8 @@ class DXN1Studio:
                     ("jwt <token>", "decode a JWT — header, payload, exp"),
                     ("env", "lint the workspace .env + masked copy"),
                     ("gen", "generate UUIDs, nanoids, fake users, JSON"),
+                    ("db <file>", "browse SQLite databases — tables, "
+                                  "schema, queries"),
                     ("explain", "hand the last error to the agent"),
                     ("git <args>", "run git in the workspace (status, add,"),
                     ("", "commit, log… output streams below"),
@@ -2511,6 +2524,32 @@ class DXN1Studio:
                                   "nanoids, passwords, fake users")
             except Exception as exc:  # noqa: BLE001 — terminal stays alive
                 self.terminal.log(f"gen failed: {exc}")
+            return
+        if low in ("db", "sqlite") or low.startswith("db "):
+            # DS2: SQLite Lab — browse tables, schema, run queries
+            try:
+                from .sqlitelab import open_sqlitelab, find_databases
+                arg = text[3:].strip() if len(text) > 3 else ""
+                if arg and not os.path.isfile(arg):
+                    cand = os.path.join(self.project_dir or "", arg)
+                    arg = cand if os.path.isfile(cand) else arg
+                if arg and not os.path.isfile(arg):
+                    self.terminal.log(f"no such database: {arg}")
+                    arg = ""
+                hits = find_databases(self.project_dir or "")
+                open_sqlitelab(self.root, self.theme, initial=arg,
+                               workspace=self.project_dir or "")
+                if arg:
+                    self.terminal.log(f"SQLite Lab opened — {arg}")
+                elif hits:
+                    self.terminal.log(
+                        f"SQLite Lab opened — {len(hits)} database(s) "
+                        f"in workspace (try: {os.path.basename(hits[0])})")
+                else:
+                    self.terminal.log("SQLite Lab opened — no .db files "
+                                      "in the workspace, use Open…")
+            except Exception as exc:  # noqa: BLE001 — terminal stays alive
+                self.terminal.log(f"db failed: {exc}")
             return
         if low.startswith("goto "):
             num = text[5:].strip()
@@ -3009,6 +3048,16 @@ class DXN1Studio:
         try:
             cmds.append(("Data generator — UUIDs, nanoids, fake users…",
                          "DS2", _open_gen))
+        except Exception:  # pragma: no cover — palette stays alive
+            pass
+        # DS2: SQLite Lab (defensive)
+        def _open_db():
+            from .sqlitelab import open_sqlitelab
+            open_sqlitelab(self.root, self.theme,
+                           workspace=getattr(self, "project_dir", "") or "")
+        try:
+            cmds.append(("SQLite browser — tables, schema, queries…",
+                         "DS2", _open_db))
         except Exception:  # pragma: no cover — palette stays alive
             pass
         return cmds
