@@ -336,7 +336,7 @@
 | Bit inspector | `inspect_bits()` | Bit length, popcount, big-endian hex bytes and a two's-complement note for negative values |
 | Round-trip proof | `tests/test_ds2.py` | Formatting then re-parsing 255 round-trips for every base 2..36 |
 
-## CSV Lab (rides the v2.22.0 finale tag)
+## CSV Lab
 
 | Feature | Where | What it does |
 |---|---|---|
@@ -344,3 +344,17 @@
 | Delimiter sniffing | `sniff_delimiter()` | Auto-detects `,` `;` `\t` `|` from the sample; an "auto" radio plus explicit picks override it |
 | Honest parsing | `parse_csv()` / `table_stats()` | Stdlib csv parser (quoted fields with embedded delimiters work), blank rows skipped, ragged-width tables flagged; junk renders an empty grid instead of crashing |
 | TSV export | one click | The grid copies back out as tab-separated text — paste straight into a spreadsheet |
+
+## MathPad
+
+| Feature | Where | What it does |
+|---|---|---|
+| Safe evaluator | `mathpad.py`, Workshop → *MathPad — safe expression calculator…*, palette, terminal `calc` / `math` / `mathpad` | Expressions run through Python's `ast` with a strict whitelist — no `eval`, no attribute access, no imports; pasted junk can only produce an error message, never side effects |
+| Operators | everywhere | `+ - * / // % **` plus `^` accepted as power, unary minus, parentheses; `0xff`, `0b101` and `1_000` literals parse for free |
+| 26 functions | function chips + typing | `sqrt cbrt abs round floor ceil trunc exp log log2 log10 sin cos tan asin acos atan atan2 sinh cosh tanh degrees radians gcd hypot min max factorial sign`; chips insert the common ones in one click |
+| Constants | `pi e tau inf` | Available by name in every expression |
+| Variables | `x = 5` then `x*3` | Assignments are stored in the session scope; `_` and `ans` always hold the last answer |
+| Hard limits | engine | Exponents capped at 10,000, factorials at 10,000!, complex results rejected, division-by-zero reported honestly — no hangs, no crashes |
+| Human output | `fmt()` | Integers stay integers, floats are trimmed to 12 significant digits (`0.1+0.2` reads `0.3`), huge values switch to scientific notation |
+| History | click-to-copy | Every evaluation lands in a 200-row history list; clicking a row copies its answer |
+| i18n | `math.*` keys | Copy button and history hint translate across all 8 language packs |

@@ -13,7 +13,7 @@ with `@` symbol jump, sandboxed AI agents on a **resilient free cloud stack**
 frameworks. ~10 MB of Python.
 
 [![CI](https://github.com/DXN1-termux/DXN1-STUDIO/actions/workflows/ci.yml/badge.svg)](https://github.com/DXN1-termux/DXN1-STUDIO/actions/workflows/ci.yml)
-[![Version](https://img.shields.io/badge/version-2.21.0--beta-7c3aed?style=flat-square)](CHANGELOG.md)
+[![Version](https://img.shields.io/badge/version-2.22.0--beta-7c3aed?style=flat-square)](CHANGELOG.md)
 [![Python](https://img.shields.io/badge/python-3.8%2B-3776ab?style=flat-square&logo=python&logoColor=white)](https://www.python.org)
 [![Platform](https://img.shields.io/badge/platform-Linux%20%7C%20Termux%20%7C%20macOS%20%7C%20Windows-24292f?style=flat-square)](#requirements)
 [![License](https://img.shields.io/badge/license-MIT-3fb950?style=flat-square)](LICENSE)

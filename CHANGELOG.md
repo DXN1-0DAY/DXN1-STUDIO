@@ -4,6 +4,19 @@ All notable changes to DXN1 STUDIO. Format based on
 [Keep a Changelog](https://keepachangelog.com/); versioning is
 `MAJOR.MINOR.PATCH` while in **beta**.
 
+## [2.22.0] — 2026-09-14 · beta · "the finale: math, tables, and one big thank-you"
+
+### Added
+- **CSV Lab** (`csvkit.py`, Workshop → *CSV Lab — paste & peek tables…*, terminal `csv` / `csvlab` / `tsv`) — paste CSV/TSV/semicolon/pipe data and it renders instantly as a table: delimiter auto-sniffing, stdlib csv parsing (quoted fields with embedded delimiters work), ragged-width flagging, header row as column headings, honest empty-grid on junk, one-click copy back out as TSV.
+- **MathPad** (`mathpad.py`, Workshop → *MathPad — safe expression calculator…*, terminal `calc` / `math` / `mathpad`) — a safe expression calculator: the engine evaluates through Python's `ast` with a strict whitelist (no `eval`, no attribute access, no imports), so pasted junk can only ever produce an error message. Operators `+ - * / // % **` (`^` accepted as power), 26 functions (`sqrt cbrt log log2 log10 exp sin cos tan abs round floor ceil factorial gcd hypot …`), constants `pi e tau inf`, hex/binary/`1_000` literals. The window adds variable assignment (`x = 5` then `x*3`), `_`/`ans` last-answer names, click-to-copy history, function chips, and honest error states. Hard limits keep it safe: exponents capped at 10,000, factorials at 10,000!, complex results rejected.
+
+### Changed
+- i18n deepens again: 2 new keys (`math.copy_result`, `math.click_copy`) fully translated in **all 8 language packs** (en es fr de pt zh hi ja); MathPad's copy button and history hint respond to the active language.
+- Smoke harness now **111 checks across 17 live windows**; test suite at **57 groups**; boot QA 20/20; ARCHITECTURE.md and FEATURES.md refreshed for the finale.
+
+### Finale note
+- This tag closes the **7-hour DS2 sprint**: v1.4.0 → v2.22.0, 30+ tagged releases, ~76 feature modules, thousands of lines of tested, documented, defensively-wired code. Thank you for flying DXN1.
+
 ## [2.21.0] — 2026-09-14 · beta · "count in every base"
 
 ### Added

@@ -1243,6 +1243,15 @@ class DXN1Studio:
                 command=_open_csv_menu)
         except Exception:  # pragma: no cover — menu stays alive
             pass
+        # DS2: mathpad (defensive)
+        def _open_math_menu():
+            self.open_mathpad()
+        try:
+            workshop_menu.add_command(
+                label="MathPad — safe expression calculator…",
+                command=_open_math_menu)
+        except Exception:  # pragma: no cover — menu stays alive
+            pass
         workshop_menu.add_separator()
         workshop_menu.add_command(label="Token Usage Dashboard…",
                                   command=_open_usage_menu)
@@ -1726,6 +1735,14 @@ class DXN1Studio:
         try:
             from .csvkit import open_csv_lab
             open_csv_lab(self.root, self.theme)
+        except Exception:  # noqa: BLE001 — menu stays alive
+            pass
+
+    def open_mathpad(self):
+        """DS2: safe expression calculator."""
+        try:
+            from .mathpad import open_mathpad
+            open_mathpad(self.root, self.theme)
         except Exception:  # noqa: BLE001 — menu stays alive
             pass
 
@@ -2760,6 +2777,8 @@ class DXN1Studio:
                              "bases 2-36 + bit inspector"),
                     ("csv", "CSV Lab — paste csv/tsv, peek the table, "
                             "copy back as TSV"),
+                    ("calc", "MathPad — safe expression calculator "
+                             "(x = 5 assigns, _ is the last answer)"),
                     ("scribe <n>", "set the words-per-session goal for "
                                    "the statusbar writing meter"),
                     ("explain", "hand the last error to the agent"),
@@ -3055,6 +3074,12 @@ class DXN1Studio:
             self.open_csv_lab()
             self.terminal.log("CSV Lab opened — paste csv/tsv, the "
                               "table renders; copy back as TSV")
+            return
+        if low in ("calc", "math", "mathpad"):
+            # DS2: safe expression calculator
+            self.open_mathpad()
+            self.terminal.log("MathPad opened — type 2+2*10, assign x "
+                              "= 5, use _ for the last answer")
             return
         if low == "lang" or low.startswith("lang "):
             # DS2: switch the UI language pack (i18n activation)
@@ -3770,6 +3795,14 @@ class DXN1Studio:
         try:
             cmds.append(("CSV Lab — paste & peek tables…",
                          "DS2", _open_csv_palette))
+        except Exception:  # pragma: no cover — palette stays alive
+            pass
+        # DS2: mathpad (defensive)
+        def _open_math_palette():
+            self.open_mathpad()
+        try:
+            cmds.append(("MathPad — safe expression calculator…",
+                         "DS2", _open_math_palette))
         except Exception:  # pragma: no cover — palette stays alive
             pass
         # DS2: scribe goal (defensive)

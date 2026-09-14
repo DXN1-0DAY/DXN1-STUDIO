@@ -90,6 +90,8 @@ EN = {
     "common.copy_matches": "Copy matches",
     "devtools.preview": "Preview",
     "devtools.count": "Count",
+    "math.copy_result": "copy result",
+    "math.click_copy": "click a history row to copy",
     "common.cancel": "Cancel",
     "common.close": "Close",
     "common.delete": "Delete",
@@ -157,6 +159,8 @@ PACKS = {
         "common.copy_matches": "Copiar coincidencias",
         "devtools.preview": "Vista previa",
         "devtools.count": "Contar",
+        "math.copy_result": "copiar resultado",
+        "math.click_copy": "clic en una fila del historial para copiar",
     },
     "fr": {  # French
         "app.tagline": "L'IDE propre et moderne. Conçu pour le flow.",
@@ -204,6 +208,8 @@ PACKS = {
         "common.copy_matches": "Copier les correspondances",
         "devtools.preview": "Aperçu",
         "devtools.count": "Compter",
+        "math.copy_result": "copier le résultat",
+        "math.click_copy": "cliquez une ligne d'historique pour copier",
     },
     "de": {  # German
         "app.tagline": "Die moderne, aufgeräumte IDE. Für echten Flow.",
@@ -250,6 +256,8 @@ PACKS = {
         "common.copy_matches": "Treffer kopieren",
         "devtools.preview": "Vorschau",
         "devtools.count": "Zählen",
+        "math.copy_result": "Ergebnis kopieren",
+        "math.click_copy": "Klicke eine Verlaufszeile zum Kopieren",
     },
     "pt": {  # Portuguese
         "app.tagline": "A IDE limpa e moderna. Feita para o fluxo.",
@@ -279,6 +287,8 @@ PACKS = {
         "common.copy_matches": "Copiar correspondências",
         "devtools.preview": "Pré-visualizar",
         "devtools.count": "Contar",
+        "math.copy_result": "copiar resultado",
+        "math.click_copy": "clique numa linha do histórico para copiar",
     },
     "zh": {  # Chinese (Simplified)
         "app.tagline": "干净现代的 IDE，为心流而生。",
@@ -325,6 +335,8 @@ PACKS = {
         "common.copy_matches": "复制匹配项",
         "devtools.preview": "预览",
         "devtools.count": "统计",
+        "math.copy_result": "复制结果",
+        "math.click_copy": "点击历史行即可复制",
     },
     "hi": {  # Hindi
         "app.tagline": "साफ़, आधुनिक IDE। फ़्लो के लिए बना।",
@@ -354,6 +366,8 @@ PACKS = {
         "common.copy_matches": "मिलान कॉपी करें",
         "devtools.preview": "पूर्वावलोकन",
         "devtools.count": "गिनती",
+        "math.copy_result": "परिणाम कॉपी करें",
+        "math.click_copy": "कॉपी करने के लिए इतिहास पंक्ति पर क्लिक करें",
     },
     "ja": {  # Japanese
         "app.tagline": "クリーンでモダンな IDE。フローのために。",
@@ -383,6 +397,8 @@ PACKS = {
         "common.copy_matches": "一致をコピー",
         "devtools.preview": "プレビュー",
         "devtools.count": "カウント",
+        "math.copy_result": "結果をコピー",
+        "math.click_copy": "履歴行をクリックでコピー",
     },
 }
 

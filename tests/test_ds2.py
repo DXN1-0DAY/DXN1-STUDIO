@@ -1857,3 +1857,73 @@ def test_csvkit_engine():
     tsv = csvkit.to_tsv(rows)
     assert "name\tage" in tsv and "ada\t36" in tsv
     assert csvkit.to_tsv([]) == ""
+
+
+def test_mathpad_engine():
+    """DS2 mathpad: safe ast evaluator, fmt, hard limits."""
+    from dxn1_studio import mathpad
+    # arithmetic + precedence + power via ^
+    assert mathpad.evaluate("2+3*4") == 14
+    assert mathpad.evaluate("(2+3)*4") == 20
+    assert mathpad.evaluate("2^10") == 1024
+    assert mathpad.evaluate("7 // 2") == 3
+    assert mathpad.evaluate("7 % 3") == 1
+    assert mathpad.evaluate("-5 + 2") == -3
+    # literals and constants
+    assert mathpad.evaluate("0xff") == 255
+    assert mathpad.evaluate("0b101") == 5
+    assert mathpad.evaluate("1_000") == 1000
+    assert abs(mathpad.evaluate("pi") - 3.141592653589793) < 1e-12
+    assert abs(mathpad.evaluate("sqrt(2)") - 1.4142135623730951) < 1e-12
+    assert mathpad.evaluate("factorial(5)") == 120
+    assert mathpad.evaluate("max(3, 7, 5)") == 7
+    assert mathpad.evaluate("cbrt(-27)") == -3.0
+    assert mathpad.evaluate("gcd(12, 18)") == 6
+    # junk → CalcError, never eval'd
+    for bad in ("", None, "2+", "__import__('os')", "1/0",
+                "9**9**9", "factorial(99999)", "sqrt(-1)", "x + 1",
+                '"a"*3', "True + 1", "(1+2).bit_length()"):
+        try:
+            mathpad.evaluate(bad)
+            raise AssertionError("accepted %r" % (bad,))
+        except mathpad.CalcError:
+            pass
+    # formatting is human-friendly
+    assert mathpad.fmt(3) == "3"
+    assert mathpad.fmt(0.1 + 0.2) == "0.3"
+    assert mathpad.fmt(2.5) == "2.5"
+    # window opens, evaluates sample, tolerates junk
+    import tkinter as tk
+    try:
+        root = tk.Tk(); root.withdraw()
+    except tk.TclError:
+        return
+    theme = {"bg": "#16161e", "header": "#242432",
+             "editor_bg": "#1a1a24", "text": "#e8e8f0",
+             "text_muted": "#8a8a9a", "button": "#2a2a3a",
+             "button_hover": "#33334a", "ok": "#7ee787",
+             "error": "#ff6b6b"}
+    from dxn1_studio.mathpad import open_mathpad
+    win = open_mathpad(root, theme)
+    assert win is not None and win.winfo_exists()
+    win.entry.delete(0, "end")
+    win.entry.insert(0, "6*7")
+    win.do_eval()
+    assert "42" in win.result.cget("text")
+    win.entry.delete(0, "end")
+    win.entry.insert(0, "bogus((")
+    win.do_eval()
+    assert win.result.cget("text") == "= ?"
+    win.entry.delete(0, "end")
+    win.entry.insert(0, "x = 5")
+    win.do_eval()
+    assert win.vars.get("x") == 5
+    assert "stored" in win.status.cget("text")
+    win.entry.delete(0, "end")
+    win.entry.insert(0, "x * 3")
+    win.do_eval()
+    assert "15" in win.result.cget("text")
+    win.entry.delete(0, "end")   # empty entry is honest, not a crash
+    win.do_eval()
+    assert "type an expression" in win.status.cget("text")
+    win.destroy(); root.destroy()

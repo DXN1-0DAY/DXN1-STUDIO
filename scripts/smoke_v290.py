@@ -346,6 +346,29 @@ def main():
     check("csv lab engine offline", len(parse_csv("a,b\n1,2")) == 2)
     csvwin.destroy()
 
+    # ---- MathPad (same smoke, new lane)
+    from dxn1_studio.mathpad import evaluate as _mev, open_mathpad
+    mpwin = open_mathpad(root, theme)
+    mpwin.update_idletasks()
+    check("mathpad window opens", mpwin.winfo_exists())
+    check("mathpad sample evaluates", "= 268" in
+          mpwin.result.cget("text"))  # sqrt(144)+2^10/4 = 12+256 = 268
+    mpwin.entry.delete(0, "end")
+    mpwin.entry.insert(0, "9^2")
+    mpwin.do_eval()
+    check("mathpad power eval", "= 81" in mpwin.result.cget("text"))
+    mpwin.entry.delete(0, "end")
+    mpwin.entry.insert(0, "1/0")
+    mpwin.do_eval()
+    check("mathpad honest error", "= ?" in mpwin.result.cget("text")
+          and "division by zero" in mpwin.status.cget("text"))
+    mpwin.entry.delete(0, "end")
+    mpwin.entry.insert(0, "n = _ * 2")
+    mpwin.do_eval()
+    check("mathpad vars + last answer", mpwin.vars.get("n") == 162)
+    check("mathpad engine offline", _mev("2^5") == 32)
+    mpwin.destroy()
+
     # ---- REST bench (same smoke, seventh lane)
     from dxn1_studio.restbench import (RestResponse, build_curl,
                                        format_size,
