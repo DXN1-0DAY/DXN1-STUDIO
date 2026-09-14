@@ -279,6 +279,26 @@ def main():
           and chip2.words() == 0)
     check("scribe goal hide", chip2.set_goal(0) is True
           and "%" not in chip2.text())
+
+    # ---- filestats scan history (same smoke, tenth lane)
+    import shutil as _sh
+    from dxn1_studio.filestats import (append_history, delta_line,
+                                       sparkline)
+    ws2 = tempfile.mkdtemp(prefix="ds2-smoke-fs-")
+    try:
+        h = append_history(ws2, {"t": "a", "files": 5, "bytes": 100})
+        h = append_history(ws2, {"t": "b", "files": 9, "bytes": 180})
+        check("statshistory appends", len(h) == 2
+              and h[-1]["files"] == 9)
+        check("statshistory dedupes", len(append_history(
+            ws2, {"t": "c", "files": 9, "bytes": 180})) == 2)
+        trend = sparkline([x["files"] for x in h])
+        check("statshistory sparkline renders", len(trend) == 2
+              and trend[0] != trend[-1])
+        check("statshistory delta", "+4 files" in delta_line(
+            {"files": 9, "bytes": 180}, {"files": 5, "bytes": 100}))
+    finally:
+        _sh.rmtree(ws2, ignore_errors=True)
     root.destroy()
 
     failed = [n for n, ok in CHECKS if not ok]

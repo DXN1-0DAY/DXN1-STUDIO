@@ -206,6 +206,113 @@ def report_text(stats, markdown=False, ext_limit=30):
     return "\n".join(lines)
 
 
+# ------------------------------------------------ DS2: scan history
+HISTORY_FILE = os.path.join(".dxn1", "filestats_history.json")
+GLOBAL_HISTORY = os.path.join(os.path.expanduser("~"), ".dxn1-studio",
+                              "filestats_history.json")
+HISTORY_CAP = 60
+_SPARK_STEPS = "▁▂▃▄▅▆▇█"
+
+
+def history_path(workspace=None):
+    """Per-workspace history file, else the global store."""
+    if workspace:
+        return os.path.join(workspace, HISTORY_FILE)
+    return GLOBAL_HISTORY
+
+
+def snapshot_of(stats):
+    """One compact history point from a scan_workspace result."""
+    import time as _time
+    return {"t": _time.strftime("%Y-%m-%d %H:%M:%S"),
+            "files": int(stats.get("total_files", 0) or 0),
+            "bytes": int(stats.get("total_bytes", 0) or 0)}
+
+
+def load_history(workspace=None):
+    """The recorded snapshots, oldest first (junk → [])."""
+    try:
+        import json
+        with open(history_path(workspace), "r",
+                  encoding="utf-8") as f:
+            data = json.load(f)
+        if isinstance(data, list):
+            return [h for h in data if isinstance(h, dict)]
+    except Exception:  # noqa: BLE001 — missing/corrupt history is fine
+        pass
+    return []
+
+
+def append_history(workspace, snap, cap=HISTORY_CAP):
+    """Record a snapshot (deduped, capped) and persist it.
+
+    An identical files/bytes shape to the newest entry just refreshes
+    the timestamp — repeated scans in a minute don't stack points.
+    Returns the new history list (never raises).
+    """
+    hist = load_history(workspace)
+    last = hist[-1] if hist else None
+    if last and last.get("files") == snap.get("files") \
+            and last.get("bytes") == snap.get("bytes"):
+        hist[-1] = snap
+    else:
+        hist.append(snap)
+    hist = hist[-max(2, int(cap)):]
+    try:
+        import json
+        path = history_path(workspace)
+        parent = os.path.dirname(path)
+        if parent:
+            os.makedirs(parent, exist_ok=True)
+        with open(path, "w", encoding="utf-8") as f:
+            json.dump(hist, f)
+    except Exception:  # noqa: BLE001 — persistence is best-effort
+        pass
+    return hist
+
+
+def sparkline(values, width=40):
+    """Unicode trend bars for a value series (pure, deterministic).
+
+    Longer series are bucket-compressed (chunk max) to ``width``;
+    all-equal input renders mid blocks; junk → ''.
+    """
+    vals = []
+    for v in (values or []):
+        try:
+            vals.append(max(0.0, float(v)))
+        except (TypeError, ValueError):
+            continue
+    if not vals:
+        return ""
+    if len(vals) > width:
+        n = len(vals)
+        bounds = [round(i * n / width) for i in range(width + 1)]
+        vals = [max(vals[bounds[i]:bounds[i + 1]])
+                for i in range(width)
+                if bounds[i] < bounds[i + 1]]
+    lo, hi = min(vals), max(vals)
+    if hi <= lo:
+        return _SPARK_STEPS[3] * len(vals)
+    return "".join(
+        _SPARK_STEPS[int((v - lo) / (hi - lo)
+                         * (len(_SPARK_STEPS) - 1))]
+        for v in vals)
+
+
+def delta_line(current, previous):
+    """A one-line 'vs previous scan' summary (pure)."""
+    if not previous:
+        return "first recorded scan"
+    try:
+        df = int(current.get("files", 0)) - int(previous.get("files", 0))
+        db = int(current.get("bytes", 0)) - int(previous.get("bytes", 0))
+        return "%+d files · %s%s bytes vs previous scan" % (
+            df, "+" if db >= 0 else "-", human_size(abs(db)))
+    except Exception:  # noqa: BLE001
+        return "history unavailable"
+
+
 # ------------------------------------------------------------------ GUI
 _C = {}   # filled in open_stats from the live theme
 
@@ -270,6 +377,11 @@ def open_stats(master, theme, workspace=None, on_log=None):
 
     for title in ("Files", "On disk", "Folders", "Hidden"):
         make_card(title)
+
+    # DS2: scan-history sparkline strip (growth over time)
+    trend_lbl = tk.Label(body, text="", anchor="w", justify=tk.LEFT,
+                         bg=_C["bg"], fg=accent, font=mono(10))
+    trend_lbl.pack(fill=tk.X, padx=16, pady=(8, 0))
 
     tk.Label(body, text="BY TYPE  ·  click a bar to filter the list",
              bg=_C["bg"], fg=_C["muted"], font=font(8, "bold")
@@ -474,6 +586,17 @@ def open_stats(master, theme, workspace=None, on_log=None):
         card_widgets["Hidden"].config(text=str(s["hidden_files"]))
         render_bars()
         render_tree()
+        # DS2: record the scan + show the history trend strip
+        try:
+            hist = append_history(ws, snapshot_of(s))
+            prev = hist[-2] if len(hist) >= 2 else None
+            trend = sparkline([h.get("files", 0)
+                               for h in hist[-40:]])
+            if trend:
+                trend_lbl.config(text=trend + "\n"
+                                 + delta_line(s, prev))
+        except Exception:  # noqa: BLE001 — history is best-effort
+            pass
         log("file stats: %s" % line1)
 
     def copy_path(event=None):

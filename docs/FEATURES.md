@@ -254,3 +254,13 @@
 | Session toast | click the chip | A toast summarizes the session: words, current WPM, peak WPM, elapsed minutes and goal percentage |
 | Goal control | terminal `scribe 750` / `scribe 0` | Sets the words-per-session goal (persisted in config); 0 hides the percentage part; `scribe` alone prints the current session stats |
 | Pure engine | `tests/test_ds2.py` | Throttle timing, change detection, goal hiding, junk rejection, paste-spike cap and reset-keeps-goal semantics are unit-tested with deterministic clocks |
+
+## Filestats Scan History (v2.16.0 lane)
+
+| Feature | Where | What it does |
+|---|---|---|
+| Growth history | `filestats.py` engine, `.dxn1/filestats_history.json` per workspace | Every File statistics scan records a timestamped snapshot (files + bytes); identical shapes refresh the newest point instead of stacking, and the store keeps the last 60 snapshots |
+| Sparkline strip | trend label under the summary cards | A `▁▂▃▄▅▆▇█` trend line of the last 40 scans renders above the type chart, with a `+12 files · +340 KB bytes vs previous scan` delta line — see your project grow at a glance |
+| Deterministic renderer | `sparkline()` / `delta_line()` | Junk input renders empty, all-equal series render mid blocks, over-long series bucket-compress (chunk max) — pure functions, fully unit-tested |
+| Forgiving store | `load_history()` / `append_history()` | Missing or corrupt history files rebuild silently on the next scan; persistence failures never break the stats window |
+| Tests | `tests/test_ds2.py` | Round-trips, dedupe, cap, first-scan/growth/shrink delta lines and corrupt-store recovery all covered with temp workspaces |

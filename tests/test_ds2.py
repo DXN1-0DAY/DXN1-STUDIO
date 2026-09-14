@@ -1571,3 +1571,59 @@ def test_scribe_chip():
     c.reset()
     assert c.words() == 0 and c.goal_words == 40
     assert c.observe(5, now=100.0) is True
+
+
+def test_filestats_scan_history():
+    # DS2 v2.16.0 lane — workspace growth history + sparkline
+    import shutil
+    import tempfile
+
+    from dxn1_studio.filestats import (append_history, delta_line,
+                                       history_path, load_history,
+                                       snapshot_of, sparkline)
+
+    snap = snapshot_of({"total_files": 12, "total_bytes": 3456})
+    assert snap["files"] == 12 and snap["bytes"] == 3456
+    assert snapshot_of({})["files"] == 0
+
+    # sparkline: junk-safe, monotone shape, bucket compression
+    assert sparkline([]) == "" and sparkline(None) == ""
+    assert sparkline(["x", None]) == ""
+    assert sparkline([5]) == "▄" and sparkline([7, 7, 7]) == "▄▄▄"
+    ramp = sparkline([0, 25, 50, 75, 100])
+    assert ramp[0] == "▁" and ramp[-1] == "█"
+    big = sparkline(list(range(100)), width=10)
+    assert 1 <= len(big) <= 10 and big[-1] == "█"
+    assert sparkline([1, 9, 3]) == sparkline([1, 9, 3])
+
+    ws = tempfile.mkdtemp(prefix="ds2-fshist-")
+    try:
+        assert load_history(ws) == []
+        h1 = append_history(ws, {"t": "t1", "files": 10,
+                                 "bytes": 100})
+        assert len(h1) == 1
+        assert load_history(ws)[0]["files"] == 10     # persisted
+        # identical shape refreshes the newest point (no stacking)
+        h2 = append_history(ws, {"t": "t2", "files": 10,
+                                 "bytes": 100})
+        assert len(h2) == 1 and h2[0]["t"] == "t2"
+        # growth appends; cap holds
+        append_history(ws, {"t": "t3", "files": 15, "bytes": 250})
+        for i in range(80):
+            append_history(ws, {"t": "x%d" % i, "files": 100 + i,
+                                "bytes": 1000 + i})
+        assert len(load_history(ws)) == 60
+        # delta lines: first scan, growth, shrink
+        assert delta_line({"files": 1, "bytes": 10}, None) == \
+            "first recorded scan"
+        assert "+5 files" in delta_line(
+            {"files": 15, "bytes": 250}, {"files": 10, "bytes": 100})
+        assert "-6 files" in delta_line(
+            {"files": 4, "bytes": 50}, {"files": 10, "bytes": 100})
+        # corrupt store tolerated + rebuilt on next append
+        with open(history_path(ws), "w") as f:
+            f.write("not json {{{")
+        assert load_history(ws) == []
+        assert append_history(ws, snap)[0]["files"] == 12
+    finally:
+        shutil.rmtree(ws, ignore_errors=True)
