@@ -92,6 +92,8 @@ EN = {
     "devtools.count": "Count",
     "math.copy_result": "copy result",
     "math.click_copy": "click a history row to copy",
+    "hex.copy_dump": "copy hexdump",
+    "hex.rows_label": "hexdump — 16 bytes per row",
     "common.cancel": "Cancel",
     "common.close": "Close",
     "common.delete": "Delete",
@@ -161,6 +163,8 @@ PACKS = {
         "devtools.count": "Contar",
         "math.copy_result": "copiar resultado",
         "math.click_copy": "clic en una fila del historial para copiar",
+        "hex.copy_dump": "copiar hexdump",
+        "hex.rows_label": "hexdump — 16 bytes por fila",
     },
     "fr": {  # French
         "app.tagline": "L'IDE propre et moderne. Conçu pour le flow.",
@@ -210,6 +214,8 @@ PACKS = {
         "devtools.count": "Compter",
         "math.copy_result": "copier le résultat",
         "math.click_copy": "cliquez une ligne d'historique pour copier",
+        "hex.copy_dump": "copier l'hexdump",
+        "hex.rows_label": "hexdump — 16 octets par ligne",
     },
     "de": {  # German
         "app.tagline": "Die moderne, aufgeräumte IDE. Für echten Flow.",
@@ -258,6 +264,8 @@ PACKS = {
         "devtools.count": "Zählen",
         "math.copy_result": "Ergebnis kopieren",
         "math.click_copy": "Klicke eine Verlaufszeile zum Kopieren",
+        "hex.copy_dump": "Hexdump kopieren",
+        "hex.rows_label": "Hexdump — 16 Bytes pro Zeile",
     },
     "pt": {  # Portuguese
         "app.tagline": "A IDE limpa e moderna. Feita para o fluxo.",
@@ -289,6 +297,8 @@ PACKS = {
         "devtools.count": "Contar",
         "math.copy_result": "copiar resultado",
         "math.click_copy": "clique numa linha do histórico para copiar",
+        "hex.copy_dump": "copiar hexdump",
+        "hex.rows_label": "hexdump — 16 bytes por linha",
     },
     "zh": {  # Chinese (Simplified)
         "app.tagline": "干净现代的 IDE，为心流而生。",
@@ -337,6 +347,8 @@ PACKS = {
         "devtools.count": "统计",
         "math.copy_result": "复制结果",
         "math.click_copy": "点击历史行即可复制",
+        "hex.copy_dump": "复制十六进制转储",
+        "hex.rows_label": "十六进制转储 — 每行 16 字节",
     },
     "hi": {  # Hindi
         "app.tagline": "साफ़, आधुनिक IDE। फ़्लो के लिए बना।",
@@ -368,6 +380,8 @@ PACKS = {
         "devtools.count": "गिनती",
         "math.copy_result": "परिणाम कॉपी करें",
         "math.click_copy": "कॉपी करने के लिए इतिहास पंक्ति पर क्लिक करें",
+        "hex.copy_dump": "हेक्सडम्प कॉपी करें",
+        "hex.rows_label": "हेक्सडम्प — प्रति पंक्ति 16 बाइट",
     },
     "ja": {  # Japanese
         "app.tagline": "クリーンでモダンな IDE。フローのために。",
@@ -399,6 +413,8 @@ PACKS = {
         "devtools.count": "カウント",
         "math.copy_result": "結果をコピー",
         "math.click_copy": "履歴行をクリックでコピー",
+        "hex.copy_dump": "HEXダンプをコピー",
+        "hex.rows_label": "HEXダンプ — 1行16バイト",
     },
 }
 

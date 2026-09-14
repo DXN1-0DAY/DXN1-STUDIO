@@ -369,6 +369,27 @@ def main():
     check("mathpad engine offline", _mev("2^5") == 32)
     mpwin.destroy()
 
+    # ---- ByteSnoop (same smoke, new lane)
+    from dxn1_studio.hexdump import from_hex as _fhex, open_bytesnoop
+    hwin = open_bytesnoop(root, theme)
+    hwin.update_idletasks()
+    check("bytesnoop window opens", hwin.winfo_exists())
+    check("bytesnoop renders text", "printable" in
+          hwin.status.cget("text"))
+    hwin.mode.set("hex")
+    hwin.input.delete("1.0", "end")
+    hwin.input.insert("1.0", "41 42 43")
+    hwin.refresh()
+    check("bytesnoop decodes hex", "|ABC|" in
+          hwin.output.get("1.0", "end"))
+    hwin.input.delete("1.0", "end")
+    hwin.input.insert("1.0", "4 1 2")
+    hwin.refresh()
+    check("bytesnoop honest refusal", "doesn't parse" in
+          hwin.status.cget("text"))
+    check("bytesnoop engine offline", _fhex("41:42:43") == b"ABC")
+    hwin.destroy()
+
     # ---- REST bench (same smoke, seventh lane)
     from dxn1_studio.restbench import (RestResponse, build_curl,
                                        format_size,

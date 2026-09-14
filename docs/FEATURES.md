@@ -358,3 +358,14 @@
 | Human output | `fmt()` | Integers stay integers, floats are trimmed to 12 significant digits (`0.1+0.2` reads `0.3`), huge values switch to scientific notation |
 | History | click-to-copy | Every evaluation lands in a 200-row history list; clicking a row copies its answer |
 | i18n | `math.*` keys | Copy button and history hint translate across all 8 language packs |
+
+## ByteSnoop
+
+| Feature | Where | What it does |
+|---|---|---|
+| Hexdump renderer | `hexdump.py`, Workshop → *ByteSnoop — hexdump & byte inspector…*, palette, terminal `hexdump` / `bytes` / `bytesnoop` | Classic 16-bytes-per-row dump with `00000000`-style offsets, a fixed-width hex column and an aligned ASCII gutter; non-printables render as dots |
+| Hex input | text / hex radio | Flip the source to hex and paste `41 42 43`, `41:42:43`, `0x41`, comma/newline separated or xxd-style offset columns — all tolerated |
+| Honest parsing | `from_hex()` | Odd digit counts or zero hex digits refuse to parse with a clear status message instead of guessing |
+| Byte stats | `byte_stats()` / `stats_line()` | Live line with total bytes, unique values, printable % and high-bit % — updates as you type |
+| Copy | one click | The whole dump copies back out as text |
+| i18n | `hex.*` keys | Copy button and row label translate across all 8 language packs |

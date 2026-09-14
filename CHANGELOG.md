@@ -4,6 +4,15 @@ All notable changes to DXN1 STUDIO. Format based on
 [Keep a Changelog](https://keepachangelog.com/); versioning is
 `MAJOR.MINOR.PATCH` while in **beta**.
 
+## [2.23.0] — 2026-09-14 · beta · "snoop the bytes" (bonus round)
+
+### Added
+- **ByteSnoop** (`hexdump.py`, Workshop → *ByteSnoop — hexdump & byte inspector…*, terminal `hexdump` / `bytes` / `bytesnoop`) — a hexdump & byte inspector: paste text or raw hex and read a classic 16-byte-per-row dump with offset columns and an aligned ASCII gutter (non-printables become dots). Hex input tolerates spaces, colons, commas, `0x` prefixes and xxd-style offset columns; odd digit counts are refused honestly. A live stats line shows total bytes, unique values, printable % and high-bit %; one click copies the whole dump.
+
+### Changed
+- i18n: 2 new keys (`hex.copy_dump`, `hex.rows_label`) translated in all 8 language packs and wired into ByteSnoop's button and label.
+- Smoke harness now **116 checks across 18 live windows**; test suite at **58 groups**; boot QA 20/20.
+
 ## [2.22.0] — 2026-09-14 · beta · "the finale: math, tables, and one big thank-you"
 
 ### Added

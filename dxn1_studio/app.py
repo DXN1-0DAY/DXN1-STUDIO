@@ -1252,6 +1252,15 @@ class DXN1Studio:
                 command=_open_math_menu)
         except Exception:  # pragma: no cover — menu stays alive
             pass
+        # DS2: bytesnoop (defensive)
+        def _open_hex_menu():
+            self.open_bytesnoop()
+        try:
+            workshop_menu.add_command(
+                label="ByteSnoop — hexdump & byte inspector…",
+                command=_open_hex_menu)
+        except Exception:  # pragma: no cover — menu stays alive
+            pass
         workshop_menu.add_separator()
         workshop_menu.add_command(label="Token Usage Dashboard…",
                                   command=_open_usage_menu)
@@ -1743,6 +1752,14 @@ class DXN1Studio:
         try:
             from .mathpad import open_mathpad
             open_mathpad(self.root, self.theme)
+        except Exception:  # noqa: BLE001 — menu stays alive
+            pass
+
+    def open_bytesnoop(self):
+        """DS2: hexdump & byte inspector."""
+        try:
+            from .hexdump import open_bytesnoop
+            open_bytesnoop(self.root, self.theme)
         except Exception:  # noqa: BLE001 — menu stays alive
             pass
 
@@ -2779,6 +2796,8 @@ class DXN1Studio:
                             "copy back as TSV"),
                     ("calc", "MathPad — safe expression calculator "
                              "(x = 5 assigns, _ is the last answer)"),
+                    ("hexdump", "ByteSnoop — hexdump & byte inspector, "
+                                "paste text or raw hex"),
                     ("scribe <n>", "set the words-per-session goal for "
                                    "the statusbar writing meter"),
                     ("explain", "hand the last error to the agent"),
@@ -3080,6 +3099,12 @@ class DXN1Studio:
             self.open_mathpad()
             self.terminal.log("MathPad opened — type 2+2*10, assign x "
                               "= 5, use _ for the last answer")
+            return
+        if low in ("hexdump", "bytesnoop", "bytes"):
+            # DS2: hexdump & byte inspector
+            self.open_bytesnoop()
+            self.terminal.log("ByteSnoop opened — paste text or hex, "
+                              "read the bytes with a stats line")
             return
         if low == "lang" or low.startswith("lang "):
             # DS2: switch the UI language pack (i18n activation)
@@ -3803,6 +3828,14 @@ class DXN1Studio:
         try:
             cmds.append(("MathPad — safe expression calculator…",
                          "DS2", _open_math_palette))
+        except Exception:  # pragma: no cover — palette stays alive
+            pass
+        # DS2: bytesnoop (defensive)
+        def _open_hex_palette():
+            self.open_bytesnoop()
+        try:
+            cmds.append(("ByteSnoop — hexdump & byte inspector…",
+                         "DS2", _open_hex_palette))
         except Exception:  # pragma: no cover — palette stays alive
             pass
         # DS2: scribe goal (defensive)

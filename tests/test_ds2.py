@@ -1927,3 +1927,65 @@ def test_mathpad_engine():
     win.do_eval()
     assert "type an expression" in win.status.cget("text")
     win.destroy(); root.destroy()
+
+
+def test_hexdump_engine():
+    """DS2 hexdump: rendering, hex round-trips, byte stats."""
+    from dxn1_studio import hexdump as h
+    # rendering: offset, hex column, ascii gutter aligned across rows
+    lines = h.hexdump("hello")
+    assert len(lines) == 1 and lines[0].startswith("00000000")
+    assert "68 65 6c 6c 6f" in lines[0] and "|hello|" in lines[0]
+    two = h.hexdump("abcdefghijklmnop" * 2)
+    assert len(two) == 2 and two[1].startswith("00000010")
+    assert two[0].index("|") == two[1].index("|")
+    assert "|....|" in h.hexdump(bytes([0, 1, 2, 3]))[0]
+    # input coercion + junk tolerance
+    assert h.hexdump(b"ab") == h.hexdump("ab") == \
+        h.hexdump(bytearray(b"ab"))
+    assert h.hexdump(None) == [] and h.hexdump(123) == []
+    # hex out/in
+    assert h.to_hex("ABC") == "41 42 43"
+    data = bytes(range(256))
+    assert h.from_hex(h.to_hex(data)) == data
+    assert h.from_hex("41:42:43") == b"ABC"
+    assert h.from_hex("0x41 0x42") == b"AB"
+    assert h.from_hex("41,42\n43") == b"ABC"
+    assert h.from_hex("00000000: 41 42\n00000001: 43") == b"ABC"
+    assert h.from_hex("00000000  41 42  43") == b"ABC"
+    # junk hex → None honestly
+    assert h.from_hex("") is None and h.from_hex(None) is None
+    assert h.from_hex("4 1 2") is None   # odd digit count
+    assert h.from_hex("zz") is None      # no hex digits at all
+    # stats + status line
+    s = h.byte_stats("hello")
+    assert s["total"] == 5 and s["unique"] == 4
+    assert s["printable_pct"] == 100.0
+    assert h.byte_stats(b"")["total"] == 0
+    assert h.byte_stats(bytes([128, 129]))["high_bit_pct"] == 100.0
+    assert "no bytes" in h.stats_line(b"")
+    assert "printable" in h.stats_line("hello")
+    # window opens, renders, decodes hex, tolerates junk
+    import tkinter as tk
+    try:
+        root = tk.Tk(); root.withdraw()
+    except tk.TclError:
+        return
+    theme = {"bg": "#16161e", "header": "#242432",
+             "editor_bg": "#1a1a24", "text": "#e8e8f0",
+             "text_muted": "#8a8a9a", "button": "#2a2a3a",
+             "button_hover": "#33334a"}
+    from dxn1_studio.hexdump import open_bytesnoop
+    win = open_bytesnoop(root, theme)
+    assert win is not None and win.winfo_exists()
+    assert "printable" in win.status.cget("text")
+    win.mode.set("hex")
+    win.input.delete("1.0", "end")
+    win.input.insert("1.0", "41 42 43")
+    win.refresh()
+    assert "|ABC|" in win.output.get("1.0", "end")
+    win.input.delete("1.0", "end")
+    win.input.insert("1.0", "4 1 2")   # odd digits — honest refusal
+    win.refresh()
+    assert "doesn't parse" in win.status.cget("text")
+    win.destroy(); root.destroy()
