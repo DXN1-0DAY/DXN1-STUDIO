@@ -1024,6 +1024,13 @@ class DXN1Studio:
                     pass
             return _go
 
+        def _open_focus_menu():
+            try:
+                from .focus import open_focus
+                open_focus(self.root, self.theme)
+            except Exception:  # pragma: no cover — menu stays alive
+                pass
+
         def _open_hash_menu():
             try:
                 from .hasher import open_hasher
@@ -1099,6 +1106,9 @@ class DXN1Studio:
         workshop_menu.add_command(
             label="Hasher — checksums…",
             command=_open_hash_menu)
+        workshop_menu.add_command(
+            label="Focus Timer…",
+            command=_open_focus_menu)
         workshop_menu.add_separator()
         workshop_menu.add_command(label="Token Usage Dashboard…",
                                   command=_open_usage_menu)
@@ -2421,6 +2431,8 @@ class DXN1Studio:
                                    "skips junk, copies to clipboard"),
                     ("hash <file>", "checksums: MD5/SHA-1/256/512, folder "
                                     "manifests, paste-a-hash verify"),
+                    ("focus <min>", "pomodoro focus timer — work/break "
+                                    "cycles with session dots"),
                     ("explain", "hand the last error to the agent"),
                     ("git <args>", "run git in the workspace (status, add,"),
                     ("", "commit, log… output streams below"),
@@ -2614,6 +2626,20 @@ class DXN1Studio:
                                   (f" — {arg}" if arg else ""))
             except Exception as exc:  # noqa: BLE001 — terminal stays alive
                 self.terminal.log(f"hash failed: {exc}")
+            return
+        if low == "focus" or low.startswith("focus "):
+            # DS2: pomodoro focus timer (optional minutes argument)
+            try:
+                from .focus import open_focus
+                arg = text[6:].strip() if len(text) > 6 else ""
+                if arg and not arg.isdigit():
+                    arg = ""
+                open_focus(self.root, self.theme, initial=arg)
+                self.terminal.log("Focus timer opened" +
+                                  (f" — {arg} minute blocks" if arg
+                                   else " — 25/5 cycles"))
+            except Exception as exc:  # noqa: BLE001 — terminal stays alive
+                self.terminal.log(f"focus failed: {exc}")
             return
         if low.startswith("goto "):
             num = text[5:].strip()
@@ -3144,6 +3170,15 @@ class DXN1Studio:
         try:
             cmds.append(("Hasher — checksums & manifest verify…",
                          "DS2", _open_hash))
+        except Exception:  # pragma: no cover — palette stays alive
+            pass
+        # DS2: focus timer (defensive)
+        def _open_focus():
+            from .focus import open_focus
+            open_focus(self.root, self.theme)
+        try:
+            cmds.append(("Focus timer — pomodoro work/break cycles…",
+                         "DS2", _open_focus))
         except Exception:  # pragma: no cover — palette stays alive
             pass
         return cmds

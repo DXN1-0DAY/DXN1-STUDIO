@@ -1147,3 +1147,38 @@ def test_hasher_engine():
         if dig and p:
             expected[p] = dig
     assert expected == {"a.txt": d, "sub/b.bin": rows[1][1]}
+
+
+def test_focus_engine():
+    # DS2 v2.11.0 — deterministic pomodoro state machine
+    from dxn1_studio.focus import FocusEngine, fmt_mmss
+
+    e = FocusEngine(work=300, brk=60, long_break=120, long_every=2)
+    assert e.label() == "05:00" and e.phase == "work" and e.cycle == 1
+    assert fmt_mmss(0) == "00:00" and fmt_mmss("junk") == "00:00"
+    assert fmt_mmss(-5) == "00:00" and fmt_mmss(65) == "01:05"
+
+    e.start()
+    assert e.tick(299) == [] and e.remaining == 1
+    assert e.tick(1) == ["work-done"]
+    assert e.phase == "break" and e.completed == 1 and e.remaining == 60
+    assert e.tick(60) == ["break-done"] and e.phase == "work"
+    assert e.tick(300) == ["work-done", "cycle-done"]
+    assert e.phase == "long" and e.remaining == 120
+    assert e.tick(120) == ["break-done"]
+    assert e.phase == "work" and e.cycle == 1 and e.completed == 2
+
+    # paused ticks do nothing; skip jumps phases; reset restores
+    e2 = FocusEngine(work=100, brk=30, long_break=45)
+    e2.start()
+    e2.pause()
+    assert e2.tick(50) == [] and e2.remaining == 100
+    e3 = FocusEngine(work=100, brk=30, long_break=45)
+    e3.start()
+    ev = e3.skip()
+    assert "work-done" in ev and e3.phase == "break"
+    assert e3.completed == 1 and e3.remaining == 30
+    e4 = FocusEngine(work=100)
+    e4.reset()
+    assert e4.remaining == 100 and e4.running is False
+    assert FocusEngine().work == 25 * 60

@@ -173,3 +173,13 @@
 | Folder manifests | `hash_dir` + *Copy/Save manifest* | Recursive, hidden-file-aware (toggleable via engine kwargs), sorted, `sha256sum -c`-compatible lines (`<digest>␣␣<relpath>`, 5000-file cap) |
 | Paste-a-hash verify | right panel | Paste an expected digest → instant MATCH / MISMATCH verdict; paste a whole manifest → *Verify ALL* reports `N ok · M MISMATCH · K not in pasted manifest` |
 | Tests | `tests/test_ds2.py` | Digest correctness against `hashlib`, folder walk order, manifest round-trip, malformed/comment/binary-marker line parsing |
+
+## The Focus Timer (v2.11.0)
+
+| Feature | Where | What it does |
+|---|---|---|
+| Pomodoro window | `focus.py`, Workshop → *Focus Timer…*, palette, terminal `focus` / `focus 50` | A 25/5 focus timer that lives inside the IDE — big clock, phase label, session dots, start/pause/reset/skip |
+| Deterministic engine | `FocusEngine.tick()` | State machine with whole-second ticks — work → short break → … → long break every 4th block; transitions fire the second a phase hits zero (unit-tested tick-by-tick, no wall-clock flakiness) |
+| Custom blocks | `focus 50` | Any minute count ≥ 1 replaces the 25-minute work block; break lengths scale from the engine defaults |
+| Session feedback | window log line | Finished blocks count up ("stretch, drink water"); a completed set of 4 announces the long break |
+| Tests | `tests/test_ds2.py` | Phase roll-overs, long-break cadence, paused-tick no-ops, skip semantics, reset, `fmt_mmss` edge cases |

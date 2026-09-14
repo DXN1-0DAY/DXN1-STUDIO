@@ -137,6 +137,22 @@ def main():
     check("mismatch flagged", "MISMATCH" in
           hwin.verdict.cget("text"))
     hwin.destroy()
+
+    # ---- focus timer window (same smoke, fourth lane)
+    from dxn1_studio.focus import open_focus, FocusEngine
+    fwin = open_focus(root, theme, initial="25")
+    fwin.update_idletasks()
+    check("focus window opens", fwin.winfo_exists())
+    check("focus starts 25:00", fwin.engine.label() == "25:00")
+    fwin.engine.start()
+    fwin.engine.tick(25 * 60)
+    check("focus phase rolls to break", fwin.engine.phase == "break")
+    fwin.do_skip()
+    fwin.destroy()
+    fwin2 = open_focus(root, theme, initial="50")
+    fwin2.update_idletasks()
+    check("custom 50-min block", fwin2.engine.work == 50 * 60)
+    fwin2.destroy()
     root.destroy()
 
     failed = [n for n, ok in CHECKS if not ok]

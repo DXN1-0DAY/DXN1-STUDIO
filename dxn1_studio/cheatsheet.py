@@ -80,6 +80,8 @@ SHEETS = [
                        "depth + sizes, one-click clipboard copy"),
         ("hash <file>", "Hasher — chunked MD5/SHA digests, folder "
                         "manifests (sha256sum -c style), verify verdicts"),
+        ("focus <min>", "Pomodoro timer — 25/5 cycles (custom blocks "
+                        "welcome), session dots + long-break reminders"),
     ]),
     ("TERMINAL TALK", [
         ("help", "List every studio command"),
