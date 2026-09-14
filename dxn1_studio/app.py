@@ -2159,6 +2159,26 @@ class DXN1Studio:
             ]
         except Exception:  # pragma: no cover — palette stays alive
             pass
+        # ---- DS2 hub: template gallery (defensive)
+        try:
+            from .gallery import open_gallery as _open_gallery
+
+            def _gallery_cmd():
+                def _picked(kind):
+                    # reuse the hub's create flow (name + folder picker)
+                    self.open_hub()
+                    hub = getattr(self, "_hub", None)
+                    if hub is not None and hub.winfo_exists():
+                        hub.create_workspace(kind)
+
+                _open_gallery(self.root, self.config,
+                              getattr(self.theme, "accent", "#7c3aed"),
+                              on_pick=_picked)
+
+            cmds.append(("Template gallery — browse every scaffold", "",
+                         _gallery_cmd))
+        except Exception:  # pragma: no cover — palette stays alive
+            pass
         if self.config.get("agents_enabled"):
             cmds += [
                 ("Toggle DXN1 Agents panel", "", self.toggle_agents_panel),

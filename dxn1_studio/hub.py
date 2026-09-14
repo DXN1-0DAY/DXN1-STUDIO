@@ -334,6 +334,22 @@ class ProjectHub(tk.Toplevel):
         for i, kind in enumerate(projects.KIND_ORDER):
             self._new_card(cards, kind, i % 4, i // 4)
 
+        # DS2: full template gallery — search, categories, favourites,
+        # plus the extra template pack that doesn't fit on these cards
+        try:
+            from .gallery import all_templates as _all_tpl
+            n_tpl = len(_all_tpl())
+        except Exception:  # noqa: BLE001
+            n_tpl = 0
+        if n_tpl:
+            browse = tk.Label(
+                self, text=f"or browse the full template gallery "
+                           f"({n_tpl} templates, search + favourites)  →",
+                bg=C["overlay"], fg=self.accent, font=(FONT_UI, 10, "bold"),
+                cursor="hand2")
+            browse.pack(anchor="w", padx=32, pady=(8, 0))
+            browse.bind("<Button-1>", lambda e: self.open_gallery())
+
         actions = tk.Frame(self, bg=C["overlay"])
         actions.pack(anchor="w", padx=32, pady=(8, 0))
         self._action_card(actions, "open", "Open existing folder",
@@ -561,10 +577,31 @@ class ProjectHub(tk.Toplevel):
         projects.clear_recent(self.config)
         self._refresh_recents()
 
+    def open_gallery(self):
+        """DS2: browsable template gallery (search / categories / stars)."""
+        try:
+            from .gallery import open_gallery as _open
+            self._gallery = _open(self, self.config, self.accent,
+                                  on_pick=self.create_workspace)
+        except Exception as exc:  # noqa: BLE001 — gallery is optional
+            messagebox.showinfo("Template Gallery",
+                                f"Gallery unavailable: {exc}")
+
     # ----------------------------------------------------------------- flow
+    def _template_label(self, kind):
+        """Human label for any template kind, DS2 extras included."""
+        info = projects.TEMPLATE_INFO.get(kind)
+        if info:
+            return info[0]
+        try:
+            from .gallery import all_templates
+            return all_templates().get(kind, ("Workspace",))[0]
+        except Exception:  # noqa: BLE001 — labels must never break the flow
+            return "Workspace"
+
     def create_workspace(self, kind):
         dlg = NameDialog(self, self.accent,
-                         title=f"New {projects.TEMPLATE_INFO[kind][0]}")
+                         title=f"New {self._template_label(kind)}")
         self.wait_window(dlg)
         if not dlg.value:
             return
@@ -573,7 +610,13 @@ class ProjectHub(tk.Toplevel):
         # user closed the picker -> default to ~/DXN1 instead of aborting
         parent = parent or projects.DEFAULT_PROJECTS_ROOT
         try:
-            path, real_kind = projects.scaffold(kind, parent, dlg.value)
+            # DS2: gallery.scaffold_any covers built-ins AND the extra
+            # template pack (data / scraper / bot / tests / todo)
+            try:
+                from .gallery import scaffold_any
+                path, real_kind = scaffold_any(kind, parent, dlg.value)
+            except ImportError:
+                path, real_kind = projects.scaffold(kind, parent, dlg.value)
         except OSError as exc:
             messagebox.showerror("Project Hub",
                                  f"Could not create the workspace:\n{exc}")
