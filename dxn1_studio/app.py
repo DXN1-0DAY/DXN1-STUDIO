@@ -859,7 +859,7 @@ class DXN1Studio:
                          activebackground=t["hover"],
                          activeforeground=t["text"], bd=0)
 
-        file_menu = tk.Menu(self.menu_bar, **menu_opts)
+        file_menu = tk.Menu(self.root, **menu_opts)
         recents = self.config.get("recent_files") or []
         file_menu.add_command(label="New File", command=self.new_file,
                               accelerator="Ctrl+N")
@@ -901,7 +901,7 @@ class DXN1Studio:
         file_menu.add_command(label="Exit", command=self.root.quit)
         bar_defs.append(("File", file_menu))
 
-        edit_menu = tk.Menu(self.menu_bar, **menu_opts)
+        edit_menu = tk.Menu(self.root, **menu_opts)
         txt = lambda: self.editor.text
         edit_menu.add_command(label="Undo", accelerator="Ctrl+Z",
                               command=lambda: txt().event_generate("<<Undo>>"))
@@ -959,7 +959,7 @@ class DXN1Studio:
                               accelerator="Ctrl+,")
         bar_defs.append(("Edit", edit_menu))
 
-        view_menu = tk.Menu(self.menu_bar, **menu_opts)
+        view_menu = tk.Menu(self.root, **menu_opts)
         view_menu.add_command(label="Command Palette",
                               command=self.open_palette,
                               accelerator="Ctrl+K")
@@ -993,7 +993,7 @@ class DXN1Studio:
             command=self.switch_theme)
         bar_defs.append(("View", view_menu))
 
-        tools_menu = tk.Menu(self.menu_bar, **menu_opts)
+        tools_menu = tk.Menu(self.root, **menu_opts)
         tools_menu.add_command(label="Run Project", command=self.run_current,
                                accelerator="F5")
         tools_menu.add_command(label="Stop", command=self.stop_run)
@@ -1010,7 +1010,66 @@ class DXN1Studio:
                                    command=lambda: ConnectDialog(self))
         bar_defs.append(("Tools", tools_menu))
 
-        help_menu = tk.Menu(self.menu_bar, **menu_opts)
+        # DS2: the workshop — every pocket-knife window in one menu
+        workshop_menu = tk.Menu(self.root, **menu_opts)
+
+        def _ws(module, opener):
+            """Defensively open a DS2 tool window at click time."""
+            def _go():
+                try:
+                    mod = __import__(f"dxn1_studio.{module}",
+                                     fromlist=[opener])
+                    getattr(mod, opener)(self.root, self.theme)
+                except Exception:  # pragma: no cover — menu stays alive
+                    pass
+            return _go
+
+        def _open_readability_menu():
+            try:
+                from .readability import open_readability
+                open_readability(
+                    self.root, self.theme,
+                    text=self.editor.text.get("1.0", "end-1c"),
+                    name=os.path.basename(
+                        getattr(self, "current_path", "")
+                        or getattr(self.editor, "path", "") or "file"))
+            except Exception:  # pragma: no cover — menu stays alive
+                pass
+
+        def _open_usage_menu():
+            try:
+                from .usagedash import open_dashboard
+                open_dashboard(self, self.theme,
+                               workspace=getattr(self, "project_dir", ""),
+                               on_log=lambda msg: self.terminal.log(msg))
+            except Exception:  # pragma: no cover — menu stays alive
+                pass
+
+        workshop_menu.add_command(
+            label="Developer Tools…",
+            command=_ws("devtools", "open_devtools"))
+        workshop_menu.add_separator()
+        workshop_menu.add_command(
+            label="Cron Explainer…",
+            command=_ws("cronexp", "open_cron"))
+        workshop_menu.add_command(
+            label="Readability Report…",
+            command=_open_readability_menu)
+        workshop_menu.add_command(
+            label="JWT Decoder…",
+            command=_ws("jwt", "open_jwt"))
+        workshop_menu.add_command(
+            label=".env Lint & Mask…",
+            command=_ws("envcheck", "open_envlint"))
+        workshop_menu.add_command(
+            label="Data Generator…",
+            command=_ws("gen", "open_generator"))
+        workshop_menu.add_separator()
+        workshop_menu.add_command(label="Token Usage Dashboard…",
+                                  command=_open_usage_menu)
+        bar_defs.append(("Workshop", workshop_menu))
+
+        help_menu = tk.Menu(self.root, **menu_opts)
         help_menu.add_command(label="Check for Updates…",
                               command=lambda: self.check_for_updates(manual=True))
         help_menu.add_command(label="Keyboard Shortcuts",
@@ -1045,6 +1104,13 @@ class DXN1Studio:
         """Paint the themed top bar: brand mark + one Menubutton per menu."""
         t = self.theme
         for child in self.menu_bar.winfo_children():
+            # DS2 fix: menus are built as children of the bar but must
+            # NEVER be cleared here — the Menubuttons below rebind to
+            # them. Destroying them left every menu dead (a real bug
+            # caught by the v2.8.0 boot QA: File/Edit/View/Tools/Help
+            # all pointed at destroyed Tcl commands).
+            if isinstance(child, tk.Menu):
+                continue
             child.destroy()
         tk.Label(self.menu_bar, text="◆", bg=t["header"], fg=t.accent,
                  font=(FONT_UI, 11, "bold")).pack(side=tk.LEFT, padx=(12, 6))
