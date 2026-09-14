@@ -82,6 +82,9 @@ SHEETS = [
                         "manifests (sha256sum -c style), verify verdicts"),
         ("focus <min>", "Pomodoro timer — 25/5 cycles (custom blocks "
                         "welcome), session dots + long-break reminders"),
+        ("sort <mode>", "Line tools — sort az/za/len, dedupe, shuffle, "
+                        "reverse, trim; selection or whole file "
+                        "(Ctrl+Alt+S/D/H/R)"),
     ]),
     ("TERMINAL TALK", [
         ("help", "List every studio command"),

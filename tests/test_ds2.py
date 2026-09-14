@@ -1182,3 +1182,46 @@ def test_focus_engine():
     e4.reset()
     assert e4.remaining == 100 and e4.running is False
     assert FocusEngine().work == 25 * 60
+
+
+def test_linesort_engine():
+    # DS2 v2.12.0 — line tools: sorting, dedupe, shuffle, ranges
+    import random
+
+    from dxn1_studio import linesort as ls
+
+    t = "pear\nApple\nbanana\n"
+    assert ls.transform_lines(t, "az") == "Apple\nbanana\npear\n"
+    assert ls.transform_lines(t, "za") == "pear\nbanana\nApple\n"
+    assert ls.transform_lines(t, "reverse") == "banana\nApple\npear\n"
+
+    assert ls.transform_lines("ccc\na\ndd\nbb\n", "len") == \
+        "a\ndd\nbb\nccc\n"
+
+    t3 = "Go\npython\ngo\nPYTHON\nRust\n"
+    assert ls.transform_lines(t3, "dedupe") == "Go\npython\nRust\n"
+
+    # range-limited transforms leave the rest untouched
+    assert ls.transform_lines("keep1\npear\napple\nkeep2\n", "az", 2,
+                              3) == "keep1\napple\npear\nkeep2\n"
+    assert ls.transform_lines("x\na\na\na\nx\n", "dedupe", 2, 4) == \
+        "x\na\nx\n"
+    assert ls.transform_lines("a   \nb\t  \nc\n", "trim", 2, 2) == \
+        "a   \nb\nc\n"
+
+    # shuffle: seeded rng is deterministic, multiset preserved
+    t6 = "1\n2\n3\n4\n5\n"
+    out = ls.transform_lines(t6, "shuffle", rng=random.Random(42))
+    assert sorted(out.split("\n")) == sorted(t6.split("\n"))
+    assert out == ls.transform_lines(t6, "shuffle",
+                                     rng=random.Random(42))
+
+    # trailing newline is a terminator, never a sortable empty line
+    assert ls.transform_lines("b\na\n", "az") == "a\nb\n"
+    assert ls.transform_lines("b\na", "az") == "a\nb"
+    assert ls.expand_range("a\nb\nc\n", 2) == (2, 3)
+
+    # hostile input never raises
+    assert ls.transform_lines(None, "az") is None
+    assert ls.transform_lines("b\na", "nope") == "b\na"
+    assert ls.transform_lines("b\na", "az", "x", "y") == "b\na"

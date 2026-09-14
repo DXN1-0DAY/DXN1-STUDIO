@@ -934,6 +934,20 @@ class DXN1Studio:
                               command=lambda: self.editor.move_line(-1))
         edit_menu.add_command(label="Move Line Down", accelerator="Alt+Down",
                               command=lambda: self.editor.move_line(1))
+        # DS2: line tools
+        edit_menu.add_command(label="Sort Lines A→Z", accelerator="Ctrl+Alt+S",
+                              command=lambda: self.apply_line_tool("az"))
+        edit_menu.add_command(label="Dedupe Lines",
+                              accelerator="Ctrl+Alt+D",
+                              command=lambda: self.apply_line_tool("dedupe"))
+        edit_menu.add_command(label="Shuffle Lines",
+                              accelerator="Ctrl+Alt+H",
+                              command=lambda: self.apply_line_tool("shuffle"))
+        edit_menu.add_command(label="Reverse Lines",
+                              accelerator="Ctrl+Alt+R",
+                              command=lambda: self.apply_line_tool("reverse"))
+        edit_menu.add_command(label="Trim Trailing Whitespace",
+                              command=lambda: self.apply_line_tool("trim"))
         # DS2: line tools — sort & dedupe on the selection
         edit_menu.add_command(label="Sort Lines (A→Z)",
                               command=lambda: self.editor.sort_lines())
@@ -1188,6 +1202,14 @@ class DXN1Studio:
         self.root.bind("<Control-K>", lambda e: self.editor.delete_line())
         self.root.bind("<Control-D>", lambda e: self.editor.duplicate_line())
         self.root.bind("<Control-slash>", lambda e: self.editor.toggle_comment())
+        # DS2: line tools shortcuts
+        self.root.bind("<Control-Alt-s>", lambda e: self.apply_line_tool("az"))
+        self.root.bind("<Control-Alt-d>", lambda e:
+                       self.apply_line_tool("dedupe"))
+        self.root.bind("<Control-Alt-h>", lambda e:
+                       self.apply_line_tool("shuffle"))
+        self.root.bind("<Control-Alt-r>", lambda e:
+                       self.apply_line_tool("reverse"))
         self.root.bind("<Control-g>", lambda e: self.goto_line_dialog())
         self.root.bind("<Alt-Up>", lambda e: self.editor.move_line(-1))
         self.root.bind("<Alt-Down>", lambda e: self.editor.move_line(1))
@@ -2641,6 +2663,26 @@ class DXN1Studio:
             except Exception as exc:  # noqa: BLE001 — terminal stays alive
                 self.terminal.log(f"focus failed: {exc}")
             return
+        if low.startswith("sort"):
+            # DS2: line tools on the current selection or buffer
+            mode = text[5:].strip() if len(text) > 5 else "az"
+            aliases = {"a-z": "az", "up": "az", "down": "za", "z-a": "za",
+                       "unique": "dedupe", "random": "shuffle",
+                       "rev": "reverse", "reverse": "reverse",
+                       "trim": "trim", "len": "len", "az": "az",
+                       "za": "za", "dedupe": "dedupe", "shuffle":
+                       "shuffle"}
+            mode = aliases.get(mode)
+            if not mode:
+                self.terminal.log("usage: sort az|za|len|dedupe|"
+                                  "shuffle|reverse|trim")
+                return
+            self.apply_line_tool(mode)
+            self.terminal.log(f"lines: {mode} applied" +
+                              (" (selection)" if
+                               self.editor.text.tag_ranges("sel")
+                               else " (whole file)"))
+            return
         if low.startswith("goto "):
             num = text[5:].strip()
             if num.isdigit():
@@ -2697,6 +2739,40 @@ class DXN1Studio:
         self.terminal.log("Booting DXN1 STUDIO…")
 
     # ------------------------------------------------------------- palette
+    def apply_line_tool(self, mode):
+        """DS2: sort/dedupe/shuffle/reverse/trim lines.
+
+        Acts on the selected lines when a selection exists, else the
+        whole buffer. Defensive: any failure is a no-op.
+        """
+        try:
+            from .linesort import transform_lines, MODES
+            if mode not in MODES:
+                return
+            txt = self.editor.text
+            if txt.tag_ranges("sel"):
+                start = txt.index("sel.first linestart")
+                end = txt.index("sel.last lineend+1c")
+                block = txt.get(start, end)
+                new = transform_lines(block, mode)
+                if new != block:
+                    txt.replace(start, end, new)
+            else:
+                whole = txt.get("1.0", "end-1c")
+                new = transform_lines(whole, mode)
+                if new != whole:
+                    pos = txt.index("insert")
+                    txt.delete("1.0", "end")
+                    txt.insert("1.0", new)
+                    txt.mark_set("insert", pos)
+                    self.editor.modified = True
+                    self.editor.update_line_numbers()
+                    self.editor.highlighter.schedule()
+                    self._mark_dirty()
+            self._update_cursor_pos()
+        except Exception:  # noqa: BLE001 — editor stays alive
+            pass
+
     def open_palette(self):
         self._ds2_tick("palette")
         if self._palette is not None:
@@ -3172,6 +3248,19 @@ class DXN1Studio:
                          "DS2", _open_hash))
         except Exception:  # pragma: no cover — palette stays alive
             pass
+        # DS2: line tools (defensive)
+        for _lbl, _mode in (("Sort lines A→Z", "az"),
+                            ("Sort lines Z→A", "za"),
+                            ("Sort lines by length", "len"),
+                            ("Dedupe lines", "dedupe"),
+                            ("Shuffle lines", "shuffle"),
+                            ("Reverse lines", "reverse"),
+                            ("Trim trailing whitespace", "trim")):
+            try:
+                cmds.append((_lbl, "DS2",
+                             lambda m=_mode: self.apply_line_tool(m)))
+            except Exception:  # pragma: no cover — palette stays alive
+                pass
         # DS2: focus timer (defensive)
         def _open_focus():
             from .focus import open_focus

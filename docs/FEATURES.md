@@ -183,3 +183,13 @@
 | Custom blocks | `focus 50` | Any minute count ≥ 1 replaces the 25-minute work block; break lengths scale from the engine defaults |
 | Session feedback | window log line | Finished blocks count up ("stretch, drink water"); a completed set of 4 announces the long break |
 | Tests | `tests/test_ds2.py` | Phase roll-overs, long-break cadence, paused-tick no-ops, skip semantics, reset, `fmt_mmss` edge cases |
+
+## Line Tools (v2.12.0)
+
+| Feature | Where | What it does |
+|---|---|---|
+| Sort / dedupe / shuffle / reverse / trim | Edit menu → *Line Tools*, palette, terminal `sort <mode>` | Seven transforms on the selected lines (or the whole file when nothing is selected): A→Z, Z→A, shortest-first, dedupe (case/whitespace-insensitive, keeps first), seeded shuffle, reverse, trailing-whitespace trim |
+| Keyboard | Ctrl+Alt+S / D / H / R | Sort, dedupe, shuffle, reverse without touching the mouse |
+| Trailing-newline honesty | engine | A file ending in `\n` never grows a sortable phantom empty line — the terminator shape is preserved byte-for-byte |
+| Range discipline | engine | Text outside the selection is preserved exactly; dedupe/shuffle only ever touch the requested block |
+| Pure engine | `tests/test_ds2.py` | Deterministic with an injected RNG, clamps hostile ranges, never raises on non-text input |
