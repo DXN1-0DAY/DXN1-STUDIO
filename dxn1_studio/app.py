@@ -524,6 +524,7 @@ class DXN1Studio:
         self.editor.text.bind("<ButtonRelease-1>", self._update_cursor_pos)
         self.editor.set_font_size(self.config.get("editor_font_size", 11))
         self.editor.set_wrap(bool(self.config.get("word_wrap", False)))
+        self._install_bookmark_bridge(self.editor)   # DS2: persistence
         self.editor.pack(fill=tk.BOTH, expand=True)
         self.right_panel.add(editor_container, minsize=200)
 
@@ -1304,10 +1305,72 @@ class DXN1Studio:
         self._tour = None
 
     # -------------------------------------------------------------- actions
+    # DS2: persistent bookmarks — store + bridges (all defensive)
+    def _bookmark_store(self):
+        """Lazily-built BookmarkStore for the current workspace."""
+        from .bookmarks import BookmarkStore
+        ws = getattr(self, "project_dir", "") or None
+        store = getattr(self, "_bm_store", None)
+        if store is None or store.workspace != (os.path.abspath(ws)
+                                                if ws else None):
+            store = BookmarkStore(ws)
+            self._bm_store = store
+        return store
+
+    def _install_bookmark_bridge(self, editor):
+        """Persist bookmarks whenever the editor toggles one."""
+        try:
+            original = editor.toggle_bookmark
+
+            def _toggled(line=None):
+                added = original(line)
+                try:
+                    self._persist_bookmarks()
+                except Exception:   # noqa: BLE001 — gutter never breaks
+                    pass
+                return added
+
+            editor.toggle_bookmark = _toggled
+        except Exception:           # noqa: BLE001 — editor stays usable
+            pass
+
+    def _persist_bookmarks(self):
+        """Write the active editor's bookmarks to the workspace store."""
+        from .bookmarks import key_for as _bm_key
+        editor = self.editor
+        path = getattr(editor, "file_path", "") if editor is not None else ""
+        if not path:
+            return
+        store = self._bookmark_store()
+        store.set(_bm_key(path, store.workspace),
+                  sorted(getattr(editor, "bookmarks", []) or []))
+        store.save()
+
+    def _restore_bookmarks(self, filepath):
+        """Load persisted bookmarks for ``filepath`` into the editor."""
+        if not filepath:
+            if self.editor is not None:
+                self.editor.bookmarks = set()
+                self.editor.update_line_numbers()
+            return
+        try:
+            from .bookmarks import key_for as _bm_key
+            store = self._bookmark_store()
+            lines = store.get(_bm_key(filepath, store.workspace))
+            self.editor.bookmarks = set(lines)
+            self.editor.update_line_numbers()
+        except Exception:           # noqa: BLE001 — opening stays safe
+            pass
+
     def new_file(self):
         self.editor.set_content("")
         self.editor.file_path = None
         self.editor.highlighter.set_language(None)
+        self.editor.bookmarks = set()   # DS2: untitled starts clean
+        try:
+            self.editor.update_line_numbers()
+        except Exception:  # noqa: BLE001
+            pass
         self.status_file.config(text="Untitled")
         self.terminal.log("Created new file")
 
@@ -1330,8 +1393,14 @@ class DXN1Studio:
             messagebox.showerror("Error", f"Failed to open file:\n{e}")
             return
         self._buffers[filepath] = {"content": content, "dirty": False}
+        try:  # DS2: keep the outgoing file's bookmarks before swapping
+            if self.editor.file_path:
+                self._persist_bookmarks()
+        except Exception:  # noqa: BLE001 — open never breaks on bookmarks
+            pass
         self.editor.set_content(content, path=filepath)
         self._sync_split(content, filepath)
+        self._restore_bookmarks(filepath)   # DS2: persistent bookmarks
         self.status_file.config(text=filepath)
         self._update_cursor_pos()
         self._record_recent_file(filepath)
@@ -1391,6 +1460,7 @@ class DXN1Studio:
         self._split.set_font_size(
             int(self.config.get("editor_font_size", 11)))
         self._split.set_wrap(bool(self.config.get("word_wrap", False)))
+        self._install_bookmark_bridge(self._split)   # DS2: persistence
         self._split.text.bind("<KeyRelease>", self._on_editor_key)
         self._split.text.bind("<ButtonRelease-1>", self._update_cursor_pos)
         self._split.text.bind("<FocusIn>",
@@ -1417,7 +1487,12 @@ class DXN1Studio:
         if path:
             self._buffers[path] = {"content": old.get_content(),
                                    "dirty": True}
+            try:  # DS2: swap bookmark sets along with the buffer
+                self._persist_bookmarks()
+            except Exception:  # noqa: BLE001
+                pass
             self.editor.set_content(old.get_content(), path=path)
+            self._restore_bookmarks(path)
         self._update_cursor_pos()
 
     def _sync_split(self, content, path=None):
@@ -2381,6 +2456,24 @@ class DXN1Studio:
                      self.root, self.theme, self.config,
                      on_open=self.open_file,
                      root=getattr(self, "project_dir", "") or None,
+                     on_log=lambda m: self.terminal.log(m))),
+            )
+        except Exception:  # pragma: no cover — palette stays alive
+            pass
+        # ---- DS2: persistent bookmarks browser (defensive)
+        try:
+            from .bookmarks import open_browser as _open_bookmarks
+
+            def _bookmark_jump(abspath, line):
+                self.open_file(abspath)
+                self.editor.goto_line(line)
+
+            cmds.append(
+                ("Bookmarks — browse all in this workspace…", "DS2",
+                 lambda: _open_bookmarks(
+                     self.root, self.theme,
+                     workspace=getattr(self, "project_dir", "") or None,
+                     on_jump=_bookmark_jump,
                      on_log=lambda m: self.terminal.log(m))),
             )
         except Exception:  # pragma: no cover — palette stays alive

@@ -417,3 +417,42 @@ def test_recents_ranking_and_load(tmp_path):
 # -------------------------------------------------------------- standalone
 if __name__ == "__main__":
     sys.exit(pytest.main([__file__, "-q", "--no-header"]))
+
+
+# ------------------------------------------------------------- bookmarks
+def test_bookmark_store_roundtrip(tmp_path):
+    from dxn1_studio.bookmarks import (
+        BookmarkStore, key_for, snippet_for, store_path)
+
+    assert store_path(str(tmp_path)) == \
+        str(tmp_path / ".dxn1" / "bookmarks.json")
+    f1 = tmp_path / "main.py"
+    (tmp_path / "src").mkdir()
+    f2 = tmp_path / "src" / "app.py"
+    f1.write_text("def one():\n    pass\n")
+    f2.write_text("x = 1  # hello\n")
+
+    assert key_for(f1, tmp_path) == "main.py"
+    assert key_for(f2, tmp_path) == "src/app.py"
+    assert key_for(str(tmp_path) + "_outside.py", tmp_path).endswith(".py")
+
+    s = BookmarkStore(tmp_path)
+    assert s.toggle("main.py", 1) is True
+    assert s.toggle("main.py", 1) is False
+    s.set("src/app.py", [10, 2, 2, 0, -5])          # dedupe + drop bad
+    assert s.get("src/app.py") == [2, 10]
+    assert s.save() is True
+
+    s2 = BookmarkStore(tmp_path)
+    assert s2.get("main.py") == []                  # toggled back off
+    assert s2.get("src/app.py") == [2, 10]
+    s2.set("big.py", list(range(1, 2000)))
+    assert len(s2.get("big.py")) == 500             # cap per file
+
+    # corrupt store -> clean start, no raise
+    (tmp_path / ".dxn1" / "bookmarks.json").write_text("{bad json")
+    assert BookmarkStore(tmp_path).all() == {}
+
+    # snippets are safe on missing/oversize files
+    assert snippet_for(str(f1), 1) == "def one():"
+    assert snippet_for(str(tmp_path / "nope.py"), 1) == ""
