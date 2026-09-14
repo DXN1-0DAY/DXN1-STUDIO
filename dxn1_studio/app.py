@@ -135,8 +135,9 @@ TERMINAL_HELP = (
     ("activity", "recent studio notifications — searchable window "
                  "with kind filters"),
     ("activity copy", "every receipt to the clipboard, oldest first"),
-    ("activity export [path]", "every receipt to a text file "
-                               "(default beside activity.json)"),
+    ("activity export [json|csv] [path]",
+     "every receipt to a file — format follows the extension "
+     "(default beside activity.json)"),
     ("update", "check GitHub for a newer release"),
     ("whatsnew", "release notes — what changed between tags"),
     ("deps", "cross-check imports vs requirements*.txt "
@@ -239,6 +240,72 @@ def extract_error_block(text, max_lines=60, max_chars=4000):
             block = "\n".join(lines[i:i + max_lines])
             return block.strip()[:max_chars]
     return ""
+
+
+_NAMED_KEYS = {"/": "slash", ",": "comma", "\\": "backslash",
+               "+": "plus", "-": "minus", " ": "space",
+               "Enter": "Return"}
+_MOD_NAMES = {"ctrl": "Control", "alt": "Alt", "shift": "Shift"}
+
+
+def accel_pattern(accel):
+    """DS2 v2.47 — translate a human accelerator ("Ctrl+Shift+D",
+    "Ctrl+/", "Ctrl++", "Alt+Up", "F5") into the exact Tk event
+    pattern the code must have bound for it ("<Control-D>",
+    "<Control-slash>", "<Control-plus>", "<Alt-Up>", "<F5>"). The
+    honest bridge between what the UI advertises and what the keys
+    really do: an untranslatable string returns "" so the audit can
+    flag it instead of guessing."""
+    try:
+        s = str(accel).strip()
+        if s.endswith("++"):
+            key, mods_s = "+", s[:-2]
+        elif s.endswith("+-"):
+            key, mods_s = "-", s[:-2]
+        else:
+            parts = [p for p in s.split("+")]
+            key, mods_s = parts[-1], "+".join(parts[:-1])
+        key = str(key).strip()
+        mods = [m.strip().lower() for m in mods_s.split("+") if m.strip()]
+        if not key or key.lower() in _MOD_NAMES:
+            return ""
+        named = _NAMED_KEYS.get(key)
+        if named is not None and len(key) == 1:
+            key = named
+        elif key in _NAMED_KEYS:          # "Enter" → "Return"
+            key = _NAMED_KEYS[key]
+        elif len(key) == 1 and key.isalpha():
+            if "shift" in mods:
+                key = key.upper()
+                mods = [m for m in mods if m != "shift"]
+            else:
+                key = key.lower()
+        elif len(key) == 1 and key.isdigit():
+            pass                              # digits stay as-is
+        # multi-char names (F5, F2, Return, Up…) stay as written
+        head = "".join(_MOD_NAMES[m] + "-" for m in mods
+                       if m in _MOD_NAMES)
+        if not key:
+            return ""
+        return "<%s%s>" % (head, key)
+    except Exception:  # noqa: BLE001 — never guess, never raise
+        return ""
+
+
+def looks_like_accel(hint):
+    """DS2 v2.47 — does this palette hint claim to be a keybinding?
+    "Ctrl+S", "Alt+Up", "F5", "Enter" → yes; "DS2" (a category tag),
+    "line 42" (a symbol position), "" (no hint) → no. The honest-keys
+    audit only polices real claims — it must never chase category
+    labels."""
+    h = str(hint or "").strip()
+    if not h:
+        return False
+    if h.startswith(("Ctrl", "Alt", "Shift", "Meta")):
+        return True
+    if len(h) <= 6 and h[:1] == "F" and h[1:].isdigit():
+        return True
+    return h in ("Enter", "Return", "Esc", "Escape", "Tab")
 
 
 class CommandPalette(tk.Toplevel):
@@ -3611,10 +3678,18 @@ class DXN1Studio:
                 self._activity_copy_all()
                 return
             if rest == "export" or rest.startswith("export "):
-                self._activity_export_to(rest[6:].strip() or None)
+                args = rest[6:].split()
+                fmt = None
+                path = None
+                if args and args[0] in ("json", "csv"):
+                    fmt = args[0]
+                    path = " ".join(args[1:]) or None
+                else:
+                    path = rest[6:].strip() or None
+                self._activity_export_to(path, fmt=fmt)
                 return
             self.terminal.log("try: activity · activity copy · "
-                              "activity export [path]")
+                              "activity export [json|csv] [path]")
             return
         if low == "deps" or low.startswith("deps "):
             rest = text[4:].strip().lower()
@@ -4543,6 +4618,13 @@ class DXN1Studio:
                 save_json(log, self._activity_path())
             except Exception:  # noqa: BLE001 — never break the toast
                 pass
+        # DS2 v2.47 — a muted kind keeps its receipt but skips the
+        # card: the Activity log remembers, the screen stays quiet
+        try:
+            if not self.config.get("toast_show_%s" % kind, True):
+                return
+        except Exception:  # noqa: BLE001 — a broken setting whispers on
+            pass
         t = self.theme
         colors = {"success": t["success"], "error": "#f85149",
                   "info": t.accent}
@@ -5277,10 +5359,15 @@ class DXN1Studio:
             self.terminal.log("activity log unavailable here")
 
     def _activity_exported(self, path):
-        """DS2 v2.46 — the window wrote the receipts file; the app
-        acknowledges it the usual way. Never raises."""
+        """DS2 v2.46 — the receipts file was written; the app
+        acknowledges it the usual way, naming the format it chose
+        (v2.47: the extension decides). Never raises."""
         try:
-            self.toast("Receipts saved → %s" % path, "success")
+            ext = os.path.splitext(str(path))[1].lower()
+            fmt = ("json" if ext == ".json"
+                   else "csv" if ext == ".csv" else "text")
+            self.toast("Receipts saved as %s → %s" % (fmt, path),
+                       "success")
         except Exception:  # noqa: BLE001
             pass
         try:
@@ -5309,9 +5396,11 @@ class DXN1Studio:
         except Exception:  # noqa: BLE001 — a verb must never raise
             self.terminal.log("activity copy unavailable here")
 
-    def _activity_export_to(self, path=None):
-        """DS2 v2.46 — every receipt to a plain text file: the given
-        path, or a timestamped one beside activity.json. Never
+    def _activity_export_to(self, path=None, fmt=None):
+        """DS2 v2.46 — every receipt to a file: the given path, or a
+        timestamped one beside activity.json. v2.47 — the format
+        follows the extension, or the explicit ``json``/``csv``
+        argument names the default file's extension too. Never
         raises."""
         log = getattr(self, "activity_log", None)
         if log is None:
@@ -5319,14 +5408,15 @@ class DXN1Studio:
             return
         try:
             import time as _time_mod
-            from .activity import export_file
+            from .activity import export_to
             p = str(path or "").strip()
             if not p:
+                f = fmt if fmt in ("json", "csv") else "txt"
                 p = os.path.join(
                     os.path.dirname(self._activity_path()),
-                    "activity-export-%s.txt"
-                    % _time_mod.strftime("%Y%m%d-%H%M%S"))
-            got = export_file(log, p)
+                    "activity-export-%s.%s"
+                    % (_time_mod.strftime("%Y%m%d-%H%M%S"), f))
+            got = export_to(log, p, fmt=fmt)
             if got:
                 self._activity_exported(got)
             else:
@@ -5352,7 +5442,8 @@ class DXN1Studio:
             entries.append(("Stage all changes",
                             lambda: self.run_command("git add -A")))
             entries.append(("Commit staged…",
-                            self._commit_staged_from_chip))
+                            self._commit_staged_from_chip,
+                            "Enter"))
             entries.append(("Draft AI commit message",
                             self._ai_commit_from_chip))
             entries.append(("Push to origin",
@@ -5371,8 +5462,11 @@ class DXN1Studio:
     def _render_chip_menu(self, entries, event=None):
         """DS2 v2.42 — one themed popup renderer for every statusbar
         chip menu (git, deps, …): ``(label, command)`` rows,
-        ``("---", None)`` = separator, popped at the cursor. The
-        popup itself is best-effort — a menu must never break
+        ``("---", None)`` = separator, popped at the cursor.
+        v2.47 — a row may be ``(label, command, accel)`` and the
+        accelerator is advertised right-aligned, but ONLY where a
+        real keybinding exists (the git menu's Enter-to-commit).
+        The popup itself is best-effort — a menu must never break
         typing."""
         try:
             t = self.theme
@@ -5380,9 +5474,14 @@ class DXN1Studio:
                            fg=t["text"], activebackground=t["hover"],
                            activeforeground=t["text"],
                            font=(FONT_UI, 9))
-            for label, cmd in entries:
+            for entry in entries:
+                label, cmd = entry[0], entry[1]
+                accel = str(entry[2]) if len(entry) > 2 else ""
                 if label == "---":
                     menu.add_separator()
+                elif accel:
+                    menu.add_command(label=label, command=cmd,
+                                     accelerator=accel)
                 else:
                     menu.add_command(label=label, command=cmd)
             try:
@@ -6485,6 +6584,13 @@ class SettingsDialog(tk.Toplevel):
             value=bool(cfg.get("deps_watch", True)))
         self.gitwatch_v = tk.BooleanVar(
             value=bool(cfg.get("git_watch", True)))
+        # DS2 v2.47: per-kind toast cards (muted kinds still archive)
+        self.toastinfo_v = tk.BooleanVar(
+            value=bool(cfg.get("toast_show_info", True)))
+        self.toastsuccess_v = tk.BooleanVar(
+            value=bool(cfg.get("toast_show_success", True)))
+        self.toasterror_v = tk.BooleanVar(
+            value=bool(cfg.get("toast_show_error", True)))
         try:   # DS2 v2.36: update heartbeat interval, minutes
             _upd_min = max(15, min(360, int(
                 cfg.get("update_check_secs", 3600)) // 60))
@@ -6644,6 +6750,33 @@ class SettingsDialog(tk.Toplevel):
                      fg=t["text_secondary"], font=(FONT_UI, 8)).pack(
                 side=tk.LEFT)
 
+        # --- toasts (DS2 v2.47): per-kind cards; the log keeps everything
+        secT = self._section(box, "Toasts")
+        for var, label, sub in (
+                (self.toastinfo_v, "Info cards",
+                 "Quiet confirmations and hints from every lane."),
+                (self.toastsuccess_v, "Success cards",
+                 "Saved, exported, committed — the happy footsteps."),
+                (self.toasterror_v, "Error cards",
+                 "Failures worth seeing the moment they happen.")):
+            trow = tk.Frame(secT, bg=t["card"])
+            trow.pack(fill=tk.X, pady=3, ipady=4)
+            tk.Checkbutton(trow, variable=var, bg=t["card"], fg=t["text"],
+                           activebackground=t["card"],
+                           activeforeground=t["text"],
+                           selectcolor=t["editor"],
+                           highlightthickness=0, bd=0).pack(
+                side=tk.LEFT, padx=(12, 4))
+            tk.Label(trow, text=label, bg=t["card"], fg=t["text"],
+                     font=(FONT_UI, 10, "bold")).pack(side=tk.LEFT)
+            tk.Label(trow, text=f"  ·  {sub}", bg=t["card"],
+                     fg=t["text_secondary"], font=(FONT_UI, 8)).pack(
+                side=tk.LEFT)
+        tk.Label(secT, text="A muted kind still lands in the Activity log "
+                            "— the log remembers, the screen stays quiet.",
+                 bg=t["card"], fg=t["text_secondary"], font=(FONT_UI, 8)
+                 ).pack(anchor="w", padx=10, pady=(0, 6))
+
         # --- agents
         sec3 = self._section(box, "DXN1 Agents")
         btn = tk.Label(sec3, text="Open agent settings…", bg=t["card"],
@@ -6780,6 +6913,10 @@ class SettingsDialog(tk.Toplevel):
         # DS2 v2.41: watch chips — persist and redraw live
         cfg.set("deps_watch", bool(self.depswatch_v.get()))
         cfg.set("git_watch", bool(self.gitwatch_v.get()))
+        # DS2 v2.47: per-kind toast cards
+        cfg.set("toast_show_info", bool(self.toastinfo_v.get()))
+        cfg.set("toast_show_success", bool(self.toastsuccess_v.get()))
+        cfg.set("toast_show_error", bool(self.toasterror_v.get()))
         self.app._deps_sig_state = ""
         self.app._deps_probed_at = 0.0
         self.app._update_depswatch(force=True)

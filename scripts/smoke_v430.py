@@ -67,7 +67,7 @@ app.toast = lambda msg, kind="info": toasts.append(str(msg))
 # ------------------------------------------- scribe chip: the right-click menu
 try:
     rows = app._scribe_menu_entries()
-    labels = [lab for lab, _c in rows]
+    labels = [e[0] for e in rows]
     check("scribe: the menu offers summary, goal and reset",
           labels == ["Session summary", "Set writing goal…",
                      "Reset session meter"])
@@ -76,7 +76,7 @@ try:
     logs.clear()
     # v2.44: the goal row opens the themed dialog now (an explicit
     # Set gesture commits it) — assert a Writing goal window appears
-    for lab, cmd in rows:
+    for lab, cmd, *_r in rows:
         if lab == "Set writing goal…":
             cmd()
     app.root.update()
@@ -95,7 +95,7 @@ try:
         goal_before = app.scribe_chip.goal_words
         logs.clear()
         toasts.clear()
-        for lab, cmd in rows:
+        for lab, cmd, *_r in rows:
             if lab == "Reset session meter":
                 cmd()
         check("scribe: reset zeroes words and repaints the chip",
@@ -114,7 +114,7 @@ except Exception as exc:  # noqa: BLE001 — a smoke reports, not crashes
 # ------------------------------------------ sesave chip: the right-click menu
 try:
     rows = app._sesave_menu_entries()
-    labels = [lab for lab, _c in rows]
+    labels = [e[0] for e in rows]
     check("sesave: the menu offers snapshot, browse and toggle",
           "Snapshot session now" in labels
           and "Browse snapshots…" in labels
@@ -122,13 +122,13 @@ try:
     # the toggle: live config flip both ways, honest feedback
     app.config.set("session_autosave", True)
     toasts.clear()
-    for lab, cmd in rows:
+    for lab, cmd, *_r in rows:
         if lab == "Autosave on/off":
             cmd()
     off_ok = (app.config.get("session_autosave") is False
               and any("off" in s for s in toasts))
     logs.clear()
-    for lab, cmd in app._sesave_menu_entries():
+    for lab, cmd, *_r in app._sesave_menu_entries():
         if lab == "Autosave on/off":
             cmd()
     check("sesave: the toggle flips live and logs the beat",
@@ -137,7 +137,7 @@ try:
     # snapshot row with no workspace: the honest toast, nothing raised
     app.project_dir = ""
     toasts.clear()
-    for lab, cmd in app._sesave_menu_entries():
+    for lab, cmd, *_r in app._sesave_menu_entries():
         if lab == "Snapshot session now":
             cmd()
     check("sesave: no workspace → the honest toast",
@@ -149,7 +149,7 @@ try:
         fh.write("print('hi')\n")
     app.project_dir = ws
     logs.clear()
-    for lab, cmd in app._sesave_menu_entries():
+    for lab, cmd, *_r in app._sesave_menu_entries():
         if lab == "Snapshot session now":
             cmd()
     check("sesave: a click on the row writes the snapshot",
@@ -159,7 +159,7 @@ try:
     # the build — rows capture the bound method at build time)
     browsed = []
     app.open_session_restore = lambda *a, **k: browsed.append(1)
-    for lab, cmd in app._sesave_menu_entries():
+    for lab, cmd, *_r in app._sesave_menu_entries():
         if lab == "Browse snapshots…":
             cmd()
     check("sesave: browse opens the snapshot browser",
@@ -184,10 +184,10 @@ app.show_sidebar_view = lambda name, *a, **k: opened.append(name)
 _real_focus = app.git_view.focus_message
 app.git_view.focus_message = lambda: focused.append(1)
 try:
-    labels = [lab for lab, _c in app._git_menu_entries()]
+    labels = [e[0] for e in app._git_menu_entries()]
     check("git: the branch menu gained 'Commit staged…'",
           "Commit staged…" in labels, )
-    for lab, cmd in app._git_menu_entries():
+    for lab, cmd, *_r in app._git_menu_entries():
         if lab == "Commit staged…":
             cmd()
     check("git: commit row opens Source Control + focuses the box",

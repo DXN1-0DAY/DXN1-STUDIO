@@ -75,7 +75,7 @@ try:
     app._update_depswatch(force=True)
     check("deps: an unpinned import lights the chip red",
           app.status_deps.cget("text") == "● deps 1 missing")
-    labels = [lab for lab, _c in app._deps_menu_entries()]
+    labels = [e[0] for e in app._deps_menu_entries()]
     check("menu: the red chip's menu offers the full lane",
           "Rescan deps" in labels and "Queue deps fix" in labels
           and "Fresh rescan (bypass cache)" in labels
@@ -83,7 +83,7 @@ try:
     # the repair row: same one-gesture contract as the red click
     app.terminal.input.delete(0, tk.END)
     logs.clear()
-    for lab, cmd in app._deps_menu_entries():
+    for lab, cmd, *_r in app._deps_menu_entries():
         if lab == "Queue deps fix":
             cmd()
     check("menu: queue-fix prefills `deps fix` + the Enter hint",
@@ -91,7 +91,7 @@ try:
           and any("press Enter" in s for s in logs))
     # rescan row actually rescans
     logs.clear()
-    for lab, cmd in app._deps_menu_entries():
+    for lab, cmd, *_r in app._deps_menu_entries():
         if lab == "Rescan deps":
             cmd()
     check("menu: rescan runs the report through the terminal",
@@ -101,18 +101,18 @@ try:
     app._update_depswatch(force=True)
     check("deps: the fix healed the workspace (chip ok)",
           app.status_deps.cget("text") == "deps ok")
-    labels = [lab for lab, _c in app._deps_menu_entries()]
+    labels = [e[0] for e in app._deps_menu_entries()]
     check("menu: an ok workspace gets no repair row",
           "Queue deps fix" not in labels)
     # fresh rescan bypasses the cache and still lands
     logs.clear()
-    for lab, cmd in app._deps_menu_entries():
+    for lab, cmd, *_r in app._deps_menu_entries():
         if lab == "Fresh rescan (bypass cache)":
             cmd()
     check("menu: fresh rescan re-scans beyond the cache",
           any("file(s) scanned" in s for s in logs))
     # watch toggle from the menu silences the chip
-    for lab, cmd in app._deps_menu_entries():
+    for lab, cmd, *_r in app._deps_menu_entries():
         if lab == "Deps watch on/off":
             cmd()
     check("menu: the watch toggle silences the chip",
@@ -143,18 +143,18 @@ app.git_view.ai_message = lambda: drafted.append(1)
 _real_run = app.run_command
 app.run_command = lambda cmd: ran.append(cmd)
 try:
-    labels = [lab for lab, _c in app._git_menu_entries()]
+    labels = [e[0] for e in app._git_menu_entries()]
     check("menu: the branch menu gained the new lane rows",
           "Draft AI commit message" in labels
           and "Push to origin" in labels
           and "Pull from upstream" in labels
           and "Open Source Control" in labels and "Rescan" in labels)
-    for lab, cmd in app._git_menu_entries():
+    for lab, cmd, *_r in app._git_menu_entries():
         if lab in ("Push to origin", "Pull from upstream"):
             cmd()
     check("menu: push/pull route to the visible terminal runner",
           ran == ["git push", "git pull"])
-    for lab, cmd in app._git_menu_entries():
+    for lab, cmd, *_r in app._git_menu_entries():
         if lab == "Draft AI commit message":
             cmd()
     check("menu: the AI draft opens Source Control + fires the helper",
@@ -163,7 +163,7 @@ try:
     plain = os.path.join(HOME, "plain-v420")
     os.makedirs(plain, exist_ok=True)
     app.project_dir = plain
-    labels = [lab for lab, _c in app._git_menu_entries()]
+    labels = [e[0] for e in app._git_menu_entries()]
     check("menu: a plain folder loses every repo row",
           "Draft AI commit message" not in labels
           and "Push to origin" not in labels

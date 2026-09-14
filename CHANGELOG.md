@@ -4,6 +4,38 @@ All notable changes to DXN1 STUDIO. Format based on
 [Keep a Changelog](https://keepachangelog.com/); versioning is
 `MAJOR.MINOR.PATCH` while in **beta**.
 
+## [2.47.0] — 2026-09-15 · beta · "honest keys and a quieter voice" (accelerator audit + toast mute + export formats)
+
+### Added
+- **Honest keys** — a real accelerator audit: every keybinding the
+  command palette advertises is translated (`accel_pattern`) into
+  the exact Tk event pattern and verified against the bindings the
+  code actually has, so a label can never drift from the truth
+  again. `looks_like_accel` keeps the audit honest about what is a
+  claim ("Ctrl+S", "F5", "Enter") and what is not ("DS2" category
+  tags, "line 42" symbol positions). The chip-menu renderer accepts
+  optional accelerator columns — the git menu's *Commit staged…*
+  now advertises `Enter`, which the commit box really honors — and
+  `docs/KEYBINDINGS.md` was corrected to match the code
+  (`Ctrl+Shift+D` duplicate, `Ctrl+Shift+K` delete line,
+  `Ctrl++`/`Ctrl+-` text size).
+- **Toast mute (per kind)** — a new searchable *Toasts* settings
+  section: mute info, success or error cards separately. A muted
+  kind keeps its receipt in the Activity log and skips only the
+  3.4-second card — the log remembers, the screen stays quiet.
+- **Export formats** — `activity export json [path]` and
+  `activity export csv [path]` write the receipts as a loadable
+  JSON snapshot or a quoted CSV sheet; the window's Save-as…
+  follows the typed extension (`.json` / `.csv` / text diary), an
+  explicit format argument overrides the extension, and the
+  acknowledgement toast names the format it chose.
+
+### Changed
+- `export_csv()` / `export_json()` / `export_to()` join the pure
+  engine lane in `activity.py` (the text `export_file` remains);
+  the smoke suite count grew to 20 suites (527 checks), the unit
+  groups to 91 — including `test_honest_keys`, the audit itself.
+
 ## [2.46.0] — 2026-09-15 · beta · "the receipts go where you send them" (activity export + kind filters)
 
 ### Added

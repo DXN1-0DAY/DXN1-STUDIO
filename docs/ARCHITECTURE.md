@@ -86,7 +86,7 @@ geometry memory).
 
 | Harness | What it proves |
 |---|---|
-| `python3 -m pytest tests/` | 90 unit groups over every pure engine |
+| `python3 -m pytest tests/` | 91 unit groups over every pure engine |
 | `scripts/smoke_v290.py` (Xvfb) | 155 live-window checks across 26 feature windows |
 | `scripts/smoke_v310.py` (Xvfb) | 20 checks: fuzzy highlight runs, per-buffer cursor memory, session cursor merge |
 | `scripts/smoke_v320.py` (Xvfb) | 18 checks: autosave write/switch gates, crash simulation + engine recovery boot, installer `--version` |
@@ -104,6 +104,7 @@ geometry memory).
 | `scripts/smoke_v440.py` (Xvfb) | 18 checks: the studio keeps its receipts — toasts archive newest-first with kinds, the Activity window e2e (live filter narrowing, honest empty state, click-to-copy through the callback, Clear wipes ring + rows), the scribe goal dialog driven through the app's menu row (prefilled, junk gets an inline error, Set applies chip+config+toast+terminal, Escape cancels), `activity`/`notifications` verb routing, palette row, single archive hook |
 | `scripts/smoke_v450.py` (Xvfb) | 16 checks: the receipts survive the night — a seeded activity.json reloads at boot marked previous-session, a toast lands on top and persists atomically, the window shows the "since last time" divider with relative stamps ("just now" / "1h ago"), Clear through the app's real on_change empties ring + file, the next toast re-seeds, a torn file loads as None |
 | `scripts/smoke_v460.py` (Xvfb) | 22 checks: the receipts go where you send them — kind dots hide/restore each kind with an honest count (an unnamed kind survives every filter state), Copy all puts the chronological diary on the clipboard and acknowledges, Save as file… drives the real dialog seam to a real atomic file (a cancelled dialog writes nothing), the verbs `activity copy` / `activity export [path]` + honest nonsense hint, help rows, opener wiring |
+| `scripts/smoke_v470.py` (Xvfb) | 17 checks: honest keys and a quieter voice — every advertised palette accelerator is really bound (19 audited via accel_pattern/looks_like_accel), category tags never chased, the git menu advertises Enter only where a repo exists, the keybindings doc agrees with the code, a muted toast kind keeps its receipt while the screen stays quiet (Settings Toasts section round-trips), `activity export json|csv` + fmt-override + typed-.csv Save-as all follow the extension |
 | `scripts/boot_qa.py` (Xvfb) | 20 checks booting the real studio: menus bound, palette entries live, modules import, scribe chip wired |
 | `python3 -m compileall -q dxn1_studio` | The tree always compiles — the gate before every tag |
 

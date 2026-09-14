@@ -3984,13 +3984,13 @@ def test_chip_gestures(tmp_path):
         (repo / "f.txt").write_text("x\n", encoding="utf-8")
         app.project_dir = str(repo)
         # not-yet-a-name repo is still a repo: menu shows repo rows
-        labels = [lab for lab, _cmd in app._git_menu_entries()]
+        labels = [e[0] for e in app._git_menu_entries()]
         assert "Open Source Control" in labels and "Rescan" in labels
         assert "Stage all changes" in labels, labels
         # stage-all routes to the shell runner (stubbed — worker thread)
         ran = []
         app.run_command = lambda cmd: ran.append(cmd)
-        for lab, cmd in app._git_menu_entries():
+        for lab, cmd, *_r in app._git_menu_entries():
             if lab == "Stage all changes":
                 cmd()
         assert ran == ["git add -A"], ran
@@ -4000,14 +4000,14 @@ def test_chip_gestures(tmp_path):
              "commit", "-qm", "one", cwd=repo)
         app._update_gitchip(force=True)
         branch = app.status_git.cget("text")
-        for lab, cmd in app._git_menu_entries():
+        for lab, cmd, *_r in app._git_menu_entries():
             if lab == "Copy branch name":
                 cmd()
         assert root.clipboard_get() == branch, (branch,)
         # open jumps to Source Control
         opened = []
         app.show_sidebar_view = lambda name, *a, **k: opened.append(name)
-        for lab, cmd in app._git_menu_entries():
+        for lab, cmd, *_r in app._git_menu_entries():
             if lab == "Open Source Control":
                 cmd()
         assert opened == ["git"], opened
@@ -4015,7 +4015,7 @@ def test_chip_gestures(tmp_path):
         plain = tmp_path / "plain"
         plain.mkdir()
         app.project_dir = str(plain)
-        labels = [lab for lab, _cmd in app._git_menu_entries()]
+        labels = [e[0] for e in app._git_menu_entries()]
         assert "Stage all changes" not in labels
         assert "Copy branch name" not in labels
         assert "Open Source Control" in labels and "Rescan" in labels
@@ -4070,21 +4070,21 @@ def test_chip_menus(tmp_path):
         app.handle_terminal_command("deps")
         app._update_depswatch(force=True)
         assert app.status_deps.cget("text") == "● deps 1 missing"
-        labels = [lab for lab, _c in app._deps_menu_entries()]
+        labels = [e[0] for e in app._deps_menu_entries()]
         assert "Rescan deps" in labels and "Queue deps fix" in labels
         assert "Fresh rescan (bypass cache)" in labels
         assert "Deps watch on/off" in labels and "Rescan chip" in labels
         # the repair row queues the fix (same one-gesture contract)
         app.terminal.input.delete(0, tk.END)
         logs.clear()
-        for lab, cmd in app._deps_menu_entries():
+        for lab, cmd, *_r in app._deps_menu_entries():
             if lab == "Queue deps fix":
                 cmd()
         assert app.terminal.input.get() == "deps fix"
         assert any("press Enter" in s for s in logs), logs
         # rescan row actually rescans (the report lands in the terminal)
         logs.clear()
-        for lab, cmd in app._deps_menu_entries():
+        for lab, cmd, *_r in app._deps_menu_entries():
             if lab == "Rescan deps":
                 cmd()
         assert any("file(s) scanned" in s for s in logs), logs
@@ -4102,12 +4102,12 @@ def test_chip_menus(tmp_path):
         _git("-c", "user.email=t@t", "-c", "user.name=t",
              "commit", "-qm", "one", cwd=repo)
         app.project_dir = str(repo)
-        labels = [lab for lab, _c in app._git_menu_entries()]
+        labels = [e[0] for e in app._git_menu_entries()]
         assert "Draft AI commit message" in labels, labels
         assert "Push to origin" in labels and "Pull from upstream" in labels
         ran = []
         app.run_command = lambda cmd: ran.append(cmd)
-        for lab, cmd in app._git_menu_entries():
+        for lab, cmd, *_r in app._git_menu_entries():
             if lab in ("Push to origin", "Pull from upstream"):
                 cmd()
         assert ran == ["git push", "git pull"], ran
@@ -4115,7 +4115,7 @@ def test_chip_menus(tmp_path):
         opened, drafted = [], []
         app.show_sidebar_view = lambda name, *a, **k: opened.append(name)
         app.git_view.ai_message = lambda: drafted.append(1)
-        for lab, cmd in app._git_menu_entries():
+        for lab, cmd, *_r in app._git_menu_entries():
             if lab == "Draft AI commit message":
                 cmd()
         assert opened == ["git"] and drafted == [1], (opened, drafted)
@@ -4163,7 +4163,7 @@ def test_chip_family(tmp_path):
 
         # --- scribe chip menu: three rows, each routing honestly
         scribe_rows = app._scribe_menu_entries()
-        labels = [lab for lab, _c in scribe_rows]
+        labels = [e[0] for e in scribe_rows]
         assert labels == ["Session summary", "Set writing goal…",
                           "Reset session meter"], labels
         # the goal row opens the themed dialog; its Set applies the
@@ -4176,7 +4176,7 @@ def test_chip_family(tmp_path):
             calls.append((int(current), on_set)) or object())
         current_goal = (int(app.scribe_chip.goal_words)
                         if app.scribe_chip else 0)
-        for lab, cmd in scribe_rows:
+        for lab, cmd, *_r in scribe_rows:
             if lab == "Set writing goal…":
                 cmd()
         assert calls and calls[0][0] == current_goal, calls
@@ -4192,7 +4192,7 @@ def test_chip_family(tmp_path):
         if app.scribe_chip is not None:
             app.scribe_chip.observe(1200, now=0.0)
             app.scribe_chip.observe(1300, now=30.0)
-            for lab, cmd in scribe_rows:
+            for lab, cmd, *_r in scribe_rows:
                 if lab == "Reset session meter":
                     cmd()
             assert app.scribe_chip.words() == 0
@@ -4203,20 +4203,20 @@ def test_chip_family(tmp_path):
 
         # --- sesave chip menu: snapshot / browse / toggle
         sesave_rows = app._sesave_menu_entries()
-        labels = [lab for lab, _c in sesave_rows]
+        labels = [e[0] for e in sesave_rows]
         assert "Snapshot session now" in labels
         assert "Browse snapshots…" in labels
         assert "Autosave on/off" in labels
         # the toggle flips the config both ways with honest feedback
         toasts.clear()
         app.config.set("session_autosave", True)
-        for lab, cmd in sesave_rows:
+        for lab, cmd, *_r in sesave_rows:
             if lab == "Autosave on/off":
                 cmd()
         assert app.config.get("session_autosave") is False
         assert any("off" in s for s in toasts), toasts
         logs.clear()
-        for lab, cmd in sesave_rows:
+        for lab, cmd, *_r in sesave_rows:
             if lab == "Autosave on/off":
                 cmd()
         assert app.config.get("session_autosave") is True
@@ -4225,7 +4225,7 @@ def test_chip_family(tmp_path):
         # the honest toast, nothing raised)
         app.project_dir = ""
         toasts.clear()
-        for lab, cmd in sesave_rows:
+        for lab, cmd, *_r in sesave_rows:
             if lab == "Snapshot session now":
                 cmd()
         assert any("No workspace open" in s for s in toasts), toasts
@@ -4234,7 +4234,7 @@ def test_chip_family(tmp_path):
         # build time, so the stub must exist BEFORE the build)
         browsed = []
         app.open_session_restore = lambda *a, **k: browsed.append(1)
-        for lab, cmd in app._sesave_menu_entries():
+        for lab, cmd, *_r in app._sesave_menu_entries():
             if lab == "Browse snapshots…":
                 cmd()
         assert browsed == [1]
@@ -4255,12 +4255,12 @@ def test_chip_family(tmp_path):
         _git("-c", "user.email=t@t", "-c", "user.name=t",
              "commit", "-qm", "one", cwd=repo)
         app.project_dir = str(repo)
-        labels = [lab for lab, _c in app._git_menu_entries()]
+        labels = [e[0] for e in app._git_menu_entries()]
         assert "Commit staged…" in labels, labels
         opened, focused = [], []
         app.show_sidebar_view = lambda name, *a, **k: opened.append(name)
         app.git_view.focus_message = lambda: focused.append(1)
-        for lab, cmd in app._git_menu_entries():
+        for lab, cmd, *_r in app._git_menu_entries():
             if lab == "Commit staged…":
                 cmd()
         assert opened == ["git"] and focused == [1], (opened, focused)
@@ -4535,7 +4535,178 @@ def test_activity(tmp_path):
         assert mine.is_file(), "an explicit path is honored"
         app.handle_terminal_command("activity nonsense")
         assert any("try: activity" in s for s in logs), logs
+
+        # --- v2.47 formats: csv / json / the extension decides
+        from dxn1_studio.activity import (export_csv, export_json,
+                                          export_to)
+        import csv as _csv
+        import io as _io
+        ctext = export_csv(elog.entries())
+        clines = ctext.splitlines()
+        assert clines[0] == "stamp,kind,message"
+        assert clines[1].endswith("first")     # oldest first, like text
+        back = list(_csv.reader(_io.StringIO(ctext)))
+        assert back[2][2] == "second"
+        jtext = export_json(elog.entries())
+        jdata = json.loads(jtext)
+        assert jdata["version"] == 1 and len(jdata["entries"]) == 3
+        cpath = tmp_path / "receipts2.csv"
+        assert export_to(elog, str(cpath)) == str(cpath)
+        assert cpath.read_text(
+            encoding="utf-8").splitlines()[0] == "stamp,kind,message"
+        jpath = tmp_path / "receipts2.json"
+        assert export_to(elog, str(jpath)) == str(jpath)
+        assert json.loads(jpath.read_text(
+            encoding="utf-8"))["version"] == 1
+        # an explicit fmt overrides the extension
+        opath = tmp_path / "override.json"
+        assert export_to(elog, str(opath), fmt="text") == str(opath)
+        assert opath.read_text(
+            encoding="utf-8").splitlines()[0].endswith("first")
+        assert export_to(elog, str(tmp_path / "blocker" / "x.json")) \
+            is None
+        # a message with commas survives the csv round-trip
+        elog.add("a, b, c", "info", now=2000.0)
+        rows2 = list(_csv.reader(_io.StringIO(
+            export_csv(elog.entries()))))
+        assert rows2[-1][2] == "a, b, c"
+
+        # --- v2.47 mute: a muted kind keeps its receipt, loses its card
+        app.config.set("toast_show_error", False)
+        n_cards = len(app.toast_layer.winfo_children())
+        app.toast("quiet one", "error")
+        assert app.activity_log.entries()[0]["message"] == "quiet one"
+        assert len(app.toast_layer.winfo_children()) == n_cards
+        app.config.set("toast_show_error", True)
+        app.toast("loud one", "error")
+        assert len(app.toast_layer.winfo_children()) == n_cards + 1
+        # the Settings dialog's Toasts section round-trips
+        from dxn1_studio.app import SettingsDialog
+        dlg = SettingsDialog(app)
+        app.root.update()
+        assert hasattr(dlg, "toastinfo_v") and \
+            hasattr(dlg, "toastsuccess_v") and \
+            hasattr(dlg, "toasterror_v")
+        dlg.toasterror_v.set(False)
+        dlg._save()
+        assert app.config.get("toast_show_error") is False
+        assert app.config.get("toast_show_info") is True
+        app.config.set("toast_show_error", True)
+
+        # --- v2.47 verbs: activity export json / csv
+        app.handle_terminal_command("activity export json")
+        made_json = _glob.glob(str(tmp_path / "activity-export-*.json"))
+        assert made_json, "fmt names the default file's extension"
+        assert json.loads(open(made_json[0],
+                               encoding="utf-8").read())["version"] == 1
+        app.handle_terminal_command("activity export csv")
+        made_csv = _glob.glob(str(tmp_path / "activity-export-*.csv"))
+        assert made_csv
+        assert open(made_csv[0], encoding="utf-8").read() \
+            .splitlines()[0] == "stamp,kind,message"
         app.terminal.log = real_log
+    finally:
+        try:
+            root.destroy()
+        except tk.TclError:
+            pass
+        monkeypatch.undo()
+
+
+def test_honest_keys(tmp_path):
+    """DS2 v2.47 — the honest-keys audit: `accel_pattern` translates
+    exactly, `looks_like_accel` only chases real claims, every
+    accelerator the palette advertises is a binding the code really
+    has, the git chip menu advertises Enter-to-commit only where a
+    repo exists, and the keybindings doc agrees with the code."""
+    import tkinter as tk
+    try:
+        root = tk.Tk(); root.withdraw()
+    except tk.TclError:
+        return
+    import pytest
+    import dxn1_studio.config as cfgmod
+    from dxn1_studio.app import (DXN1Studio, accel_pattern,
+                                 looks_like_accel)
+
+    # --- the pure translator: the exact house spellings
+    assert accel_pattern("Ctrl+Shift+D") == "<Control-D>"
+    assert accel_pattern("Ctrl+Shift+K") == "<Control-K>"
+    assert accel_pattern("Ctrl+/") == "<Control-slash>"
+    assert accel_pattern("Ctrl+,") == "<Control-comma>"
+    assert accel_pattern("Ctrl+\\") == "<Control-backslash>"
+    assert accel_pattern("Ctrl++") == "<Control-plus>"
+    assert accel_pattern("Ctrl+-") == "<Control-minus>"
+    assert accel_pattern("Alt+Up") == "<Alt-Up>"
+    assert accel_pattern("F5") == "<F5>"
+    assert accel_pattern("F2") == "<F2>"
+    assert accel_pattern("Ctrl+F2") == "<Control-F2>"
+    assert accel_pattern("Ctrl+S") == "<Control-s>"
+    assert accel_pattern("Enter") == "<Return>"
+    assert accel_pattern("junk+") == ""     # never guess
+    assert accel_pattern("Ctrl") == ""      # a mod alone is no key
+    # --- the classifier: real claims vs category tags
+    assert looks_like_accel("Ctrl+S") and looks_like_accel("F5")
+    assert looks_like_accel("F2") and looks_like_accel("Enter")
+    assert not looks_like_accel("DS2")      # a category tag
+    assert not looks_like_accel("line 42")  # a symbol position
+    assert not looks_like_accel("")
+
+    # --- app wiring: every advertised accel is really bound
+    monkeypatch = pytest.MonkeyPatch()
+    monkeypatch.setattr(cfgmod, "CONFIG_DIR", str(tmp_path))
+    monkeypatch.setattr(cfgmod, "CONFIG_PATH",
+                        str(tmp_path / "config.json"))
+    monkeypatch.setenv("HOME", str(tmp_path))
+    app = DXN1Studio(cfgmod.Config(), smoke_test=True, no_splash=True)
+    try:
+        audited = 0
+        for label, hint, _fn in app.palette_commands():
+            if not looks_like_accel(hint):
+                continue
+            pat = accel_pattern(hint)
+            assert pat, "untranslatable accel %r on %r" % (hint, label)
+            assert app.root.bind(pat), \
+                "%r advertises %r but nothing is bound" % (label, hint)
+            audited += 1
+        assert audited >= 15, audited
+        # the git chip menu advertises Enter only where a repo exists
+        plain = [e for e in app._git_menu_entries()
+                 if e[0] == "Commit staged…"]
+        assert not plain, "a plain folder must not advertise commit"
+        repo = tmp_path / "repo"
+        repo.mkdir()
+        subprocess.run(["git", "init", "-q"], cwd=str(repo))
+        subprocess.run(["git", "-c", "user.email=a@b",
+                        "-c", "user.name=t", "commit", "-qm", "x",
+                        "--allow-empty"], cwd=str(repo))
+        app.project_dir = str(repo)
+        rows = app._git_menu_entries()
+        commit = [e for e in rows if e[0] == "Commit staged…"]
+        assert commit and len(commit[0]) == 3 \
+            and commit[0][2] == "Enter"
+        # the renderer passes the accelerator to the real menu
+        app_src = open(os.path.join(
+            os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
+            "dxn1_studio", "app.py"), encoding="utf-8").read()
+        assert "menu.add_command(label=label, command=cmd,\n" \
+               "                                     accelerator=accel)" \
+            in app_src
+        # the real Enter-to-commit binding lives in the panel
+        gp_src = open(os.path.join(
+            os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
+            "dxn1_studio", "gitpanel.py"), encoding="utf-8").read()
+        assert 'self.msg.bind("<Return>"' in gp_src
+        # the keybindings doc agrees with the code
+        doc = open(os.path.join(
+            os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
+            "docs", "KEYBINDINGS.md"), encoding="utf-8").read()
+        assert "`Ctrl+Shift+D` | Duplicate line" in doc
+        assert "`Ctrl+Shift+K` | Delete line" in doc
+        assert "`Ctrl+D` | Duplicate line" not in doc  # stale claim gone
+        assert "`Ctrl++` / `Ctrl+-` | Editor text size" in doc
+        # the toasts section is searchable in settings
+        assert 'self._section(box, "Toasts")' in app_src
     finally:
         try:
             root.destroy()

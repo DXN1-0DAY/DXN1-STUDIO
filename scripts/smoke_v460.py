@@ -3,7 +3,7 @@ Activity window grows kind filters (click a dot to hide that kind,
 unnamed kinds always survive), Copy all (the whole chronological
 diary onto the clipboard) and Save as file… (the dialog seam stubbed,
 the file real), and the `activity` verb grew hands: `activity copy`
-and `activity export [path]`.
+and `activity export [json|csv] [path]`.
 
 Run under Xvfb:
     Xvfb :99 & ; DISPLAY=:99 python3 scripts/smoke_v460.py
@@ -172,7 +172,7 @@ try:
           and written[0].endswith("old info whisper"))
     newest = app.activity_log.entries()[0]["message"]
     check("save as: the app acknowledged with the path",
-          newest.startswith("Receipts saved →")
+          newest.startswith("Receipts saved as text →")
           and any("activity receipts written to" in s for s in _logs))
     # a cancelled dialog is an honest no-op: nothing new whispered,
     # the file untouched
@@ -227,7 +227,7 @@ help_rows = [r[0] for r in
                         fromlist=["TERMINAL_HELP"]).TERMINAL_HELP]
 check("help: the new verbs are documented",
       "activity copy" in help_rows
-      and "activity export [path]" in help_rows)
+      and "activity export [json|csv] [path]" in help_rows)
 
 # --------------------------------------------- wiring checks
 app_src = open("dxn1_studio/app.py", encoding="utf-8").read()

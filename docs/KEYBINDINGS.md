@@ -25,11 +25,13 @@ all of this by name — the terminal (`help`) knows them as commands.
 |---|---|
 | `Ctrl+F` | Find (toggle find bar) |
 | `Ctrl+G` | Go to line… |
-| `Ctrl+D` | Duplicate line |
+| `Ctrl+Shift+D` | Duplicate line |
+| `Ctrl+Shift+K` | Delete line |
 | `Ctrl+H` | Editor replace / history helper |
 | `Ctrl+/` | Toggle comment |
 | `Ctrl+Y` | Redo / line helper |
 | `Alt+Up` / `Alt+Down` | Move line up / down |
+| `Ctrl++` / `Ctrl+-` | Editor text size |
 
 ## Bookmarks
 | Keys | Action |

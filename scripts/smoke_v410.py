@@ -120,11 +120,11 @@ ran = []
 _real_run = app.run_command
 app.run_command = lambda cmd: ran.append(cmd)
 try:
-    labels = [lab for lab, _c in app._git_menu_entries()]
+    labels = [e[0] for e in app._git_menu_entries()]
     check("menu: a repo offers the full lane actions",
           "Open Source Control" in labels and "Commit graph" in labels
           and "Stage all changes" in labels and "Rescan" in labels)
-    for lab, cmd in app._git_menu_entries():
+    for lab, cmd, *_r in app._git_menu_entries():
         if lab == "Stage all changes":
             cmd()
     check("menu: stage-all routes to the shell runner",
@@ -136,12 +136,12 @@ try:
     branch = app.status_git.cget("text")
     check("menu: the committed repo shows the muted branch name",
           branch not in ("",) and "●" not in branch)
-    for lab, cmd in app._git_menu_entries():
+    for lab, cmd, *_r in app._git_menu_entries():
         if lab == "Copy branch name":
             cmd()
     check("menu: copy-branch fills the clipboard + toasts",
           app.root.clipboard_get() == branch)
-    for lab, cmd in app._git_menu_entries():
+    for lab, cmd, *_r in app._git_menu_entries():
         if lab == "Open Source Control":
             cmd()
     check("menu: open jumps to Source Control",
@@ -151,7 +151,7 @@ try:
     plain = os.path.join(HOME, "plain-v410")
     os.makedirs(plain, exist_ok=True)
     app.project_dir = plain
-    labels = [lab for lab, _c in app._git_menu_entries()]
+    labels = [e[0] for e in app._git_menu_entries()]
     check("menu: a plain folder gets an honest menu (lane rows gone)",
           "Stage all changes" not in labels
           and "Copy branch name" not in labels

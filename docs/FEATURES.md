@@ -488,6 +488,14 @@
 | Autosave toggle | menu row, app `_sesave_autosave_toggle()` | Flips `session_autosave` live — the 60s autosave loop reads the config every tick, so the switch lands on the next beat; a toast and a terminal line say which way it went |
 | Family tooltips | app `_chip_tip()` | All four chips (git, deps, session autosave, scribe) advertise their menus on hover: what the chip is, what a click does, that a right-click opens the lane's actions |
 
+## Honest Keys (v2.47.0)
+
+| Feature | Where | What it does |
+|---|---|---|
+| Accelerator audit | `app.accel_pattern()` + `looks_like_accel()`, palette | Every accelerator the command palette advertises is translated into the exact Tk event pattern and verified against the real bindings — a hint that claims `Ctrl+S` without a bound `<Control-s>` cannot survive the audit; category tags ("DS2") and symbol positions ("line 42") are never chased as claims |
+| Chip-menu accelerators | `_render_chip_menu()` 3-tuple rows, git menu | A chip-menu row may advertise an accelerator right-aligned in the themed popup — but only where a real binding exists: *Commit staged…* shows `Enter` (the commit box really does commit on Return); menus for lanes with no bindings advertise nothing |
+| Doc agreement | `docs/KEYBINDINGS.md` | The keybindings doc says exactly what the code binds (`Ctrl+Shift+D` duplicate, `Ctrl+Shift+K` delete line, `Ctrl++`/`Ctrl+-` text size) — the stale `Ctrl+D` claim is gone; unit-tested so it stays that way |
+
 ## Activity Log (v2.44.0)
 
 | Feature | Where | What it does |
@@ -502,9 +510,10 @@
 | Clear persists | window `on_change` callback | Wiping the slate fires the app's `on_change`, so the file on disk agrees immediately — no resurrected receipts on the next boot |
 | Kind filters | window dot row, `ActivityLog.filtered(query, kinds)` | Click a colored dot (● success / ● error / ● info) to hide that kind; click the hollow dot to bring it back. A kind the studio cannot name always shows — you cannot re-show what you cannot name, so nothing silently vanishes. The count label always tells the truth about what is on screen |
 | Copy all | window header, `activity.export_text()` | One click puts the whole ring on the clipboard as a chronological diary (oldest first, one receipt per line: `[stamp] kind    message`) — whatever the filter shows, every receipt ships. Long copies acknowledge as "Copied N characters" instead of shouting the whole text back |
-| Export to file | window *Save as file…*, `activity.export_file()` | A save dialog (seeded with the studio's config dir) writes the same diary to any path — atomic write, so a crash mid-save can never tear the file. A cancelled dialog is an honest no-op, and the app acknowledges the saved path in a toast and the terminal |
-| Export verbs | terminal `activity copy` / `activity export [path]` | The `activity` verb grew hands: `copy` puts the diary on the clipboard, `export` writes it beside `activity.json` (or to the path you give). A nonsense sub-command gets an honest `try:` line, and `help` documents both |
+| Export to file | window *Save as file…*, `activity.export_to()` | A save dialog (seeded with the studio's config dir) writes the receipts to any path — the typed extension picks the format (`.json` → a loadable snapshot, `.csv` → the sheet, anything else → the text diary), the write is atomic, and a cancelled dialog is an honest no-op; the app acknowledges the path and the format it chose in a toast and the terminal |
+| Export verbs | terminal `activity copy` / `activity export [json|csv] [path]` | The `activity` verb grew hands: `copy` puts the diary on the clipboard, `export` writes it beside `activity.json` (or to the path you give, with an explicit `json`/`csv` override naming the default file's extension). A nonsense sub-command gets an honest `try:` line, and `help` documents both |
 | Verbs registry | TERMINAL_HELP + `verbs` browser | `activity` is a first-class verb: `help activity` explains it, `help act` finds it fuzzily, and the Terminal Verbs browser lists it with the rest |
+| Toast mute | Settings → Toasts, `toast_show_info` / `toast_show_success` / `toast_show_error` | Each toast kind can be muted separately (searchable settings section): a muted kind keeps its receipt in the Activity log but skips the 3.4-second card — the log remembers, the screen stays quiet; an unknown kind always whispers |
 
 ## Session Restore
 

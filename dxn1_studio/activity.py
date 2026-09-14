@@ -19,9 +19,17 @@ filters (click a dot to hide that kind — unnamed kinds always
 show, so nothing can silently vanish) and Copy all / Save as
 file… buttons.
 
+DS2 v2.47 — the receipts in your format: `export_csv` /
+`export_json` / `export_to` write the diary as CSV or JSON, the
+Save-as dialog and the `activity export` verb both follow the
+file's extension (.json / .csv / text), and a muted toast kind
+keeps its receipt while the screen stays quiet.
+
 Pure engine first (`ActivityLog`), window second (`open_activity`),
 same one-lane-one-module rule as the rest of DS2.
 """
+import csv
+import io
 import json
 import os
 import time as _time
@@ -206,17 +214,85 @@ def export_text(entries):
 
 
 def export_file(log, path):
-    """Write every receipt to ``path`` as plain text (atomic write —
-    tmp + os.replace, the same pattern save_json uses). Returns the
-    path on success, None on failure; never raises."""
+    """Write every receipt to ``path`` as the plain text diary (kept
+    for callers that always want text — the window and the verbs use
+    `export_to`, where the format follows the file extension).
+    Returns the path on success, None on failure; never raises."""
+    return export_to(log, path, fmt="text")
+
+
+def export_csv(entries):
+    """DS2 v2.47 — the receipts as CSV: a ``stamp,kind,message``
+    header, then one row per receipt, sorted oldest first exactly
+    like the text diary, quoted by the csv module so a message with
+    a comma or a newline survives the round-trip. Empty in, honest
+    header-only out — never raises."""
     try:
-        text = export_text(log.entries())
+        rows = list(entries or [])
+    except Exception:  # noqa: BLE001 — a broken caller gets the header
+        rows = []
+
+    def _t(e):
+        try:
+            return float(e.get("t", 0.0))
+        except Exception:  # noqa: BLE001 — junk time sinks to the top
+            return 0.0
+
+    rows.sort(key=_t)
+    buf = io.StringIO()
+    w = csv.writer(buf, lineterminator="\n")
+    w.writerow(["stamp", "kind", "message"])
+    for e in rows:
+        try:
+            msg = str(e.get("message", ""))
+            kind = str(e.get("kind", "info")) or "info"
+            w.writerow([stamp_full(e.get("t")), kind, msg])
+        except Exception:  # noqa: BLE001 — skip the bad row
+            continue
+    return buf.getvalue()
+
+
+def export_json(entries):
+    """DS2 v2.47 — the receipts as JSON: the same shape the ring
+    persists (version + entries, newest-first preserved), plus an
+    ``exported`` stamp, so an export round-trips through
+    `load_json`. Never raises."""
+    try:
+        rows = [dict(e) for e in (entries or [])]
+    except Exception:  # noqa: BLE001 — a broken caller exports empty
+        rows = []
+    return json.dumps({"version": _ACT_VERSION,
+                       "exported": stamp_full(_time.time()),
+                       "entries": rows}, indent=2)
+
+
+def export_to(log, path, fmt=None):
+    """DS2 v2.47 — write every receipt to ``path``, the format
+    following the file extension: ``.json`` → the JSON snapshot,
+    ``.csv`` → the CSV sheet, anything else → the plain text diary.
+    An explicit ``fmt`` ("json" / "csv" / "text") overrides the
+    extension. Atomic write (tmp + os.replace). Returns the path on
+    success, None on failure; never raises."""
+    try:
+        f = str(fmt or "").strip().lower()
+        if f not in ("json", "csv", "text"):
+            ext = os.path.splitext(str(path))[1].lower()
+            f = ("json" if ext == ".json"
+                 else "csv" if ext == ".csv" else "text")
+        if f == "json":
+            text = export_json(log.entries())
+        elif f == "csv":
+            text = export_csv(log.entries())
+        else:
+            text = export_text(log.entries())
+            if text:
+                text += "\n"
         d = os.path.dirname(path)
         if d:
             os.makedirs(d, exist_ok=True)
         tmp = path + ".tmp"
         with open(tmp, "w", encoding="utf-8") as fh:
-            fh.write(text + ("\n" if text else ""))
+            fh.write(text)
         os.replace(tmp, path)
         return path
     except Exception:  # noqa: BLE001 — a full disk must not break a click
@@ -458,9 +534,10 @@ def open_activity(master, theme, log, on_copy=None, on_change=None,
         _copy(export_text(log.entries()))
 
     def _saveas(_event=None):
-        """DS2 v2.46 — the receipts as a plain text file, wherever
-        the user points; a cancelled dialog is an honest no-op.
-        Never raises."""
+        """DS2 v2.46 — the receipts as a file, wherever the user
+        points; v2.47: the typed extension picks the format (.json /
+        .csv / text). A cancelled dialog is an honest no-op. Never
+        raises."""
         try:
             stamp = _time.strftime("%Y%m%d-%H%M%S")
             path = filedialog.asksaveasfilename(
@@ -471,7 +548,9 @@ def open_activity(master, theme, log, on_copy=None, on_change=None,
             path = str(path or "").strip()
             if not path:
                 return
-            got = export_file(log, path)
+            # v2.47: the format follows the typed extension — .json,
+            # .csv or the plain text diary
+            got = export_to(log, path)
             if got and on_export:
                 on_export(got)
         except Exception:  # noqa: BLE001 — a button must never raise
