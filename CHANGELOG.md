@@ -4,6 +4,22 @@ All notable changes to DXN1 STUDIO. Format based on
 [Keep a Changelog](https://keepachangelog.com/); versioning is
 `MAJOR.MINOR.PATCH` while in **beta**.
 
+## [2.10.0] — 2026-09-14 · beta · "trust, but verify"
+
+### Added
+- **Hasher** (`hasher.py`, Workshop menu, palette, terminal `hash` /
+  `hash <file>`) — checksum lab: chunked MD5/SHA-1/SHA-256/SHA-512
+  digests (1 MiB chunks, gigabyte files stay safe), folder manifests
+  in `sha256sum -c`-compatible form with copy/save, paste-a-hash
+  MATCH/MISMATCH verdicts and a *Verify ALL* pass that reports
+  `N ok · M MISMATCH · K not in pasted manifest`.
+
+### Tests
+- Engine suite **40 cases** (+hasher: digest correctness vs hashlib,
+  walk order, manifest round-trips, malformed/comment/binary-marker
+  parsing); v2.9.0 smoke grew to **27 checks** (hasher windows joins
+  the grid + manifest + mismatch paths); boot QA 17/17.
+
 ## [2.9.0] — 2026-09-14 · beta · "data in, trees out"
 
 ### Added
