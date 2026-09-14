@@ -210,8 +210,41 @@ def parse_tools(text):
     return clean.strip(), tools
 
 
-def build_system_prompt(sandbox, agent_name="DXN1 Agents", extra=""):
+# ------------------------------------------------------- system-prompt styles
+# Short style blocks spliced into the base persona. "custom" means the user's
+# extra prompt replaces the personality section entirely (tools stay locked).
+PROMPT_STYLES = {
+    "default": {
+        "label": "Default",
+        "description": "Balanced copilot — explains briefly, codes cleanly.",
+        "block": "Tone: friendly and practical. Explain decisions in one or "
+                 "two sentences before acting; keep answers tight.",
+    },
+    "concise": {
+        "label": "Concise",
+        "description": "Minimal talk, maximum doing.",
+        "block": "Tone: telegraphic. No filler, no pleasantries, no restating "
+                 "the task. Emit tools immediately; one line per action.",
+    },
+    "senior": {
+        "label": "Senior dev",
+        "description": "Careful reviewer — edge cases, tests, small steps.",
+        "block": "Tone: senior engineer. Prefer small, reviewable changes; "
+                 "mention edge cases and error handling; add or suggest tests "
+                 "when behaviour changes; flag risky commands before running.",
+    },
+    "custom": {
+        "label": "Custom",
+        "description": "Your extra prompt fully defines the personality.",
+        "block": "",
+    },
+}
+
+
+def build_system_prompt(sandbox, agent_name="DXN1 Agents", extra="",
+                        style="default"):
     root = sandbox.root
+    spec = PROMPT_STYLES.get(style) or PROMPT_STYLES["default"]
     prompt = f"""You are {agent_name}, the built-in coding agent of DXN1 STUDIO.
 You are helping the user inside their open workspace.
 
@@ -241,9 +274,20 @@ Tool rules:
   access. If something is declined, adapt — don't retry the same thing.
 - Keep prose short. Put code in files, not in chat, unless asked.
 
+{{style_block}}
+
 Current workspace listing (may be stale — use list_files to refresh):
 {sandbox.list_tree()}"""
-    if extra:
+    if spec["block"] and style != "custom":
+        prompt = prompt.replace("{style_block}", spec["block"])
+    elif style == "custom" and extra:
+        prompt = prompt.replace(
+            "{style_block}",
+            "PERSONALITY — defined entirely by the user:\n" + extra)
+    else:
+        prompt = prompt.replace("{style_block}",
+                                PROMPT_STYLES["default"]["block"])
+    if extra and style != "custom":
         prompt += "\n\nEXTRA PERSONALITY / INSTRUCTIONS FROM THE USER:\n" + extra
     return prompt
 
@@ -265,10 +309,15 @@ class AgentEngine:
         self.on_written = on_written or (lambda path: None)
         self.stop_flag = False
         self.busy = False
+        self.style = (config.get("agents_prompt_preset") or "default") \
+            if config else "default"
         self.system_prompt = build_system_prompt(
             sandbox, name,
-            (config.get("agents_system_prompt") or "").strip())
+            (config.get("agents_system_prompt") or "").strip(),
+            style=self.style)
         self.history = []
+        self.tokens_used = 0      # total tokens reported by the backend
+        self.steps_used = 0       # tool-loop turns taken this session
 
     # ------------------------------------------------------------ controls
     def stop(self):
@@ -303,6 +352,9 @@ class AgentEngine:
                               f"Falling back to my built-in offline skills — "
                               f"try again, or check Settings → DXN1 Agents.")
                     return
+                usage = getattr(self.backend, "last_usage", None)
+                if isinstance(usage, dict):
+                    self.tokens_used += int(usage.get("total_tokens") or 0)
                 clean, tools = parse_tools(reply)
                 if clean:
                     self.emit(clean)
@@ -333,6 +385,7 @@ class AgentEngine:
     # ---------------------------------------------------------- tool exec
     def _exec_tool(self, name, args):
         sb = self.sandbox
+        self.steps_used += 1
         try:
             if name == "list_files":
                 return sb.list_tree()

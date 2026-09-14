@@ -1,8 +1,9 @@
 """DXN1 STUDIO — configuration persistence.
 
-All user preferences (display name, theme, accent colour, onboarding state)
-live in a single JSON file under ~/.dxn1-studio/config.json so the IDE can
-detect a first launch and personalise every session after it.
+All user preferences (display name, theme, accent colour, onboarding state,
+agent brains, editor behaviour) live in a single JSON file under
+~/.dxn1-studio/config.json so the IDE can detect a first launch and
+personalise every session after it.
 """
 
 import json
@@ -13,21 +14,31 @@ CONFIG_DIR = os.path.join(os.path.expanduser("~"), ".dxn1-studio")
 CONFIG_PATH = os.path.join(CONFIG_DIR, "config.json")
 
 DEFAULTS = {
-    "version": "2.2.0",
+    "version": "1.1.2",
     "onboarded": False,      # has the welcome wizard been completed?
     "tour_done": False,      # has the interactive tour been finished/skipped?
     "name": "",              # display name used in greetings
     "theme": "dark",         # "dark" | "light"
-    "accent": "violet",      # violet | cyan | green | orange
+    "accent": "violet",      # violet | cyan | green | orange | rose | blue
     "launch_count": 0,
     "first_launch": None,    # ISO timestamp of first run
     "last_launch": None,     # ISO timestamp of most recent run
-    # --- v2.1: hub, splash, agents -------------------------------------
+    # --- editor behaviour ------------------------------------------------
+    "editor_font_size": 11,  # mono font size, clamped 8..20
+    "word_wrap": False,      # soft-wrap long lines in the editor
+    "auto_save": False,      # save the active buffer after idle moments
+    # --- hub, splash ------------------------------------------------------
+    "splash_enabled": True,  # boot splash (logo card) before launch
+    "hub_on_startup": True,  # start every session at the Project Hub
+    "recent_projects": [],   # [{path, kind, opened}] — hub recents
+    "last_project": "",      # most recently opened workspace path
+    # --- wizard -----------------------------------------------------------
+    "wizard_first_kind": "",     # project type picked in the wizard (or "")
+    # --- DXN1 Agents ------------------------------------------------------
     "agents_enabled": False,      # DXN1 Agents opted in via the wizard
     "agents_ask_edits": True,     # confirm before the agent writes files
     "agents_ask_commands": True,  # confirm before the agent runs commands
-    # --- v2.2: agent brains ---------------------------------------------
-    "agents_backend": "local",    # local | byok | github | kilo
+    "agents_backend": "local",    # local | free | byok | github | kilo
     "agents_provider": "openrouter",  # BYOK preset id (see llm.PRESETS)
     "agents_base_url": "",        # BYOK custom endpoint override
     "agents_api_key": "",         # BYOK key — stored locally only
@@ -36,11 +47,10 @@ DEFAULTS = {
     "agents_kilo_url": "",        # Kilo gateway endpoint override
     "agents_kilo_key": "",        # Kilo token
     "agents_system_prompt": "",   # extra persona instructions
+    "agents_prompt_preset": "default",  # default | concise | senior | custom
     "agents_max_steps": 12,       # tool-loop steps per message
-    "splash_enabled": True,       # boot splash (logo card) before launch
-    "hub_on_startup": True,       # start every session at the Project Hub
-    "recent_projects": [],        # [{path, kind, opened}] — hub recents
-    "last_project": "",           # most recently opened workspace path
+    "agents_setup_pending": "",   # "" | "kilo" | "byok" — show Connect card
+    "agents_tokens_used": 0,      # lifetime total reported by providers
 }
 
 

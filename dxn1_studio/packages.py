@@ -1,9 +1,13 @@
 """DXN1 STUDIO — optional dependency manager.
 
 DXN1 itself is intentionally lightweight: nothing is pip-installed unless
-the user asks for it. This window is the one place to opt in — a curated
-catalog of the extras power users usually want (Flask first), custom
-package installs, and uninstalling, all with live ``pip`` output.
+the user asks for it. The Packages view is the one place to opt in — a
+curated catalog of the extras power users usually want (Flask first),
+custom package installs, and uninstalling, all with live ``pip`` output.
+
+v1.1: the manager is a plain :class:`PackagesView` frame that docks into
+the sidebar; :class:`PackageManager` wraps it in a floating window for
+compatibility with the terminal/agent entry points.
 """
 
 import queue
@@ -31,6 +35,8 @@ CATALOG = [
     ("pytest",   "pytest",    "The testing framework everybody reaches for.", "pytest"),
     ("black",    "Black",     "The uncompromising Python code formatter.", "black"),
     ("ruff",     "Ruff",      "Blazing-fast linter + formatter, zero config.", "ruff"),
+    ("fastapi",  "FastAPI",   "Modern API framework — pair with uvicorn.", "fastapi"),
+    ("uvicorn",  "Uvicorn",   "ASGI server for FastAPI and friends.", "uvicorn"),
 ]
 
 
@@ -44,24 +50,25 @@ def installed_version(dist_name):
         return None
 
 
-class PackageManager(tk.Toplevel):
-    """'Tools -> Manage Packages' — the opt-in dependency page."""
+class PackagesView(tk.Frame):
+    """Dockerable packages page (sidebar view or embedded in a window)."""
 
-    def __init__(self, master, theme, on_change=None):
-        super().__init__(master)
+    def __init__(self, parent, theme, on_change=None):
+        super().__init__(parent, bg=theme["bg"])
         self.theme = theme
         self.t = theme
         self.on_change = on_change          # notified after installs/removals
         self._q = queue.Queue()
         self._busy = set()
+        self._filter = ""
 
-        self.title("DXN1 STUDIO — Packages")
-        self.configure(bg=self.t["bg"])
-        self.geometry("780x600")
-        self.minsize(680, 520)
-        self.transient(master)
+        head = tk.Frame(self, bg=theme["header"], height=40)
+        head.pack(fill=tk.X)
+        head.pack_propagate(False)
+        tk.Label(head, text="PACKAGES", bg=theme["header"],
+                 fg=theme["text_secondary"], font=(FONT_UI, 10, "bold"),
+                 ).pack(side=tk.LEFT, padx=15)
 
-        self._build_header()
         self._build_custom_row()
         self._build_catalog()
         self._build_log()
@@ -69,45 +76,45 @@ class PackageManager(tk.Toplevel):
         self._refresh_all()
 
     # ------------------------------------------------------------------ ui
-    def _build_header(self):
-        head = tk.Frame(self, bg=self.t["header"])
-        head.pack(fill=tk.X)
-        inner = tk.Frame(head, bg=self.t["header"])
-        inner.pack(fill=tk.X, padx=18, pady=12)
-        tk.Label(inner, text="Optional Packages", bg=self.t["header"],
-                 fg=self.t["text"], font=(FONT_UI, 14, "bold")
-                 ).pack(anchor="w")
-        tk.Label(inner,
-                 text="DXN1 installs nothing until you ask. Add the heavy tools "
-                      "whenever you're ready — the studio stays fast either way.",
-                 bg=self.t["header"], fg=self.t["text_secondary"],
-                 font=(FONT_UI, 9), wraplength=640, justify=tk.LEFT
-                 ).pack(anchor="w", pady=(2, 0))
-
     def _build_custom_row(self):
         row = tk.Frame(self, bg=self.t["bg"])
-        row.pack(fill=tk.X, padx=18, pady=(14, 4))
-        tk.Label(row, text="Install any package:", bg=self.t["bg"],
-                 fg=self.t["text"], font=(FONT_UI, 10)).pack(side=tk.LEFT)
-        self.custom_entry = tk.Entry(row, bg=self.t["editor"], fg=self.t["text"],
+        row.pack(fill=tk.X, padx=12, pady=(10, 2))
+        self.custom_entry = tk.Entry(row, bg=self.t["editor"],
+                                     fg=self.t["text"],
                                      insertbackground=self.t["text"],
                                      relief=tk.FLAT, font=(FONT_MONO, 10),
                                      highlightthickness=1,
                                      highlightbackground=self.t["border"],
-                                     highlightcolor=self.t.accent, width=28)
-        self.custom_entry.pack(side=tk.LEFT, padx=(10, 6), ipady=5)
+                                     highlightcolor=self.t.accent)
+        self.custom_entry.pack(side=tk.LEFT, fill=tk.X, expand=True, ipady=5)
         self.custom_entry.bind("<Return>", lambda e: self._install_custom())
+        self.custom_entry.insert(0, "")
+        self._ph = tk.Label(row, text="", bg=self.t["bg"],
+                            fg=self.t["text_muted"], font=(FONT_UI, 8))
+
         btn = tk.Label(row, text="pip install", bg=self.t.accent, fg="#ffffff",
-                       font=(FONT_UI, 9, "bold"), cursor="hand2", padx=12, pady=5)
-        btn.pack(side=tk.LEFT)
+                       font=(FONT_UI, 9, "bold"), cursor="hand2", padx=10,
+                       pady=5)
+        btn.pack(side=tk.LEFT, padx=(6, 0))
         btn.bind("<Button-1>", lambda e: self._install_custom())
-        tk.Label(row, text="Multiple names like \"flask requests\" work too.",
+
+        frow = tk.Frame(self, bg=self.t["bg"])
+        frow.pack(fill=tk.X, padx=12, pady=(4, 0))
+        tk.Label(frow, text="filter:", bg=self.t["bg"],
+                 fg=self.t["text_muted"], font=(FONT_UI, 8)).pack(side=tk.LEFT)
+        self.filter_v = tk.StringVar()
+        self.filter_v.trace_add("write", lambda *a: self._apply_filter())
+        tk.Entry(frow, textvariable=self.filter_v, bg=self.t["editor"],
+                 fg=self.t["text"], insertbackground=self.t["text"],
+                 relief=tk.FLAT, font=(FONT_MONO, 9), highlightthickness=0,
+                 width=14).pack(side=tk.LEFT, padx=6)
+        tk.Label(frow, text="Multiple names like \"flask requests\" work too.",
                  bg=self.t["bg"], fg=self.t["text_muted"],
                  font=(FONT_UI, 8)).pack(side=tk.LEFT, padx=8)
 
     def _build_catalog(self):
         wrap = tk.Frame(self, bg=self.t["bg"])
-        wrap.pack(fill=tk.BOTH, expand=True, padx=18, pady=(6, 4))
+        wrap.pack(fill=tk.BOTH, expand=True, padx=12, pady=(4, 2))
 
         self.canvas = tk.Canvas(wrap, bg=self.t["bg"], highlightthickness=0)
         sb = ttk.Scrollbar(wrap, orient=tk.VERTICAL, command=self.canvas.yview)
@@ -115,17 +122,18 @@ class PackageManager(tk.Toplevel):
         self.list_frame.bind("<Configure>", lambda e: self.canvas.configure(
             scrollregion=self.canvas.bbox("all")))
         self._win = self.canvas.create_window((0, 0), window=self.list_frame,
-                                              anchor="nw", width=700)
+                                              anchor="nw", width=660)
         self.canvas.configure(yscrollcommand=sb.set)
         self.canvas.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
         sb.pack(side=tk.RIGHT, fill=tk.Y)
         self.canvas.bind("<Configure>",
-                         lambda e: self.canvas.itemconfigure(self._win, width=e.width))
+                         lambda e: self.canvas.itemconfigure(self._win,
+                                                             width=e.width))
         wrap.bind("<Enter>", lambda e: self._bind_wheel())
         wrap.bind("<Leave>", lambda e: self._unbind_wheel())
 
         self.rows = {}
-        for i, (pip_name, disp, pitch, dist) in enumerate(CATALOG):
+        for pip_name, disp, pitch, dist in CATALOG:
             row = tk.Frame(self.list_frame, bg=self.t["card"],
                            highlightthickness=1,
                            highlightbackground=self.t["card_border"])
@@ -136,15 +144,17 @@ class PackageManager(tk.Toplevel):
                      font=(FONT_UI, 11, "bold"), anchor="w").pack(anchor="w")
             tk.Label(left, text=pitch, bg=self.t["card"],
                      fg=self.t["text_secondary"], font=(FONT_UI, 9),
-                     wraplength=430, justify=tk.LEFT, anchor="w").pack(anchor="w")
+                     wraplength=380, justify=tk.LEFT, anchor="w").pack(
+                anchor="w")
             self.rows[pip_name] = {"row": row, "dist": dist,
                                    "status": None, "btn": None}
             status = tk.Label(row, text="…", bg=self.t["card"],
-                              fg=self.t["text_muted"], font=(FONT_UI, 9), width=14)
+                              fg=self.t["text_muted"], font=(FONT_UI, 9),
+                              width=14)
             status.pack(side=tk.RIGHT, padx=(4, 0))
-            action = tk.Label(row, text="Install", bg=self.t.accent, fg="#ffffff",
-                              font=(FONT_UI, 9, "bold"), cursor="hand2",
-                              padx=12, pady=5)
+            action = tk.Label(row, text="Install", bg=self.t.accent,
+                              fg="#ffffff", font=(FONT_UI, 9, "bold"),
+                              cursor="hand2", padx=12, pady=5)
             action.pack(side=tk.RIGHT, padx=12)
             self.rows[pip_name]["status"] = status
             self.rows[pip_name]["btn"] = action
@@ -152,32 +162,51 @@ class PackageManager(tk.Toplevel):
     def _build_log(self):
         tk.Label(self, text="pip output", bg=self.t["bg"],
                  fg=self.t["text_muted"], font=(FONT_UI, 8, "bold")
-                 ).pack(anchor="w", padx=18, pady=(4, 0))
-        self.log_box = tk.Text(self, height=7, bg=self.t["terminal"],
+                 ).pack(anchor="w", padx=12, pady=(4, 0))
+        self.log_box = tk.Text(self, height=6, bg=self.t["terminal"],
                                fg=self.t["text"], font=(FONT_MONO, 9),
                                state="disabled", relief=tk.FLAT, bd=0,
                                padx=10, pady=6, highlightthickness=1,
                                highlightbackground=self.t["border"])
-        self.log_box.pack(fill=tk.X, padx=18, pady=(2, 14))
+        self.log_box.pack(fill=tk.X, padx=12, pady=(2, 10))
 
     # ------------------------------------------------------------- helpers
-    def _log(self, text, tag=None):
+    def _apply_filter(self):
+        self._filter = self.filter_v.get().strip().lower()
+        for pip_name, disp, pitch, _ in CATALOG:
+            row = self.rows[pip_name]["row"]
+            if not self._filter:
+                row.pack(fill=tk.X, pady=3, ipady=6)
+                continue
+            hay = f"{pip_name} {disp} {pitch}".lower()
+            if self._filter in hay:
+                row.pack(fill=tk.X, pady=3, ipady=6)
+            else:
+                row.pack_forget()
+
+    def _log(self, text):
         self.log_box.config(state="normal")
-        if tag:
-            self.log_box.insert(tk.END, text, tag)
-        else:
-            self.log_box.insert(tk.END, text)
+        self.log_box.insert(tk.END, text)
         self.log_box.see(tk.END)
         self.log_box.config(state="disabled")
 
     def _bind_wheel(self):
         self.canvas.bind_all("<MouseWheel>", self._on_wheel)
+        self.canvas.bind_all("<Button-4>", self._on_wheel)
+        self.canvas.bind_all("<Button-5>", self._on_wheel)
 
     def _unbind_wheel(self):
         self.canvas.unbind_all("<MouseWheel>")
+        self.canvas.unbind_all("<Button-4>")
+        self.canvas.unbind_all("<Button-5>")
 
     def _on_wheel(self, event):
-        self.canvas.yview_scroll(-1 * (event.delta // 120), "units")
+        if getattr(event, "num", None) == 4:
+            self.canvas.yview_scroll(-2, "units")
+        elif getattr(event, "num", None) == 5:
+            self.canvas.yview_scroll(2, "units")
+        else:
+            self.canvas.yview_scroll(-1 * (event.delta // 120), "units")
 
     def _set_row(self, pip_name, status_text, btn_text, btn_bg=None, busy=False):
         info = self.rows.get(pip_name)
@@ -196,8 +225,8 @@ class PackageManager(tk.Toplevel):
                 btn.bind("<Button-1>", lambda e, n=pip_name, v=verb:
                          self._action(n, v))
         else:
-            btn.config(text="…", bg=self.t["card_border"], fg=self.t["text_muted"],
-                       cursor="watch")
+            btn.config(text="…", bg=self.t["card_border"],
+                       fg=self.t["text_muted"], cursor="watch")
 
     def _refresh_all(self):
         for pip_name, disp, _, dist in CATALOG:
@@ -231,6 +260,10 @@ class PackageManager(tk.Toplevel):
 
     def _run_pip(self, pip_args, label=""):
         self._log(f"\n$ python -m pip {' '.join(pip_args)}\n")
+        for name in pip_args[1:]:
+            if name in self.rows:
+                self._set_row(name, "installing…", "", busy=True)
+
         def work():
             try:
                 proc = subprocess.Popen(
@@ -266,3 +299,22 @@ class PackageManager(tk.Toplevel):
         except queue.Empty:
             pass
         self.after(120, self._poll_queue)
+
+
+class PackageManager(tk.Toplevel):
+    """Floating window wrapper around :class:`PackagesView` (kept so the
+    terminal and agent entry points behave exactly as before)."""
+
+    def __init__(self, master, theme, on_change=None):
+        super().__init__(master)
+        self.theme = theme
+        self.title("DXN1 STUDIO — Packages")
+        self.configure(bg=theme["bg"])
+        self.geometry("800x620")
+        self.minsize(700, 540)
+        self.transient(master)
+        self.view = PackagesView(self, theme, on_change=on_change)
+        self.view.pack(fill=tk.BOTH, expand=True)
+
+    def install_packages(self, names):
+        self.view.install_packages(names)

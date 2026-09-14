@@ -1,5 +1,5 @@
 #!/bin/bash
-# DXN1 STUDIO Installer v2.1.0
+# DXN1 STUDIO Installer v1.1.2
 # Usage: curl -fsSL https://raw.githubusercontent.com/DXN1-termux/DXN1-STUDIO/master/install.sh | bash
 
 set -e
@@ -9,7 +9,7 @@ BIN_DIR="$HOME/.local/bin"
 REPO="https://raw.githubusercontent.com/DXN1-termux/DXN1-STUDIO/master"
 
 echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-echo "   DXN1 STUDIO Installer v2.1.0 (beta)"
+echo "   DXN1 STUDIO Installer v1.1.2 (beta)"
 echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
 echo ""
 
@@ -67,7 +67,7 @@ download "$INSTALL_DIR/README.md" "README.md" required
 # package modules
 for f in __init__.py app.py config.py theme.py widgets.py onboarding.py \
          tour.py projects.py hub.py splash.py packages.py export.py agent.py \
-         sandbox.py llm.py; do
+         sandbox.py llm.py search.py errors.py; do
     download "$INSTALL_DIR/dxn1_studio/$f" "dxn1_studio/$f" required
 done
 
@@ -109,8 +109,8 @@ echo ""
 echo "Feeling dramatic? This also works:"
 echo "  \"DXN1 STUDIO\""
 echo ""
-echo "First launch opens the welcome wizard — pick your theme, meet"
-echo "DXN1 Agents, then land in the Project Hub to create a workspace."
-echo "Optional dependencies (Flask, requests, …) live in Tools →"
-echo "Manage Packages — nothing installs until you ask. Enjoy!"
+echo "First launch opens the welcome wizard — pick your theme, editor size,"
+echo "first project and DXN1 Agents brain (free cloud needs no account), then"
+echo "land in the Project Hub. Optional dependencies (Flask, requests, …) live"
+echo "in the Packages view — nothing installs until you ask. Enjoy!"
 echo ""

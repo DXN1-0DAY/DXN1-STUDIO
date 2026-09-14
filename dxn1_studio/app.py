@@ -1,10 +1,14 @@
 """DXN1 STUDIO — main application window.
 
-v2.1 flow: boot splash → (first run: welcome wizard) → Project Hub →
-the IDE itself. Everything extra stays opt-in: Flask & friends are
-installed only from the Packages page, and DXN1 Agents (if enabled in
-onboarding) asks permission before every edit and command unless you
-switch it to full access.
+Boot flow: splash → (first run: welcome wizard) → Project Hub → the IDE.
+
+v1.1 layout: a slim activity bar switches the left sidebar between
+Explorer / Search / Packages; the editor gained syntax highlighting, tab
+buffers with dirty markers, a find bar and a command palette (Ctrl+K).
+Everything extra stays opt-in: Flask & friends are installed only from
+the Packages view, and DXN1 Agents (if enabled) asks permission before
+every edit and command unless you switch it to full access — and it is
+always sandboxed to the open workspace.
 """
 
 import os
@@ -18,17 +22,133 @@ import tkinter as tk
 from tkinter import ttk, filedialog, messagebox
 
 from . import APP_NAME, APP_VERSION, APP_CHANNEL, APP_TAGLINE
-from .theme import from_config, FONT_UI, FONT_MONO
+from .theme import from_config, FONT_UI, FONT_MONO, ACCENTS
 from .widgets import FileTree, CodeEditor, Terminal
 from .onboarding import WelcomeWizard
 from .tour import InteractiveTour
+from . import errors
 from . import projects, export, llm
 from .sandbox import (WorkspaceSandbox, AgentEngine, FakeBackend,
                       SandboxError)
 from .hub import ProjectHub
 from .splash import Splash
-from .packages import PackageManager
-from .agent import DXN1AgentPanel, AgentSettingsDialog, AGENTS_NAME
+from .packages import PackagesView
+from .search import SearchPanel
+from .agent import DXN1AgentPanel, AgentSettingsDialog, ConnectDialog, \
+    AGENTS_NAME
+
+FONT_SIZES = (("small", 10), ("medium", 11), ("large", 13))
+
+
+class CommandPalette(tk.Toplevel):
+    """Fuzzy command launcher (Ctrl+K / Ctrl+Shift+P)."""
+
+    ROW_H = 34
+
+    def __init__(self, app):
+        super().__init__(app.root)
+        self.app = app
+        self.commands = app.palette_commands()
+        self.filtered = list(self.commands)
+        self.selected = 0
+        t = app.theme
+        self.t = t
+        self.title("Command Palette")
+        self.configure(bg=t["card"])
+        self.transient(app.root)
+        self.overrideredirect(False)
+        self.resizable(False, False)
+        self.attributes("-topmost", True)
+
+        wrap = tk.Frame(self, bg=t["card"], highlightthickness=1,
+                        highlightbackground=t["card_border"])
+        wrap.pack(fill=tk.BOTH, expand=True)
+        self.entry = tk.Entry(wrap, bg=t["editor"], fg=t["text"],
+                              insertbackground=t["text"], relief=tk.FLAT,
+                              font=(FONT_UI, 12), highlightthickness=0)
+        self.entry.pack(fill=tk.X, padx=12, pady=12, ipady=6)
+        self.entry.insert(0, "")
+        self.entry.bind("<KeyRelease>", self._on_type)
+        self.entry.bind("<Return>", lambda e: self._run_selected())
+        self.entry.bind("<Escape>", lambda e: self.close())
+        self.entry.bind("<Up>", lambda e: self._move(-1))
+        self.entry.bind("<Down>", lambda e: self._move(1))
+
+        self.rows = tk.Frame(wrap, bg=t["card"])
+        self.rows.pack(fill=tk.X, padx=8, pady=(0, 10))
+        self._render()
+        self._center()
+        self.entry.focus_set()
+        self.bind("<Escape>", lambda e: self.close())
+
+    # ------------------------------------------------------------- logic
+    def _on_type(self, event=None):
+        if event and event.keysym in ("Up", "Down", "Return", "Escape"):
+            return
+        q = self.entry.get().strip().lower()
+        self.filtered = [c for c in self.commands
+                         if not q or q in c[0].lower()]
+        self.selected = 0
+        self._render()
+
+    def _move(self, delta):
+        if not self.filtered:
+            return
+        self.selected = (self.selected + delta) % len(self.filtered)
+        self._render()
+
+    def _run_selected(self):
+        if self.filtered:
+            cmd = self.filtered[min(self.selected, len(self.filtered) - 1)]
+            self.close()
+            try:
+                cmd[2]()
+            except Exception as exc:  # noqa: BLE001 — palette never crashes
+                errors.log_exception(f"palette command '{cmd[0]}' failed")
+                self.app.toast(f"{cmd[0]} failed: {exc}", "error")
+
+    def _render(self):
+        for w in self.rows.winfo_children():
+            w.destroy()
+        for i, (label, hint, _fn) in enumerate(self.filtered[:9]):
+            active = i == self.selected
+            row = tk.Frame(self.rows, bg=self.t.accent if active
+                           else self.t["card"])
+            row.pack(fill=tk.X, pady=1)
+            tk.Label(row, text=label, bg=row.cget("bg"),
+                     fg="#ffffff" if active else self.t["text"],
+                     font=(FONT_UI, 10), anchor="w").pack(
+                side=tk.LEFT, padx=10, pady=6)
+            if hint:
+                tk.Label(row, text=hint, bg=row.cget("bg"),
+                         fg="#ffffff" if active else self.t["text_muted"],
+                         font=(FONT_UI, 8)).pack(side=tk.RIGHT, padx=10)
+            row.bind("<Button-1>", lambda e, i=i: self._pick(i))
+        if not self.filtered:
+            tk.Label(self.rows, text="no matching command",
+                     bg=self.t["card"], fg=self.t["text_muted"],
+                     font=(FONT_UI, 9)).pack(pady=8)
+
+    def _pick(self, i):
+        self.selected = i
+        self._run_selected()
+
+    def _center(self):
+        self.update_idletasks()
+        w = 520
+        h = min(560, self.winfo_reqheight())
+        sw = self.winfo_screenwidth()
+        x = self.app.root.winfo_rootx() + \
+            max(0, (self.app.root.winfo_width() - w) // 2)
+        y = self.app.root.winfo_rooty() + 80
+        self.geometry(f"{w}x{h}+{max(0, x)}+{y}")
+
+    def close(self):
+        try:
+            self.grab_release()
+        except Exception:
+            pass
+        self.destroy()
 
 
 class DXN1Studio:
@@ -41,15 +161,19 @@ class DXN1Studio:
 
         self.root = tk.Tk()
         self.root.title(f"{APP_NAME}  ·  v{APP_VERSION}-{APP_CHANNEL}")
-        self.root.geometry("1240x800")
-        self.root.minsize(900, 560)
+        self.root.geometry("1280x820")
+        self.root.minsize(940, 580)
         self.root.configure(bg=self.theme["bg"])
 
         self.open_files = {}
         self.active_file = None
         self.sidebar_visible = True
+        self.sidebar_view = "explorer"
         self.terminal_visible = True
         self._tab_frames = {}
+        self._buffers = {}          # path -> {"content": str, "dirty": bool}
+        self._autosave_job = None
+        self._palette = None
 
         self.project_dir = None
         self.project_kind = "empty"
@@ -59,7 +183,6 @@ class DXN1Studio:
         self._hub = None
         self._wizard = None
         self._tour = None
-        self._packages = None
         self._splash_active = False
         self.proc = None
         self._proc_q = queue.Queue()
@@ -70,6 +193,8 @@ class DXN1Studio:
         self.setup_menu()
         self.setup_bindings()
 
+        errors.set_notifier(self.toast)
+        errors.install(self.root)
         self._greet()
 
     # ------------------------------------------------------------------- ui
@@ -95,6 +220,9 @@ class DXN1Studio:
         self.status_ws = tk.Label(left, text="", bg=t["statusbar"],
                                   fg=t.accent, font=(FONT_UI, 9, "bold"))
         self.status_ws.pack(side=tk.LEFT, padx=(14, 0))
+        self.status_branch = tk.Label(left, text="", bg=t["statusbar"],
+                                      fg=t["text_muted"], font=(FONT_UI, 9))
+        self.status_branch.pack(side=tk.LEFT, padx=(10, 0))
 
         right = tk.Frame(self.statusbar, bg=t["statusbar"])
         right.pack(side=tk.RIGHT, padx=12)
@@ -104,15 +232,41 @@ class DXN1Studio:
         tk.Label(right, text=f"v{APP_VERSION}-{APP_CHANNEL}", bg=t["statusbar"],
                  fg=t["text_muted"], font=(FONT_UI, 9)).pack(side=tk.RIGHT)
 
-        # main panes — NOTE: uses theme["border"]; v1.0 crashed here (DARK_BORDER)
-        self.main_container = tk.PanedWindow(self.root, orient=tk.HORIZONTAL,
-                                             bg=t["border"], sashwidth=3, bd=0)
+        # toast layer (placed above the status bar, right aligned)
+        self.toast_layer = tk.Frame(self.root, bg=t["bg"])
+        self.toast_layer.place(relx=1.0, rely=1.0, x=-14, y=-44,
+                               anchor="se")
+
+        # body: activity rail + main panes
+        body = tk.Frame(self.root, bg=t["bg"])
+        body.pack(fill=tk.BOTH, expand=True)
+
+        self.activity = tk.Frame(body, width=46, bg=t["header"])
+        self.activity.pack(side=tk.LEFT, fill=tk.Y)
+        self.activity.pack_propagate(False)
+        self._build_activity()
+
+        # NOTE: uses theme["border"]; v1.0 crashed here (DARK_BORDER)
+        self.main_container = tk.PanedWindow(body, orient=tk.HORIZONTAL,
+                                             bg=t["border"], sashwidth=3,
+                                             bd=0)
         self.main_container.pack(fill=tk.BOTH, expand=True)
 
-        self.sidebar = FileTree(self.main_container, t, on_file_select=self.open_file)
-        self.main_container.add(self.sidebar, width=250, minsize=180)
+        # ---- sidebar container with switchable views
+        self.sidebar_container = tk.Frame(self.main_container,
+                                          bg=t["sidebar"])
+        self.sidebar = FileTree(self.sidebar_container, t,
+                                on_file_select=self.open_file)
+        self.sidebar.pack(fill=tk.BOTH, expand=True)
+        self.search_view = SearchPanel(self.sidebar_container, t,
+                                       on_open_match=self.open_search_match)
+        self.packages_view = PackagesView(self.sidebar_container, t)
+        self.main_container.add(self.sidebar_container, width=252,
+                                minsize=190)
+        self.show_sidebar_view("explorer", initial=True)
 
-        self.right_panel = tk.PanedWindow(self.main_container, orient=tk.VERTICAL,
+        self.right_panel = tk.PanedWindow(self.main_container,
+                                          orient=tk.VERTICAL,
                                           bg=t["border"], sashwidth=3, bd=0)
         self.main_container.add(self.right_panel)
 
@@ -129,10 +283,14 @@ class DXN1Studio:
         tabs_frame.pack_propagate(False)
         self.tabs_frame = tabs_frame
 
+        self.findbar = self._build_findbar(editor_container)
+
         self.editor = CodeEditor(editor_container, t)
-        self.editor.pack(fill=tk.BOTH, expand=True)
-        self.editor.text.bind("<KeyRelease>", self._update_cursor_pos)
+        self.editor.text.bind("<KeyRelease>", self._on_editor_key)
         self.editor.text.bind("<ButtonRelease-1>", self._update_cursor_pos)
+        self.editor.set_font_size(self.config.get("editor_font_size", 11))
+        self.editor.set_wrap(bool(self.config.get("word_wrap", False)))
+        self.editor.pack(fill=tk.BOTH, expand=True)
         self.right_panel.add(editor_container, minsize=200)
 
         self.terminal = Terminal(self.right_panel, t, greeting="Ready",
@@ -141,6 +299,10 @@ class DXN1Studio:
 
         self.widgets = {
             "sidebar": self.sidebar,
+            "sidebar_container": self.sidebar_container,
+            "activity": self.activity,
+            "search": self.search_view,
+            "packages": self.packages_view,
             "tabs_frame": self.tabs_frame,
             "toolbar": self.toolbar,
             "editor": self.editor,
@@ -152,53 +314,104 @@ class DXN1Studio:
         self._build_agent_panel()
         self._refresh_agents_status()
 
-    def _update_cursor_pos(self, event=None):
-        try:
-            line, col = self.editor.text.index("insert").split(".")
-            self.status_pos.config(text=f"Ln {line}, Col {int(col) + 1}")
-        except Exception:
-            pass
-
-    def _chip(self, parent, text, fg=None, accent=False, cmd=None):
-        lbl = tk.Label(parent, text=text,
-                       bg=self.theme.accent if accent else self.theme["header"],
-                       fg="#ffffff" if accent else (fg or self.theme["text_secondary"]),
-                       font=(FONT_UI, 9, "bold" if accent else "normal"),
-                       cursor="hand2", padx=10, pady=6)
-        lbl.pack(side=tk.LEFT, padx=(0, 6), pady=4)
-        if cmd:
-            default_bg = lbl.cget("bg")
-            lbl.bind("<Button-1>", lambda e: cmd())
-            lbl.bind("<Enter>", lambda e: lbl.config(
-                    bg=self.theme["hover"] if not accent else self.theme.accent))
-            lbl.bind("<Leave>", lambda e: lbl.config(bg=default_bg))
-        return lbl
-
-    def _build_toolbar(self):
+    # --------------------------------------------------------- activity bar
+    def _build_activity(self):
         t = self.theme
-        for child in self.toolbar.winfo_children():
-            child.destroy()
-        # right-side chip packed FIRST so it never gets squeezed out
-        if self.config.get("agents_enabled"):
-            self._agents_chip = tk.Label(
-                self.toolbar, text="◆ Agents", bg=t["header"],
-                fg=t.accent, font=(FONT_UI, 9, "bold"), cursor="hand2",
-                padx=10, pady=6)
-            self._agents_chip.pack(side=tk.RIGHT, padx=(6, 12), pady=4)
-            self._agents_chip.bind("<Button-1>",
-                                   lambda e: self.toggle_agents_panel())
-        self._chip(self.toolbar, "+ New", cmd=self.new_file)
-        self._chip(self.toolbar, "Open", cmd=self.open_file_dialog)
-        self._chip(self.toolbar, "Save", cmd=self.save_file)
-        tk.Frame(self.toolbar, bg=t["border"], width=1).pack(
-            side=tk.LEFT, fill=tk.Y, padx=6, pady=8)
-        self._chip(self.toolbar, "▶ Run", accent=True, cmd=self.run_current)
-        self._chip(self.toolbar, "■ Stop", fg=t["text_muted"], cmd=self.stop_run)
-        tk.Frame(self.toolbar, bg=t["border"], width=1).pack(
-            side=tk.LEFT, fill=tk.Y, padx=6, pady=8)
-        self._chip(self.toolbar, "Packages", cmd=self.open_packages)
-        self._chip(self.toolbar, "Export ZIP", cmd=self.export_project_zip)
-        self._chip(self.toolbar, "Hub", cmd=self.open_hub)
+        self._activity_items = []
+        for key, tip, cmd in (
+                ("explorer", "Explorer", lambda: self.show_sidebar_view("explorer")),
+                ("search", "Search in files", lambda: self.show_sidebar_view("search")),
+                ("packages", "Packages", lambda: self.show_sidebar_view("packages"))):
+            self._activity_items.append(
+                self._activity_button(key, tip, cmd, top=True))
+        tk.Frame(self.activity, bg=t["border"], height=1).pack(
+            fill=tk.X, pady=(6, 6), padx=8)
+        for key, tip, cmd in (
+                ("hub", "Project Hub", self.open_hub),
+                ("agents", "DXN1 Agents", self.toggle_agents_panel)):
+            self._activity_items.append(
+                self._activity_button(key, tip, cmd, top=False))
+        self._paint_activity()
+
+    def _activity_button(self, key, tip, cmd, top=True):
+        t = self.theme
+        side = tk.TOP if top else tk.BOTTOM
+        canvas = tk.Canvas(self.activity, width=46, height=42,
+                           bg=t["header"], highlightthickness=0,
+                           cursor="hand2")
+        canvas.pack(side=side)
+        canvas.bind("<Button-1>", lambda e: cmd())
+        canvas.bind("<Enter>", lambda e: self._paint_activity_item(
+            key, hover=True))
+        canvas.bind("<Leave>", lambda e: self._paint_activity_item(key))
+        item = {"key": key, "canvas": canvas, "tip": tip}
+        self._draw_activity_icon(canvas, key)
+        return item
+
+    def _draw_activity_icon(self, canvas, kind, hover=False):
+        t = self.theme
+        active = (self.sidebar_view == kind) if kind in \
+            ("explorer", "search", "packages") else \
+            (kind == "agents" and self.agents_visible)
+        color = t["text"] if hover else (t.accent if active
+                                         else t["text_muted"])
+        canvas.delete("all")
+        if active:
+            canvas.create_rectangle(0, 0, 3, 42, fill=t.accent, outline="")
+        if kind == "explorer":
+            canvas.create_rectangle(12, 11, 34, 31, outline=color, width=2)
+            for y in (17, 22, 27):
+                canvas.create_line(16, y, 30, y, fill=color)
+        elif kind == "search":
+            canvas.create_oval(12, 11, 26, 25, outline=color, width=2)
+            canvas.create_line(25, 24, 33, 32, fill=color, width=2)
+        elif kind == "packages":
+            canvas.create_rectangle(11, 13, 35, 31, outline=color, width=2)
+            canvas.create_line(11, 20, 35, 20, fill=color)
+            canvas.create_line(23, 13, 23, 20, fill=color)
+        elif kind == "hub":
+            for x, y in ((12, 11), (25, 11), (12, 24), (25, 24)):
+                canvas.create_rectangle(x, y, x + 9, y + 9,
+                                        outline=color, width=2)
+        elif kind == "agents":
+            canvas.create_polygon(23, 9, 34, 21, 23, 33, 12, 21,
+                                  outline=color, width=2, fill="")
+
+    def _paint_activity_item(self, key, hover=False):
+        for item in self._activity_items:
+            if item["key"] == key:
+                self._draw_activity_icon(item["canvas"], key, hover=hover)
+
+    def _paint_activity(self):
+        for item in self._activity_items:
+            self._draw_activity_icon(item["canvas"], item["key"])
+
+    # ------------------------------------------------------- sidebar views
+    def show_sidebar_view(self, name, initial=False):
+        if name not in ("explorer", "search", "packages"):
+            return
+        self.sidebar_view = name
+        self.sidebar.pack_forget()
+        for view in (self.search_view, self.packages_view):
+            view.pack_forget()
+        view = {"explorer": self.sidebar, "search": self.search_view,
+                "packages": self.packages_view}[name]
+        view.pack(fill=tk.BOTH, expand=True)
+        self._paint_activity()
+        if name == "search":
+            self.search_view.set_workspace(self.project_dir)
+            self.search_view.entry.focus_set()
+
+    def _toggle_sidebar(self):
+        if self.sidebar_visible:
+            self.main_container.forget(self.sidebar_container)
+        else:
+            self.main_container.forget(self.right_panel)
+            self.main_container.add(self.sidebar_container, width=252,
+                                    minsize=190)
+            self.main_container.add(self.right_panel)
+        self.sidebar_visible = not self.sidebar_visible
+        self._paint_activity()
 
     def _build_agent_panel(self):
         if self.agent_panel is not None:
@@ -209,6 +422,7 @@ class DXN1Studio:
         if self.agents_visible:
             self.main_container.add(self.agent_panel, width=300, minsize=240)
         self.widgets["agents"] = self.agent_panel
+        self._paint_activity()
 
     def apply_agents_visibility(self):
         enabled = bool(self.config.get("agents_enabled"))
@@ -234,6 +448,7 @@ class DXN1Studio:
         self._build_toolbar()
         self.setup_menu()          # rebuild so agent entries appear/disappear
         self._refresh_agents_status()
+        self._paint_activity()
 
     def toggle_agents_panel(self):
         if self.agent_panel is None:
@@ -247,6 +462,7 @@ class DXN1Studio:
         else:
             self.main_container.add(self.agent_panel, width=300, minsize=240)
             self.agents_visible = True
+        self._paint_activity()
 
     def _refresh_agents_status(self):
         if not self.config.get("agents_enabled"):
@@ -264,16 +480,20 @@ class DXN1Studio:
         menubar = tk.Menu(self.root)
 
         file_menu = tk.Menu(menubar, tearoff=0, bg=t["sidebar"], fg=t["text"],
-                            activebackground=t["hover"], activeforeground=t["text"])
-        file_menu.add_command(label="New File", command=self.new_file, accelerator="Ctrl+N")
+                            activebackground=t["hover"],
+                            activeforeground=t["text"])
+        file_menu.add_command(label="New File", command=self.new_file,
+                              accelerator="Ctrl+N")
         file_menu.add_command(label="Open File…", command=self.open_file_dialog,
                               accelerator="Ctrl+O")
         file_menu.add_separator()
-        file_menu.add_command(label="Save", command=self.save_file, accelerator="Ctrl+S")
+        file_menu.add_command(label="Save", command=self.save_file,
+                              accelerator="Ctrl+S")
         file_menu.add_command(label="Save As…", command=self.save_file_as)
         file_menu.add_separator()
         file_menu.add_command(label="Project Hub…", command=self.open_hub)
-        file_menu.add_command(label="Open Workspace…", command=self.open_workspace_dialog)
+        file_menu.add_command(label="Open Workspace…",
+                              command=self.open_workspace_dialog)
         file_menu.add_separator()
         file_menu.add_command(label="Export Project as ZIP…",
                               command=self.export_project_zip)
@@ -284,7 +504,8 @@ class DXN1Studio:
         menubar.add_cascade(label="File", menu=file_menu)
 
         edit_menu = tk.Menu(menubar, tearoff=0, bg=t["sidebar"], fg=t["text"],
-                            activebackground=t["hover"], activeforeground=t["text"])
+                            activebackground=t["hover"],
+                            activeforeground=t["text"])
         txt = lambda: self.editor.text
         edit_menu.add_command(label="Undo", accelerator="Ctrl+Z",
                               command=lambda: txt().event_generate("<<Undo>>"))
@@ -297,15 +518,38 @@ class DXN1Studio:
                               command=lambda: txt().event_generate("<<Copy>>"))
         edit_menu.add_command(label="Paste", accelerator="Ctrl+V",
                               command=lambda: txt().event_generate("<<Paste>>"))
+        edit_menu.add_command(label="Find…", command=self.toggle_find,
+                              accelerator="Ctrl+F")
+        edit_menu.add_separator()
+        edit_menu.add_command(label="Bigger Text", accelerator="Ctrl++",
+                              command=lambda: self.change_font_size(1))
+        edit_menu.add_command(label="Smaller Text", accelerator="Ctrl+-",
+                              command=lambda: self.change_font_size(-1))
+        wrap_state = tk.BooleanVar(
+            value=bool(self.config.get("word_wrap", False)))
+        edit_menu.add_checkbutton(label="Word Wrap", variable=wrap_state,
+                                  command=self.toggle_word_wrap)
         edit_menu.add_separator()
         edit_menu.add_command(label="Settings…", command=self.open_settings,
                               accelerator="Ctrl+,")
         menubar.add_cascade(label="Edit", menu=edit_menu)
 
         view_menu = tk.Menu(menubar, tearoff=0, bg=t["sidebar"], fg=t["text"],
-                            activebackground=t["hover"], activeforeground=t["text"])
+                            activebackground=t["hover"],
+                            activeforeground=t["text"])
+        view_menu.add_command(label="Command Palette",
+                              command=self.open_palette,
+                              accelerator="Ctrl+K")
+        view_menu.add_separator()
+        view_menu.add_command(label="Explorer", command=lambda:
+                              self.show_sidebar_view("explorer"))
+        view_menu.add_command(label="Search in Files", command=lambda:
+                              self.show_sidebar_view("search"))
+        view_menu.add_command(label="Packages", command=lambda:
+                              self.show_sidebar_view("packages"))
+        view_menu.add_separator()
         view_menu.add_command(label="Toggle Terminal", command=self.toggle_terminal)
-        view_menu.add_command(label="Toggle Sidebar", command=self.toggle_sidebar)
+        view_menu.add_command(label="Toggle Sidebar", command=self._toggle_sidebar)
         if self.config.get("agents_enabled"):
             view_menu.add_command(label="Toggle DXN1 Agents",
                                   command=self.toggle_agents_panel)
@@ -316,21 +560,29 @@ class DXN1Studio:
         menubar.add_cascade(label="View", menu=view_menu)
 
         tools_menu = tk.Menu(menubar, tearoff=0, bg=t["sidebar"], fg=t["text"],
-                             activebackground=t["hover"], activeforeground=t["text"])
+                             activebackground=t["hover"],
+                             activeforeground=t["text"])
         tools_menu.add_command(label="Run Project", command=self.run_current,
                                accelerator="F5")
         tools_menu.add_command(label="Stop", command=self.stop_run)
         tools_menu.add_separator()
-        tools_menu.add_command(label="Manage Packages…", command=self.open_packages)
+        tools_menu.add_command(label="Manage Packages…", command=lambda:
+                               self.show_sidebar_view("packages"))
+        tools_menu.add_command(label="Search in Files…", command=lambda:
+                               self.show_sidebar_view("search"))
         tools_menu.add_command(label="Project Hub…", command=self.open_hub)
         if self.config.get("agents_enabled"):
             tools_menu.add_command(label=f"{AGENTS_NAME} Settings…",
                                    command=lambda: AgentSettingsDialog(self))
+            tools_menu.add_command(label=f"Connect a Brain…",
+                                   command=lambda: ConnectDialog(self))
         menubar.add_cascade(label="Tools", menu=tools_menu)
 
         help_menu = tk.Menu(menubar, tearoff=0, bg=t["sidebar"], fg=t["text"],
-                            activebackground=t["hover"], activeforeground=t["text"])
-        help_menu.add_command(label="Replay Welcome & Tour", command=self.start_wizard)
+                            activebackground=t["hover"],
+                            activeforeground=t["text"])
+        help_menu.add_command(label="Replay Welcome & Tour",
+                              command=self.start_wizard)
         help_menu.add_separator()
         help_menu.add_command(label="About DXN1 STUDIO", command=self.show_about)
         menubar.add_cascade(label="Help", menu=help_menu)
@@ -341,17 +593,100 @@ class DXN1Studio:
         self.root.bind("<Control-n>", lambda e: self.new_file())
         self.root.bind("<Control-o>", lambda e: self.open_file_dialog())
         self.root.bind("<Control-s>", lambda e: self.save_file())
-        self.root.bind("<Control-y>", lambda e: self.editor.text.event_generate("<<Redo>>"))
+        self.root.bind("<Control-y>", lambda e:
+                       self.editor.text.event_generate("<<Redo>>"))
         self.root.bind("<F5>", lambda e: self.run_current())
         self.root.bind("<Control-comma>", lambda e: self.open_settings())
+        self.root.bind("<Control-k>", lambda e: self.open_palette())
+        self.root.bind("<Control-P>", lambda e: self.open_palette())
+        self.root.bind("<Control-f>", lambda e: self.toggle_find())
+        self.root.bind("<Control-w>", lambda e: self.close_active_tab())
+        self.root.bind("<Control-Tab>", lambda e: self.cycle_tab(1))
+        self.root.bind("<Control-plus>", lambda e: self.change_font_size(1))
+        self.root.bind("<Control-equal>", lambda e: self.change_font_size(1))
+        self.root.bind("<Control-minus>", lambda e: self.change_font_size(-1))
+        self.root.bind("<Escape>", self._on_escape)
+
+    def _on_escape(self, event=None):
+        if self.findbar.winfo_ismapped():
+            self.toggle_find(show=False)
+            return "break"
+
+    def _update_cursor_pos(self, event=None):
+        try:
+            line, col = self.editor.text.index("insert").split(".")
+            self.status_pos.config(text=f"Ln {line}, Col {int(col) + 1}")
+        except Exception:
+            pass
+
+    def _on_editor_key(self, event=None):
+        """App-level hook for editor keystrokes (cursor pos + dirty tab)."""
+        self._update_cursor_pos()
+        self._mark_dirty()
+
+    # ------------------------------------------------------------ toolbar
+    def _chip(self, parent, text, fg=None, accent=False, cmd=None):
+        lbl = tk.Label(parent, text=text,
+                       bg=self.theme.accent if accent else self.theme["header"],
+                       fg="#ffffff" if accent else (fg or
+                                                    self.theme["text_secondary"]),
+                       font=(FONT_UI, 9, "bold" if accent else "normal"),
+                       cursor="hand2", padx=10, pady=6)
+        lbl.pack(side=tk.LEFT, padx=(0, 6), pady=4)
+        if cmd:
+            default_bg = lbl.cget("bg")
+            lbl.bind("<Button-1>", lambda e: cmd())
+            lbl.bind("<Enter>", lambda e: lbl.config(
+                bg=self.theme["hover"] if not accent else self.theme.accent))
+            lbl.bind("<Leave>", lambda e: lbl.config(bg=default_bg))
+        return lbl
+
+    def _build_toolbar(self):
+        t = self.theme
+        for child in self.toolbar.winfo_children():
+            child.destroy()
+        # right-side chip packed FIRST so it never gets squeezed out
+        if self.config.get("agents_enabled"):
+            self._agents_chip = tk.Label(
+                self.toolbar, text="◆ Agents", bg=t["header"],
+                fg=t.accent, font=(FONT_UI, 9, "bold"), cursor="hand2",
+                padx=10, pady=6)
+            self._agents_chip.pack(side=tk.RIGHT, padx=(6, 12), pady=4)
+            self._agents_chip.bind("<Button-1>",
+                                   lambda e: self.toggle_agents_panel())
+        self._chip(self.toolbar, "+ New", cmd=self.new_file)
+        self._chip(self.toolbar, "Open", cmd=self.open_file_dialog)
+        self._chip(self.toolbar, "Save", cmd=self.save_file)
+        tk.Frame(self.toolbar, bg=t["border"], width=1).pack(
+            side=tk.LEFT, fill=tk.Y, padx=6, pady=8)
+        self._chip(self.toolbar, "▶ Run", accent=True, cmd=self.run_current)
+        self._chip(self.toolbar, "■ Stop", fg=t["text_muted"],
+                   cmd=self.stop_run)
+        tk.Frame(self.toolbar, bg=t["border"], width=1).pack(
+            side=tk.LEFT, fill=tk.Y, padx=6, pady=8)
+        self._chip(self.toolbar, "Search", cmd=lambda:
+                   self.show_sidebar_view("search"))
+        self._chip(self.toolbar, "Packages", cmd=lambda:
+                   self.show_sidebar_view("packages"))
+        self._chip(self.toolbar, "Export ZIP", cmd=self.export_project_zip)
+        self._chip(self.toolbar, "Hub", cmd=self.open_hub)
+
+    # legacy alias — some callers still say toggle_sidebar
+    def toggle_sidebar(self):
+        self._toggle_sidebar()
+
+    def show_settings_saved(self):
+        self.terminal.log("Settings saved.")
 
     # ------------------------------------------------------------- session
     def _greet(self):
         name = self.config.get("name") or "developer"
         back = not self.first_launch
-        self.terminal.log(f"{APP_NAME} v{APP_VERSION}-{APP_CHANNEL} — {APP_TAGLINE}")
+        self.terminal.log(f"{APP_NAME} v{APP_VERSION}-{APP_CHANNEL} — "
+                          f"{APP_TAGLINE}")
         self.terminal.log(f"{'Welcome back' if back else 'Welcome'}, {name}!")
-        self.terminal.log("Type 'help' for studio commands.")
+        self.terminal.log("Type 'help' for studio commands — or press Ctrl+K "
+                          "for the command palette.")
         if not self.config.get("onboarded"):
             self.terminal.log("First run detected — starting setup…")
 
@@ -403,9 +738,15 @@ class DXN1Studio:
         if self._hub is not None and self._hub.winfo_exists():
             self._hub.lift()
             return
+        preselect = ""
+        if self._wizard is None:
+            preselect = self.config.get("wizard_first_kind", "")
         self._hub = ProjectHub(self.root, self.config, self.theme,
                                on_open=self._on_hub_open,
-                               on_explore=self._on_hub_explore)
+                               on_explore=self._on_hub_explore,
+                               preselect_kind=preselect)
+        if preselect:
+            self.config.set("wizard_first_kind", "")
 
     def _on_hub_open(self, path, kind):
         self._hub = None
@@ -427,7 +768,8 @@ class DXN1Studio:
                                        initialdir=self.project_dir
                                        or projects.ensure_projects_root())
         if path:
-            self._set_workspace(path, projects.read_project_meta(path)["kind"])
+            self._set_workspace(path,
+                                projects.read_project_meta(path)["kind"])
 
     def _set_workspace(self, path, kind):
         self.project_dir = os.path.abspath(path)
@@ -436,7 +778,10 @@ class DXN1Studio:
         name = meta["name"]
         projects.touch_recent(self.config, path, kind)
         self.sidebar.load_directory(self.project_dir)
+        self.search_view.set_workspace(self.project_dir)
         self.status_ws.config(text=f"◆ {name}")
+        self.status_branch.config(
+            text=f"⎇ {self._git_branch()}" if self._git_branch() else "")
         self.root.title(f"{name} — {APP_NAME} · v{APP_VERSION}-{APP_CHANNEL}")
         self.terminal.log(f"Workspace: {name} ({kind}) — {self.project_dir}")
         # bind the agent to this workspace (fresh jail + conversation)
@@ -450,10 +795,22 @@ class DXN1Studio:
                     self.open_file(p)
                     break
 
+    def _git_branch(self):
+        if not self.project_dir:
+            return ""
+        head = os.path.join(self.project_dir, ".git", "HEAD")
+        try:
+            with open(head, "r", encoding="utf-8", errors="replace") as fh:
+                data = fh.read().strip()
+            return data.rsplit("/", 1)[-1] if data.startswith("ref:") \
+                else "detached"
+        except OSError:
+            return ""
+
     def refresh_explorer(self):
         self.sidebar.load_directory(self.project_dir or os.path.expanduser("~"))
 
-    # ------------------------------------------------------------- onboarding
+    # ---------------------------------------------------------- onboarding
     def start_wizard(self):
         if self._wizard is not None and self._wizard.win.winfo_exists():
             return
@@ -471,6 +828,7 @@ class DXN1Studio:
             return
         # honour a mid-wizard opt-in (or opt-out) without a restart
         self.apply_agents_visibility()
+        self.editor.set_font_size(config.get("editor_font_size", 11))
         self.terminal.log(f"Setup complete — welcome aboard, "
                           f"{config.get('name') or 'developer'}!")
         self.open_hub()
@@ -491,6 +849,7 @@ class DXN1Studio:
     def new_file(self):
         self.editor.set_content("")
         self.editor.file_path = None
+        self.editor.highlighter.set_language(None)
         self.status_file.config(text="Untitled")
         self.terminal.log("Created new file")
 
@@ -505,36 +864,62 @@ class DXN1Studio:
 
     def open_file(self, filepath):
         try:
-            with open(filepath, "r", encoding="utf-8") as fh:
+            with open(filepath, "r", encoding="utf-8",
+                      errors="replace") as fh:
                 content = fh.read()
         except Exception as e:
+            errors.log_exception(f"open {filepath}")
             messagebox.showerror("Error", f"Failed to open file:\n{e}")
             return
-        self.editor.set_content(content)
-        self.editor.file_path = filepath
+        self._buffers[filepath] = {"content": content, "dirty": False}
+        self.editor.set_content(content, path=filepath)
         self.status_file.config(text=filepath)
         self._update_cursor_pos()
         self.terminal.log(f"Opened: {filepath}")
         self.add_tab(os.path.basename(filepath), filepath)
 
-    def save_file(self):
+    def open_search_match(self, path, line, col):
+        self.open_file(path)
+        target = f"{int(line)}.{int(col)}"
+        try:
+            self.editor.text.mark_set("insert", target)
+            self.editor.text.see(target)
+            self.editor.text.focus_set()
+            self._update_cursor_pos()
+        except tk.TclError:
+            pass
+
+    def save_file(self, silent=False):
         if self.editor.file_path:
             try:
                 with open(self.editor.file_path, "w", encoding="utf-8") as fh:
                     fh.write(self.editor.get_content())
+                if self.editor.file_path in self._buffers:
+                    self._buffers[self.editor.file_path] = \
+                        {"content": self.editor.get_content(),
+                         "dirty": False}
+                self._paint_tab_dirty(self.editor.file_path)
                 self.terminal.log(f"Saved: {self.editor.file_path}")
+                if not silent:
+                    self.toast("Saved", "success")
             except Exception as e:
+                errors.log_exception(f"save {self.editor.file_path}")
                 messagebox.showerror("Error", f"Failed to save file:\n{e}")
         else:
             self.save_file_as()
 
     def save_file_as(self):
-        filepath = filedialog.asksaveasfilename(title="Save As", defaultextension=".txt")
+        filepath = filedialog.asksaveasfilename(title="Save As",
+                                                defaultextension=".txt")
         if filepath:
             self.editor.file_path = filepath
+            self._buffers[filepath] = {"content":
+                                       self.editor.get_content(),
+                                       "dirty": False}
             self.status_file.config(text=filepath)
-            self.save_file()
+            self.save_file(silent=True)
 
+    # ---------------------------------------------------------------- tabs
     def add_tab(self, filename, filepath=None):
         filepath = filepath or self.editor.file_path or filename
         if filepath not in self._tab_frames:
@@ -551,6 +936,7 @@ class DXN1Studio:
             bar.pack(side=tk.BOTTOM, fill=tk.X)
             tab.pack(side=tk.LEFT)
             close.bind("<Button-1>", lambda e, p=filepath: self.close_tab(p))
+            tab.bind("<Button-2>", lambda e, p=filepath: self.close_tab(p))
             self._tab_frames[filepath] = {"frame": tab, "label": label,
                                           "close": close, "bar": bar}
         self._activate_tab(filepath)
@@ -562,42 +948,153 @@ class DXN1Studio:
             bg = t["editor"] if active else t["header"]
             w["frame"].config(bg=bg)
             w["label"].config(bg=bg,
-                               fg=t["text"] if active else t["text_secondary"])
+                              fg=t["text"] if active else t["text_secondary"])
             w["close"].config(bg=bg)
             w["bar"].config(bg=t.accent if active else bg)
+        if filepath and filepath != self.editor.file_path and \
+                filepath in self._buffers:
+            content = self._buffers[filepath]["content"]
+            self.editor.set_content(content, path=filepath)
+            self.status_file.config(text=filepath)
+            self._update_cursor_pos()
+
+    def _mark_dirty(self, event=None):
+        path = self.editor.file_path
+        if path and path in self._buffers:
+            if not self._buffers[path]["dirty"]:
+                self._buffers[path]["dirty"] = True
+                self._paint_tab_dirty(path)
+        if self.config.get("auto_save", False):
+            if self._autosave_job is not None:
+                try:
+                    self.root.after_cancel(self._autosave_job)
+                except Exception:
+                    pass
+            self._autosave_job = self.root.after(1600,
+                                                 lambda: self.save_file(
+                                                     silent=True))
+
+    def _paint_tab_dirty(self, path):
+        entry = self._tab_frames.get(path)
+        if entry is None:
+            return
+        t = self.theme
+        dirty = self._buffers.get(path, {}).get("dirty", False)
+        active = path == self.editor.file_path
+        bg = t["editor"] if active else t["header"]
+        name = os.path.basename(path)
+        entry["label"].config(text=f"{'● ' if dirty else ''}{name}", bg=bg)
+
+    def close_active_tab(self):
+        if self.editor.file_path:
+            self.close_tab(self.editor.file_path)
+
+    def cycle_tab(self, delta):
+        paths = list(self._tab_frames)
+        if len(paths) < 2:
+            return
+        try:
+            i = paths.index(self.editor.file_path)
+        except ValueError:
+            i = 0
+        self.open_file(paths[(i + delta) % len(paths)]) \
+            if paths[(i + delta) % len(paths)] != self.editor.file_path else \
+            self._activate_tab(paths[(i + delta) % len(paths)])
 
     def close_tab(self, filepath):
         entry = self._tab_frames.pop(filepath, None)
         if entry is None:
             return
         entry["frame"].destroy()
+        self._buffers.pop(filepath, None)
         self.terminal.log(f"Closed: {os.path.basename(filepath)}")
         if self.editor.file_path == filepath:
-            self.editor.set_content("")
-            self.editor.file_path = None
-            self.status_file.config(text="No file open")
-            self.status_pos.config(text="")
             if self._tab_frames:
                 last = list(self._tab_frames)[-1]
-                try:
-                    with open(last, "r", encoding="utf-8") as fh:
-                        self.editor.set_content(fh.read())
-                    self.editor.file_path = last
-                    self.status_file.config(text=last)
-                    self._activate_tab(last)
-                except Exception:
-                    pass
+                self.editor.file_path = None
+                self._activate_tab(last)
+            else:
+                self.editor.set_content("")
+                self.editor.file_path = None
+                self.editor.highlighter.set_language(None)
+                self.status_file.config(text="No file open")
+                self.status_pos.config(text="")
+
+    # ------------------------------------------------------------- find bar
+    def _build_findbar(self, parent):
+        t = self.theme
+        bar = tk.Frame(parent, bg=t["header"])
+        row = tk.Frame(bar, bg=t["header"])
+        row.pack(fill=tk.X, padx=10, pady=6)
+        tk.Label(row, text="⌕", bg=t["header"], fg=t.accent,
+                 font=(FONT_UI, 11, "bold")).pack(side=tk.LEFT)
+        self.find_var = tk.StringVar()
+        entry = tk.Entry(row, textvariable=self.find_var, bg=t["editor"],
+                         fg=t["text"], insertbackground=t["text"],
+                         relief=tk.FLAT, font=(FONT_MONO, 10),
+                         highlightthickness=1, highlightbackground=t["border"],
+                         highlightcolor=t.accent, width=28)
+        entry.pack(side=tk.LEFT, padx=(8, 6), ipady=4)
+        entry.bind("<Return>", lambda e: self._find_next(1))
+        entry.bind("<KeyRelease>", self._find_live)
+        self.find_count = tk.Label(row, text="", bg=t["header"],
+                                   fg=t["text_muted"], font=(FONT_UI, 9),
+                                   width=10)
+        self.find_count.pack(side=tk.LEFT)
+        for label, delta in (("↑", -1), ("↓", 1)):
+            btn = tk.Label(row, text=label, bg=t["header"],
+                           fg=t["text_secondary"], font=(FONT_UI, 10, "bold"),
+                           cursor="hand2", padx=8)
+            btn.pack(side=tk.LEFT)
+            btn.bind("<Button-1>", lambda e, d=delta: self._find_next(d))
+        x = tk.Label(row, text="✕", bg=t["header"], fg=t["text_muted"],
+                     font=(FONT_UI, 10), cursor="hand2", padx=8)
+        x.pack(side=tk.RIGHT)
+        x.bind("<Button-1>", lambda e: self.toggle_find(show=False))
+        return bar
+
+    def toggle_find(self, show=None):
+        visible = self.findbar.winfo_ismapped()
+        if show is None:
+            show = not visible
+        if show and not visible:
+            self.findbar.pack(fill=tk.X, before=self.editor)
+            self.find_var.set("")
+            self.find_count.config(text="")
+            for w in self.findbar.winfo_children():
+                for c in w.winfo_children():
+                    if isinstance(c, tk.Entry):
+                        c.focus_set()
+                        break
+        elif not show and visible:
+            self.editor.clear_find()
+            self.findbar.pack_forget()
+            self.editor.text.focus_set()
+
+    def _find_live(self, event=None):
+        if event and event.keysym in ("Return", "Escape", "Up", "Down"):
+            return
+        needle = self.find_var.get()
+        if not needle:
+            self.editor.clear_find()
+            self.find_count.config(text="")
+            return
+        count = self.editor.find(needle)
+        self.find_count.config(
+            text=f"{count} hit{'s' if count != 1 else ''}"
+            if count else "no hits")
+
+    def _find_next(self, delta):
+        needle = self.find_var.get()
+        if needle:
+            self.editor.find(needle, backwards=delta < 0)
 
     # ------------------------------------------------------------- packages
     def open_packages(self, autostart=None):
-        if self._packages is not None and self._packages.winfo_exists():
-            self._packages.deiconify()
-            self._packages.lift()
-        else:
-            self._packages = PackageManager(self.root, self.theme)
+        self.show_sidebar_view("packages")
         if autostart:
-            self._packages.install_packages(autostart)
-        return self._packages
+            self.packages_view.install_packages(autostart)
+        return self.packages_view
 
     # -------------------------------------------------------------- export
     def export_project_zip(self):
@@ -616,22 +1113,29 @@ class DXN1Studio:
         try:
             path, count = export.export_project_zip(src, dest)
         except Exception as e:
+            errors.log_exception("export zip")
             messagebox.showerror("Export", f"Export failed:\n{e}")
             return
         self.terminal.log(f"Exported {count} files → {path}")
+        self.toast(f"Exported {count} files", "success")
 
     def export_current_file(self):
         if not self.editor.file_path:
             self.save_file_as()
             if not self.editor.file_path:
                 return
-        self.save_file()
+        self.save_file(silent=True)
         dest = filedialog.asksaveasfilename(
             title="Export Current File As",
             initialfile=os.path.basename(self.editor.file_path))
         if not dest:
             return
-        export.export_file_bytes(self.editor.get_content(), dest)
+        try:
+            export.export_file_bytes(self.editor.get_content(), dest)
+        except Exception as e:
+            errors.log_exception("export file")
+            messagebox.showerror("Export", f"Export failed:\n{e}")
+            return
         self.terminal.log(f"Exported current file → {dest}")
 
     # ------------------------------------------------------------- run/stop
@@ -648,13 +1152,14 @@ class DXN1Studio:
                     break
         if not target:
             self.terminal.log("Nothing to run — open a Python file first.")
+            self.toast("Nothing to run", "error")
             return
         self.run_file(target)
 
     def run_file(self, path):
         path = os.path.abspath(path)
         if path == self.editor.file_path:
-            self.save_file()
+            self.save_file(silent=True)
         self._start_process([sys.executable, path], shell=False,
                             cwd=os.path.dirname(path))
 
@@ -751,10 +1256,11 @@ class DXN1Studio:
                 if self.editor.file_path and \
                         os.path.abspath(self.editor.file_path) == \
                         os.path.abspath(path):
-                    with open(path, "r", encoding="utf-8") as fh:
+                    with open(path, "r", encoding="utf-8",
+                              errors="replace") as fh:
                         self.editor.set_content(fh.read())
             except Exception:
-                pass
+                errors.log_exception("agent_on_written", quiet=True)
         self.root.after(0, ui)
 
     # --------------------------------------------------- terminal commands
@@ -770,12 +1276,15 @@ class DXN1Studio:
                     ("run", "run the current file / project (F5)"),
                     ("stop", "stop the running process"),
                     ("clear", "clear this terminal"),
-                    ("packages", "open the optional-dependencies page"),
+                    ("packages", "open the optional-dependencies view"),
+                    ("search <query>", "search across the workspace"),
+                    ("find <text>", "find text in the current file"),
+                    ("palette", "open the command palette (Ctrl+K)"),
                     ("hub", "open the Project Hub"),
                     ("export", "export the workspace as a ZIP"),
                     ("agent <request>", "talk to DXN1 Agents (if enabled)"),
                     ("settings", "open studio settings")):
-                self.terminal.log(f"  {cmd:<12} — {desc}")
+                self.terminal.log(f"  {cmd:<18} — {desc}")
             return
         if low == "clear":
             self.terminal.clear()
@@ -791,6 +1300,20 @@ class DXN1Studio:
             return
         if low in ("hub", "project hub"):
             self.open_hub()
+            return
+        if low == "palette":
+            self.open_palette()
+            return
+        if low.startswith("search "):
+            self.show_sidebar_view("search")
+            self.search_view.entry.delete(0, tk.END)
+            self.search_view.entry.insert(0, text[7:].strip())
+            self.search_view.start_search()
+            return
+        if low.startswith("find "):
+            self.toggle_find(show=True)
+            self.find_var.set(text[5:].strip())
+            self._find_live()
             return
         if low.startswith("export"):
             self.export_project_zip()
@@ -818,14 +1341,68 @@ class DXN1Studio:
                                 self.root.deiconify()))
         self.terminal.log("Booting DXN1 STUDIO…")
 
-    # ------------------------------------------------------------- settings
+    # ------------------------------------------------------------- palette
+    def open_palette(self):
+        if self._palette is not None:
+            try:
+                self._palette.destroy()
+            except tk.TclError:
+                pass
+            self._palette = None
+        self._palette = CommandPalette(self)
+
+    def palette_commands(self):
+        cmds = [
+            ("Run project (F5)", "F5", self.run_current),
+            ("Stop process", "", self.stop_run),
+            ("Save file", "Ctrl+S", lambda: self.save_file()),
+            ("New file", "Ctrl+N", self.new_file),
+            ("Open file…", "Ctrl+O", self.open_file_dialog),
+            ("Find in file", "Ctrl+F", self.toggle_find),
+            ("Search in files", "", lambda: self.show_sidebar_view("search")),
+            ("Explorer", "", lambda: self.show_sidebar_view("explorer")),
+            ("Packages", "", lambda: self.show_sidebar_view("packages")),
+            ("Toggle terminal", "", self.toggle_terminal),
+            ("Toggle sidebar", "", self._toggle_sidebar),
+            ("Export workspace as ZIP…", "", self.export_project_zip),
+            ("Project Hub…", "", self.open_hub),
+            ("Open workspace…", "", self.open_workspace_dialog),
+            ("Settings…", "Ctrl+,", self.open_settings),
+            (f"Switch to {'light' if self.theme.is_dark else 'dark'} theme", "",
+             self.switch_theme),
+            ("Word wrap on/off", "", self.toggle_word_wrap),
+            ("Bigger editor text", "Ctrl++", lambda: self.change_font_size(1)),
+            ("Smaller editor text", "Ctrl+-", lambda: self.change_font_size(-1)),
+            ("Replay welcome & tour", "", self.start_wizard),
+        ]
+        if self.config.get("agents_enabled"):
+            cmds += [
+                ("Toggle DXN1 Agents panel", "", self.toggle_agents_panel),
+                ("DXN1 Agents settings…", "",
+                 lambda: AgentSettingsDialog(self)),
+                ("Connect a brain…", "", lambda: ConnectDialog(self)),
+            ]
+        return cmds
+
+    # --------------------------------------------------------------- toast
+    def toast(self, message, kind="info"):
+        """Small notification card above the status bar; auto-dismisses."""
+        t = self.theme
+        colors = {"success": t["success"], "error": "#f85149",
+                  "info": t.accent}
+        frame = tk.Frame(self.toast_layer, bg=t["card"], highlightthickness=1,
+                         highlightbackground=t["card_border"])
+        frame.pack(fill=tk.X, pady=3, padx=2)
+        tk.Frame(frame, bg=colors.get(kind, t.accent), width=3).pack(
+            side=tk.LEFT, fill=tk.Y)
+        tk.Label(frame, text=message, bg=t["card"], fg=t["text"],
+                 font=(FONT_UI, 9), padx=10, pady=6).pack(side=tk.LEFT)
+        self.root.after(3400, frame.destroy)
+
+    # ------------------------------------------------------------ settings
     def open_settings(self):
         SettingsDialog(self)
 
-    def show_settings_saved(self):
-        self.terminal.log("Settings saved.")
-
-    # ----------------------------------------------------------------- view
     def toggle_terminal(self):
         if self.terminal_visible:
             self.right_panel.forget(self.terminal)
@@ -835,19 +1412,25 @@ class DXN1Studio:
             self.right_panel.add(self.terminal, height=200, minsize=80)
         self.terminal_visible = not self.terminal_visible
 
-    def toggle_sidebar(self):
-        if self.sidebar_visible:
-            self.main_container.forget(self.sidebar)
-        else:
-            self.main_container.forget(self.right_panel)
-            self.main_container.add(self.sidebar, width=250, minsize=180)
-            self.main_container.add(self.right_panel)
-        self.sidebar_visible = not self.sidebar_visible
-
     def switch_theme(self):
         self.config.set("theme", "light" if self.theme.is_dark else "dark")
         self.restart_requested = True
         self.root.after(120, self.root.destroy)
+
+    def change_font_size(self, delta):
+        current = int(self.config.get("editor_font_size", 11))
+        new = max(8, min(20, current + delta))
+        if new == current:
+            return
+        self.config.set("editor_font_size", new)
+        self.editor.set_font_size(new)
+        self.toast(f"Editor text: {new}px", "info")
+
+    def toggle_word_wrap(self):
+        new = not bool(self.config.get("word_wrap", False))
+        self.config.set("word_wrap", new)
+        self.editor.set_wrap(new)
+        self.toast(f"Word wrap {'on' if new else 'off'}", "info")
 
     def show_about(self):
         messagebox.showinfo(
@@ -859,8 +1442,8 @@ class DXN1Studio:
 
     # ------------------------------------------------------------------ run
     def _schedule_smoke_test(self):
-        """Headless self-check exercising the whole v2.1 surface."""
-        self.root.after(45000, self.root.destroy)  # watchdog: never hang CI
+        """Headless self-check exercising the whole v1.1 surface."""
+        self.root.after(60000, self.root.destroy)  # watchdog: never hang CI
         tmp = tempfile.mkdtemp(prefix="dxn1-smoke-")
 
         def bail(err):
@@ -881,6 +1464,8 @@ class DXN1Studio:
             try:
                 if self._wizard is not None and self._wizard.win.winfo_exists():
                     self._wizard.choose_agents(True)   # opt-in path
+                    if hasattr(self._wizard, "choose_brain"):
+                        self._wizard.choose_brain("free")
                     self._wizard.finish()
                 self.root.after(1400, step3)
             except Exception:
@@ -928,7 +1513,7 @@ class DXN1Studio:
 
         def step6b():
             try:
-                # v2.2: tool-loop engine + sandbox + parser, fully offline
+                # engine + sandbox + parser, fully offline
                 from .sandbox import parse_tools
                 sb = WorkspaceSandbox(self.project_dir)
                 eng = AgentEngine(
@@ -979,16 +1564,47 @@ class DXN1Studio:
 
         def step9():
             try:
-                if self._packages is not None:
-                    self._packages.destroy()
-                    self._packages = None
-                self.handle_terminal_command("help")
-                self.handle_terminal_command("dxn1 studio")  # splash replay
-                self.root.after(2600, step10)
+                # search view end-to-end (synchronous scan via thread + wait)
+                self.show_sidebar_view("search")
+                self.search_view.entry.insert(0, "Hello")
+                self.search_view.start_search()
+                self.root.after(900, step9b)
             except Exception:
-                bail("step9-commands")
+                bail("step9-search")
+
+        def step9b():
+            try:
+                assert self.search_view._hits, "search found nothing"
+                # palette open + close
+                self.open_palette()
+                self.root.after(400, step9c)
+            except Exception:
+                bail("step9b-palette")
+
+        def step9c():
+            try:
+                assert self._palette is not None
+                self._palette.close()
+                self._palette = None
+                # find bar + toast
+                self.toggle_find(show=True)
+                self.find_var.set("Hello")
+                self._find_live()
+                self.toast("smoke toast", "info")
+                self.root.after(500, step10)
+            except Exception:
+                bail("step9c-find-toast")
 
         def step10():
+            try:
+                self.toggle_find(show=False)
+                self.handle_terminal_command("help")
+                self.handle_terminal_command("dxn1 studio")  # splash replay
+                self.root.after(2600, step11)
+            except Exception:
+                bail("step10-commands")
+
+        def step11():
             try:
                 assert self.root.winfo_ismapped() or \
                     self.root.state() == "normal", "splash did not restore"
@@ -996,13 +1612,13 @@ class DXN1Studio:
                 print("SMOKE-PASS", flush=True)
                 self.root.after(400, self.root.destroy)
             except Exception:
-                bail("step10-final")
+                bail("step11-final")
 
         self.root.after(300, step1)
 
 
 class SettingsDialog(tk.Toplevel):
-    """Studio preferences: look & feel, boot behaviour, agent switches."""
+    """Studio preferences: look & feel, editor, boot behaviour, agents."""
 
     def __init__(self, app):
         super().__init__(app.root)
@@ -1018,6 +1634,9 @@ class SettingsDialog(tk.Toplevel):
 
         self.theme_v = tk.StringVar(value=cfg.get("theme", "dark"))
         self.accent_v = tk.StringVar(value=cfg.get("accent", "violet"))
+        self.size_v = tk.StringVar(value=str(cfg.get("editor_font_size", 11)))
+        self.wrap_v = tk.BooleanVar(value=bool(cfg.get("word_wrap", False)))
+        self.autosave_v = tk.BooleanVar(value=bool(cfg.get("auto_save", False)))
         self.splash_v = tk.BooleanVar(value=bool(cfg.get("splash_enabled", True)))
         self.hub_v = tk.BooleanVar(value=bool(cfg.get("hub_on_startup", True)))
 
@@ -1039,13 +1658,45 @@ class SettingsDialog(tk.Toplevel):
                            ).pack(side=tk.LEFT, padx=12)
         row2 = tk.Frame(sec1, bg=t["card"])
         row2.pack(fill=tk.X)
-        for name, spec in (("violet", "Violet"), ("cyan", "Cyan"),
-                           ("green", "Green"), ("orange", "Orange")):
-            tk.Radiobutton(row2, text=spec, variable=self.accent_v, value=name,
+        for name, spec in sorted(ACCENTS.items()):
+            tk.Radiobutton(row2, text=spec["label"], variable=self.accent_v,
+                           value=name,
                            bg=t["card"], fg=t["text"],
                            activebackground=t["card"], activeforeground=t["text"],
                            selectcolor=t["editor"], highlightthickness=0, bd=0
-                           ).pack(side=tk.LEFT, padx=12)
+                           ).pack(side=tk.LEFT, padx=8)
+
+        # --- editor
+        secE = self._section(box, "Editor")
+        srow = tk.Frame(secE, bg=t["card"])
+        srow.pack(fill=tk.X, pady=(0, 6))
+        tk.Label(srow, text="Text size:", bg=t["card"], fg=t["text"],
+                 font=(FONT_UI, 9)).pack(side=tk.LEFT)
+        for label, px in (("Small · 10", 10), ("Medium · 11", 11),
+                          ("Large · 13", 13)):
+            tk.Radiobutton(srow, text=label, variable=self.size_v,
+                           value=str(px), bg=t["card"], fg=t["text"],
+                           activebackground=t["card"],
+                           activeforeground=t["text"],
+                           selectcolor=t["editor"], highlightthickness=0,
+                           bd=0).pack(side=tk.LEFT, padx=8)
+        for var, label, sub in (
+                (self.wrap_v, "Word wrap",
+                 "Soft-wrap long lines instead of horizontal scroll."),
+                (self.autosave_v, "Auto-save",
+                 "Save the active file shortly after you stop typing.")):
+            crow = tk.Frame(secE, bg=t["card"])
+            crow.pack(fill=tk.X, pady=2, ipady=2)
+            tk.Checkbutton(crow, variable=var, bg=t["card"], fg=t["text"],
+                           activebackground=t["card"],
+                           activeforeground=t["text"], selectcolor=t["editor"],
+                           highlightthickness=0, bd=0).pack(side=tk.LEFT,
+                                                            padx=(12, 4))
+            tk.Label(crow, text=label, bg=t["card"], fg=t["text"],
+                     font=(FONT_UI, 10, "bold")).pack(side=tk.LEFT)
+            tk.Label(crow, text=f"  ·  {sub}", bg=t["card"],
+                     fg=t["text_secondary"], font=(FONT_UI, 8)).pack(
+                side=tk.LEFT)
 
         # --- boot behaviour
         sec2 = self._section(box, "Boot behaviour")
@@ -1059,27 +1710,37 @@ class SettingsDialog(tk.Toplevel):
             tk.Checkbutton(row, variable=var, bg=t["card"], fg=t["text"],
                            activebackground=t["card"],
                            activeforeground=t["text"], selectcolor=t["editor"],
-                           highlightthickness=0, bd=0).pack(side=tk.LEFT, padx=(12, 4))
+                           highlightthickness=0, bd=0).pack(side=tk.LEFT,
+                                                            padx=(12, 4))
             tk.Label(row, text=label, bg=t["card"], fg=t["text"],
                      font=(FONT_UI, 10, "bold")).pack(side=tk.LEFT)
             tk.Label(row, text=f"  ·  {sub}", bg=t["card"],
-                     fg=t["text_secondary"], font=(FONT_UI, 8)).pack(side=tk.LEFT)
+                     fg=t["text_secondary"], font=(FONT_UI, 8)).pack(
+                side=tk.LEFT)
 
         # --- agents
         sec3 = self._section(box, "DXN1 Agents")
         btn = tk.Label(sec3, text="Open agent settings…", bg=t["card"],
-                       fg=t.accent, font=(FONT_UI, 10, "bold"), cursor="hand2",
-                       padx=10, pady=8)
+                       fg=t.accent, font=(FONT_UI, 10, "bold"),
+                       cursor="hand2", padx=10, pady=8)
         btn.pack(fill=tk.X)
         btn.bind("<Button-1>", lambda e: AgentSettingsDialog(app))
-        tk.Label(sec3, text="Permission gates (ask vs full access) live there.",
+        btn2 = tk.Label(sec3, text="Connect a brain (Kilo · OpenRouter · "
+                                   "GitHub)…", bg=t["card"], fg=t.accent,
+                        font=(FONT_UI, 10, "bold"), cursor="hand2",
+                        padx=10, pady=8)
+        btn2.pack(fill=tk.X)
+        btn2.bind("<Button-1>", lambda e: ConnectDialog(app))
+        tk.Label(sec3, text="Permission gates (ask vs full access) live in "
+                            "agent settings. The workspace sandbox is always on.",
                  bg=t["card"], fg=t["text_secondary"], font=(FONT_UI, 8)
                  ).pack(anchor="w", padx=10, pady=(0, 6))
 
         # --- buttons
         row = tk.Frame(box, bg=t["bg"])
         row.pack(fill=tk.X, pady=(16, 0))
-        cancel = tk.Label(row, text="Cancel", bg=t["bg"], fg=t["text_secondary"],
+        cancel = tk.Label(row, text="Cancel", bg=t["bg"],
+                          fg=t["text_secondary"],
                           font=(FONT_UI, 10), cursor="hand2", padx=10)
         cancel.pack(side=tk.RIGHT)
         cancel.bind("<Button-1>", lambda e: self.destroy())
@@ -1093,7 +1754,8 @@ class SettingsDialog(tk.Toplevel):
         self._center()
 
     def _section(self, parent, title):
-        tk.Label(parent, text=title, bg=self.t["bg"], fg=self.t["text_secondary"],
+        tk.Label(parent, text=title, bg=self.t["bg"],
+                 fg=self.t["text_secondary"],
                  font=(FONT_UI, 9, "bold")).pack(anchor="w", pady=(14, 4))
         frame = tk.Frame(parent, bg=self.t["card"], highlightthickness=1,
                          highlightbackground=self.t["card_border"])
@@ -1105,16 +1767,28 @@ class SettingsDialog(tk.Toplevel):
     def _center(self):
         self.update_idletasks()
         w, h = self.winfo_reqwidth(), self.winfo_reqheight()
-        x = self.master.winfo_rootx() + max(0, (self.master.winfo_width() - w) // 2)
-        y = self.master.winfo_rooty() + max(0, (self.master.winfo_height() - h) // 3)
+        x = self.master.winfo_rootx() + \
+            max(0, (self.master.winfo_width() - w) // 2)
+        y = self.master.winfo_rooty() + \
+            max(0, (self.master.winfo_height() - h) // 3)
         self.geometry(f"+{x}+{y}")
 
     def _save(self):
         cfg = self.app.config
         cfg.set("theme", self.theme_v.get())
         cfg.set("accent", self.accent_v.get())
+        try:
+            cfg.set("editor_font_size", max(8, min(20,
+                                                   int(self.size_v.get()))))
+        except ValueError:
+            pass
+        cfg.set("word_wrap", bool(self.wrap_v.get()))
+        cfg.set("auto_save", bool(self.autosave_v.get()))
         cfg.set("splash_enabled", bool(self.splash_v.get()))
         cfg.set("hub_on_startup", bool(self.hub_v.get()))
+        # editor changes apply live; colours need the rebuild
+        self.app.editor.set_font_size(cfg.get("editor_font_size", 11))
+        self.app.editor.set_wrap(bool(cfg.get("word_wrap", False)))
         look_changed = self.theme_v.get() != self.app.theme.mode or \
             self.accent_v.get() != self.app.theme.accent_name
         self.app.terminal.log("Settings saved."
@@ -1172,3 +1846,6 @@ def main():
         app.run()
         if not app.restart_requested:
             break
+
+
+

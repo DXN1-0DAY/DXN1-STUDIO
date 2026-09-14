@@ -8,13 +8,18 @@ already running.
 Backends
 --------
 local    The agent's built-in offline skills (rule engine, no network).
+free     Pollinations — free cloud models with **no account, no API key,
+         no login at all**. Usage is tracked anonymously (per IP) on their
+         side; from the studio's side it's a single tiny POST per turn.
 byok     Bring Your Own Key — any OpenAI-compatible endpoint:
          OpenRouter, Groq, Google AI Studio, Mistral, OpenAI, Ollama…
 github   GitHub Models — free tier, authenticated with your existing
          GitHub login (``gh auth token``); usage is tracked by GitHub.
-kilo     Kilo gateway — free-model routing through Kilo's API. This is
-         a tiny direct HTTP client, NOT the VS Code extension: no
-         editor fork, no Node process, near-zero extra RAM.
+kilo     Kilo gateway — free-model routing through Kilo's API. Sign in
+         with Google on their site, paste the token back into the
+         studio's in-app Connect flow. This is a tiny direct HTTP client,
+         NOT the VS Code extension: no editor fork, no Node process,
+         near-zero extra RAM.
 """
 
 import json
@@ -24,7 +29,7 @@ import subprocess
 import urllib.error
 import urllib.request
 
-UA = "DXN1-Studio/2.2 (agents)"
+UA = "DXN1-Studio/1.1.2 (agents)"
 TIMEOUT = 120
 
 # ------------------------------------------------------------------ presets
@@ -40,7 +45,7 @@ PRESETS = {
             "google/gemini-2.0-flash-exp:free",
             "openai/gpt-4o-mini",
         ],
-        "note": "One key, hundreds of models — the ones marked :free cost nothing.",
+        "note": "Sign in with Google, create a key — models marked :free cost nothing.",
         "key_hint": "sk-or-v1-…",
         "free": True,
     },
@@ -98,14 +103,20 @@ PRESETS = {
     },
 }
 
-BACKEND_KINDS = ("local", "byok", "github", "kilo")
+BACKEND_KINDS = ("local", "free", "byok", "github", "kilo")
 
 BACKEND_INFO = {
     "local":  ("Local skills", "Offline rule engine — zero network, zero setup."),
+    "free":   ("Free cloud", "No account, no key, no login — anonymous & free."),
     "byok":   ("BYOK", "Your own API key on any OpenAI-compatible provider."),
-    "github": ("GitHub Models", "Free tier billed to nobody — tracked via your GitHub login."),
-    "kilo":   ("Kilo gateway", "Free-model routing. Direct HTTP client, not the VS Code extension."),
+    "github": ("GitHub Models", "Free tier tracked via your GitHub login."),
+    "kilo":   ("Kilo gateway", "Free models — Google login, token pasted in-app."),
 }
+
+# The free backend walks this chain until a model answers.
+# "openai" is the provider's stable alias (currently maps to openai-fast);
+# the second entry covers renames so the brain survives provider reshuffles.
+FREE_MODELS = ("openai", "openai-fast")
 
 
 class BackendError(Exception):
@@ -113,6 +124,14 @@ class BackendError(Exception):
 
 
 # ------------------------------------------------------------------ plumbing
+def _host(url):
+    """Short host label for error messages."""
+    for sep in ("/api", "/v1"):
+        if sep in url:
+            url = url.split(sep)[0]
+    return url.replace("https://", "").replace("http://", "")
+
+
 def _post_json(url, payload, headers, timeout=TIMEOUT):
     body = json.dumps(payload).encode("utf-8")
     req = urllib.request.Request(url, data=body, method="POST")
@@ -123,7 +142,8 @@ def _post_json(url, payload, headers, timeout=TIMEOUT):
             req.add_header(k, v)
     try:
         with urllib.request.urlopen(req, timeout=timeout) as resp:
-            return json.loads(resp.read().decode("utf-8", "replace"))
+            raw = resp.read().decode("utf-8", "replace")
+            ctype = (resp.headers.get("Content-Type") or "").lower()
     except urllib.error.HTTPError as exc:
         try:
             detail = exc.read().decode("utf-8", "replace")[:400]
@@ -134,15 +154,65 @@ def _post_json(url, payload, headers, timeout=TIMEOUT):
             detail = j.get("error", {}).get("message") or j.get("message") or detail
         except Exception:
             pass
-        raise BackendError(f"HTTP {exc.code} from {url.split('/api')[0].split('/v1')[0]}: "
+        raise BackendError(f"HTTP {exc.code} from {_host(url)}: "
                            f"{detail or exc.reason}") from exc
     except urllib.error.URLError as exc:
-        raise BackendError(f"can't reach {url.split('/api')[0].split('/v1')[0]} "
-                           f"({exc.reason}) — check your connection") from exc
+        raise BackendError(f"can't reach {_host(url)} ({exc.reason}) — "
+                           f"check your connection") from exc
     except TimeoutError:
         raise BackendError("the provider took too long to answer") from None
+    try:
+        return json.loads(raw)
     except json.JSONDecodeError:
+        # some free endpoints answer with plain text — accept that too
+        if "text/plain" in ctype or (raw.strip() and not raw.lstrip()
+                                     .startswith(("{", "["))):
+            return {"choices": [{"message": {"content": raw}}]}
         raise BackendError("provider sent a response I couldn't parse") from None
+
+
+def _get_json(url, api_key="", timeout=20):
+    req = urllib.request.Request(url, method="GET")
+    req.add_header("User-Agent", UA)
+    if api_key:
+        req.add_header("Authorization", f"Bearer {api_key}")
+    try:
+        with urllib.request.urlopen(req, timeout=timeout) as resp:
+            return json.loads(resp.read().decode("utf-8", "replace"))
+    except urllib.error.HTTPError as exc:
+        raise BackendError(f"HTTP {exc.code} while listing models at "
+                           f"{_host(url)}") from exc
+    except (urllib.error.URLError, TimeoutError) as exc:
+        raise BackendError(f"can't reach {_host(url)} — {exc}") from exc
+    except json.JSONDecodeError:
+        raise BackendError("model list wasn't valid JSON") from None
+
+
+def fetch_models(base_url, api_key=""):
+    """Best-effort model-id list from an OpenAI-compatible /models route.
+
+    Raises BackendError with a readable message on failure.
+    """
+    base = (base_url or "").rstrip("/")
+    if not base:
+        raise BackendError("no endpoint configured")
+    if "text.pollinations.ai" in base:
+        data = _get_json("https://text.pollinations.ai/models", "")
+        out = []
+        for item in (data if isinstance(data, list) else data.get("data", [])):
+            if isinstance(item, dict) and item.get("name"):
+                out.append(item["name"])
+            elif isinstance(item, str):
+                out.append(item)
+        return out[:40] or list(FREE_MODELS)
+    data = _get_json(f"{base}/models", api_key)
+    items = data.get("data", data) if isinstance(data, dict) else data
+    out = []
+    for item in items if isinstance(items, list) else []:
+        mid = item.get("id") if isinstance(item, dict) else item
+        if mid:
+            out.append(str(mid))
+    return sorted(out)[:60]
 
 
 class OpenAICompatBackend:
@@ -155,12 +225,15 @@ class OpenAICompatBackend:
         self.model = (model or "").strip()
         self.label = label
         self.extra_headers = extra_headers or {}
+        self.last_usage = None       # {"total_tokens": n} when reported
+        self.total_tokens = 0        # lifetime accumulation for this backend
 
     @property
     def display(self):
         return f"{self.label} · {self.model or 'default model'}"
 
-    def chat(self, messages, max_tokens=2048, temperature=0.3):
+    # ------------------------------------------------------------- request
+    def _request(self, messages, max_tokens, temperature):
         if not self.base_url:
             raise BackendError("no endpoint configured")
         payload = {
@@ -172,12 +245,64 @@ class OpenAICompatBackend:
         }
         headers = {"Authorization": f"Bearer {self.api_key}"}
         headers.update(self.extra_headers)
-        data = _post_json(f"{self.base_url}/chat/completions", payload, headers)
+        return _post_json(f"{self.base_url}/chat/completions", payload, headers)
+
+    @staticmethod
+    def _content_of(data):
         try:
-            text = data["choices"][0]["message"]["content"] or ""
+            return data["choices"][0]["message"]["content"] or ""
         except (KeyError, IndexError, TypeError):
-            raise BackendError("provider response had no message content") from None
-        return text
+            raise BackendError("provider response had no message content") \
+                from None
+
+    def chat(self, messages, max_tokens=2048, temperature=0.3):
+        data = self._request(messages, max_tokens, temperature)
+        usage = data.get("usage") if isinstance(data, dict) else None
+        self.last_usage = usage if isinstance(usage, dict) else None
+        if isinstance(self.last_usage, dict):
+            self.total_tokens += int(self.last_usage.get("total_tokens") or 0)
+        return self._content_of(data)
+
+
+# ------------------------------------------------------------- Pollinations
+class PollinationsBackend(OpenAICompatBackend):
+    """Free cloud models with zero setup — no account, no key, no login.
+
+    Anonymous usage is tracked per-IP by the provider; nothing is stored
+    in DXN1 STUDIO and nothing to sign up for. Walks a small fallback
+    chain so one busy/removed model doesn't break the brain.
+    """
+
+    BASE = "https://text.pollinations.ai/openai"
+
+    def __init__(self, config=None):
+        model = (config.get("agents_model") or "").strip() if config else ""
+        super().__init__(self.BASE, "", model or FREE_MODELS[0],
+                         label="Free cloud")
+        self._chain = [m for m in FREE_MODELS if m != self.model]
+
+    def _attempt(self, model, messages, max_tokens, temperature):
+        self.model = model
+        return super().chat(messages, max_tokens=max_tokens,
+                            temperature=temperature)
+
+    def chat(self, messages, max_tokens=2048, temperature=0.3):
+        tried = []
+        model = self.model
+        while True:
+            try:
+                return self._attempt(model, messages, max_tokens, temperature)
+            except BackendError as exc:
+                tried.append(f"{model}: {exc}")
+                if self._chain:
+                    model = self._chain.pop(0)
+                    continue
+                raise BackendError(
+                    "the free cloud tier didn't answer ("
+                    + (" · ".join(tried[:2]))
+                    + "). It's rate-limited per IP — try again shortly, or "
+                      "switch to a free Google-login brain (Kilo / GitHub "
+                      "Models) or BYOK in Settings → DXN1 Agents.") from None
 
 
 # ---------------------------------------------------------------- GitHub free
@@ -269,6 +394,8 @@ def build_backend(config):
     """Return a live backend for the configured kind, or None for local."""
     kind = (config.get("agents_backend") or "local").strip()
     try:
+        if kind == "free":
+            return PollinationsBackend(config)
         if kind == "byok":
             preset_id = config.get("agents_provider") or "openrouter"
             preset = PRESETS.get(preset_id, PRESETS["openrouter"])

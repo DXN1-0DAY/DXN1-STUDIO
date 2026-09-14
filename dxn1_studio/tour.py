@@ -37,37 +37,44 @@ class InteractiveTour:
         self.done = False
 
         self.steps = [
+            TourStep("activity", "The Activity Bar",
+                     "One slim rail for the big moves: Explorer, Search, "
+                     "Packages, the Project Hub and DXN1 Agents. The accent "
+                     "edge shows where you are.",
+                     "right"),
             TourStep("sidebar", "File Explorer",
-                     "Your whole workspace, one click away. Click any file to open it "
-                     "instantly in the editor — folders stay tidy on top.",
+                     "Your whole workspace with expandable folders. Click any "
+                     "file to open it instantly in the editor.",
                      "right"),
             TourStep("tabs_frame", "Editor Tabs",
-                     "Every file you open lands here as a tab. Hit the ✕ to close one. "
-                     "Your active file always shows its path in the status bar below.",
+                     "Every file lands here as a tab — the ● dot means unsaved "
+                     "changes. Ctrl+W closes, Ctrl+Tab cycles, middle-click "
+                     "closes too.",
                      "below"),
             TourStep("toolbar", "Run, Packages & Export",
-                     "One strip for the power stuff: Run (F5) executes your code and "
-                     "streams output to the terminal, Packages installs optional extras "
-                     "like Flask, Export zips the whole workspace to share.",
+                     "One strip for the power stuff: Run (F5) executes your "
+                     "code and streams output to the terminal, Packages "
+                     "installs optional extras like Flask, Export zips the "
+                     "whole workspace to share.",
                      "below"),
             TourStep("editor", "The Editor",
-                     "Line numbers, unlimited undo and a distraction-free dark (or light) "
-                     "canvas in your chosen accent colour. This is where flow happens.",
+                     "Syntax highlighting, line numbers, unlimited undo. Press "
+                     "Ctrl+F to find in the file, Ctrl+K for the command "
+                     "palette, Ctrl+ +/- for text size.",
                      "left"),
             TourStep("terminal", "Terminal with Studio Commands",
-                     "Activity is echoed here — and you can type too. Try “run”, "
-                     "“packages” or the classic “dxn1 studio” to replay the boot "
-                     "splash. “help” lists everything.",
+                     "Activity is echoed here — and you can type too. Try "
+                     "“run”, “search fixme”, “palette” or the classic "
+                     "“dxn1 studio”. “help” lists everything.",
                      "above"),
         ]
         if self.app.config.get("agents_enabled"):
             self.steps.append(TourStep(
                 "agents", "DXN1 Agents",
-                "Your sandboxed copilot. Attach a brain in its settings — "
-                "your own API key (BYOK), the free GitHub Models tier or the "
-                "lightweight Kilo gateway — or stay on built-in offline "
-                "skills. Every edit and command lands as a card you accept "
-                "or decline, and it never leaves this workspace.",
+                "Your sandboxed copilot. Pick a brain in its settings — the "
+                "free no-account cloud, Google-login Kilo, GitHub Models or "
+                "your own key. Every edit and command lands as a card you "
+                "accept or decline, and it never leaves this workspace.",
                 "left"))
         self.steps.append(TourStep(
             None, "You're ready",

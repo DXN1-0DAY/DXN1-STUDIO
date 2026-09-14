@@ -26,11 +26,12 @@ import queue
 import re
 import threading
 import tkinter as tk
+import webbrowser
 
 from . import APP_NAME
 from . import llm
 from .sandbox import (WorkspaceSandbox, SandboxError, AgentEngine,
-                      head_preview)
+                      head_preview, PROMPT_STYLES, build_system_prompt)
 from .theme import FONT_UI, FONT_MONO
 
 AGENTS_NAME = "DXN1 Agents"
@@ -95,6 +96,7 @@ class DXN1AgentPanel(tk.Frame):
             f"app, edit code, run your project or install packages — "
             f"always inside this workspace, always with your permission. "
             f"Type “help” to see everything.")
+        self.maybe_show_setup_hint()
 
     # ------------------------------------------------------------------ ui
     def _build_header(self):
@@ -202,6 +204,10 @@ class DXN1AgentPanel(tk.Frame):
                                  cursor="hand2")
         self.stop_lbl.pack(side=tk.RIGHT)
         self.stop_lbl.bind("<Button-1>", lambda e: self.stop_engine())
+        self.stats_lbl = tk.Label(self, text="", bg=self.t["sidebar"],
+                                  fg=self.t["text_muted"], font=(FONT_UI, 8),
+                                  anchor="w")
+        self.stats_lbl.pack(fill=tk.X, padx=12, pady=(0, 4))
 
     # ------------------------------------------------------------ messages
     def _new_card(self, accent_edge=False):
@@ -228,6 +234,19 @@ class DXN1AgentPanel(tk.Frame):
         tk.Label(card, text=text, bg=self.t["card"], fg=self.t["text_muted"],
                  font=(FONT_UI, 8, "italic"), wraplength=240, justify=tk.LEFT,
                  anchor="w").pack(anchor="w", padx=10, pady=6)
+        self._scroll_down()
+
+    def action_card(self, text, btn_label, cmd):
+        """A note with one action button (used by the Connect flow)."""
+        card = self._new_card(accent_edge=True)
+        tk.Label(card, text=text, bg=self.t["card"], fg=self.t["text"],
+                 font=(FONT_UI, 9), wraplength=240, justify=tk.LEFT,
+                 anchor="w").pack(anchor="w", padx=10, pady=(8, 4))
+        btn = tk.Label(card, text=btn_label, bg=self.t.accent, fg="#ffffff",
+                       font=(FONT_UI, 9, "bold"), cursor="hand2", padx=12,
+                       pady=5)
+        btn.pack(anchor="w", padx=10, pady=(0, 8))
+        btn.bind("<Button-1>", lambda e: cmd())
         self._scroll_down()
 
     def user_say(self, text):
@@ -399,6 +418,35 @@ class DXN1AgentPanel(tk.Frame):
             return
         self.refresh_backend()
 
+    # --------------------------------------------------------- connect flow
+    def maybe_show_setup_hint(self):
+        """When the wizard picked a brain that still needs a key/token,
+        surface an in-app Connect card once."""
+        pending = (self.app.config.get("agents_setup_pending") or "").strip()
+        if not pending or not self.app.config.get("agents_enabled"):
+            return
+        label = {"kilo": "Kilo gateway (free — Google login)",
+                 "byok": "your own API key (BYOK)"}.get(pending, pending)
+        self.action_card(
+            f"One step left: this studio's agent brain is set to {label}. "
+            f"Connect inside the app — takes about a minute.",
+            "Connect now", self.open_connect)
+
+    def open_connect(self):
+        ConnectDialog(self.app)
+
+    def update_stats(self):
+        parts = []
+        if self.engine is not None:
+            if self.engine.steps_used:
+                parts.append(f"steps {self.engine.steps_used}")
+            if self.engine.tokens_used:
+                parts.append(f"tokens {self.engine.tokens_used:,}")
+        elif self.backend is not None and getattr(self.backend,
+                                                  "total_tokens", 0):
+            parts.append(f"tokens {self.backend.total_tokens:,}")
+        self.stats_lbl.config(text="  ·  ".join(parts))
+
     def _engine_approve(self, kind, title, detail, preview, danger=False):
         """Runs on the engine thread — marshal to the UI and wait."""
         cfg = self.app.config
@@ -439,6 +487,7 @@ class DXN1AgentPanel(tk.Frame):
                     self._busy = False
                     self._set_thinking(False)
                     self.entry.config(state="normal")
+                    self.update_stats()
         except queue.Empty:
             pass
         self.after(120, self._poll_engine)
@@ -782,10 +831,13 @@ class AgentSettingsDialog(tk.Toplevel):
         # ---------------------------------------------------- brain
         secb = self._section(box, "Brain — pick where the agent thinks")
         self.kind_v = tk.StringVar(value=cfg.get("agents_backend", "local"))
+        if self.kind_v.get() not in llm.BACKEND_KINDS:
+            self.kind_v.set("local")
         kinds = (("local", "Local skills", "Offline · no network · no key"),
+                 ("free", "Free cloud", "No account · no key · no login"),
                  ("byok", "BYOK", "Your API key · OpenRouter, Groq, Gemini…"),
                  ("github", "GitHub Models", "Free tier · your GitHub login"),
-                 ("kilo", "Kilo gateway", "Free models · tiny HTTP client"))
+                 ("kilo", "Kilo gateway", "Free models · Google login · tiny client"))
         row = tk.Frame(secb, bg=t["card"])
         row.pack(fill=tk.X, padx=10, pady=(0, 6))
         self._kind_btns = {}
@@ -801,18 +853,41 @@ class AgentSettingsDialog(tk.Toplevel):
         self._detail.pack(fill=tk.X, padx=10, pady=(0, 8))
         self._subframes = {}
         self._build_local_sub()
+        self._build_free_sub(cfg)
         self._build_byok_sub(cfg)
         self._build_github_sub(cfg)
         self._build_kilo_sub(cfg)
 
         # ---------------------------------------------------- behaviour
-        secbh = self._section(box, "Behaviour")
+        secbh = self._section(box, "Behaviour — the agent's system prompt")
         prow = tk.Frame(secbh, bg=t["card"])
         prow.pack(fill=tk.X, padx=10, pady=(2, 4))
-        tk.Label(prow, text="Extra system prompt (persona, house style…):",
+        tk.Label(prow, text="Style preset:", bg=t["card"], fg=t["text"],
+                 font=(FONT_UI, 9)).pack(anchor="w")
+        self.preset_v = tk.StringVar(
+            value=cfg.get("agents_prompt_preset", "default"))
+        if self.preset_v.get() not in PROMPT_STYLES:
+            self.preset_v.set("default")
+        prow2 = tk.Frame(secbh, bg=t["card"])
+        prow2.pack(fill=tk.X, padx=10)
+        for key, spec in PROMPT_STYLES.items():
+            tk.Radiobutton(prow2, text=spec["label"], variable=self.preset_v,
+                           value=key, bg=t["card"], fg=t["text"],
+                           activebackground=t["card"],
+                           activeforeground=t["text"],
+                           selectcolor=t["editor"], highlightthickness=0,
+                           bd=0, command=self._preset_changed
+                           ).pack(side=tk.LEFT, padx=(0, 10))
+        self.preset_note = tk.Label(secbh, text="", bg=t["card"],
+                                    fg=t["text_secondary"], font=(FONT_UI, 8),
+                                    wraplength=500, justify=tk.LEFT, anchor="w")
+        self.preset_note.pack(anchor="w", padx=10, pady=(2, 4))
+        prow3 = tk.Frame(secbh, bg=t["card"])
+        prow3.pack(fill=tk.X, padx=10, pady=(2, 4))
+        tk.Label(prow3, text="Extra instructions (persona, house style…):",
                  bg=t["card"], fg=t["text"], font=(FONT_UI, 9)
                  ).pack(anchor="w")
-        self.prompt_txt = tk.Text(prow, height=3, bg=t["editor"], fg=t["text"],
+        self.prompt_txt = tk.Text(prow3, height=3, bg=t["editor"], fg=t["text"],
                                   insertbackground=t["text"], relief=tk.FLAT,
                                   font=(FONT_MONO, 9), highlightthickness=1,
                                   highlightbackground=t["border"],
@@ -820,6 +895,11 @@ class AgentSettingsDialog(tk.Toplevel):
         self.prompt_txt.pack(fill=tk.X, pady=(3, 4))
         if cfg.get("agents_system_prompt"):
             self.prompt_txt.insert("1.0", cfg.get("agents_system_prompt"))
+        pview = tk.Label(prow3, text="Preview the effective system prompt",
+                         bg=t["card"], fg=t.accent, font=(FONT_UI, 8, "bold"),
+                         cursor="hand2")
+        pview.pack(anchor="w", pady=(0, 2))
+        pview.bind("<Button-1>", lambda e: self._preview_prompt())
         srow = tk.Frame(secbh, bg=t["card"])
         srow.pack(fill=tk.X, padx=10, pady=(0, 8))
         tk.Label(srow, text="Max tool steps per message:", bg=t["card"],
@@ -858,6 +938,7 @@ class AgentSettingsDialog(tk.Toplevel):
 
         self.bind("<Escape>", lambda e: self.destroy())
         self._pick_kind(self.kind_v.get())
+        self._preset_changed()
         self._center()
 
     # ------------------------------------------------------------- widgets
@@ -920,6 +1001,37 @@ class AgentSettingsDialog(tk.Toplevel):
                  font=(FONT_UI, 9), wraplength=470, justify=tk.LEFT
                  ).pack(anchor="w", pady=(2, 4))
 
+    def _build_free_sub(self, cfg):
+        f = tk.Frame(self._detail, bg=self.t["card"])
+        self._subframes["free"] = f
+        tk.Label(f, text="Free cloud models (via Pollinations) — no account, "
+                         "no API key, no login. Usage is tracked anonymously "
+                         "per IP on the provider's side; the studio sends one "
+                         "tiny HTTP request per turn. Heavily rate-limited "
+                         "sometimes — if it stays quiet, switch to a "
+                         "Google-login brain or BYOK.",
+                 bg=self.t["card"], fg=self.t["text_secondary"],
+                 font=(FONT_UI, 9), wraplength=470, justify=tk.LEFT
+                 ).pack(anchor="w", pady=(2, 2))
+        self.free_model_v = self._field(
+            f, "Model (optional — empty = auto with fallback chain)",
+            cfg.get("agents_model", "") if
+            cfg.get("agents_backend") == "free" else "", width=44,
+            hint="Defaults to the free chain: " + " → ".join(llm.FREE_MODELS)
+                 + ". Hit “Fetch models” to see what's live today.")
+        row = tk.Frame(f, bg=self.t["card"])
+        row.pack(fill=tk.X, pady=(4, 2))
+        self._fetch_btn = tk.Label(row, text="Fetch models", bg=self.t["card"],
+                                   fg=self.t.accent, font=(FONT_UI, 9, "bold"),
+                                   cursor="hand2", padx=10, pady=5)
+        self._fetch_btn.pack(side=tk.LEFT)
+        self._fetch_btn.bind("<Button-1>", lambda e: self._fetch_models(
+            llm.PollinationsBackend.BASE, ""))
+        self._fetch_result = tk.Label(row, text="", bg=self.t["card"],
+                                      fg=self.t["text_muted"],
+                                      font=(FONT_UI, 8))
+        self._fetch_result.pack(side=tk.LEFT, padx=8)
+
     def _build_byok_sub(self, cfg):
         f = tk.Frame(self._detail, bg=self.t["card"])
         self._subframes["byok"] = f
@@ -951,6 +1063,23 @@ class AgentSettingsDialog(tk.Toplevel):
                                   fg=self.t["text_secondary"], font=(FONT_UI, 8),
                                   wraplength=470, justify=tk.LEFT, anchor="w")
         self.byok_note.pack(anchor="w", pady=(2, 0))
+        brow = tk.Frame(f, bg=self.t["card"])
+        brow.pack(fill=tk.X, pady=(6, 2))
+        fetch = tk.Label(brow, text="Fetch models", bg=self.t["card"],
+                         fg=self.t.accent, font=(FONT_UI, 9, "bold"),
+                         cursor="hand2", padx=10, pady=5)
+        fetch.pack(side=tk.LEFT)
+        fetch.bind("<Button-1>", lambda e: self._fetch_models(
+            self.byok_url_v.get(), self.byok_key_v.get()))
+        connect = tk.Label(brow, text="Connect online…", bg=self.t["card"],
+                           fg=self.t.accent, font=(FONT_UI, 9, "bold"),
+                           cursor="hand2", padx=10, pady=5)
+        connect.pack(side=tk.LEFT, padx=(8, 0))
+        connect.bind("<Button-1>", lambda e: ConnectDialog(self.app))
+        self.byok_fetch_result = tk.Label(brow, text="", bg=self.t["card"],
+                                          fg=self.t["text_muted"],
+                                          font=(FONT_UI, 8))
+        self.byok_fetch_result.pack(side=tk.LEFT, padx=8)
         # register the preset watcher only AFTER the fields exist, then seed
         self.provider_v.trace_add("write", lambda *a: self._apply_preset())
         self.provider_v.set(cfg.get("agents_provider", "openrouter"))
@@ -1008,6 +1137,13 @@ class AgentSettingsDialog(tk.Toplevel):
             f, "Model", cfg.get("agents_model", ""), width=44,
             hint='"auto" lets the gateway pick; model ids follow your Kilo '
                  'account.')
+        brow = tk.Frame(f, bg=self.t["card"])
+        brow.pack(fill=tk.X, pady=(6, 2))
+        connect = tk.Label(brow, text="Connect online…", bg=self.t["card"],
+                           fg=self.t.accent, font=(FONT_UI, 9, "bold"),
+                           cursor="hand2", padx=10, pady=5)
+        connect.pack(side=tk.LEFT)
+        connect.bind("<Button-1>", lambda e: ConnectDialog(self.app))
 
     def _pick_kind(self, kind):
         self.kind_v.set(kind)
@@ -1019,6 +1155,54 @@ class AgentSettingsDialog(tk.Toplevel):
                 frame.pack(fill=tk.X, expand=True)
             else:
                 frame.pack_forget()
+
+    # ------------------------------------------------------- prompt helpers
+    def _preset_changed(self):
+        spec = PROMPT_STYLES.get(self.preset_v.get(), PROMPT_STYLES["default"])
+        self.preset_note.config(text=spec["description"] +
+                                ("  Your extra text below IS the personality."
+                                 if self.preset_v.get() == "custom" else
+                                 "  Extra text below is appended."))
+
+    def _preview_prompt(self):
+        sandbox = None
+        panel = self.app.agent_panel
+        if panel is not None and panel.sandbox is not None:
+            sandbox = panel.sandbox
+        if sandbox is None:
+            try:
+                sandbox = WorkspaceSandbox(os.getcwd())
+            except SandboxError:
+                sandbox = None
+        if sandbox is None:
+            PromptPreviewDialog(self.app, "(no workspace open — start the "
+                                "sandbox to preview the real prompt)")
+            return
+        try:
+            prompt = build_system_prompt(
+                sandbox, AGENTS_NAME,
+                self.prompt_txt.get("1.0", "end").strip(),
+                style=self.preset_v.get())
+        except Exception as exc:  # noqa: BLE001
+            prompt = f"(preview failed: {exc})"
+        PromptPreviewDialog(self.app, prompt)
+
+    def _fetch_models(self, base_url, api_key):
+        result = self._fetch_result if self.kind_v.get() == "free" else \
+            self.byok_fetch_result
+        result.config(text="fetching…", fg=self.t["text_muted"])
+
+        def work():
+            try:
+                ids = llm.fetch_models(base_url, api_key)
+                text = " · ".join(ids[:6]) + (" …" if len(ids) > 6 else "")
+                self.after(0, lambda: result.config(
+                    text=text[:120], fg=self.t["success"]))
+            except Exception as exc:  # noqa: BLE001
+                msg = str(exc)[:120]
+                self.after(0, lambda: result.config(
+                    text=msg, fg="#f85149"))
+        threading.Thread(target=work, daemon=True).start()
 
     # ---------------------------------------------------------------- test
     def _dialog_config(self):
@@ -1035,6 +1219,8 @@ class AgentSettingsDialog(tk.Toplevel):
 
     def _model_for_kind(self):
         kind = self.kind_v.get()
+        if kind == "free":
+            return self.free_model_v.get()
         if kind == "github":
             return self.gh_model_v.get()
         if kind == "kilo":
@@ -1083,7 +1269,10 @@ class AgentSettingsDialog(tk.Toplevel):
         cfg.set("agents_kilo_key", self.kilo_key_v.get().strip())
         cfg.set("agents_system_prompt",
                 self.prompt_txt.get("1.0", "end").strip())
+        cfg.set("agents_prompt_preset", self.preset_v.get())
         cfg.set("agents_max_steps", steps)
+        # a successful save means the brain is wired up — drop the hint
+        cfg.set("agents_setup_pending", "")
 
         self.app.apply_agents_visibility()
         if self.app.agent_panel is not None:
@@ -1099,3 +1288,262 @@ class AgentSettingsDialog(tk.Toplevel):
                else " · full access mode"))
         self.grab_release()
         self.destroy()
+
+
+# ================================================================= connect
+class PromptPreviewDialog(tk.Toplevel):
+    """Read-only view of the agent's effective system prompt."""
+
+    def __init__(self, app, text):
+        super().__init__(app.root)
+        t = app.theme
+        self.title("Effective system prompt")
+        self.configure(bg=t["bg"])
+        self.geometry("680x520")
+        self.transient(app.root)
+        tk.Label(self, text="What the agent is told (plus live workspace "
+                            "listing at runtime):", bg=t["bg"],
+                 fg=t["text_secondary"], font=(FONT_UI, 9), anchor="w"
+                 ).pack(fill=tk.X, padx=14, pady=(12, 4))
+        box = tk.Text(self, bg=t["editor"], fg=t["text"], relief=tk.FLAT,
+                      font=(FONT_MONO, 9), wrap=tk.WORD, padx=12, pady=10,
+                      highlightthickness=1, highlightbackground=t["border"])
+        box.pack(fill=tk.BOTH, expand=True, padx=14, pady=(0, 12))
+        box.insert("1.0", text)
+        box.config(state="disabled")
+        self.bind("<Escape>", lambda e: self.destroy())
+
+
+class ConnectDialog(tk.Toplevel):
+    """In-app provider connect flow.
+
+    The whole flow stays inside DXN1 STUDIO: the studio opens the provider
+    page (Google login happens there), you paste the key/token back into
+    THIS window, hit Test, then Save. Nothing is written anywhere except
+    the studio's own local config.
+    """
+
+    PROVIDERS = {
+        "kilo": {
+            "title": "Kilo gateway (free · Google login)",
+            "url": "https://kilocode.ai",
+            "steps": ["1.  Open kilocode.ai and sign in with Google.",
+                      "2.  Grab your API token from the dashboard.",
+                      "3.  Paste it below — the studio stores it locally."],
+            "key_label": "Kilo token",
+            "model": "auto",
+            "fields": ("agents_kilo_key", "agents_kilo_url"),
+            "backend": "kilo",
+        },
+        "openrouter": {
+            "title": "OpenRouter (free models · Google login)",
+            "url": "https://openrouter.ai/settings/keys",
+            "steps": ["1.  Open openrouter.ai — sign in with Google.",
+                      "2.  Create a key (Keys page). Free models end in :free.",
+                      "3.  Paste the key below — it never leaves this machine."],
+            "key_label": "OpenRouter API key",
+            "model": "deepseek/deepseek-chat-v3.1:free",
+            "fields": ("agents_api_key", "agents_base_url"),
+            "backend": "byok",
+        },
+        "github": {
+            "title": "GitHub Models (free · GitHub login)",
+            "url": "https://github.com/settings/tokens",
+            "steps": ["1.  Already using `gh auth login`? Zero setup — hit Test.",
+                      "2.  Otherwise create a classic token (no scopes needed "
+                      "for models).",
+                      "3.  Paste it below or rely on gh."],
+            "key_label": "GitHub token (optional)",
+            "model": "openai/gpt-4o-mini",
+            "fields": ("agents_github_key", None),
+            "backend": "github",
+        },
+    }
+
+    def __init__(self, app, provider=None):
+        super().__init__(app.root)
+        self.app = app
+        self.cfg = app.config
+        t = app.theme
+        self.t = t
+        self.provider = provider or self.cfg.get("agents_setup_pending") or "kilo"
+        if self.provider not in self.PROVIDERS:
+            self.provider = "kilo"
+        self.title("DXN1 STUDIO — Connect a brain")
+        self.configure(bg=t["bg"])
+        self.resizable(False, False)
+        self.transient(app.root)
+        self.grab_set()
+
+        box = tk.Frame(self, bg=t["bg"])
+        box.pack(padx=26, pady=20)
+        tk.Label(box, text="Connect a brain — inside the app",
+                 bg=t["bg"], fg=t["text"], font=(FONT_UI, 14, "bold")
+                 ).pack(anchor="w")
+        tk.Label(box, text="Google login happens on the provider's page; the "
+                           "key comes back into this window. Stored only in "
+                           "~/.dxn1-studio/config.json.",
+                 bg=t["bg"], fg=t["text_secondary"], font=(FONT_UI, 9),
+                 wraplength=460, justify=tk.LEFT).pack(anchor="w", pady=(2, 10))
+
+        prow = tk.Frame(box, bg=t["bg"])
+        prow.pack(fill=tk.X, pady=(0, 8))
+        self._prov_btns = {}
+        for pid, spec in self.PROVIDERS.items():
+            b = tk.Label(prow, text=spec["title"].split(" (")[0],
+                         bg=t["card"], fg=t["text"], font=(FONT_UI, 9, "bold"),
+                         cursor="hand2", padx=10, pady=6)
+            b.pack(side=tk.LEFT, padx=(0, 6))
+            b.bind("<Button-1>", lambda e, k=pid: self._pick(k))
+            self._prov_btns[pid] = b
+
+        self.body = tk.Frame(box, bg=t["bg"])
+        self.body.pack(fill=tk.X)
+        self._step_labels = []
+        self._build_provider_body()
+
+        row = tk.Frame(box, bg=t["bg"])
+        row.pack(fill=tk.X, pady=(14, 0))
+        self.test_result = tk.Label(row, text="", bg=t["bg"],
+                                    fg=t["text_muted"], font=(FONT_UI, 9))
+        self.test_result.pack(side=tk.LEFT)
+        later = tk.Label(row, text="Later", bg=t["bg"], fg=t["text_secondary"],
+                         font=(FONT_UI, 10), cursor="hand2", padx=10)
+        later.pack(side=tk.RIGHT)
+        later.bind("<Button-1>", lambda e: self.destroy())
+        self.save_btn = tk.Label(row, text="Test & Save", bg=t.accent,
+                                 fg="#ffffff", font=(FONT_UI, 10, "bold"),
+                                 cursor="hand2", padx=16, pady=6)
+        self.save_btn.pack(side=tk.RIGHT)
+        self.save_btn.bind("<Button-1>", lambda e: self._save())
+
+        self.bind("<Escape>", lambda e: self.destroy())
+        self._pick(self.provider)
+        self._center()
+
+    # ------------------------------------------------------------ widgets
+    def _build_provider_body(self):
+        for w in self.body.winfo_children():
+            w.destroy()
+        spec = self.PROVIDERS[self.provider]
+        t = self.t
+        card = tk.Frame(self.body, bg=t["card"], highlightthickness=1,
+                        highlightbackground=t["card_border"])
+        card.pack(fill=tk.X, ipady=8)
+        for step in spec["steps"]:
+            tk.Label(card, text=step, bg=t["card"], fg=t["text_secondary"],
+                     font=(FONT_UI, 9), wraplength=440, justify=tk.LEFT,
+                     anchor="w").pack(anchor="w", padx=12, pady=1)
+        open_lbl = tk.Label(card, text="⟶  Open " + spec["url"].split("/")[2],
+                            bg=t["card"], fg=t.accent,
+                            font=(FONT_UI, 10, "bold"), cursor="hand2")
+        open_lbl.pack(anchor="w", padx=12, pady=(6, 2))
+        open_lbl.bind("<Button-1>", lambda e: self._open_site())
+        tk.Label(card, text=spec["key_label"] + ":", bg=t["card"],
+                 fg=t["text"], font=(FONT_UI, 9), anchor="w"
+                 ).pack(anchor="w", padx=12, pady=(6, 1))
+        key_field = spec["fields"][0]
+        current = self.cfg.get(key_field, "")
+        self.key_v = tk.StringVar(value=current)
+        e = tk.Entry(card, textvariable=self.key_v, width=46, show="•",
+                     bg=t["editor"], fg=t["text"],
+                     insertbackground=t["text"], relief=tk.FLAT,
+                     font=(FONT_MONO, 10), highlightthickness=1,
+                     highlightbackground=t["border"],
+                     highlightcolor=t.accent)
+        e.pack(fill=tk.X, padx=12, ipady=5)
+        tk.Label(card, text="Model:", bg=t["card"], fg=t["text"],
+                 font=(FONT_UI, 9), anchor="w").pack(anchor="w", padx=12,
+                                                     pady=(6, 1))
+        model_field = spec["fields"][1]
+        stored_model = self.cfg.get("agents_model", "")
+        self.model_v = tk.StringVar(value=stored_model or spec["model"])
+        tk.Entry(card, textvariable=self.model_v, width=46,
+                 bg=t["editor"], fg=t["text"], insertbackground=t["text"],
+                 relief=tk.FLAT, font=(FONT_MONO, 10), highlightthickness=1,
+                 highlightbackground=t["border"],
+                 highlightcolor=t.accent).pack(fill=tk.X, padx=12, ipady=5)
+
+    def _pick(self, pid):
+        self.provider = pid
+        for k, b in self._prov_btns.items():
+            b.config(bg=self.t.accent if k == pid else self.t["card"],
+                     fg="#ffffff" if k == pid else self.t["text"])
+        self._build_provider_body()
+
+    def _open_site(self):
+        url = self.PROVIDERS[self.provider]["url"]
+        self.test_result.config(text=f"opening {url.split('/')[2]} in your "
+                                     f"browser — come back here with the "
+                                     f"key…", fg=self.t["text_muted"])
+        try:
+            webbrowser.open(url)
+        except Exception as exc:  # noqa: BLE001
+            self.test_result.config(text=f"couldn't open a browser — visit "
+                                         f"{url} manually ({exc})",
+                                    fg="#f85149")
+
+    def _dialog_config(self):
+        spec = self.PROVIDERS[self.provider]
+        data = {"agents_backend": spec["backend"],
+                "agents_provider": self.provider
+                if spec["backend"] == "byok" else
+                self.cfg.get("agents_provider", "openrouter"),
+                "agents_model": self.model_v.get().strip(),
+                "agents_base_url": self.cfg.get("agents_base_url", ""),
+                "agents_api_key": self.cfg.get("agents_api_key", ""),
+                "agents_github_key": self.cfg.get("agents_github_key", ""),
+                "agents_kilo_url": self.cfg.get("agents_kilo_url", ""),
+                "agents_kilo_key": self.cfg.get("agents_kilo_key", "")}
+        key_field, _url_field = spec["fields"]
+        data[key_field] = self.key_v.get().strip()
+        return _CfgShim(data)
+
+    def _save(self):
+        self.test_result.config(text="testing connection…",
+                                fg=self.t["text_muted"])
+        backend = llm.build_backend(self._dialog_config())
+
+        def work():
+            ok, detail = (True, "local skills need no connection") \
+                if backend is None else llm.test_backend(backend)
+            if ok:
+                spec = self.PROVIDERS[self.provider]
+                key_field, _u = spec["fields"]
+                self.cfg.set("agents_backend", spec["backend"])
+                if spec["backend"] == "byok":
+                    self.cfg.set("agents_provider", self.provider)
+                self.cfg.set(key_field, self.key_v.get().strip())
+                self.cfg.set("agents_model", self.model_v.get().strip())
+                self.cfg.set("agents_setup_pending", "")
+                self.cfg.set("agents_enabled", True)
+            def finish():
+                if ok:
+                    self.test_result.config(text="✓ " + detail,
+                                            fg=self.t["success"])
+                    app = self.app
+                    app.apply_agents_visibility()
+                    if app.agent_panel is not None:
+                        if app.project_dir:
+                            app.agent_panel.set_workspace(app.project_dir)
+                        else:
+                            app.agent_panel.refresh_backend()
+                    app.terminal.log(
+                        f"{AGENTS_NAME}: connected · "
+                        f"{llm.describe_backend(self.cfg)}")
+                    self.grab_release()
+                    self.destroy()
+                else:
+                    self.test_result.config(text="✗ " + str(detail)[:110],
+                                            fg="#f85149")
+            self.after(0, finish)
+        threading.Thread(target=work, daemon=True).start()
+
+    def _center(self):
+        self.update_idletasks()
+        w, h = self.winfo_reqwidth(), self.winfo_reqheight()
+        x = self.master.winfo_rootx() + \
+            max(0, (self.master.winfo_width() - w) // 2)
+        y = self.master.winfo_rooty() + \
+            max(0, (self.master.winfo_height() - h) // 3)
+        self.geometry(f"+{x}+{y}")

@@ -59,6 +59,8 @@ ACCENTS = {
     "cyan":   {"dark": "#22d3ee", "light": "#0891b2", "label": "Cyan"},
     "green":  {"dark": "#4ade80", "light": "#16a34a", "label": "Green"},
     "orange": {"dark": "#fb923c", "light": "#ea580c", "label": "Orange"},
+    "rose":   {"dark": "#fb7185", "light": "#e11d48", "label": "Rose"},
+    "blue":   {"dark": "#60a5fa", "light": "#2563eb", "label": "Blue"},
 }
 
 # ---------------------------------------------------------------------- fonts

@@ -1,10 +1,12 @@
 """DXN1 STUDIO — first-launch Welcome wizard.
 
-A four-step cinematic dark splash shown once:
+A five-step cinematic dark splash shown once:
   1. Welcome        — hero art + display-name entry
-  2. Make it yours  — dark/light theme cards + accent colour picker
-  3. DXN1 Agents    — opt in to the built-in assistant (optional)
-  4. Ready          — summary + launch into the Project Hub & tour
+  2. Make it yours  — theme cards + accent picker + editor text size
+  3. First project  — what are we building first? (or explore)
+  4. DXN1 Agents    — opt in, then pick a brain (offline / free cloud /
+                      Google-login free / your own key)
+  5. Ready          — summary + launch into the Project Hub & tour
 """
 
 import os
@@ -16,7 +18,25 @@ from .theme import PALETTES, ACCENTS, FONT_UI
 
 ASSETS_DIR = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "assets")
 
-WIZ_W, WIZ_H = 880, 600
+WIZ_W, WIZ_H = 880, 620
+
+EDITOR_SIZES = (("small", 10, "Small"), ("medium", 11, "Medium"),
+                ("large", 13, "Large"))
+
+# wizard brain quick-picks: key -> (title, sub, setup_pending)
+BRAIN_CHOICES = (
+    ("free",  "Free cloud",       "No account · no key · no login at all", ""),
+    ("local", "Offline skills",   "Instant · no network · no key",         ""),
+    ("kilo",  "Google-login free","Kilo gateway · sign in with Google",    "kilo"),
+    ("byok",  "My own API key",   "BYOK · OpenRouter, Groq, Gemini…",      "byok"),
+)
+
+PROJECT_CHOICES = (
+    ("python",  "Python Script",    "A ready-to-run main.py — pure Python."),
+    ("flask",   "Flask Web App",    "app.py + template — run it, get a website."),
+    ("tkinter", "Desktop App",      "A native window you can grow into a GUI."),
+    ("",        "Decide later",     "Head to the studio empty-handed."),
+)
 
 # ---- image loading (PIL when available, native PhotoImage fallback) --------
 
@@ -67,6 +87,14 @@ class WelcomeWizard:
         self.theme_choice = config.get("theme", "dark")
         self.name_value = config.get("name", "") or ""
         self.agents_choice = bool(config.get("agents_enabled", False))
+        self.brain_choice = "free" if self.agents_choice else "free"
+        if config.get("agents_backend") in ("local", "free", "kilo", "byok"):
+            self.brain_choice = config.get("agents_backend")
+        self.size_choice = "medium"
+        for key, px, _lbl in EDITOR_SIZES:
+            if px == config.get("editor_font_size", 11):
+                self.size_choice = key
+        self.kind_choice = ""
         self._imgrefs = []
         self.index = 0
         self.done = False
@@ -112,7 +140,7 @@ class WelcomeWizard:
         self.dots = []
         dotrow = tk.Frame(top, bg=self.colors["overlay"])
         dotrow.pack(side=tk.RIGHT)
-        for i in range(4):
+        for i in range(5):
             d = tk.Label(dotrow, text="●", font=(FONT_UI, 9),
                          bg=self.colors["overlay"], fg=self.colors["card_border"])
             d.pack(side=tk.LEFT, padx=3)
@@ -136,6 +164,7 @@ class WelcomeWizard:
         self.slides = [
             self._slide_welcome(),
             self._slide_personalize(),
+            self._slide_first_project(),
             self._slide_agents(),
             self._slide_ready(),
         ]
@@ -176,7 +205,7 @@ class WelcomeWizard:
         wrap = tk.Frame(s, bg=self.colors["overlay"])
         wrap.place(relx=0.5, rely=0.5, anchor="center")
 
-        hero = load_scaled(os.path.join(ASSETS_DIR, "welcome_hero.png"), 660, 300)
+        hero = load_scaled(os.path.join(ASSETS_DIR, "welcome_hero.png"), 660, 290)
         if hero:
             self._imgrefs.append(hero)
             tk.Label(wrap, image=hero, bg=self.colors["overlay"]).pack()
@@ -191,14 +220,14 @@ class WelcomeWizard:
                                    fill=self.colors["card_border"], outline="")
 
         title_row = tk.Frame(wrap, bg=self.colors["overlay"])
-        title_row.pack(pady=(26, 0))
+        title_row.pack(pady=(24, 0))
         tk.Label(title_row, text="Welcome to DXN1 STUDIO", bg=self.colors["overlay"],
                  fg=self.colors["text"], font=(FONT_UI, 26, "bold")).pack(side=tk.LEFT)
         rounded_pill(title_row, "BETA", self.accent, "#ffffff", padx=8, pady=2,
                      size=9).pack(side=tk.LEFT, padx=(12, 0), pady=8)
 
         tk.Label(wrap, text=APP_TAGLINE, bg=self.colors["overlay"],
-                 fg=self.colors["secondary"], font=(FONT_UI, 12)).pack(pady=(6, 20))
+                 fg=self.colors["secondary"], font=(FONT_UI, 12)).pack(pady=(6, 18))
 
         entry_row = tk.Frame(wrap, bg=self.colors["overlay"])
         entry_row.pack()
@@ -228,7 +257,7 @@ class WelcomeWizard:
                  fg=self.colors["text"], font=(FONT_UI, 22, "bold")).pack(anchor="w")
         tk.Label(wrap, text="Pick a look — switch anytime from the View menu.",
                  bg=self.colors["overlay"], fg=self.colors["secondary"],
-                 font=(FONT_UI, 11)).pack(anchor="w", pady=(4, 14))
+                 font=(FONT_UI, 11)).pack(anchor="w", pady=(4, 12))
 
         cards = tk.Frame(wrap, bg=self.colors["overlay"])
         cards.pack()
@@ -241,7 +270,7 @@ class WelcomeWizard:
                             highlightcolor=self.accent, cursor="hand2")
             card.grid(row=0, column=0 if mode == "dark" else 1, padx=8, ipadx=6, ipady=6)
             self.theme_cards[mode] = card
-            prev = tk.Canvas(card, width=168, height=80, bg=self.colors["card"],
+            prev = tk.Canvas(card, width=168, height=76, bg=self.colors["card"],
                              highlightthickness=0)
             prev.pack(padx=6, pady=(6, 4))
             self._draw_preview(prev, mode)
@@ -251,25 +280,41 @@ class WelcomeWizard:
                      font=(FONT_UI, 9)).pack(anchor="w", padx=10, pady=(0, 6))
             card.bind("<Button-1>", lambda e, m=mode: self.choose_theme(m))
 
-        tk.Label(wrap, text="Accent colour", bg=self.colors["overlay"],
-                 fg=self.colors["text"], font=(FONT_UI, 12, "bold")
-                 ).pack(anchor="w", pady=(14, 6))
-        sw = tk.Frame(wrap, bg=self.colors["overlay"])
-        sw.pack(anchor="w")
+        opts = tk.Frame(wrap, bg=self.colors["overlay"])
+        opts.pack(fill=tk.X, pady=(12, 0))
+        tk.Label(opts, text="Accent colour", bg=self.colors["overlay"],
+                 fg=self.colors["text"], font=(FONT_UI, 11, "bold")
+                 ).pack(anchor="w")
+        sw = tk.Frame(opts, bg=self.colors["overlay"])
+        sw.pack(anchor="w", pady=(4, 0))
         self.swatches = {}
         for name, spec in ACCENTS.items():
             col = spec["dark"]
-            dot = tk.Canvas(sw, width=34, height=34, bg=self.colors["overlay"],
+            dot = tk.Canvas(sw, width=32, height=32, bg=self.colors["overlay"],
                             highlightthickness=0, cursor="hand2")
-            dot.pack(side=tk.LEFT, padx=(0, 12))
-            dot.create_oval(5, 5, 29, 29, fill=col, outline="", tags="dot")
-            dot.create_text(17, 17, text="", fill="#ffffff", font=(FONT_UI, 11, "bold"),
-                            tags="mark")
+            dot.pack(side=tk.LEFT, padx=(0, 10))
+            dot.create_oval(4, 4, 27, 27, fill=col, outline="", tags="dot")
+            dot.create_text(15.5, 15.5, text="", fill="#ffffff",
+                            font=(FONT_UI, 10, "bold"), tags="mark")
             dot.bind("<Button-1>", lambda e, n=name: self.choose_accent(n))
             self.swatches[name] = dot
-        self.accent_label = tk.Label(wrap, text="", bg=self.colors["overlay"],
-                                     fg=self.colors["secondary"], font=(FONT_UI, 10))
-        self.accent_label.pack(anchor="w", pady=(8, 0))
+        self.accent_label = tk.Label(opts, text="", bg=self.colors["overlay"],
+                                     fg=self.colors["secondary"], font=(FONT_UI, 9))
+        self.accent_label.pack(anchor="w", pady=(5, 0))
+
+        tk.Label(opts, text="Editor text size", bg=self.colors["overlay"],
+                 fg=self.colors["text"], font=(FONT_UI, 11, "bold")
+                 ).pack(anchor="w", pady=(10, 2))
+        self.size_btns = {}
+        srow = tk.Frame(opts, bg=self.colors["overlay"])
+        srow.pack(anchor="w")
+        for key, px, label in EDITOR_SIZES:
+            b = tk.Label(srow, text=f"{label}  {px}px", bg=self.colors["card"],
+                         fg=self.colors["text"], font=(FONT_UI, 9, "bold"),
+                         cursor="hand2", padx=12, pady=6)
+            b.pack(side=tk.LEFT, padx=(0, 8))
+            b.bind("<Button-1>", lambda e, k=key: self.choose_size(k))
+            self.size_btns[key] = b
 
         self._refresh_personalize()
         return s
@@ -278,8 +323,8 @@ class WelcomeWizard:
         p = PALETTES[mode]
         a = ACCENTS[self.accent_name]["dark" if mode == "dark" else "light"]
         c.create_rectangle(0, 0, 168, 14, fill=p["header"], outline="")
-        c.create_rectangle(0, 14, 44, 80, fill=p["sidebar"], outline="")
-        c.create_rectangle(44, 14, 168, 80, fill=p["editor"], outline="")
+        c.create_rectangle(0, 14, 44, 76, fill=p["sidebar"], outline="")
+        c.create_rectangle(44, 14, 168, 76, fill=p["editor"], outline="")
         for i in range(3):
             c.create_rectangle(8, 22 + i * 11, 36, 28 + i * 11,
                                fill=p["linenum_fg"], outline="")
@@ -287,7 +332,7 @@ class WelcomeWizard:
         for i in range(3):
             c.create_rectangle(52, 36 + i * 12, 120 + (i % 2) * 24, 42 + i * 12,
                                fill=p["linenum_fg"], outline="")
-        c.create_rectangle(0, 80, 168, 88, fill=p["statusbar"], outline="")
+        c.create_rectangle(0, 76, 168, 84, fill=p["statusbar"], outline="")
 
     def choose_theme(self, mode):
         self.theme_choice = mode
@@ -296,6 +341,10 @@ class WelcomeWizard:
     def choose_accent(self, name):
         self.accent_name = name
         self.accent = ACCENTS[name]["dark"]
+        self._refresh_personalize()
+
+    def choose_size(self, key):
+        self.size_choice = key
         self._refresh_personalize()
 
     def _refresh_personalize(self):
@@ -309,8 +358,59 @@ class WelcomeWizard:
                               width=2 if on else 0)
         self.accent_label.config(
             text=f"Selected: {ACCENTS[self.accent_name]['label']} — colours the editor, buttons and highlights")
+        for key, b in self.size_btns.items():
+            on = key == self.size_choice
+            b.config(bg=self.accent if on else self.colors["card"],
+                     fg="#ffffff" if on else self.colors["text"])
 
     # ------------------------------------------------------------- slide 3
+    def _slide_first_project(self):
+        s = WizardSlide(self.page, self)
+        wrap = tk.Frame(s, bg=self.colors["overlay"])
+        wrap.place(relx=0.5, rely=0.5, anchor="center")
+
+        tk.Label(wrap, text="What are we building first?",
+                 bg=self.colors["overlay"], fg=self.colors["text"],
+                 font=(FONT_UI, 22, "bold")).pack(anchor="w")
+        tk.Label(wrap, text="Pick a starting point — the Project Hub scaffolds it "
+                            "the moment you land there. You can skip this.",
+                 bg=self.colors["overlay"], fg=self.colors["secondary"],
+                 font=(FONT_UI, 11), wraplength=560, justify=tk.LEFT
+                 ).pack(anchor="w", pady=(4, 14))
+
+        grid = tk.Frame(wrap, bg=self.colors["overlay"])
+        grid.pack()
+        self.kind_cards = {}
+        for i, (kind, label, sub) in enumerate(PROJECT_CHOICES):
+            card = tk.Frame(grid, bg=self.colors["card"], highlightthickness=2,
+                            highlightbackground=self.colors["card_border"],
+                            highlightcolor=self.accent, cursor="hand2")
+            card.grid(row=i // 2, column=i % 2, padx=7, pady=7, ipadx=6,
+                      ipady=6, sticky="nsew")
+            tk.Label(card, text=label, bg=self.colors["card"],
+                     fg=self.colors["text"], font=(FONT_UI, 12, "bold"),
+                     anchor="w").pack(anchor="w", padx=10, pady=(8, 0))
+            tk.Label(card, text=sub, bg=self.colors["card"],
+                     fg=self.colors["secondary"], font=(FONT_UI, 9),
+                     wraplength=230, justify=tk.LEFT, anchor="w"
+                     ).pack(anchor="w", padx=10, pady=(2, 10))
+            card.bind("<Button-1>", lambda e, k=kind: self.choose_kind(k))
+            self.kind_cards[kind] = card
+
+        self._refresh_kind()
+        return s
+
+    def choose_kind(self, kind):
+        self.kind_choice = kind
+        self._refresh_kind()
+
+    def _refresh_kind(self):
+        for kind, card in self.kind_cards.items():
+            card.config(highlightbackground=self.accent
+                        if kind == self.kind_choice
+                        else self.colors["card_border"])
+
+    # ------------------------------------------------------------- slide 4
     def _slide_agents(self):
         s = WizardSlide(self.page, self)
         wrap = tk.Frame(s, bg=self.colors["overlay"])
@@ -318,7 +418,7 @@ class WelcomeWizard:
 
         head = tk.Frame(wrap, bg=self.colors["overlay"])
         head.pack()
-        hero = load_scaled(os.path.join(ASSETS_DIR, "agents_hero.png"), 150, 150)
+        hero = load_scaled(os.path.join(ASSETS_DIR, "agents_hero.png"), 130, 130)
         if hero:
             self._imgrefs.append(hero)
             tk.Label(head, image=hero, bg=self.colors["overlay"]).pack()
@@ -333,49 +433,70 @@ class WelcomeWizard:
             c.create_rectangle(55, 95, 85, 103, fill=self.accent, outline="")
 
         title_row = tk.Frame(wrap, bg=self.colors["overlay"])
-        title_row.pack(pady=(14, 0))
+        title_row.pack(pady=(10, 0))
         tk.Label(title_row, text="Meet DXN1 Agents", bg=self.colors["overlay"],
                  fg=self.colors["text"], font=(FONT_UI, 22, "bold")).pack(side=tk.LEFT)
         rounded_pill(title_row, "OPTIONAL", self.colors["card_border"],
                      self.colors["secondary"], padx=8, pady=2,
                      size=8).pack(side=tk.LEFT, padx=(12, 0), pady=8)
 
-        tk.Label(wrap, text="Your built-in studio copilot. It works fully offline out "
-                            "of the box — and you can give it a bigger brain later: "
-                            "your own API key (BYOK), the free GitHub Models tier, or "
-                            "the feather-light Kilo gateway.",
+        tk.Label(wrap, text="Your built-in studio copilot — sandboxed to this "
+                            "workspace, and every edit or command arrives as a "
+                            "card you accept or decline.",
                  bg=self.colors["overlay"], fg=self.colors["secondary"],
                  font=(FONT_UI, 11), wraplength=560, justify=tk.CENTER
-                 ).pack(pady=(8, 4))
-        tk.Label(wrap, text="Nothing happens without your permission: every edit and every "
-                            "command arrives as a card you accept or decline — and it's "
-                            "sandboxed so it only ever touches your workspace.",
-                 bg=self.colors["overlay"], fg=self.colors["secondary"],
-                 font=(FONT_UI, 11), wraplength=560, justify=tk.CENTER
-                 ).pack(pady=(0, 18))
+                 ).pack(pady=(6, 12))
 
         btns = tk.Frame(wrap, bg=self.colors["overlay"])
         btns.pack()
         self.agents_btns = {}
         for key, label in ((True, "Enable DXN1 Agents"), (False, "Not now")):
-            b = tk.Label(btns, text=label, bg=self.colors["card"] if key is False
-                         else self.colors["card"], fg=self.colors["text"],
+            b = tk.Label(btns, text=label, bg=self.colors["card"],
+                         fg=self.colors["text"],
                          font=(FONT_UI, 11, "bold"), cursor="hand2",
-                         padx=20, pady=10)
+                         padx=20, pady=9)
             b.pack(side=tk.LEFT, padx=8)
             b.bind("<Button-1>", lambda e, v=key: self.choose_agents(v))
             self.agents_btns[key] = b
 
-        tk.Label(wrap, text="Brains are picked in Settings → DXN1 Agents (BYOK · GitHub "
-                            "Models · Kilo gateway) — full-access mode lives there too.",
-                 bg=self.colors["overlay"], fg=self.colors["muted"],
-                 font=(FONT_UI, 9)).pack(pady=(16, 0))
+        self.brain_wrap = tk.Frame(wrap, bg=self.colors["overlay"])
+        self.brain_wrap.pack(fill=tk.X, pady=(12, 0))
+        tk.Label(self.brain_wrap, text="Pick a brain — change it anytime in "
+                                       "Settings → DXN1 Agents:",
+                 bg=self.colors["overlay"], fg=self.colors["text"],
+                 font=(FONT_UI, 10, "bold"), anchor="w").pack(anchor="w")
+        grid = tk.Frame(self.brain_wrap, bg=self.colors["overlay"])
+        grid.pack(anchor="w", pady=(6, 0))
+        self.brain_btns = {}
+        for i, (key, title, sub, _pending) in enumerate(BRAIN_CHOICES):
+            col = i % 2
+            row = i // 2
+            b = tk.Frame(grid, bg=self.colors["card"], highlightthickness=2,
+                         highlightbackground=self.colors["card_border"],
+                         highlightcolor=self.accent, cursor="hand2")
+            b.grid(row=row, column=col, padx=6, pady=4, ipadx=8, ipady=5,
+                   sticky="nsew")
+            tk.Label(b, text=title, bg=self.colors["card"],
+                     fg=self.colors["text"], font=(FONT_UI, 10, "bold"),
+                     anchor="w").pack(anchor="w", padx=8)
+            tk.Label(b, text=sub, bg=self.colors["card"],
+                     fg=self.colors["secondary"], font=(FONT_UI, 8),
+                     wraplength=270, justify=tk.LEFT,
+                     anchor="w").pack(anchor="w", padx=8, pady=(1, 4))
+            b.bind("<Button-1>", lambda e, k=key: self.choose_brain(k))
+            self.brain_btns[key] = b
 
         self._refresh_agents()
         return s
 
     def choose_agents(self, value):
-        self.agents_choice = value
+        self.agents_choice = bool(value)
+        self._refresh_agents()
+
+    def choose_brain(self, key):
+        self.brain_choice = key
+        if not self.agents_choice:
+            self.agents_choice = True
         self._refresh_agents()
 
     def _refresh_agents(self):
@@ -383,8 +504,16 @@ class WelcomeWizard:
             on = key == self.agents_choice
             b.config(bg=self.accent if on else self.colors["card"],
                      fg="#ffffff" if on else self.colors["text"])
+        for key, b in self.brain_btns.items():
+            on = key == self.brain_choice and self.agents_choice
+            b.config(highlightbackground=self.accent if on
+                     else self.colors["card_border"])
+        for w in self.brain_wrap.winfo_children():
+            if isinstance(w, tk.Label):
+                w.config(fg=self.colors["text"] if self.agents_choice
+                         else self.colors["muted"])
 
-    # ------------------------------------------------------------- slide 4
+    # ------------------------------------------------------------- slide 5
     def _slide_ready(self):
         s = WizardSlide(self.page, self)
         wrap = tk.Frame(s, bg=self.colors["overlay"])
@@ -394,31 +523,44 @@ class WelcomeWizard:
                                     fg=self.colors["text"], font=(FONT_UI, 28, "bold"))
         self.ready_title.pack()
         tk.Label(wrap, text="Here's your setup:", bg=self.colors["overlay"],
-                 fg=self.colors["secondary"], font=(FONT_UI, 12)).pack(pady=(8, 18))
+                 fg=self.colors["secondary"], font=(FONT_UI, 12)).pack(pady=(8, 16))
 
         self.summary = tk.Frame(wrap, bg=self.colors["overlay"])
-        self.summary.pack()
-        for icon, label, value in (("◐", "Theme", "Dark"), ("◆", "Accent", "Violet"),
-                                   ("◆", "Agents", "Off"),
-                                   ("→", "Next", "Project Hub & quick tour")):
+        self.summary.pack(fill=tk.X)
+        for icon, label, value in (("◐", "Theme", "Dark"),
+                                   ("◆", "Accent", "Violet"),
+                                   ("Aa", "Editor", "Medium text"),
+                                   ("✦", "First project", "Decide later"),
+                                   ("◆", "Agents", "Off")):
             row = tk.Frame(self.summary, bg=self.colors["card"],
                            highlightthickness=1, highlightbackground=self.colors["card_border"])
-            row.pack(fill=tk.X, pady=4, ipadx=12, ipady=7)
+            row.pack(fill=tk.X, pady=3, ipadx=12, ipady=6)
             tk.Label(row, text=icon, bg=self.colors["card"], fg=self.accent,
-                     font=(FONT_UI, 12, "bold"), width=3).pack(side=tk.LEFT)
+                     font=(FONT_UI, 11, "bold"), width=3).pack(side=tk.LEFT)
             tk.Label(row, text=label, bg=self.colors["card"], fg=self.colors["secondary"],
-                     font=(FONT_UI, 10), width=8, anchor="w").pack(side=tk.LEFT)
+                     font=(FONT_UI, 10), width=12, anchor="w").pack(side=tk.LEFT)
             tk.Label(row, text=value, bg=self.colors["card"], fg=self.colors["text"],
                      font=(FONT_UI, 10, "bold"), anchor="w").pack(side=tk.LEFT)
         return s
 
     def _refresh_ready(self):
-        name = (self.name_entry.get() or "").strip() or "developer"
+        name = "developer"
+        try:
+            name = (self.name_entry.get() or "").strip() or "developer"
+        except tk.TclError:
+            pass
         self.ready_title.config(text=f"You're all set, {name}!")
-        theme_lbl = "Dark" if self.theme_choice == "dark" else "Light"
-        accent_lbl = ACCENTS[self.accent_name]["label"]
-        agents_lbl = "Enabled" if self.agents_choice else "Off"
-        vals = [theme_lbl, accent_lbl, agents_lbl, "Project Hub & quick tour"]
+        size_px = dict((k, px) for k, px, _ in EDITOR_SIZES)[self.size_choice]
+        kind_label = dict((k, l) for k, l, _s in PROJECT_CHOICES).get(
+            self.kind_choice, "Decide later")
+        if self.agents_choice:
+            agents_lbl = dict((k, t) for k, t, _s, _p in BRAIN_CHOICES).get(
+                self.brain_choice, "Enabled")
+        else:
+            agents_lbl = "Off"
+        vals = ["Dark" if self.theme_choice == "dark" else "Light",
+                ACCENTS[self.accent_name]["label"],
+                f"{size_px}px text", kind_label, agents_lbl]
         for row, v in zip(self.summary.winfo_children(), vals):
             row.winfo_children()[2].config(text=v)
 
@@ -446,9 +588,10 @@ class WelcomeWizard:
         self.back_btn.config(
             fg=self.colors["secondary"] if idx > 0 else self.colors["card_border"])
         hints = ["", "Changes apply instantly across the IDE",
+                 "The Hub scaffolds it right after setup",
                  "Ask mode by default — full access later in Settings",
                  "The Project Hub comes first, then a quick tour"]
-        self.hint.config(text=hints[idx])
+        self.hint.config(text=hints[idx] if idx < len(hints) else "")
 
     def finish(self, skip=False):
         if self.done:
@@ -461,10 +604,21 @@ class WelcomeWizard:
                 name = (self.name_entry.get() or "").strip()
             except tk.TclError:
                 name = ""
+            size_px = dict((k, px) for k, px, _ in EDITOR_SIZES)[self.size_choice]
+            pending = ""
+            for key, _t, _s, pending_flag in BRAIN_CHOICES:
+                if key == self.brain_choice:
+                    pending = pending_flag
             self.config.set("name", name, save=False)
             self.config.set("theme", self.theme_choice, save=False)
             self.config.set("accent", self.accent_name, save=False)
-            self.config.set("agents_enabled", bool(self.agents_choice), save=False)
+            self.config.set("editor_font_size", size_px, save=False)
+            self.config.set("wizard_first_kind", self.kind_choice, save=False)
+            self.config.set("agents_enabled", bool(self.agents_choice),
+                            save=False)
+            self.config.set("agents_backend", self.brain_choice, save=False)
+            self.config.set("agents_setup_pending",
+                            pending if self.agents_choice else "", save=False)
         try:
             self.win.grab_release()
             self.win.destroy()
