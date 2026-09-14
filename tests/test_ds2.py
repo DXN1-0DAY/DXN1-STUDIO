@@ -456,3 +456,33 @@ def test_bookmark_store_roundtrip(tmp_path):
     # snippets are safe on missing/oversize files
     assert snippet_for(str(f1), 1) == "def one():"
     assert snippet_for(str(tmp_path / "nope.py"), 1) == ""
+
+
+# ------------------------------------------------------- prompt library
+def test_prompt_library_engine(tmp_path):
+    from dxn1_studio.prompts import (
+        load_prompts, save_user_prompt, delete_user_prompt, render,
+        filter_prompts)
+
+    ws = str(tmp_path)
+    lib = load_prompts(ws)
+    assert len(lib) >= 6                      # starters present
+
+    ok, _ = save_user_prompt(ws, "Explain this file", "CUSTOM {file}")
+    assert ok
+    mine = [p for p in load_prompts(ws) if p["name"] == "Explain this file"]
+    assert mine[0]["template"] == "CUSTOM {file}"   # workspace wins
+    assert save_user_prompt(ws, "", "x")[0] is False  # validation
+
+    out = render("Do {file} in {workspace} ({lang})",
+                 file_path=ws + "/main.py", workspace=ws)
+    assert "main.py" in out and "py" in out
+    assert render("keep {unknown}") == "keep {unknown}"   # literal
+    assert "the file" in render("use {selection}", selection="   ")
+
+    hits = filter_prompts(lib, "tests")
+    assert hits and all("tests" in (p["name"] + p["description"]).lower()
+                        for p in hits)
+    assert filter_prompts(lib, "zzz") == []
+
+    assert delete_user_prompt(ws, "Explain this file") is True

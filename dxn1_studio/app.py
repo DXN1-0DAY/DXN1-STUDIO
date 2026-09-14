@@ -809,6 +809,9 @@ class DXN1Studio:
                               accelerator="Ctrl+O")
         file_menu.add_command(label="Quick Open…", command=self.open_quick_open,
                               accelerator="Ctrl+P")
+        file_menu.add_command(label="Recent files…",  # DS2: fuzzy picker
+                              command=self.open_recent_picker,
+                              accelerator="Ctrl+R")
         if recents:
             recent_menu = tk.Menu(file_menu, **menu_opts)
             shown = 0
@@ -1016,7 +1019,21 @@ class DXN1Studio:
         self.root.bind("<Control-F2>", lambda e: self.editor.toggle_bookmark())
         self.root.bind("<F2>", lambda e: self.editor.next_bookmark())
         self.root.bind("<Shift-F2>", lambda e: self.editor.prev_bookmark())
+        # DS2: Ctrl+R — recent-files fuzzy picker
+        self.root.bind("<Control-r>", lambda e: self.open_recent_picker())
         self.root.bind("<Escape>", self._on_escape)
+
+    def open_recent_picker(self):
+        """DS2: Quick-Open-style popup over the recent-files list."""
+        try:
+            from .recents import open_recents
+            open_recents(
+                self.root, self.theme, self.config,
+                on_open=self.open_file,
+                root=getattr(self, "project_dir", "") or None,
+                on_log=lambda m: self.terminal.log(m))
+        except Exception:           # noqa: BLE001 — binding stays safe
+            self.terminal.log("recent files: picker unavailable")
 
     def _on_escape(self, event=None):
         if self.findbar.winfo_ismapped():
@@ -2449,13 +2466,40 @@ class DXN1Studio:
             pass
         # ---- DS2: recent-files fuzzy picker (defensive)
         try:
-            from .recents import open_recents as _open_recents
+            cmds.append(("Recent files…", "DS2", self.open_recent_picker))
+        except Exception:  # pragma: no cover — palette stays alive
+            pass
+        # ---- DS2: prompt library (defensive)
+        try:
+            from .prompts import open_picker as _open_prompts
+            from .prompts import insert_into_agent as _prompt_to_agent
+
+            def _prompt_ctx():
+                try:
+                    t = self.editor.text
+                    sel = t.tag_ranges("sel")
+                    selection = t.get(sel[0], sel[1]) if sel else ""
+                except Exception:   # noqa: BLE001
+                    selection = ""
+                return {
+                    "file_path": getattr(self.editor, "file_path", "") or "",
+                    "workspace": getattr(self, "project_dir", "") or "",
+                    "selection": selection,
+                }
+
+            def _use_prompt(rendered):
+                if self.agent_panel is not None:
+                    _prompt_to_agent(self.agent_panel, rendered)
+                else:
+                    self.terminal.log(
+                        "prompt copied — open the Agents panel to chat")
+
             cmds.append(
-                ("Recent files…", "DS2",
-                 lambda: _open_recents(
-                     self.root, self.theme, self.config,
-                     on_open=self.open_file,
-                     root=getattr(self, "project_dir", "") or None,
+                ("Prompt library — saved asks for the agent…", "DS2",
+                 lambda: _open_prompts(
+                     self.root, self.theme,
+                     workspace=getattr(self, "project_dir", "") or None,
+                     on_use=_use_prompt, context=_prompt_ctx,
                      on_log=lambda m: self.terminal.log(m))),
             )
         except Exception:  # pragma: no cover — palette stays alive
