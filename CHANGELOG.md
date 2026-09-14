@@ -4,6 +4,34 @@ All notable changes to DXN1 STUDIO. Format based on
 [Keep a Changelog](https://keepachangelog.com/); versioning is
 `MAJOR.MINOR.PATCH` while in **beta**.
 
+## [1.5.0] — 2026-09-14 · beta · "the assistant gets a memory"
+
+### Added
+- **Per-workspace agent memory** (`memory.py`) — the assistant now
+  remembers between sessions. A JSON memory bank lives at
+  ``<workspace>/.dxn1/memory.json`` (facts, preferences, a rolling
+  summary); before every agent turn the bank is rendered into a compact
+  block and injected into the system prompt, so the agent opens every
+  conversation already knowing your stack, your quirks and your rules.
+  **Say `remember: …` in the agent chat** to teach it instantly — no
+  model call, instant confirmation. The **Agent Memory editor** (palette
+  → *Agent memory*) gives the bank a face: add with Enter, delete per
+  fact, import/export JSON, live path display.
+- **Token usage dashboard** (`usagedash.py`) — know what your agents
+  actually spend. Every engine turn records its token delta into a local
+  ledger (`~/.dxn1-studio/usage.json`, trimmed at 5,000 events); the
+  dashboard renders a **14-day bar chart**, **per-model share bars**,
+  **per-workspace totals**, today's burn, generation counts and
+  clearly-labeled **cost estimates** from published list prices
+  (unknown models estimate at the table median). Export to CSV, or wipe
+  the ledger with a two-click confirm. Zero network, zero accounts.
+- **Agent engine integration** — `AgentEngine` injects the memory block
+  at construction and reports token deltas after every run; both hooks
+  are best-effort and can never break a chat.
+
+### Changed
+- Version bookkeeping: `APP_VERSION` is now **1.5.0**.
+
 ## [1.4.0] — 2026-09-14 · beta · "the visual git suite"
 
 ### Added

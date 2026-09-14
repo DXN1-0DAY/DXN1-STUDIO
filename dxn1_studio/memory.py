@@ -330,3 +330,7 @@ class MemoryEditor(tk.Toplevel):
 def open_memory_editor(parent, theme, workspace, on_log=None):
     """Convenience opener — mirrors the studio's one-call dialog style."""
     return MemoryEditor(parent, theme, workspace, on_log=on_log)
+
+
+# DS2 alias — the palette and engine both open the editor by this name
+open_memory = open_memory_editor

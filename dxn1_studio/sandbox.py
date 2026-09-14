@@ -380,13 +380,15 @@ class AgentEngine:
                         from .memory import MemoryBank
                         bank = MemoryBank(
                             getattr(self.sandbox, "root", None))
-                        ok, msg = bank.remember(fact,
-                                                source="agent chat")
+                        fact_id = bank.add_fact(fact, source="agent chat")
                         self.emit("finalize", "")
-                        self.emit("say", f"◈ Memory {'saved' if ok else 'kept'}: "
-                                         f"\"{fact[:100]}\" — {msg}. I'll "
-                                         f"recall it in later sessions "
-                                         f"for this workspace.")
+                        if fact_id:
+                            self.emit("say", f"◈ Memory saved: \"{fact[:100]}\". "
+                                             f"I'll recall it in later "
+                                             f"sessions for this workspace.")
+                        else:
+                            self.emit("say", f"◈ Already known (or empty) — "
+                                             f"nothing new to remember.")
                     except Exception:
                         self.emit("say", "Could not save that memory.")
                 else:
