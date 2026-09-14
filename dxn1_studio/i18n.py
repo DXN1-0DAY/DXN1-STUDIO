@@ -97,6 +97,8 @@ EN = {
     "diff.copy_diff": "copy diff",
     "diff.paste_hint": "paste old and new text above",
     "xml.copy_out": "copy",
+    "contrast.copy_report": "copy report",
+    "contrast.audit_hint": "pick a theme — every text pair gets a WCAG grade",
     "xml.paste_hint": "paste some XML first",
     "common.cancel": "Cancel",
     "common.close": "Close",
@@ -172,6 +174,8 @@ PACKS = {
         "diff.copy_diff": "copiar diff",
         "diff.paste_hint": "pega el texto viejo y el nuevo arriba",
         "xml.copy_out": "copiar",
+        "contrast.copy_report": "copiar informe",
+        "contrast.audit_hint": "elige un tema — cada par de textos recibe una calificación WCAG",
         "xml.paste_hint": "pega algo de XML primero",
     },
     "fr": {  # French
@@ -227,6 +231,8 @@ PACKS = {
         "diff.copy_diff": "copier le diff",
         "diff.paste_hint": "collez l'ancien et le nouveau texte ci-dessus",
         "xml.copy_out": "copier",
+        "contrast.copy_report": "copier le rapport",
+        "contrast.audit_hint": "choisissez un thème — chaque paire reçoit une note WCAG",
         "xml.paste_hint": "collez du XML d'abord",
     },
     "de": {  # German
@@ -281,6 +287,8 @@ PACKS = {
         "diff.copy_diff": "Diff kopieren",
         "diff.paste_hint": "Füge oben alten und neuen Text ein",
         "xml.copy_out": "kopieren",
+        "contrast.copy_report": "Bericht kopieren",
+        "contrast.audit_hint": "Thema wählen — jedes Textpaar bekommt eine WCAG-Note",
         "xml.paste_hint": "füge zuerst XML ein",
     },
     "pt": {  # Portuguese
@@ -318,6 +326,8 @@ PACKS = {
         "diff.copy_diff": "copiar diff",
         "diff.paste_hint": "cole o texto antigo e o novo acima",
         "xml.copy_out": "copiar",
+        "contrast.copy_report": "copiar relatório",
+        "contrast.audit_hint": "escolha um tema — cada par de textos recebe uma nota WCAG",
         "xml.paste_hint": "cole algum XML primeiro",
     },
     "zh": {  # Chinese (Simplified)
@@ -372,6 +382,8 @@ PACKS = {
         "diff.copy_diff": "复制差异",
         "diff.paste_hint": "在上方粘贴新旧文本",
         "xml.copy_out": "复制",
+        "contrast.copy_report": "复制报告",
+        "contrast.audit_hint": "选择主题——每对文本都会获得 WCAG 等级",
         "xml.paste_hint": "先粘贴一些 XML",
     },
     "hi": {  # Hindi
@@ -409,6 +421,8 @@ PACKS = {
         "diff.copy_diff": "डिफ़ कॉपी करें",
         "diff.paste_hint": "ऊपर पुराना और नया टेक्स्ट पेस्ट करें",
         "xml.copy_out": "कॉपी करें",
+        "contrast.copy_report": "रिपोर्ट कॉपी करें",
+        "contrast.audit_hint": "थीम चुनें — हर टेक्स्ट जोड़ी को WCAG ग्रेड मिलता है",
         "xml.paste_hint": "पहले कुछ XML पेस्ट करें",
     },
     "ja": {  # Japanese
@@ -446,6 +460,8 @@ PACKS = {
         "diff.copy_diff": "差分をコピー",
         "diff.paste_hint": "上に新旧のテキストを貼り付け",
         "xml.copy_out": "コピー",
+        "contrast.copy_report": "レポートをコピー",
+        "contrast.audit_hint": "テーマを選択 — 各テキストペアに WCAG グレードが付きます",
         "xml.paste_hint": "まずXMLを貼り付け",
     },
 }

@@ -391,3 +391,13 @@
 | Element census | `tag_stats()` / `stats_line()` | Total elements, unique tags, top-3 tag counts, max depth, attribute total |
 | Safety guards | engine | 512 KB input cap, 200-level depth cap, DTD entities refused outright — hostile XML is declined, never executed |
 | i18n | `xml.*` keys | Copy button and empty-state hint translate across all 8 language packs |
+
+## Contrast Auditor
+
+| Feature | Where | What it does |
+|---|---|---|
+| WCAG theme audit | `contrast.py`, Workshop → *Contrast Auditor — WCAG grades for themes…*, palette, terminal `contrast` / `a11y` / `wcag` / `audit` | Grades 13 semantic text pairs (body/sidebar/header/card/terminal/statusbar, secondary, muted, gutter, selection-on-accent, success, overlay) for every theme the studio can wear |
+| Grading | `grade()` / `fmt_ratio()` | AAA ≥ 7:1, AA ≥ 4.5:1, AA-L ≥ 3:1, FAIL below — human ratios like `21:1` and `4.53:1` |
+| Auto-fix suggestions | `suggest_fg()` | Below AA, searches lighten/darken steps until the foreground clears 4.5:1 against its background; honest `—` when unfixable |
+| Theme inventory | `iter_auditable_themes()` | Built-in Dark + Light, all 12 community gallery themes, and user-saved themes — junk themes audit to honest FAIL rows, never crash |
+| Copyable report | `report_text()` | Plain-text audit (pair, ratio, grade, fix) for issue reports and theme reviews |

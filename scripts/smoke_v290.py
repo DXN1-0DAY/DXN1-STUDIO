@@ -427,6 +427,25 @@ def main():
     check("xmlbench engine offline", _xpre("<r/>")[0].startswith("<r"))
     xbwin.destroy()
 
+    # ---- Contrast Auditor (same smoke, new lane)
+    from dxn1_studio.contrast import grade as _cgrade, open_contrast
+    cwin = open_contrast(root, theme)
+    cwin.update_idletasks()
+    check("contrast window opens", cwin.winfo_exists())
+    check("contrast 13 pairs graded",
+          len(cwin.tree.get_children()) == 13
+          and "pairs" in cwin.summary.cget("text"))
+    cwin.var.set("Built-in · Light")
+    cwin._audit()
+    check("contrast theme switch re-audits",
+          len(cwin.tree.get_children()) == 13)
+    cwin._copy_report()
+    check("contrast report copies", "copied" in
+          cwin.status.cget("text"))
+    check("contrast engine offline", _cgrade(7.0) == "AAA"
+          and _cgrade(2.0) == "FAIL")
+    cwin.destroy()
+
     # ---- REST bench (same smoke, seventh lane)
     from dxn1_studio.restbench import (RestResponse, build_curl,
                                        format_size,

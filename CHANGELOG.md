@@ -4,6 +4,33 @@ All notable changes to DXN1 STUDIO. Format based on
 [Keep a Changelog](https://keepachangelog.com/); versioning is
 `MAJOR.MINOR.PATCH` while in **beta**.
 
+## [2.26.0] — 2026-09-14 · beta · "readable or it didn't happen" (bonus round)
+
+### Added
+- **Contrast Auditor** (`contrast.py`, Workshop menu, palette, terminal
+  `contrast` / `a11y` / `wcag` / `audit`) — WCAG 2.x audit for every
+  theme the studio can wear: 13 semantic text pairs graded per theme
+  (AAA / AA / AA-L / FAIL), theme picker covers Built-in Dark & Light,
+  all 12 community gallery themes, and user-saved themes.
+- **Auto-fix suggestions** — pairs below AA get a concrete fix: the
+  engine searches lighten/darken steps until the foreground clears
+  4.5:1 (e.g. gutter `#4d5766` on `#11161d` -> `#778498`); honest `—`
+  when no simple fix exists (selection white on violet accent).
+- **Copyable plain-text report** per theme for issue reports, plus a
+  graded summary line (pass/fail counts + average ratio + worst pair).
+- i18n: `contrast.copy_report` + `contrast.audit_hint` in all 8
+  language packs.
+
+### Fixed
+- Auditor tolerates the studio's `Theme` wrapper and half-written
+  community themes alike — junk palettes audit to honest FAIL rows,
+  the window never raises.
+
+### Notes
+- First findings are real: built-in gutters (`#4d5766` on `#11161d`)
+  and light-theme muted text fall short of AA — the auditor now makes
+  these visible instead of invisible.
+
 ## [2.25.0] — 2026-09-14 · beta · "well-formed or bust" (bonus round)
 
 ### Added

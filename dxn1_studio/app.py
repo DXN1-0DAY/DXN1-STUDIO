@@ -1279,6 +1279,15 @@ class DXN1Studio:
                 command=_open_xml_menu)
         except Exception:  # pragma: no cover — menu stays alive
             pass
+        # DS2: contrast auditor (defensive)
+        def _open_contrast_menu():
+            self.open_contrast()
+        try:
+            workshop_menu.add_command(
+                label="Contrast Auditor — WCAG grades for themes…",
+                command=_open_contrast_menu)
+        except Exception:  # pragma: no cover — menu stays alive
+            pass
         workshop_menu.add_separator()
         workshop_menu.add_command(label="Token Usage Dashboard…",
                                   command=_open_usage_menu)
@@ -1794,6 +1803,14 @@ class DXN1Studio:
         try:
             from .xmlbench import open_xmlbench
             open_xmlbench(self.root, self.theme)
+        except Exception:  # noqa: BLE001 — menu stays alive
+            pass
+
+    def open_contrast(self):
+        """DS2: WCAG contrast auditor for every theme."""
+        try:
+            from .contrast import open_contrast
+            open_contrast(self.root, self.theme)
         except Exception:  # noqa: BLE001 — menu stays alive
             pass
 
@@ -2836,6 +2853,8 @@ class DXN1Studio:
                               "word/char/line"),
                     ("xml", "Markup Bench — pretty/minify/validate "
                             "XML + element stats"),
+                    ("contrast", "Contrast Auditor — WCAG grades + "
+                                 "fixes for every theme"),
                     ("scribe <n>", "set the words-per-session goal for "
                                    "the statusbar writing meter"),
                     ("explain", "hand the last error to the agent"),
@@ -3155,6 +3174,13 @@ class DXN1Studio:
             self.open_xmlbench()
             self.terminal.log("Markup Bench opened — paste XML, "
                               "pretty/minify it, live validation")
+            return
+        if low in ("contrast", "a11y", "wcag", "audit"):
+            # DS2: WCAG contrast auditor over all themes
+            self.open_contrast()
+            self.terminal.log("Contrast Auditor opened — 13 text "
+                              "pairs graded per theme, fixes "
+                              "suggested below AA")
             return
         if low == "lang" or low.startswith("lang "):
             # DS2: switch the UI language pack (i18n activation)
@@ -3902,6 +3928,14 @@ class DXN1Studio:
         try:
             cmds.append(("Markup Bench — pretty & inspect XML…",
                          "DS2", _open_xml_palette))
+        except Exception:  # pragma: no cover — palette stays alive
+            pass
+        # DS2: contrast auditor (defensive)
+        def _open_contrast_palette():
+            self.open_contrast()
+        try:
+            cmds.append(("Contrast Auditor — WCAG grades for themes…",
+                         "DS2", _open_contrast_palette))
         except Exception:  # pragma: no cover — palette stays alive
             pass
         # DS2: scribe goal (defensive)

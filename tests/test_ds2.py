@@ -2095,3 +2095,109 @@ def test_xmlbench_engine():
     win._validate()
     assert "XML" in win.status.cget("text")
     win.destroy(); root.destroy()
+
+
+def test_contrast_engine():
+    """DS2 contrast: WCAG grading, palette audit, fix suggestions."""
+    from dxn1_studio import contrast as c
+    from dxn1_studio.theme import PALETTES
+    # grade boundaries
+    assert c.grade(21.0) == "AAA" and c.grade(7.0) == "AAA"
+    assert c.grade(6.99) == "AA" and c.grade(4.5) == "AA"
+    assert c.grade(4.49) == "AA-L" and c.grade(3.0) == "AA-L"
+    assert c.grade(2.99) == "FAIL" and c.grade(0) == "FAIL"
+    assert c.grade(None) == "FAIL" and c.grade("junk") == "FAIL"
+    # ratio formatting trims trailing zeros
+    assert c.fmt_ratio(21.0) == "21:1" and c.fmt_ratio(4.53) == "4.53:1"
+    assert c.fmt_ratio("x") == "n/a"
+    # mode detection
+    assert c.mode_of(PALETTES["dark"]) == "dark"
+    assert c.mode_of(PALETTES["light"]) == "light"
+    assert c.mode_of({}) == "dark"  # sane default
+    # studio's Theme wrapper (non-dict) also works
+    try:
+        from dxn1_studio.config import DEFAULTS
+        from dxn1_studio.theme import from_config
+        assert c.mode_of(from_config(DEFAULTS)) in ("dark", "light")
+        assert len(c.audit_palette(from_config(DEFAULTS))) == 13
+    except Exception:  # noqa: BLE001 — headless CI guard
+        pass
+    # audit: 13 pairs on the builtin dark theme, all parse
+    rows = c.audit_palette(PALETTES["dark"])
+    assert len(rows) == 13
+    labels = [r["label"] for r in rows]
+    assert "body text / background" in labels
+    assert "selection text / highlight" in labels
+    body = [r for r in rows if r["label"] == "body text / background"][0]
+    assert body["fg"] == "#e6edf3" and body["bg"] == "#0d1117"
+    assert body["grade"] == "AAA" and body["ratio"] >= 7.0
+    assert all(r["grade"] in ("AAA", "AA", "AA-L", "FAIL")
+               for r in rows)
+    # every below-AA row either suggests a fix or honestly can't
+    for r in rows:
+        if r["ratio"] < 4.5:
+            assert r["suggestion"] == "—" or \
+                c.contrast_ratio(r["suggestion"], r["bg"]) >= 4.5
+    # light theme: body text also AAA
+    lrows = c.audit_palette(PALETTES["light"])
+    lbody = [r for r in lrows
+             if r["label"] == "body text / background"][0]
+    assert lbody["grade"] == "AAA"
+    # junk tolerance: empty / None / non-dict palettes never raise
+    for junk in ({}, None, "dark", 42):
+        jrows = c.audit_palette(junk)
+        assert len(jrows) == 13
+        assert all(r["grade"] == "FAIL" and r["suggestion"] == "—"
+                   for r in jrows)
+    # missing key -> honest n/a fg
+    partial = c.audit_palette({"bg": "#000000", "text": "#ffffff"})
+    assert len(partial) == 13
+    # suggest_fg: fixes a weak pair, respects passing pairs, honest None
+    assert c.suggest_fg("#4d5766", "#11161d", 4.5)  # gutter pair
+    assert c.suggest_fg("#ffffff", "#0d1117") is None  # already AAA
+    assert c.suggest_fg("#000", "#fff") is None
+    assert c.suggest_fg("junk", "#000000") is None
+    assert c.suggest_fg(None, None) is None
+    fix = c.suggest_fg("#8b949e", "#ffffff", 4.5)  # light muted
+    assert fix and c.contrast_ratio(fix, "#ffffff") >= 4.5
+    # audit_summary: counts add up, worst is a real label
+    s = c.audit_summary(rows)
+    assert s["total"] == 13
+    assert s["AAA"] + s["AA"] + s["AA-L"] + s["FAIL"] == 13
+    assert 0.0 <= s["pass_pct"] <= 100.0
+    assert s["worst"] in labels
+    assert c.audit_summary([])["total"] == 0
+    assert c.audit_summary(None)["worst"] is None
+    # theme inventory: builtins + gallery, all non-empty
+    themes = c.iter_auditable_themes()
+    assert len(themes) >= 14
+    assert themes[0][0] == "Built-in · Dark"
+    assert all(isinstance(p, dict) and p for _n, p in themes)
+    # report text: header + pair lines + summary footer
+    txt = c.report_text("Built-in · Dark", rows, s)
+    assert "CONTRAST AUDIT — Built-in · Dark" in txt
+    assert "body text / background" in txt
+    assert "pairs 13" in txt and "avg" in txt
+    assert len(c.report_text("x", [], c.audit_summary([]))) > 0
+    # window: opens, audits, switches theme, copies report
+    import tkinter as tk
+    try:
+        root = tk.Tk(); root.withdraw()
+    except tk.TclError:
+        return
+    theme = {"bg": "#16161e", "header": "#242432",
+             "editor_bg": "#1a1a24", "text": "#e8e8f0",
+             "text_muted": "#8a8a9a", "button": "#2a2a3a",
+             "button_hover": "#33334a", "success": "#3fb950"}
+    from dxn1_studio.contrast import open_contrast
+    win = open_contrast(root, theme)
+    assert win is not None and win.winfo_exists()
+    assert len(win.tree.get_children()) == 13
+    assert "pairs" in win.summary.cget("text")
+    win.var.set("Built-in · Light")
+    win._audit()
+    assert len(win.tree.get_children()) == 13
+    win._copy_report()
+    assert "copied" in win.status.cget("text")
+    win.refresh()
+    win.destroy(); root.destroy()
