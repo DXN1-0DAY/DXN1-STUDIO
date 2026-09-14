@@ -4,6 +4,30 @@ All notable changes to DXN1 STUDIO. Format based on
 [Keep a Changelog](https://keepachangelog.com/); versioning is
 `MAJOR.MINOR.PATCH` while in **beta**.
 
+## [2.6.0] — 2026-09-14 · beta · "know your places"
+
+### Added
+- **Hub workspace insights** (`workspace_stats.py`, Project Hub) — an
+  aggregate *at a glance* strip above your recent workspaces: total
+  workspaces, files, lines, disk size and the dominant languages
+  across everything the hub tracks, recomputed on every refresh.
+- **Branch chips on hub cards** — every recent workspace shows its
+  current git branch (`⎇ main`) right on the card, best-effort with a
+  4-second timeout so a locked repo can never stall the hub.
+- **Hub right-click menu** — right-click any recent workspace for
+  *Open*, *Reveal in file manager*, *Open terminal here* (falls back
+  through x-terminal-emulator → gnome-terminal → konsole → xfce4 →
+  xterm), *Copy path*, and *Snapshot now* — a one-click zip backup via
+  the snapshot engine. Actions confirm themselves in a small flash
+  message in the hub's bottom bar.
+- **Encoding + line-endings chip** (`app.py`) — the statusbar now
+  shows `UTF-8 · LF` (or `UTF-8 BOM`, `UTF-16`, `non-UTF8`, `CRLF`,
+  `CR`) for the file you are editing. Encoding is sniffed once per
+  open; line endings update live as you type.
+- **Engine tests** — the consolidated suite grew to 26 cases covering
+  insight aggregation, language-mix normalization, branch detection
+  and the encoding sniffer.
+
 ## [2.5.0] — 2026-09-14 · beta · "the studio remembers"
 
 ### Added
