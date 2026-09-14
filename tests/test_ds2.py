@@ -6486,3 +6486,191 @@ def test_lang_diff(tmp_path):
         except tk.TclError:
             pass
         monkeypatch.undo()
+
+
+def test_pack_files(tmp_path):
+    """DS2 v2.57 — packs travel light: the desk exports its working
+    copy as a JSON file shaped exactly like a user pack (what the
+    desk exports the desk imports, and set_language would layer it
+    over built-ins untouched), import overlays such a file onto the
+    working copy — desk exports, user packs and export_template
+    files alike, junk skipped and counted, empty values dropping
+    keys back to English, nothing written to the pack until Save;
+    `lang audit` prints every number (real_pct rides along, skipped
+    for en and unreadable packs); the preview grows a buttons
+    slice."""
+    import tkinter as tk
+    try:
+        root = tk.Tk(); root.withdraw()
+    except tk.TclError:
+        return
+    import json
+    import os
+    import pytest
+    import dxn1_studio.config as cfgmod
+    from dxn1_studio import i18n as i18nmod
+    from dxn1_studio import langedit as le
+
+    # --- data layer: export is a user pack's shape
+    dest = str(tmp_path / "pack.json")
+    work = {"menu.file": "MiArchivo", "menu.edit": "   ",
+            7: "x", "k": 3}
+    assert le.export_pack("esx", dest, work=work) == 1
+    with open(dest, encoding="utf-8") as fh:
+        assert json.load(fh) == {"menu.file": "MiArchivo"}
+    # without work it exports the pack's own strings
+    dest2 = str(tmp_path / "own.json")
+    n = le.export_pack("es", dest2)
+    with open(dest2, encoding="utf-8") as fh:
+        own = json.load(fh)
+    assert n == len(own) and own.get("menu.file") == "Archivo"
+    assert set(own) <= set(i18nmod.EN)      # built-ins only speak EN keys
+    # a template file (EN-filled) imports too
+    tmpl = str(tmp_path / "tmpl.json")
+    i18nmod.export_template(tmpl, "en")
+    target = {}
+    applied, skipped = le.merge_pack_file(tmpl, target)
+    assert applied == len(i18nmod.EN) and skipped == 0
+    assert target["menu.file"] == i18nmod.EN["menu.file"]
+    # merge: replace + drop (empty) + skip (junk), in place
+    target = {"menu.file": "OLD", "menu.view": "Ver"}
+    bad = str(tmp_path / "bad.json")
+    with open(bad, "w", encoding="utf-8") as fh:
+        json.dump({"menu.file": "Nuevo", "menu.view": "",
+                   "junk": 5, 3: "no"}, fh)
+    applied, skipped = le.merge_pack_file(bad, target)
+    # JSON object keys are always strings — 3 became "3" and applies;
+    # only the non-string VALUE is junk
+    assert applied == 3 and skipped == 1
+    assert target["menu.file"] == "Nuevo" and "menu.view" not in target
+    # unreadable or non-dict files answer (-1, 0) — honest, no guess
+    assert le.merge_pack_file(str(tmp_path / "nope.json"),
+                              target) == (-1, 0)
+    arr = str(tmp_path / "arr.json")
+    with open(arr, "w", encoding="utf-8") as fh:
+        fh.write("[1,2]")
+    assert le.merge_pack_file(arr, target) == (-1, 0)
+
+    # --- through the real app: dialogs, audit, preview
+    monkeypatch = pytest.MonkeyPatch()
+    monkeypatch.setattr(cfgmod, "CONFIG_DIR", str(tmp_path / "cfg"))
+    monkeypatch.setattr(cfgmod, "CONFIG_PATH",
+                        str(tmp_path / "cfg" / "config.json"))
+    monkeypatch.setenv("HOME", str(tmp_path / "home"))
+    real_lang = tmp_path / "homelang"
+    monkeypatch.setattr(i18nmod, "LANG_DIR", str(real_lang))
+    from dxn1_studio.app import DXN1Studio
+    from tkinter import filedialog
+    app = DXN1Studio(cfgmod.Config(), smoke_test=True, no_splash=True)
+    try:
+        app.root.update()
+        # the audit prints every number
+        logs = []
+        app.terminal.log = lambda m, *a, **k: logs.append(str(m))
+        app.handle_terminal_command("lang audit")
+        blob = "\n".join(logs)
+        assert "% real" in blob and "coverage can flatter" in blob
+        es_line = [m for m in logs if m.strip().startswith("es ")][0]
+        assert "100% real" in es_line, es_line
+        en_line = [m for m in logs if m.strip().startswith("en ")][0]
+        assert "% real" not in en_line, en_line   # en is the source
+        # a seeded user pack: 100% covered, 0% real — in one line
+        le.save_user_pack("seedpack", dict(i18nmod.EN))
+        logs.clear()
+        app.handle_terminal_command("lang audit")
+        sp_line = [m for m in logs if m.strip().startswith(
+            "seedpack ")][0]
+        assert "100%" in sp_line and "0% real" in sp_line, sp_line
+        logs.clear()
+
+        # the desk: export → file truth; import → working copy
+        app.handle_terminal_command("lang edit es")
+        app.root.update()
+        desk = [w for w in app.root.winfo_children()
+                if isinstance(w, le.PackEditor)][0]
+        fdest = str(tmp_path / "exported.json")
+        monkeypatch.setattr(filedialog, "asksaveasfilename",
+                            lambda **k: fdest)
+        monkeypatch.setattr(filedialog, "askopenfilename",
+                            lambda **k: fdest)
+        assert desk._export_pack() is True
+        with open(fdest, encoding="utf-8") as fh:
+            assert json.load(fh).get("menu.file") == "Archivo"
+        # import overlays the working copy; junk skipped; Save fires
+        desk.work["menu.file"] = "WILL-BE-REPLACED"
+        with open(fdest, "w", encoding="utf-8") as fh:
+            json.dump({"menu.file": "ReImportado", "junk": 5}, fh)
+        assert desk._import_pack() is True
+        assert desk.work["menu.file"] == "ReImportado"
+        assert "junk" not in desk.work
+        # the empty-value rule: import can drop a key back to English
+        with open(fdest, "w", encoding="utf-8") as fh:
+            json.dump({"menu.file": ""}, fh)
+        assert desk._import_pack() is True
+        assert "menu.file" not in desk.work
+        # an unreadable import says so, changes nothing
+        monkeypatch.setattr(filedialog, "askopenfilename",
+                            lambda **k: arr)
+        assert desk._import_pack() is False
+        # cancelled dialogs change nothing at all
+        monkeypatch.setattr(filedialog, "askopenfilename",
+                            lambda **k: "")
+        monkeypatch.setattr(filedialog, "asksaveasfilename",
+                            lambda **k: "")
+        assert desk._import_pack() is False
+        assert desk._export_pack() is False
+        # the export lands a live user pack when saved after import
+        with open(fdest, "w", encoding="utf-8") as fh:
+            json.dump({"menu.file": "DeArchivo"}, fh)
+        monkeypatch.setattr(filedialog, "askopenfilename",
+                            lambda **k: fdest)
+        desk._import_pack()
+        i18nmod.set_language("es")
+        assert desk._save() is True
+        assert i18nmod.tr("menu.file") == "DeArchivo"
+        i18nmod.set_language("en")
+        desk._close()
+        app.root.update()
+
+        # the preview's buttons slice
+        app.handle_terminal_command("lang edit tlh")
+        app.root.update()
+        desk2 = [w for w in app.root.winfo_children()
+                 if isinstance(w, le.PackEditor)
+                 and w.code == "tlh"][0]
+        pv = desk2._open_preview()
+        app.root.update()
+        assert len(pv.SLICES) == 6
+        caps = [w.cget("text") for w in pv.body.winfo_children()
+                if isinstance(w, tk.Label)]
+        assert "BUTTONS" in caps, caps
+        texts = {w.cget("text") for strip in
+                 pv.body.winfo_children()
+                 for w in strip.winfo_children()
+                 if isinstance(w, tk.Label)}
+        assert i18nmod.EN["common.export"] in texts
+        assert i18nmod.EN["common.copy"] in texts
+        desk2._close()
+
+        # source agreement
+        base = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+        with open(os.path.join(base, "dxn1_studio", "langedit.py"),
+                  encoding="utf-8") as fh:
+            lesrc = fh.read()
+        assert "def export_pack" in lesrc and "def merge_pack_file" in lesrc
+        assert "_export_pack" in lesrc and "_import_pack" in lesrc
+        assert '"buttons"' in lesrc
+        with open(os.path.join(base, "dxn1_studio", "app.py"),
+                  encoding="utf-8") as fh:
+            src = fh.read()
+        assert "coverage can flatter" in src and "%d%% real" in src
+    finally:
+        try:
+            app.root.destroy()
+        except tk.TclError:
+            pass
+        try:
+            root.destroy()
+        except tk.TclError:
+            pass
+        monkeypatch.undo()

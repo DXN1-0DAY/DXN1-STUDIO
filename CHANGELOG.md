@@ -4,6 +4,31 @@ All notable changes to DXN1 STUDIO. Format based on
 [Keep a Changelog](https://keepachangelog.com/); versioning is
 `MAJOR.MINOR.PATCH` while in **beta**.
 
+## [2.57.0] — 2026-09-15 · beta · "packs travel light" (export/import pack files + the audit prints every number)
+
+### Added
+- **Export pack** — the desk's working copy leaves as a JSON file
+  shaped exactly like a user pack (desk button or Ctrl+E): what the
+  desk exports the desk imports, and `set_language` would layer it
+  over built-ins untouched. Sharing a pack is copying one file.
+- **Import pack** — overlay a pack file onto the working copy in
+  place (desk button or Ctrl+I): the desk's own exports, user
+  packs, and `export_template` files alike. Valid pairs replace,
+  empty values drop the key back to English, junk is skipped and
+  counted, and nothing reaches the pack file until Save. Unreadable
+  files answer `(-1, 0)` — reported honestly, never guessed.
+- **The audit prints every number** — `lang audit` lines now carry
+  the honest ledger's `real_pct` (`· N% real`), skipped for `en`
+  and unreadable packs, with an explanation that names the flattery
+  coverage is prone to; a seeded pack shows `100% — 0 missing,
+  0 stale · 0% real` in one line.
+
+### Changed
+- **The preview's anatomy grew a buttons slice** — the common
+  dialog buttons (Cancel · Copy · Export… · Import… · Refresh ·
+  Close) render in the pack beside title bar, menu bar, toolbar,
+  sidebar and find bar.
+
 ## [2.56.0] — 2026-09-15 · beta · "the desk grows eyes and tells no lies" (the honest ledger + a live preview of the studio in your pack)
 
 ### Added

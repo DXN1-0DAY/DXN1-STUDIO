@@ -180,8 +180,8 @@ check("preview: the studio speaks the pack's strings",
       and i18nmod.EN["app.tagline"] not in _texts)
 _spoken = [w for w in _labels if w.cget("fg") == _pv.theme.accent]
 check("preview: what the pack speaks wears the accent", bool(_spoken))
-check("preview: five anatomy slices render",
-      len(_pv.SLICES) == 5 and len(_labels)
+check("preview: six anatomy slices render",
+      len(_pv.SLICES) == 6 and len(_labels)
       == sum(len(k) for _c, k in _pv.SLICES))
 
 # the fallback path: a fresh desk shows English, all muted

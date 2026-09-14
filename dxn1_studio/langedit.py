@@ -17,6 +17,14 @@ strings that still read English byte-for-byte, and ``pack_diff`` /
 seeds — because a coverage meter can flatter a pack that was seeded
 and never edited.
 
+v2.57 made packs travel light: **Export** writes the working copy
+as a JSON file shaped exactly like a user pack (what the desk
+exports the desk imports, and ``set_language`` would layer it over
+built-ins untouched), **Import** overlays such a file onto the
+working copy — the desk's own exports, user packs and
+``export_template`` files alike, with junk skipped and counted and
+nothing written to the pack until Save.
+
 The model is the audit's (v2.54), restated as editing:
 
 - **translated** — the pack carries its own string for the key;
@@ -146,6 +154,57 @@ def pack_counts(code):
             "unsafe": unsafe, "untouched": untouched}
 
 
+def export_pack(code, dest, work=None):
+    """DS2 v2.57 — write a pack as a shareable JSON file: the desk's
+    working copy when ``work`` is given, the pack's own strings
+    otherwise. The shape is exactly a user pack's — ``{key: value}``
+    — so what the desk exports the desk imports, and
+    ``i18n.set_language`` would layer it over built-ins untouched.
+    Empty/whitespace values and non-string pairs are dropped (the
+    same rule ``save_user_pack`` applies). Returns the number of
+    strings written; OSError reaches the caller, which reports it
+    honestly."""
+    data = own_translations(code) if work is None else dict(work)
+    clean = {str(k): str(v) for k, v in data.items()
+             if isinstance(k, str) and isinstance(v, str)
+             and v.strip()}
+    with open(dest, "w", encoding="utf-8") as fh:
+        json.dump(clean, fh, ensure_ascii=False, indent=2,
+                  sort_keys=True)
+        fh.write("\n")
+    return len(clean)
+
+
+def merge_pack_file(path, work):
+    """DS2 v2.57 — overlay a pack file onto a working copy dict IN
+    PLACE: valid str→str pairs replace, empty/whitespace values drop
+    the key (back to English — the desk's own rule, so a pack round-
+    trips through disk without changing its mind), everything else
+    is skipped and counted. Accepts the desk's own exports, user
+    packs, and ``i18n.export_template`` files alike. Returns
+    ``(applied, skipped)``; a file that cannot be read or parsed
+    answers ``(-1, 0)`` so the caller reports it honestly instead of
+    guessing. Never raises on content."""
+    try:
+        with open(path, "r", encoding="utf-8") as fh:
+            data = json.load(fh)
+    except (OSError, ValueError, TypeError):
+        return -1, 0
+    if not isinstance(data, dict):
+        return -1, 0
+    applied = skipped = 0
+    for key, val in data.items():
+        if not isinstance(key, str) or not isinstance(val, str):
+            skipped += 1
+            continue
+        if val.strip():
+            work[key] = val
+        else:
+            work.pop(key, None)
+        applied += 1
+    return applied, skipped
+
+
 def pack_diff(code):
     """DS2 v2.56 — the honest ledger: how a pack REALLY differs from
     the English source. The coverage meter can flatter: a pack
@@ -217,13 +276,17 @@ class PackEditor(tk.Toplevel):
         self.bind("<Escape>", lambda e: self._close())
         self.bind("<Control-s>", lambda e: self._save())
         self.bind("<Control-p>", lambda e: self._open_preview())
+        self.bind("<Control-e>", lambda e: self._export_pack())
+        self.bind("<Control-i>", lambda e: self._import_pack())
         self.bind("<Destroy>", self._on_destroy, add="+")
         try:
             from . import hints
             self._hintbar = hints.hint_bar(
                 self, t,
                 pairs=(("Ctrl+S", "save pack"),
-                       ("Ctrl+P", "preview this pack"),),
+                       ("Ctrl+P", "preview this pack"),
+                       ("Ctrl+E", "export pack file"),
+                       ("Ctrl+I", "import a pack file"),),
                 notes=("click a key, type, Ctrl+S writes the pack",
                        "Ctrl+P shows the studio in what you typed",))
         except Exception:  # noqa: BLE001 — garnish
@@ -351,6 +414,18 @@ class PackEditor(tk.Toplevel):
         prev.pack(side=tk.LEFT, padx=(8, 0))
         prev.bind("<Button-1>", lambda e: self._open_preview())
         self.preview_btn = prev
+        expo = tk.Label(btns, text="Export pack",
+                        bg=t["card"], fg=t["text"], cursor="hand2",
+                        font=(FONT_UI, 9), padx=10, pady=4)
+        expo.pack(side=tk.LEFT, padx=(8, 0))
+        expo.bind("<Button-1>", lambda e: self._export_pack())
+        self.export_btn = expo
+        impo = tk.Label(btns, text="Import pack",
+                        bg=t["card"], fg=t["text"], cursor="hand2",
+                        font=(FONT_UI, 9), padx=10, pady=4)
+        impo.pack(side=tk.LEFT, padx=(8, 0))
+        impo.bind("<Button-1>", lambda e: self._import_pack())
+        self.import_btn = impo
         self.save_btn = tk.Label(btns, text="Save pack", bg=t.accent,
                                  fg="#ffffff", cursor="hand2",
                                  font=(FONT_UI, 9, "bold"),
@@ -659,6 +734,76 @@ class PackEditor(tk.Toplevel):
         except Exception:  # noqa: BLE001 — garnish must not bite
             pass
 
+    def _export_pack(self, _event=None):
+        """v2.57 — write the working copy to a JSON file shaped
+        exactly like a user pack: what the desk exports the desk
+        imports, and ``set_language`` would layer it over built-ins
+        untouched. Ctrl+E. Cancelled dialogs change nothing."""
+        try:
+            from tkinter import filedialog
+            path = filedialog.asksaveasfilename(
+                parent=self, title="Export pack as JSON",
+                defaultextension=".json",
+                initialfile="%s.json" % self.code,
+                filetypes=[("Language packs", "*.json"),
+                           ("All files", "*.*")])
+            if not path:
+                return False
+            count = export_pack(self.code, path, work=self.work)
+            try:
+                self.status.config(text="exported %d" % count)
+            except Exception:  # noqa: BLE001
+                pass
+            self._log("exported %d strings to %s — a file the desk "
+                      "imports again and set_language would layer "
+                      "over built-ins" % (count, path))
+            return True
+        except Exception as exc:  # noqa: BLE001 — report, don't raise
+            self._log("export failed: %s" % exc)
+            return False
+
+    def _import_pack(self, _event=None):
+        """v2.57 — overlay a pack file onto the working copy: the
+        desk's own exports, user packs, export_template files alike.
+        Valid pairs replace, empty values drop the key back to
+        English, junk is skipped and counted; nothing reaches the
+        pack file until Save. Ctrl+I."""
+        try:
+            from tkinter import filedialog
+            path = filedialog.askopenfilename(
+                parent=self, title="Import a pack file",
+                filetypes=[("Language packs", "*.json"),
+                           ("All files", "*.*")])
+            if not path:
+                return False
+            applied, skipped = merge_pack_file(path, self.work)
+            if applied < 0:
+                try:
+                    self.status.config(text="import failed")
+                except Exception:  # noqa: BLE001
+                    pass
+                self._log("import failed: %s is not a pack file "
+                          "the desk can read" % path)
+                return False
+            self._refresh()
+            try:
+                self.status.config(
+                    text="imported %d%s" % (applied,
+                                            " (%d skipped)" % skipped
+                                            if skipped else ""))
+            except Exception:  # noqa: BLE001
+                pass
+            self._log("imported %d string%s%s from %s — the working "
+                      "copy changed, the pack file did not (Ctrl+S "
+                      "writes it)"
+                      % (applied, "" if applied == 1 else "s",
+                         ", %d skipped" % skipped if skipped else "",
+                         path))
+            return True
+        except Exception as exc:  # noqa: BLE001 — report, don't raise
+            self._log("import failed: %s" % exc)
+            return False
+
     def _on_destroy(self, _event=None):
         # closing the desk closes its preview — no orphaned eyes
         try:
@@ -690,6 +835,9 @@ class PackPreview(tk.Toplevel):
         ("sidebar", ("panel.explorer", "panel.search",
                      "panel.git", "panel.packages")),
         ("find bar", ("menu.find", "menu.replace")),
+        ("buttons", ("common.cancel", "common.copy",
+                     "common.export", "common.import",
+                     "common.refresh", "common.close")),
     )
 
     def __init__(self, desk):

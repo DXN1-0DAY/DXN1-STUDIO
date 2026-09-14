@@ -3742,6 +3742,14 @@ class DXN1Studio:
                 self.terminal.log(
                     "language packs: %d keys in the English source"
                     % (stats[0]["total"] if stats else 0))
+                # DS2 v2.57 — one audit, every number: the honest
+                # ledger's real_pct rides along (skipped for en, the
+                # source that does not differ from itself, and for
+                # packs that could not be read at all)
+                try:
+                    from . import langedit as _le
+                except Exception:  # noqa: BLE001 — audit degrades
+                    _le = None
                 for s in stats:
                     line = ("  %s  %s  [%s]  %d%% — %d missing, "
                             "%d stale"
@@ -3750,14 +3758,26 @@ class DXN1Studio:
                                s["pct"], s["missing"], s["stale"]))
                     if s["error"]:
                         line += " · unreadable (%s)" % s["error"]
-                    elif not s["index_safe"]:
-                        line += " · NOT highlight-safe (%s)"
-                        line = line % ", ".join(s["risk_keys"][:3])
+                    else:
+                        if _le is not None and s["code"] != "en":
+                            try:
+                                line += (" · %d%% real"
+                                         % _le.pack_diff(
+                                             s["code"])["real_pct"])
+                            except Exception:  # noqa: BLE001
+                                pass
+                        if not s["index_safe"]:
+                            line += " · NOT highlight-safe (%s)"
+                            line = line % ", ".join(s["risk_keys"][:3])
                     self.terminal.log(line)
                 self.terminal.log(
                     "highlight-safe = every string keeps its length "
                     "under .lower(), so fuzzy-match positions stay "
                     "on the characters they matched")
+                self.terminal.log(
+                    "real = strings that differ from the English "
+                    "source — coverage can flatter a seeded pack "
+                    "(lang diff <code> names the seeds)")
                 return
             codes = _i18n.available()
             if not arg:
