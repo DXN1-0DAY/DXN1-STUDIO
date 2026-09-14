@@ -117,6 +117,7 @@ TERMINAL_HELP = (
               "every command"),
     ("cvd", "Colorblind Lab — preview themes under color "
             "blindness"),
+    ("session save", "snapshot tabs + cursor spots right now"),
     ("session", "list saved workspace sessions and restore one"),
     ("scribe <n>", "set the words-per-session goal for "
                    "the statusbar writing meter"),
@@ -667,6 +668,14 @@ class DXN1Studio:
                                       font=(FONT_UI, 9), cursor="hand2")
         self.status_scribe.pack(side=tk.RIGHT, padx=(0, 12))
         self.status_scribe.bind("<Button-1>", self._scribe_click)
+        # DS2 v2.33: session autosave chip — quiet last-saved hint;
+        # click it to snapshot right now
+        self.status_sesave = tk.Label(right, text="", bg=t["statusbar"],
+                                      fg=t["text_muted"],
+                                      font=(FONT_UI, 9), cursor="hand2")
+        self.status_sesave.pack(side=tk.RIGHT, padx=(0, 12))
+        self.status_sesave.bind("<Button-1>",
+                                lambda _e: self.save_session_now())
 
         # toast layer (placed above the status bar, right aligned)
         self.toast_layer = tk.Frame(self.root, bg=t["bg"])
@@ -3351,6 +3360,10 @@ class DXN1Studio:
                               "protanopia, tritanopia, achromatopsia "
                               "previews with contrast verdicts")
             return
+        if low in ("session save", "save session", "ssave"):
+            # DS2 v2.33: snapshot the session on demand
+            self.save_session_now()
+            return
         if low in ("session", "sessions", "resume"):
             # DS2: session restore — manager window over saved sessions
             try:
@@ -4142,6 +4155,14 @@ class DXN1Studio:
                          "off…", "DS2", _open_session_palette))
         except Exception:  # pragma: no cover — palette stays alive
             pass
+        # DS2 v2.33: save session now (defensive)
+        def _save_session_palette():
+            self.save_session_now()
+        try:
+            cmds.append(("Save Session Now — snapshot tabs + "
+                         "cursors…", "DS2", _save_session_palette))
+        except Exception:  # pragma: no cover — palette stays alive
+            pass
         # DS2: scribe goal (defensive)
         def _scribe_goal_palette():
             self._scribe_click()
@@ -4755,6 +4776,7 @@ class DXN1Studio:
                     self.config.get("restore_session", True) and \
                     self.project_dir:
                 self._save_session_snapshot()
+                self._session_chip_feedback()
         except Exception:
             errors.log_exception("session autosave", quiet=True)
         try:
@@ -4806,6 +4828,59 @@ class DXN1Studio:
                 pass
         except Exception:
             errors.log_exception("engine session restore", quiet=True)
+
+    # ------------------------------------------------ DS2 v2.33: save now
+    def save_session_now(self):
+        """DS2 v2.33: snapshot the session immediately on demand.
+
+        Same file and data as the close hook and the periodic
+        autosave — but user-invoked (palette, terminal ``session
+        save``, or a click on the statusbar chip), with visible
+        feedback. Never raises."""
+        try:
+            if not self.project_dir:
+                try:
+                    self.toast("No workspace open — nothing to "
+                               "snapshot", kind="info")
+                except Exception:
+                    pass
+                return
+            self._save_session_snapshot()
+            self._session_chip_feedback()
+            try:
+                self.terminal.log("Session snapshot saved — tabs and "
+                                  "cursor spots are on disk")
+            except Exception:
+                pass
+        except Exception:
+            errors.log_exception("save session now", quiet=True)
+
+    def _session_chip_feedback(self):
+        """DS2 v2.33: paint the statusbar 'session saved' chip.
+
+        Accent for a moment, then fades back to muted — quiet polish
+        that tells you the autosave is alive without ever shouting."""
+        try:
+            import time as _time
+            self.status_sesave.config(
+                text="◐ session saved " + _time.strftime("%H:%M"),
+                fg=self.theme.accent)
+            if getattr(self, "_sesave_job", None):
+                try:
+                    self.root.after_cancel(self._sesave_job)
+                except Exception:
+                    pass
+            self._sesave_job = self.root.after(
+                2500, self._session_chip_muted)
+        except Exception:  # noqa: BLE001 — chip is optional polish
+            pass
+
+    def _session_chip_muted(self):
+        """DS2 v2.33: fade the session chip back to muted ink."""
+        try:
+            self.status_sesave.config(fg=self.theme["text_muted"])
+        except Exception:  # noqa: BLE001 — dying root is fine
+            pass
 
     # ------------------------------------------------------------------ run
     def _on_close(self):

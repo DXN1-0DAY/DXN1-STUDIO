@@ -4,6 +4,25 @@ All notable changes to DXN1 STUDIO. Format based on
 [Keep a Changelog](https://keepachangelog.com/); versioning is
 `MAJOR.MINOR.PATCH` while in **beta**.
 
+## [2.33.0] — 2026-09-14 · beta · "the session you can see" (save now + chip)
+
+### Added
+- **Save Session Now** — snapshot on demand from three places: the
+  command palette (*Save Session Now — snapshot tabs + cursors…*),
+  the terminal (`session save`, `save session` or `ssave`), and a
+  click on the new statusbar chip. Uses the exact same file and data
+  shape as the close hook and the 60 s autosave — one snapshot, three
+  ways to reach it.
+- **Session statusbar chip** — a quiet `◐ session saved HH:MM` chip
+  on the right of the status bar. It glows in the accent colour right
+  after any snapshot (autosave included) for 2.5 s, then fades back
+  to muted ink. Click it to snapshot right now. With no workspace
+  open, save-now degrades to an honest toast instead of an error.
+
+### Changed
+- `TERMINAL_HELP` documents the new verb; the palette command joins
+  the fuzzy index, so `save ssion` already finds it.
+
 ## [2.32.0] — 2026-09-14 · beta · "even a crash comes back" (session autosave)
 
 ### Added

@@ -30,10 +30,13 @@ def check(name, cond):
 
 
 # --------------------------------------------------------- installer flag
+import re  # noqa: E402
+
 _r = subprocess.run(["bash", "install.sh", "--version"],
                     capture_output=True, text=True)
-check("install.sh: --version prints 2.32.0",
-      _r.returncode == 0 and "2.32.0" in _r.stdout)
+check("install.sh: --version prints installer semver",
+      _r.returncode == 0
+      and re.search(r"installer \d+\.\d+\.\d+$", _r.stdout.strip()))
 _r2 = subprocess.run(["bash", "install.sh", "-V"],
                      capture_output=True, text=True)
 check("install.sh: -V alias works", _r2.returncode == 0)

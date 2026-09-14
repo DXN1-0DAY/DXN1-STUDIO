@@ -2785,3 +2785,60 @@ def test_restore_engine_session(monkeypatch, tmp_path):
             root.destroy()
         except tk.TclError:
             pass
+
+
+def test_save_session_now(monkeypatch, tmp_path):
+    """DS2 v2.33 — save session now: writes the snapshot, paints the
+    statusbar chip (accent now, muted fade scheduled), and the
+    terminal verb `session save` reaches the same path; without a
+    workspace it degrades to an honest no-op."""
+    import tkinter as tk
+    try:
+        root = tk.Tk(); root.withdraw()
+    except tk.TclError:
+        return
+    import dxn1_studio.config as cfgmod
+    monkeypatch.setattr(cfgmod, "CONFIG_DIR", str(tmp_path))
+    monkeypatch.setattr(cfgmod, "CONFIG_PATH",
+                        str(tmp_path / "config.json"))
+    monkeypatch.setenv("HOME", str(tmp_path))
+    from dxn1_studio.app import DXN1Studio
+    app = DXN1Studio(cfgmod.Config(), smoke_test=True, no_splash=True)
+    try:
+        from dxn1_studio import session as sess
+        # no workspace → no toast crash, no file, no raise
+        app.project_dir = ""
+        app.save_session_now()
+
+        proj = tmp_path / "proj"
+        proj.mkdir(exist_ok=True)
+        f1 = proj / "alpha.py"
+        f1.write_text("def gmm(x):\n    return x\n" + "".join(
+            f"line {i}\n" for i in range(3, 13)), encoding="utf-8")
+        app.project_dir = str(proj)
+        app.open_file(str(f1))
+        root.update()
+        app.editor.text.mark_set("insert", "7.3")
+
+        app.save_session_now()
+        data = sess.load(str(proj))
+        assert data.get("active") == str(f1)
+        assert (data.get("cursor") or {}).get(
+            str(f1), {}).get("line") == 7
+        chip = str(app.status_sesave.cget("text"))
+        assert "session saved" in chip and ":" in chip, chip
+        assert str(app.status_sesave.cget("fg")) == str(
+            app.theme.accent), "chip glows accent right after the save"
+        assert getattr(app, "_sesave_job", None), \
+            "muted fade must be scheduled"
+
+        # terminal verb dispatch reaches the same code path
+        app.handle_terminal_command("session save")
+        assert "session saved" in str(app.status_sesave.cget("text"))
+        # chip is clickable — the binding is wired
+        assert app.status_sesave.bind("<Button-1>")
+    finally:
+        try:
+            root.destroy()
+        except tk.TclError:
+            pass
