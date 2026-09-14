@@ -2228,6 +2228,18 @@ class DXN1Studio:
                              lambda c=_c: self._run_plugin_command(c)))
         except Exception:  # pragma: no cover — palette stays alive
             pass
+        # ---- DS2 tasks: task runner (defensive)
+        try:
+            from .term import open_runner as _open_runner
+            cmds.append(
+                ("Task runner — run project tasks", "",
+                 lambda: _open_runner(
+                     self.root, self.theme, self.config,
+                     workspace=self.project_dir, kind=self.project_kind,
+                     on_log=lambda m: self.terminal.log(m))),
+            )
+        except Exception:  # pragma: no cover — palette stays alive
+            pass
         if self.config.get("agents_enabled"):
             cmds += [
                 ("Toggle DXN1 Agents panel", "", self.toggle_agents_panel),
