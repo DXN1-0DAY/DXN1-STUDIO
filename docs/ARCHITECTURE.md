@@ -12,7 +12,7 @@ dxn1_studio/
 └── … 60+ feature modules, one lane each, described below
 ```
 
-## Design rules (what keeps 67 modules coherent)
+## Design rules (what keeps 72 modules coherent)
 
 1. **One module = one lane.** Every feature lives in its own file
    with a public `open_*(parent, theme, …)` opener, so parallel
@@ -65,9 +65,11 @@ geometry memory).
 `devtools` (regex/JSON/text/time), `sqlitelab` (SQLite browser),
 `hasher` (checksums/manifests), `restbench` (HTTP workbench),
 `colorkit` (hex/rgb/hsl + WCAG contrast + ramps), `markprev`
-(live markdown preview), `jwt`, `cronexp`, `envcheck`, `gen`
-(test data), `readability`, `usagedash`, `packages`, `doctor`
-(environment audit).
+(live markdown preview), `charts` (paste-numbers chart studio),
+`unitconv` (unit converter), `charmap` (Unicode browser),
+`textcase` (identifier case converter), `jwt`, `cronexp`,
+`envcheck`, `gen` (test data), `readability`, `usagedash`,
+`packages`, `doctor` (environment audit).
 
 ### AI surface
 `agent` (DXN1 Agents 2.0 panel), `llm` (pluggable backends),
@@ -76,7 +78,7 @@ geometry memory).
 (agent tool loop with permissions), `quick_actions`.
 
 ### Platform
-`i18n` (translation catalogs), `plugins` (Plugin API v1 + registry),
+`i18n` (eight language packs, `lang` switcher, tr() live in splash/hub/git/newest windows), `plugins` (Plugin API v1 + registry),
 `sync` (settings sync), `term` (task runner), `updater`
 (update portal), `community_themes` (theme gallery).
 
@@ -84,9 +86,9 @@ geometry memory).
 
 | Harness | What it proves |
 |---|---|
-| `python3 -m pytest tests/` | ~50 unit groups over every pure engine |
-| `scripts/smoke_v290.py` (Xvfb) | 66 live-window checks across ten feature windows |
-| `scripts/boot_qa.py` (Xvfb) | Boots the real studio: menus bound, palette entries live, modules import, scribe chip wired |
+| `python3 -m pytest tests/` | 53 unit groups over every pure engine |
+| `scripts/smoke_v290.py` (Xvfb) | 88 live-window checks across 14 feature windows |
+| `scripts/boot_qa.py` (Xvfb) | 20 checks booting the real studio: menus bound, palette entries live, modules import, scribe chip wired |
 | `python3 -m compileall -q dxn1_studio` | The tree always compiles — the gate before every tag |
 
 ## Release protocol
