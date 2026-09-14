@@ -68,6 +68,10 @@ SHEETS = [
                         "table, next five runs (`cron 0 9 * * 1-5`)"),
         ("readability", "Flesch / Kincaid / Fog report for the current "
                         "file: long sentences + word pressure"),
+        ("jwt <token>", "Decode a JWT — header, payload, humanized "
+                        "expiry (decode only, never verified)"),
+        ("env", "Lint the workspace .env — duplicates, quoting, secret "
+                "smells — and copy a masked version"),
     ]),
     ("TERMINAL TALK", [
         ("help", "List every studio command"),

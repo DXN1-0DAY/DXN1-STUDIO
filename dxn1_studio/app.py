@@ -2311,6 +2311,8 @@ class DXN1Studio:
                     ("tools", "developer tools: regex, JSON, text, time"),
                     ("cron <expr>", "decode a cron schedule + next runs"),
                     ("readability", "reading level of the current file"),
+                    ("jwt <token>", "decode a JWT — header, payload, exp"),
+                    ("env", "lint the workspace .env + masked copy"),
                     ("explain", "hand the last error to the agent"),
                     ("git <args>", "run git in the workspace (status, add,"),
                     ("", "commit, log… output streams below"),
@@ -2407,6 +2409,31 @@ class DXN1Studio:
                 self.terminal.log("Readability report opened")
             except Exception as exc:  # noqa: BLE001 — terminal stays alive
                 self.terminal.log(f"readability failed: {exc}")
+            return
+        if low == "jwt" or low.startswith("jwt "):
+            # DS2: decode a JWT from the terminal (or selection)
+            try:
+                from .jwt import open_jwt
+                arg = text[3:].strip() if len(text) > 3 else ""
+                if not arg:
+                    arg = self.editor.text.get("sel.first", "sel.last") \
+                        .strip()
+                open_jwt(self.root, self.theme, initial=arg)
+                self.terminal.log("JWT decoder opened" +
+                                  (f" — {arg[:24]}…" if arg else ""))
+            except Exception as exc:  # noqa: BLE001 — terminal stays alive
+                self.terminal.log(f"jwt failed: {exc}")
+            return
+        if low in ("env", "envlint", "dotenv"):
+            # DS2: lint the workspace .env and produce a masked copy
+            try:
+                from .envcheck import open_envlint
+                win = open_envlint(self.root, self.theme)
+                win._load_file()
+                self.terminal.log(".env lint opened — loaded the "
+                                  "workspace .env if present")
+            except Exception as exc:  # noqa: BLE001 — terminal stays alive
+                self.terminal.log(f"env failed: {exc}")
             return
         if low.startswith("goto "):
             num = text[5:].strip()
@@ -2876,6 +2903,26 @@ class DXN1Studio:
         try:
             cmds.append(("Readability report for this file…",
                          "DS2", _open_readability))
+        except Exception:  # pragma: no cover — palette stays alive
+            pass
+        # DS2: JWT decoder (defensive)
+        def _open_jwt():
+            from .jwt import open_jwt
+            open_jwt(self.root, self.theme,
+                     initial=self.editor.text.get("sel.first", "sel.last")
+                     .strip())
+        try:
+            cmds.append(("JWT decoder — inspect a token…",
+                         "DS2", _open_jwt))
+        except Exception:  # pragma: no cover — palette stays alive
+            pass
+        # DS2: .env lint & mask (defensive)
+        def _open_env():
+            from .envcheck import open_envlint
+            open_envlint(self.root, self.theme)
+        try:
+            cmds.append((".env lint & mask — keep secrets safe…",
+                         "DS2", _open_env))
         except Exception:  # pragma: no cover — palette stays alive
             pass
         return cmds

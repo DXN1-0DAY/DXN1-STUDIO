@@ -108,6 +108,63 @@ try:
     read.destroy()
     root.update()
 
+    # ---------------------------------------------------------------- jwt
+    import base64 as _b64
+    import json as _json
+    import time as _time
+
+    def mk_jwt(payload):
+        h = _b64.urlsafe_b64encode(_json.dumps(
+            {"alg": "HS256", "typ": "JWT"}).encode()) \
+            .rstrip(b"=").decode()
+        p2 = _b64.urlsafe_b64encode(_json.dumps(payload).encode()) \
+            .rstrip(b"=").decode()
+        return f"{h}.{p2}.{'x' * 43}"
+
+    from dxn1_studio.jwt import open_jwt
+    tok = mk_jwt({"sub": "u1", "iss": "dxn1", "aud": "api",
+                  "exp": int(_time.time()) + 7200})
+    jw = open_jwt(root, THEME, initial=tok)
+    root.update_idletasks()
+    root.update()
+    check("jwt window opens", str(jw.winfo_exists()) == "1")
+    check("jwt status shows alg + valid",
+          "HS256" in jw.status.cget("text") and
+          "expires in" in jw.status.cget("text"))
+    check("jwt header/payload rendered",
+          '"typ": "JWT"' in jw.header_txt.get("1.0", "end-1c") and
+          '"sub": "u1"' in jw.payload_txt.get("1.0", "end-1c"))
+    check("jwt claims table 4 rows",
+          len(jw.claims.get_children("")) == 4)
+    jw.var.set("garbage")
+    root.update()
+    check("jwt bad token -> error status",
+          "dot-separated" in jw.status.cget("text"))
+    jw.destroy()
+    root.update()
+
+    # ---------------------------------------------------------------- env
+    from dxn1_studio.envcheck import open_envlint
+    env = open_envlint(root, THEME)
+    root.update_idletasks()
+    root.update()
+    env.inp.delete("1.0", "end")
+    env.inp.insert("1.0", "API_KEY=sk-live-abcdef123456\n"
+                          "DEBUG=1\n"
+                          "KEY=1\nKEY=2\n")
+    env._update()
+    root.update()
+    check("env window opens", str(env.winfo_exists()) == "1")
+    check("env duplicate key caught",
+          any("duplicate key KEY" in env.find.item(i, "values")[2]
+              for i in env.find.get_children("")))
+    check("env summary counts", "4 keys" in env.summary.cget("text") and "1 error" in env.summary.cget("text"))
+    masked = env.masked.get("1.0", "end-1c")
+    check("env mask hides secrets",
+          "sk-live" not in masked and "DEBUG=1" in masked)
+    env.destroy()
+    root.update()
+
 except Exception as exc:  # noqa: BLE001
     import traceback
     traceback.print_exc()

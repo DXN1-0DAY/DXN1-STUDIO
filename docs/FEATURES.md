@@ -114,6 +114,11 @@
 
 | Feature | Where | What it does |
 |---|---|---|
+| JWT decoder | `jwt.py`, palette, terminal `jwt <token>` | Paste a token, see header + payload pretty-printed, every time claim humanized ("expires in 1h 59m" / "expired 3d ago"), claims table with iss/sub/aud/jti pulled to the front — decode only, and it says so |
+| .env lint & mask | `envcheck.py`, palette, terminal `env` | Lints the workspace `.env`: duplicate keys, invalid key characters, spaces around `=`, unquoted spaces, ` # ` comments silently lost, unclosed quotes, empty values — then produces a masked copy (secret keys starred, `postgres://user:***@host` URLs) safe to paste into an issue |
+
+| Feature | Where | What it does |
+|---|---|---|
 | Cron decoder ring | `cronexp.py`, palette, terminal `cron <expr>` | Any cron string becomes a plain-English sentence ("at 09:00, on MON"), a field-by-field table (names, steps, ranges, lists, 7==Sunday, `@hourly`…`@reboot` shorthands) and the next five run times — computed by a built-in minute-stepper with month fast-forward, no cron daemon needed |
 | Readability report | `readability.py`, palette, terminal `readability` | Flesch Reading Ease with a human verdict, Flesch–Kincaid grade, Gunning Fog, complex-word %, sentences-over-25-words list and a word-pressure table (stopwords filtered); one click copies the report as markdown |
 | Terminal help refresh | terminal `help` | The studio command list now covers `tools`, `cron`, `readability` and `explain` |

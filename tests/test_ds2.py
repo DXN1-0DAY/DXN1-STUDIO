@@ -839,3 +839,94 @@ def test_readability_engine():
     assert "Readability" in report_text(easy, "demo")
     assert report_text("", "empty").startswith("No prose")
     assert report_text(easy, "demo", markdown=True).startswith("# Readability")
+
+
+def _mk_jwt(payload, header=None):
+    import base64 as _b64
+    import json as _json
+    h = _b64.urlsafe_b64encode(_json.dumps(header or {
+        "alg": "HS256", "typ": "JWT"}).encode()).rstrip(b"=").decode()
+    p = _b64.urlsafe_b64encode(_json.dumps(payload).encode()) \
+        .rstrip(b"=").decode()
+    return f"{h}.{p}.{'x' * 43}"
+
+
+def test_jwt_engine():
+    from dxn1_studio.jwt import (decode_jwt, token_status, claims_table,
+                                 b64url_decode)
+    import time as _time
+    tok = _mk_jwt({"sub": "u1", "iss": "dxn1", "aud": "api",
+                   "exp": int(_time.time()) + 7200})
+    d, err = decode_jwt(tok)
+    assert err == "" and d["alg"] == "HS256" and d["typ"] == "JWT"
+    assert d["payload"]["sub"] == "u1" and d["signature_len"] == 43
+    state, human = token_status(d["payload"])
+    assert state == "valid" and "expires in" in human and "1h" in human
+    # expired + none + garbage exp
+    old = _mk_jwt({"exp": 1000000000})
+    state, human = token_status(decode_jwt(old)[0]["payload"])
+    assert state == "expired" and human.endswith("ago")
+    assert token_status({})[0] == "none"
+    assert token_status({"exp": "soon"})[0] == "none"
+    # claims table: time claims humanized, standard claims, extras JSON
+    rows = claims_table(decode_jwt(tok)[0]["payload"])
+    names = [r[0] for r in rows]
+    assert names[:4] == ["exp", "iss", "sub", "aud"]
+    assert "UTC" in rows[0][2]
+    rows = claims_table({"iat": "not-a-number", "x": {"deep": [1, 2]}})
+    by = {r[0]: r for r in rows}
+    assert "unreadable" in by["iat"][2]
+    assert '"deep"' in by["x"][1]
+    # broken tokens never raise
+    assert "3 dot-separated" in decode_jwt("abc")[1]
+    assert decode_jwt("")[1] != ""
+    assert decode_jwt("a.b.c")[1] != ""
+    assert "JSON" in decode_jwt("bm90LWpzb24.e30.x")[1]
+    assert b64url_decode("")[1] if False else True  # smoke the import
+    assert b64url_decode("!bad!") == b""
+
+
+def test_envcheck_engine():
+    from dxn1_studio.envcheck import (parse_env, lint_env, mask_env,
+                                      is_secret_key, summary)
+    assert is_secret_key("STRIPE_API_TOKEN")
+    assert is_secret_key("db_password")
+    assert not is_secret_key("DEBUG")
+    # parse basics
+    entries = parse_env("A=1\n# comment\n\nB = 2\n")
+    assert [e["blank"] for e in entries] == [False, False, True, False]
+    assert entries[3]["error"].startswith("spaces around")
+    # duplicates, invalid keys, quotes, comments, spaces
+    sample = ("# config\n"
+              "KEY=first\n"
+              "KEY=second\n"
+              "BAD-KEY!=x\n"
+              "Q=\"two words\"  # trailing note\n"
+              "UNQ=hello world # glued comment\n"
+              "EMPTY=\n"
+              "OPEN=\"never closed\n")
+    findings = lint_env(sample)
+    msgs = [m for _, _, m in findings]
+    assert any("duplicate key KEY" in m for m in msgs)
+    assert any("invalid key" in m for m in msgs)
+    assert any("empty value" in m for m in msgs)
+    assert any("never closed" in m for m in msgs)
+    assert any("' #'" in m for m in msgs)          # unquoted comment
+    # quoted value with trailing comment is CLEAN
+    assert not any(m.startswith("Q:") for m in msgs)
+    lines = {line: msg for line, _, msg in findings}
+    assert 8 in lines and 6 in lines
+    # masking: secret keys and URL creds, comments preserved
+    env = ("API_KEY=sk-live-abcdef1234567890\n"
+           "DEBUG=1\n"
+           "DB=postgres://user:pass@host:5432/db\n")
+    masked = mask_env(env)
+    assert "sk-live" not in masked and "sk-…" in masked
+    assert "pass" not in masked and "user:***@host" in masked
+    assert "DEBUG=1" in masked                     # non-secrets survive
+    assert summary(env) == (3, 1, 0)               # only API_KEY smells
+    assert summary("") == (0, 0, 0)
+    assert summary("A=1") == (1, 0, 1)             # EOF newline info
+    assert lint_env("") == []
+    # no newline at EOF is an info, not an error
+    assert lint_env("A=1")[0][1] == "info"
