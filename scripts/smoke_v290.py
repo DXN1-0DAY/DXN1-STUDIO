@@ -390,6 +390,26 @@ def main():
     check("bytesnoop engine offline", _fhex("41:42:43") == b"ABC")
     hwin.destroy()
 
+    # ---- Paste Diff (same smoke, new lane)
+    from dxn1_studio.textdiff import inline_diff as _idl, open_textdiff
+    tdwin = open_textdiff(root, theme)
+    tdwin.update_idletasks()
+    check("textdiff window opens", tdwin.winfo_exists())
+    check("textdiff sample stats", "similar" in
+          tdwin.status.cget("text"))
+    tdwin.mode.set("word")
+    tdwin.refresh()
+    check("textdiff word marks", "[-" in tdwin.output.get("1.0", "end")
+          or "{+" in tdwin.output.get("1.0", "end"))
+    tdwin.old_text.delete("1.0", "end")
+    tdwin.new_text.delete("1.0", "end")
+    tdwin.refresh()
+    check("textdiff junk tolerated", "paste" in
+          tdwin.status.cget("text"))
+    check("textdiff engine offline", "[-brown-]" in
+          _idl("quick brown", "quick red"))
+    tdwin.destroy()
+
     # ---- REST bench (same smoke, seventh lane)
     from dxn1_studio.restbench import (RestResponse, build_curl,
                                        format_size,

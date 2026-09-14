@@ -94,6 +94,8 @@ EN = {
     "math.click_copy": "click a history row to copy",
     "hex.copy_dump": "copy hexdump",
     "hex.rows_label": "hexdump — 16 bytes per row",
+    "diff.copy_diff": "copy diff",
+    "diff.paste_hint": "paste old and new text above",
     "common.cancel": "Cancel",
     "common.close": "Close",
     "common.delete": "Delete",
@@ -165,6 +167,8 @@ PACKS = {
         "math.click_copy": "clic en una fila del historial para copiar",
         "hex.copy_dump": "copiar hexdump",
         "hex.rows_label": "hexdump — 16 bytes por fila",
+        "diff.copy_diff": "copiar diff",
+        "diff.paste_hint": "pega el texto viejo y el nuevo arriba",
     },
     "fr": {  # French
         "app.tagline": "L'IDE propre et moderne. Conçu pour le flow.",
@@ -216,6 +220,8 @@ PACKS = {
         "math.click_copy": "cliquez une ligne d'historique pour copier",
         "hex.copy_dump": "copier l'hexdump",
         "hex.rows_label": "hexdump — 16 octets par ligne",
+        "diff.copy_diff": "copier le diff",
+        "diff.paste_hint": "collez l'ancien et le nouveau texte ci-dessus",
     },
     "de": {  # German
         "app.tagline": "Die moderne, aufgeräumte IDE. Für echten Flow.",
@@ -266,6 +272,8 @@ PACKS = {
         "math.click_copy": "Klicke eine Verlaufszeile zum Kopieren",
         "hex.copy_dump": "Hexdump kopieren",
         "hex.rows_label": "Hexdump — 16 Bytes pro Zeile",
+        "diff.copy_diff": "Diff kopieren",
+        "diff.paste_hint": "Füge oben alten und neuen Text ein",
     },
     "pt": {  # Portuguese
         "app.tagline": "A IDE limpa e moderna. Feita para o fluxo.",
@@ -299,6 +307,8 @@ PACKS = {
         "math.click_copy": "clique numa linha do histórico para copiar",
         "hex.copy_dump": "copiar hexdump",
         "hex.rows_label": "hexdump — 16 bytes por linha",
+        "diff.copy_diff": "copiar diff",
+        "diff.paste_hint": "cole o texto antigo e o novo acima",
     },
     "zh": {  # Chinese (Simplified)
         "app.tagline": "干净现代的 IDE，为心流而生。",
@@ -349,6 +359,8 @@ PACKS = {
         "math.click_copy": "点击历史行即可复制",
         "hex.copy_dump": "复制十六进制转储",
         "hex.rows_label": "十六进制转储 — 每行 16 字节",
+        "diff.copy_diff": "复制差异",
+        "diff.paste_hint": "在上方粘贴新旧文本",
     },
     "hi": {  # Hindi
         "app.tagline": "साफ़, आधुनिक IDE। फ़्लो के लिए बना।",
@@ -382,6 +394,8 @@ PACKS = {
         "math.click_copy": "कॉपी करने के लिए इतिहास पंक्ति पर क्लिक करें",
         "hex.copy_dump": "हेक्सडम्प कॉपी करें",
         "hex.rows_label": "हेक्सडम्प — प्रति पंक्ति 16 बाइट",
+        "diff.copy_diff": "डिफ़ कॉपी करें",
+        "diff.paste_hint": "ऊपर पुराना और नया टेक्स्ट पेस्ट करें",
     },
     "ja": {  # Japanese
         "app.tagline": "クリーンでモダンな IDE。フローのために。",
@@ -415,6 +429,8 @@ PACKS = {
         "math.click_copy": "履歴行をクリックでコピー",
         "hex.copy_dump": "HEXダンプをコピー",
         "hex.rows_label": "HEXダンプ — 1行16バイト",
+        "diff.copy_diff": "差分をコピー",
+        "diff.paste_hint": "上に新旧のテキストを貼り付け",
     },
 }
 

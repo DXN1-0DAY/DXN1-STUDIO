@@ -369,3 +369,14 @@
 | Byte stats | `byte_stats()` / `stats_line()` | Live line with total bytes, unique values, printable % and high-bit % — updates as you type |
 | Copy | one click | The whole dump copies back out as text |
 | i18n | `hex.*` keys | Copy button and row label translate across all 8 language packs |
+
+## Paste Diff
+
+| Feature | Where | What it does |
+|---|---|---|
+| Two-paste compare | `textdiff.py`, Workshop → *Paste Diff — compare two texts…*, palette, terminal `diff2` / `pastediff` / `textdiff` | Paste the original and the revised side by side; the diff updates as you type |
+| Word & char modes | `inline_diff()` | Edits are marked inline with the greppable rdiff convention — `[-deletion-]` and `{+insertion+}` — so single-letter edits and reworded spans both stand out |
+| Line mode | `diff_lines()` | Classic `- / +` rows derived from difflib opcodes (same/delete/insert/replace) |
+| Similarity meter | `similarity()` / `summary()` | Live `+N -M lines · P% similar` status computed from the same opcodes |
+| Copy | one click | The rendered diff copies back out as plain text |
+| i18n | `diff.*` keys | Copy button and empty-state hint translate across all 8 language packs |

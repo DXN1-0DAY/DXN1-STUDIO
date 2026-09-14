@@ -4,6 +4,15 @@ All notable changes to DXN1 STUDIO. Format based on
 [Keep a Changelog](https://keepachangelog.com/); versioning is
 `MAJOR.MINOR.PATCH` while in **beta**.
 
+## [2.24.0] — 2026-09-14 · beta · "what changed?" (bonus round)
+
+### Added
+- **Paste Diff** (`textdiff.py`, Workshop → *Paste Diff — compare two texts…*, terminal `diff2` / `pastediff` / `textdiff`) — compare two pasted texts at word, character or line granularity: word/char modes mark edits inline with the greppable `[-deletion-]` / `{+insertion+}` rdiff convention, line mode gives classic `- / +` rows; a live status line counts `+N -M lines · P% similar` and one click copies the diff. Thin honest wrapper over stdlib difflib — no vendored algorithms, nothing clever to go wrong.
+
+### Changed
+- i18n: `diff.copy_diff` + `diff.paste_hint` translated in all 8 language packs.
+- Smoke harness now **121 checks across 19 live windows**; test suite at **59 groups**; boot QA 20/20.
+
 ## [2.23.0] — 2026-09-14 · beta · "snoop the bytes" (bonus round)
 
 ### Added

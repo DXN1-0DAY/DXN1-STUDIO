@@ -1989,3 +1989,49 @@ def test_hexdump_engine():
     win.refresh()
     assert "doesn't parse" in win.status.cget("text")
     win.destroy(); root.destroy()
+
+
+def test_textdiff_engine():
+    """DS2 textdiff: line kinds, inline marks, similarity, junk."""
+    from dxn1_studio import textdiff as d
+    # line diff
+    lines = d.diff_lines("a\nb\nc", "a\nb\nc")
+    assert all(k == "same" for k, _ in lines)
+    assert [l for k, l in d.diff_lines("a", "a\nb")
+            if k == "insert"] == ["b"]
+    kinds = [k for k, _ in d.diff_lines("a\nb", "a\nc")]
+    assert "delete" in kinds and "insert" in kinds
+    assert d.diff_lines(None, "a") == []
+    # inline marks (rdiff convention)
+    out = d.inline_diff("the quick brown fox", "the quick red fox")
+    assert "[-brown-]" in out and "{+red+}" in out
+    assert "[-c-]" in d.inline_diff("abc", "abd", "char")
+    assert d.inline_diff(None, None) == ""
+    # similarity + summary
+    assert d.similarity("same\nsame", "same\nsame") == 100.0
+    assert d.similarity("", "") == 0.0
+    assert d.similarity(None, "a") == 0.0
+    assert "similar" in d.summary("a\nb", "a\nc")
+    assert d.summary(None, None) == "+0 -0 lines · 0.0% similar"
+    # window: renders, switches modes, tolerates junk
+    import tkinter as tk
+    try:
+        root = tk.Tk(); root.withdraw()
+    except tk.TclError:
+        return
+    theme = {"bg": "#16161e", "header": "#242432",
+             "editor_bg": "#1a1a24", "text": "#e8e8f0",
+             "text_muted": "#8a8a9a", "button": "#2a2a3a",
+             "button_hover": "#33334a"}
+    from dxn1_studio.textdiff import open_textdiff
+    win = open_textdiff(root, theme)
+    assert win is not None and win.winfo_exists()
+    assert "similar" in win.status.cget("text")
+    win.mode.set("line")
+    win.refresh()
+    assert "+" in win.output.get("1.0", "end")
+    win.old_text.delete("1.0", "end")
+    win.new_text.delete("1.0", "end")
+    win.refresh()
+    assert "paste" in win.status.cget("text")
+    win.destroy(); root.destroy()

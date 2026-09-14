@@ -9,10 +9,10 @@ dxn1_studio/
 ├── app.py            ← the studio: window, menus, palette, terminal, wiring
 ├── widgets.py        ← core widgets: file explorer, code editor, terminal
 ├── config.py/theme.py← persistence + theme engine (everything is themed)
-└── … 76 feature modules, one lane each, described below
+└── … 77 feature modules, one lane each, described below
 ```
 
-## Design rules (what keeps 76 modules coherent)
+## Design rules (what keeps 77 modules coherent)
 
 1. **One module = one lane.** Every feature lives in its own file
    with a public `open_*(parent, theme, …)` opener, so parallel
@@ -67,7 +67,7 @@ geometry memory).
 `colorkit` (hex/rgb/hsl + WCAG contrast + ramps), `markprev`
 (live markdown preview), `charts` (paste-numbers chart studio),
 `unitconv` (unit converter), `charmap` (Unicode browser),
-`textcase` (identifier case converter), `pwdgen` (secrets-CSPRNG PassForge), `numbase` (bases 2-36 + bit inspector), `csvkit` (CSV Lab paste-&-peek), `mathpad` (safe expression calculator), `hexdump` (ByteSnoop hex inspector), `jwt`, `cronexp`,
+`textcase` (identifier case converter), `pwdgen` (secrets-CSPRNG PassForge), `numbase` (bases 2-36 + bit inspector), `csvkit` (CSV Lab paste-&-peek), `mathpad` (safe expression calculator), `hexdump` (ByteSnoop hex inspector), `textdiff` (two-paste diff), `jwt`, `cronexp`,
 `envcheck`, `gen` (test data), `readability`, `usagedash`,
 `packages`, `doctor` (environment audit).
 
@@ -87,7 +87,7 @@ geometry memory).
 | Harness | What it proves |
 |---|---|
 | `python3 -m pytest tests/` | 53 unit groups over every pure engine |
-| `scripts/smoke_v290.py` (Xvfb) | 116 live-window checks across 18 feature windows |
+| `scripts/smoke_v290.py` (Xvfb) | 121 live-window checks across 19 feature windows |
 | `scripts/boot_qa.py` (Xvfb) | 20 checks booting the real studio: menus bound, palette entries live, modules import, scribe chip wired |
 | `python3 -m compileall -q dxn1_studio` | The tree always compiles — the gate before every tag |
 

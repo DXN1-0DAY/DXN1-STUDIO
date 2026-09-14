@@ -1261,6 +1261,15 @@ class DXN1Studio:
                 command=_open_hex_menu)
         except Exception:  # pragma: no cover — menu stays alive
             pass
+        # DS2: textdiff (defensive)
+        def _open_textdiff_menu():
+            self.open_textdiff()
+        try:
+            workshop_menu.add_command(
+                label="Paste Diff — compare two texts…",
+                command=_open_textdiff_menu)
+        except Exception:  # pragma: no cover — menu stays alive
+            pass
         workshop_menu.add_separator()
         workshop_menu.add_command(label="Token Usage Dashboard…",
                                   command=_open_usage_menu)
@@ -1760,6 +1769,14 @@ class DXN1Studio:
         try:
             from .hexdump import open_bytesnoop
             open_bytesnoop(self.root, self.theme)
+        except Exception:  # noqa: BLE001 — menu stays alive
+            pass
+
+    def open_textdiff(self):
+        """DS2: compare two pasted texts."""
+        try:
+            from .textdiff import open_textdiff
+            open_textdiff(self.root, self.theme)
         except Exception:  # noqa: BLE001 — menu stays alive
             pass
 
@@ -2798,6 +2815,8 @@ class DXN1Studio:
                              "(x = 5 assigns, _ is the last answer)"),
                     ("hexdump", "ByteSnoop — hexdump & byte inspector, "
                                 "paste text or raw hex"),
+                    ("diff2", "Paste Diff — compare two pasted texts "
+                              "word/char/line"),
                     ("scribe <n>", "set the words-per-session goal for "
                                    "the statusbar writing meter"),
                     ("explain", "hand the last error to the agent"),
@@ -3105,6 +3124,12 @@ class DXN1Studio:
             self.open_bytesnoop()
             self.terminal.log("ByteSnoop opened — paste text or hex, "
                               "read the bytes with a stats line")
+            return
+        if low in ("textdiff", "diff2", "pastediff"):
+            # DS2: compare two pasted texts
+            self.open_textdiff()
+            self.terminal.log("Paste Diff opened — old vs new, word/"
+                              "char/line modes, [-…-] {+…+} marks")
             return
         if low == "lang" or low.startswith("lang "):
             # DS2: switch the UI language pack (i18n activation)
@@ -3836,6 +3861,14 @@ class DXN1Studio:
         try:
             cmds.append(("ByteSnoop — hexdump & byte inspector…",
                          "DS2", _open_hex_palette))
+        except Exception:  # pragma: no cover — palette stays alive
+            pass
+        # DS2: textdiff (defensive)
+        def _open_textdiff_palette():
+            self.open_textdiff()
+        try:
+            cmds.append(("Paste Diff — compare two texts…",
+                         "DS2", _open_textdiff_palette))
         except Exception:  # pragma: no cover — palette stays alive
             pass
         # DS2: scribe goal (defensive)
