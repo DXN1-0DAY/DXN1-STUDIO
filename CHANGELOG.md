@@ -4,6 +4,34 @@ All notable changes to DXN1 STUDIO. Format based on
 [Keep a Changelog](https://keepachangelog.com/); versioning is
 `MAJOR.MINOR.PATCH` while in **beta**.
 
+## [2.29.0] — 2026-09-14 · beta · "type a few letters" (bonus round)
+
+### Added
+- **Fuzzy launcher scoring** (`fuzzy.py`) — the command palette and
+  Quick Open now rank by relevance instead of requiring substrings:
+  `qpn` finds "Quick open a file", `sttngs` finds "Settings…",
+  `@gmmthre` finds `gamma_three` in symbol mode. Documented,
+  deterministic weights: word-boundary starts, camel humps and
+  contiguous runs score high; spread-out matches lose; substring
+  hits still win.
+- **Basename boost for Quick Open** (`path_score()`) — a query
+  matching the file name outranks the same letters in a deep
+  directory path, so files beat folders; deterministic tie-breaks
+  keep short paths first.
+- **Fuzzy symbol mode** — the palette's `@` needle no longer needs to
+  be a substring of the symbol name.
+
+### Changed
+- Empty queries keep the original order everywhere; legacy substring
+  filters remain as an automatic fallback if the fuzzy import ever
+  fails (the launcher can never break, worst case it degrades).
+
+### Notes
+- Pure, junk-tolerant engine: `None` never matches, exotic objects
+  coerce via `str()`, broken key functions fall back — scoring never
+  raises. The Xvfb smoke now boots the real app and drives the
+  palette, symbol mode and Quick Open live (148 checks / 25 windows).
+
 ## [2.28.0] — 2026-09-14 · beta · "through their eyes" (bonus round)
 
 ### Added

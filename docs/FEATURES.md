@@ -420,3 +420,12 @@
 | Contrast under CVD | `sim_summary()` / `survive_line()` | Re-runs the Contrast Auditor on the simulated palette — a live "CVD view: 13 pairs · 13 pass · 0 fail" verdict |
 | Custom hex | window | Type any hex, see it simulated instantly, copy the result |
 | Honest engine | engine | sRGB-space approximation (design review, not clinical); junk hex returns None; Theme wrapper and plain dicts both accepted |
+
+## Fuzzy Launcher Scoring
+
+| Feature | Where | What it does |
+|---|---|---|
+| Fuzzy palette | `fuzzy.py`, Command Palette (Ctrl+K) | Commands rank by relevance, not substring luck: word-boundary starts (+8), camel humps (+5), contiguous runs (+4), prefix anchor (+6); gaps cost −1. `qpn` finds "Quick open a file" |
+| Fuzzy symbols | palette `@` mode | Jump-to-symbol tolerates gaps: `@gmmthre` finds `gamma_three` |
+| Fuzzy Quick Open | `path_score()` | Subsequence match over paths with a +3 basename boost — files beat folders; deterministic tie-break keeps short paths first |
+| Never crashes | engine | `None` never matches, non-strings coerce via `str()`, broken key functions fall back to `str(item)`; empty queries preserve the original order; legacy substring filter stays as fallback |

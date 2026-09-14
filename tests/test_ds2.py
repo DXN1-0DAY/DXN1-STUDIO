@@ -2362,3 +2362,44 @@ def test_cvdlab_engine():
     win._copy_custom()                             # never raises
     win.refresh()
     win.destroy(); root.destroy()
+
+
+def test_fuzzy_engine():
+    """DS2 v2.29 — fuzzy launcher scoring: semantics, junk, ordering."""
+    f = __import__("dxn1_studio.fuzzy", fromlist=["score"])
+    # empty query matches everything with score 0, order preserved
+    assert f.match("", "anything") == (0, ())
+    assert f.filter_ranked("", ["b", "a"]) == ["b", "a"]
+    assert f.filter_ranked(None, [1, 2]) == [1, 2]
+    # junk never crashes and never matches
+    assert f.score(None, "x") == -1
+    assert f.score("a", None) == -1
+    assert f.score("zx", "quick open") == -1
+    assert f.score(5, "port 5") > 0            # coerced via str()
+    # substring contiguity beats a spread-out subsequence
+    assert f.score("abc", "xabcx") > f.score("abc", "xaxbxcx")
+    # prefix anchor beats the same match further in
+    assert f.score("abc", "abc") > f.score("abc", "xabc")
+    # case-insensitive
+    assert f.score("ABC", "xabc") > 0
+    # subsequence hits that plain substring matching would miss
+    assert f.score("qo", "quick open") > 0
+    assert f.score("cmpr", "compare themes") > 0
+    # word boundaries win: m after a space outranks m after a vowel
+    order = [i for i, _s, _p in
+             f.ranked("cm", ["commit msg", "color map"])]
+    assert order == [1, 0]
+    # positions come back in query order, usable for highlighting
+    assert f.match("qo", "quick open")[1] == (0, 6)
+    # ranking drops non-matches and is stable on ties
+    hits = f.ranked("st", ["stop", "settings", "zzz"])
+    assert [h[0] for h in hits] == [0, 1]
+    # broken key functions fall back to str(item) — never raise
+    assert f.filter_ranked("x", [1, "ax"],
+                           key=lambda v: v.append(1)) == ["ax"]
+    assert f.filter_ranked("sv", ["save all", "scratch", "zen"],
+                           key=str.upper) == ["save all"]
+    # path scoring: a basename match beats a deep-directory match
+    assert f.path_score("app", "dxn1_studio/app.py") > \
+        f.path_score("app", "d/a/p/p/x")
+    assert f.path_score("zz", "nope.py") == -1

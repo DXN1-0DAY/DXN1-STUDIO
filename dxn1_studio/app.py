@@ -42,6 +42,11 @@ from .agent import DXN1AgentPanel, AgentSettingsDialog, ConnectDialog, \
     AGENTS_NAME
 from . import updater
 
+try:  # fuzzy launcher scoring (DS2 v2.29) — legacy substring fallback
+    from . import fuzzy
+except Exception:  # pragma: no cover
+    fuzzy = None
+
 FONT_SIZES = (("small", 10), ("medium", 11), ("large", 13))
 
 REPO_URL = "https://github.com/DXN1-termux/DXN1-STUDIO"
@@ -241,13 +246,22 @@ class CommandPalette(tk.Toplevel):
             # symbol mode — jump to def / class in the active file
             needle = q[1:].strip()
             syms = self.app.editor.symbols()
+            if fuzzy is not None and needle:
+                order = fuzzy.filter_ranked(needle, syms,
+                                            key=lambda s: s[2])
+            else:
+                order = [s for s in syms
+                         if not needle or needle in s[2].lower()]
             self.filtered = [(f"{kind}  {name}", f"line {line}",
                               ("sym", line))
-                             for line, kind, name in syms
-                             if not needle or needle in name.lower()]
+                             for line, kind, name in order]
         else:
-            self.filtered = [c for c in self.commands
-                             if not q or q in c[0].lower()]
+            if fuzzy is not None:
+                self.filtered = fuzzy.filter_ranked(
+                    q, self.commands, key=lambda c: c[0])
+            else:
+                self.filtered = [c for c in self.commands
+                                 if not q or q in c[0].lower()]
         self.selected = 0
         self._render()
 
@@ -399,6 +413,14 @@ class QuickOpen(tk.Toplevel):
         q = self.entry.get().strip().lower()
         if not q:
             self.filtered = list(self.files)
+        elif fuzzy is not None:
+            scored = []
+            for name, rel, full in self.files:
+                s = fuzzy.path_score(q, rel)
+                if s >= 0:
+                    scored.append((-s, rel, (name, rel, full)))
+            scored.sort(key=lambda p: (p[0], p[1]))
+            self.filtered = [item for _s, _rel, item in scored]
         else:
             scored = []
             for name, rel, full in self.files:

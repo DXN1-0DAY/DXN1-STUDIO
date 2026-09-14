@@ -580,6 +580,69 @@ def main():
             {"files": 9, "bytes": 180}, {"files": 5, "bytes": 100}))
     finally:
         _sh.rmtree(ws2, ignore_errors=True)
+
+    # ---- fuzzy launcher scoring (same smoke, eleventh lane —
+    #      engine + real palette / symbol mode / QuickOpen integration)
+    from dxn1_studio import fuzzy as fz
+    check("fuzzy engine sane", fz.score("qpn", "Quick open a file") > 0
+          and fz.score("zx", "quick open") == -1
+          and fz.match("qo", "quick open")[1] == (0, 6))
+    check("fuzzy finds non-substrings",
+          fz.score("sttngs", "Settings…") > 0
+          and fz.score("cmpr", "compare themes") > 0)
+
+    from dxn1_studio.app import DXN1Studio
+    from dxn1_studio.config import Config
+    app2 = DXN1Studio(Config(), smoke_test=True, no_splash=True)
+    app2.root.update_idletasks()
+    app2.open_palette()
+    pal = app2._palette
+    pal.entry.delete(0, "end")
+    pal.entry.insert(0, "qpn")
+    pal._on_type()
+    check("palette fuzzy hit", len(pal.filtered) == 1
+          and pal.filtered[0][0] == "Quick open a file")
+    pal.close()
+
+    # symbol mode: inject editor content, then a gappy @ query
+    sym_py = os.path.join(tmp, "sym_probe.py")
+    with open(sym_py, "w", encoding="utf-8") as fh:
+        fh.write("def alpha_one():\n    pass\n\n\nclass BetaTwo:\n"
+                 "    def gamma_three(self):\n        pass\n")
+    ed = app2.editor
+    ed.file_path = sym_py
+    ed.text.delete("1.0", "end")
+    ed.text.insert("1.0", open(sym_py, encoding="utf-8").read())
+    app2.open_palette()
+    pal2 = app2._palette
+    pal2.entry.delete(0, "end")
+    pal2.entry.insert(0, "@gmmthre")
+    pal2._on_type()
+    app2.root.update()
+    check("palette symbol fuzzy hit", len(pal2.filtered) == 1
+          and "gamma_three" in pal2.filtered[0][0])
+    pal2.close()
+
+    app2.open_quick_open()
+    qo = app2._quick_open
+    n_all = len(qo.files)
+    check("quickopen empty query keeps all",
+          n_all > 0 and len(qo.filtered) == n_all)
+    qo.entry.delete(0, "end")
+    qo.entry.insert(0, "appp")
+    qo._on_type()
+    hits = [item[1] for item in qo.filtered]
+    scores = [fz.path_score("appp", h) for h in hits]
+    check("quickopen fuzzy ranked", len(hits) > 0
+          and scores == sorted(scores, reverse=True)
+          and fz.path_score("appp", hits[0]) >= 0)
+    qo.entry.delete(0, "end")
+    qo.entry.insert(0, "zzqqxx")
+    qo._on_type()
+    check("quickopen no-match clean", len(qo.filtered) == 0)
+    qo.close()
+    app2.root.destroy()
+
     root.destroy()
 
     failed = [n for n, ok in CHECKS if not ok]
