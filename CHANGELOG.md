@@ -4,6 +4,13 @@ All notable changes to DXN1 STUDIO. Format based on
 [Keep a Changelog](https://keepachangelog.com/); versioning is
 `MAJOR.MINOR.PATCH` while in **beta**.
 
+## [2.15.0] — 2026-09-14 · beta · "tools that talk to the world"
+
+### Added
+- **Color Kit** (`colorkit.py`, Workshop → *Color Kit — convert & contrast…*, terminal `color`) — paste any hex (`#7c3aed`, `7c3aed`, `#abc`) and get rgb/hsl/tk forms instantly, WCAG contrast ratios against white/black with AA verdicts, and deterministic click-to-copy shade ramps; pure stdlib engine with stable round-trips.
+- **REST Bench** (`restbench.py`, Workshop → *REST Bench…*, terminal `rest` / `http`) — a zero-dependency HTTP workbench: GET/POST/PUT/PATCH/DELETE/HEAD/OPTIONS with custom headers and body, Ctrl+Enter send, response viewer with pretty-printed JSON and muted headers, elapsed-time/size readout, 30-entry history and copy-as-curl with proper shell quoting; every failure mode (bad scheme, timeout, refused connection) becomes a readable error response.
+- **Window geometry memory** (`geom.py`) — the studio now remembers size & position per screen shape: restore on boot, save on close, hard-clamped so windows can never reopen off-screen or larger than the display (docking/undocking safe), LRU of 8 screen shapes, maximized/fullscreen states skipped.
+
 ## [2.14.0] — 2026-09-14 · beta · "write it, see it"
 
 ### Added
