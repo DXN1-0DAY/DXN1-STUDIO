@@ -605,6 +605,67 @@ def current():
     return _active["lang"]
 
 
+def pack_stats():
+    """DS2 v2.54 — every language pack answers for itself: how much of
+    the English source it covers, how many keys it is missing, how
+    many it carries that the source no longer names (stale), and
+    whether its strings are highlight-safe — ``str.lower()`` keeping
+    every string the same length, which is exactly what fuzzy-match
+    positions (and the palette's highlight runs) silently assume. One
+    exotic character ('İ' lowercases to two code points) would shift
+    every highlight after it.
+
+    Built-ins come first (``en`` then sorted codes), then any user
+    pack on disk. Never raises: a pack that cannot be read reports
+    itself as unreadable instead of disappearing."""
+    total = len(EN)
+    en_keys = set(EN)
+    out = []
+
+    def _entry(code, mapping, user=False, error=None):
+        mapping = mapping or {}
+        covered = len(en_keys & set(mapping))
+        missing = total - covered
+        stale = len([k for k in mapping if k not in en_keys])
+        risk = sorted(k for k, v in mapping.items()
+                      if isinstance(v, str) and len(v)
+                      and len(v.lower()) != len(v))
+        pct = int(round(covered * 100.0 / total)) if total else 100
+        return {"code": code, "name": LANG_NAMES.get(code, code),
+                "user": user, "error": error,
+                "covered": covered, "total": total, "pct": pct,
+                "missing": missing, "stale": stale,
+                "index_safe": not risk, "risk_keys": risk[:5]}
+
+    out.append(_entry("en", EN))
+    for code in sorted(PACKS):
+        if code == "en":
+            continue
+        out.append(_entry(code, PACKS[code]))
+    try:
+        if os.path.isdir(LANG_DIR):
+            for name in sorted(os.listdir(LANG_DIR)):
+                if not name.endswith(".json"):
+                    continue
+                code = name[:-5]
+                try:
+                    with open(os.path.join(LANG_DIR, name), "r",
+                              encoding="utf-8") as fh:
+                        loaded = json.load(fh)
+                    data = {k: v for k, v in loaded.items()
+                            if isinstance(k, str)
+                            and isinstance(v, str)} \
+                        if isinstance(loaded, dict) else {}
+                    out.append(_entry(code, data, user=True))
+                except (OSError, json.JSONDecodeError,
+                        AttributeError) as exc:
+                    out.append(_entry(code, {}, user=True,
+                                      error=str(exc)))
+    except OSError:
+        pass
+    return out
+
+
 def export_template(dest, code="en"):
     """Write a translation template (or a pack) as JSON for sharing."""
     data = dict(EN) if code == "en" else {**EN, **PACKS.get(code, {})}

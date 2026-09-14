@@ -5885,3 +5885,165 @@ def test_menu_reach(tmp_path):
         except tk.TclError:
             pass
         monkeypatch.undo()
+
+
+# --------------------------------- packs answer for themselves (v2.54)
+def test_i18n_audit(tmp_path):
+    """DS2 v2.54 — the packs stand audit: fuzzy-match positions stay
+    index-aligned with the raw text even when ``str.lower()`` changes
+    the length (İ lowercases to TWO code points — the one way a
+    palette highlight could light up the wrong letters), every
+    language pack reports coverage/stale/highlight-safety honestly
+    through ``pack_stats`` (user packs and unreadable packs included,
+    never hidden), the ``lang audit`` verb prints the audit through
+    the real dispatcher, and the branch chip menu gains its
+    state-aware copy sibling (recovery when diverged, plain
+    push/pull one move from sync, silent in sync)."""
+    import tkinter as tk
+    try:
+        root = tk.Tk(); root.withdraw()
+    except tk.TclError:
+        return
+    import pytest
+    import dxn1_studio.config as cfgmod
+    from dxn1_studio import fuzzy as fz
+    from dxn1_studio import i18n as i18nmod
+
+    # --- the İ case: 'İstanbul'.lower() is 9 code points over 8 raw
+    # characters; positions must still index the RAW text
+    text = "İstanbul"
+    s, pos = fz.match("ist", text)
+    assert s >= 0 and tuple(pos) == (0, 1, 2), (s, pos)
+    assert [text[p] for p in pos] == ["İ", "s", "t"]
+    runs = fz.split_runs(text, pos)
+    assert "".join(c for c, _m in runs) == text
+    assert runs[0] == ("İst", True), runs
+    # ASCII regression: the common path is byte-for-byte unchanged
+    assert fz.match("set", "Settings")[1] == (0, 1, 2)
+    assert fz.match("", "anything") == (0, ())
+    assert fz.match("zz", "nothing-here")[0] == -1
+    # a longer shift case: two İ's must not double-drift
+    s2, pos2 = fz.match("ii", "İxİz")
+    assert s2 >= 0 and tuple(pos2) == (0, 2), pos2
+
+    # --- pack_stats: built-ins + user packs on disk, honestly
+    stats = i18nmod.pack_stats()
+    codes = [s["code"] for s in stats]
+    assert codes[0] == "en" and stats[0]["pct"] == 100
+    assert {"es", "fr", "de", "pt", "zh", "hi", "ja"} <= set(codes)
+    for s in stats:
+        assert 0 <= s["pct"] <= 100
+        assert isinstance(s["index_safe"], bool)
+        assert s["missing"] >= 0 and s["stale"] >= 0
+    # a user pack that misses keys, carries a stale one, and holds
+    # an İ string must be listed as user, low-coverage, stale, and
+    # NOT highlight-safe — with the offending key named
+    monkeypatch = pytest.MonkeyPatch()
+    lang_dir = tmp_path / "lang"
+    lang_dir.mkdir()
+    (lang_dir / "klingon.json").write_text(
+        '{"menu.file": "İçerik", "old.key": "x"}', encoding="utf-8")
+    (lang_dir / "torn.json").write_text("{not json", encoding="utf-8")
+    monkeypatch.setattr(i18nmod, "LANG_DIR", str(lang_dir))
+    stats = i18nmod.pack_stats()
+    kl = [s for s in stats if s["code"] == "klingon"][0]
+    assert kl["user"] is True and kl["pct"] < 5
+    assert kl["stale"] == 1 and kl["index_safe"] is False
+    assert "menu.file" in kl["risk_keys"]
+    torn = [s for s in stats if s["code"] == "torn"][0]
+    assert torn["user"] is True and torn["error"], torn
+    monkeypatch.undo()
+
+    # --- through the real app: the verb and the copy siblings
+    monkeypatch = pytest.MonkeyPatch()
+    monkeypatch.setattr(cfgmod, "CONFIG_DIR", str(tmp_path / "cfg"))
+    monkeypatch.setattr(cfgmod, "CONFIG_PATH",
+                        str(tmp_path / "cfg" / "config.json"))
+    monkeypatch.setenv("HOME", str(tmp_path / "home"))
+    from dxn1_studio.app import DXN1Studio, TERMINAL_HELP
+    app = DXN1Studio(cfgmod.Config(), smoke_test=True, no_splash=True)
+    try:
+        app.root.update()
+        # the help table knows both rows and the browser flattens them
+        verbs_list = [r[0] for r in TERMINAL_HELP]
+        assert "lang" in verbs_list and "lang audit" in verbs_list
+        # lang audit prints the audit through the real dispatcher
+        logs = []
+        _old_log = app.terminal.log
+
+        def _rec(m, *a, **k):
+            logs.append(str(m))
+        app.terminal.log = _rec
+        try:
+            app.handle_terminal_command("lang audit")
+        finally:
+            app.terminal.log = _old_log
+        app.root.update()
+        assert any("language packs:" in m for m in logs), logs
+        assert any("[built-in]" in m and "es" in m for m in logs), logs
+        assert any("highlight-safe = every string" in m for m in logs)
+        # the state-aware copy sibling, per branch state
+        app.root.clipboard_clear()
+        app._git_watch_state = lambda: {"repo": True, "branch": "m",
+                                        "dirty": 0, "ahead": 2,
+                                        "behind": 1}
+        entries = app._git_menu_entries()
+        rec = [e for e in entries if e[0] == "Copy recovery command"]
+        assert rec, entries
+        rec[0][1]()
+        app.root.update()
+        assert app.root.clipboard_get() == \
+            "git pull --rebase && git push"
+        app._git_watch_state = lambda: {"repo": True, "branch": "m",
+                                        "dirty": 0, "ahead": 3,
+                                        "behind": 0}
+        entries = app._git_menu_entries()
+        push = [e for e in entries if e[0] == "Copy push command"]
+        assert push and not [e for e in entries
+                             if e[0] == "Copy recovery command"]
+        push[0][1]()
+        app.root.update()
+        assert app.root.clipboard_get() == "git push"
+        app._git_watch_state = lambda: {"repo": True, "branch": "m",
+                                        "dirty": 0, "ahead": 0,
+                                        "behind": 1}
+        entries = app._git_menu_entries()
+        assert [e for e in entries if e[0] == "Copy pull command"]
+        app._git_watch_state = lambda: {"repo": True, "branch": "m",
+                                        "dirty": 0, "ahead": 0,
+                                        "behind": 0}
+        entries = app._git_menu_entries()
+        labs = [e[0] for e in entries]
+        assert not any(l.startswith("Copy ") and l != "Copy branch name"
+                       for l in labs), labs
+        # junk kinds are ignored honestly
+        app._git_copy_command("nonsense")
+        app.root.update()
+        assert app._git_copy_command.__doc__
+        # source agreement: the audit is written where it runs
+        import os
+        base = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+        with open(os.path.join(base, "dxn1_studio", "app.py"),
+                  encoding="utf-8") as fh:
+            src = fh.read()
+        assert 'arg == "audit"' in src
+        assert '"Copy recovery command"' in src
+        assert "git pull --rebase && git push" in src
+        with open(os.path.join(base, "dxn1_studio", "fuzzy.py"),
+                  encoding="utf-8") as fh:
+            fsrc = fh.read()
+        assert '"".join(c.lower()[:1] for c in raw)' in fsrc
+    finally:
+        try:
+            app._dismiss_chip_menu()
+        except Exception:  # noqa: BLE001 — teardown never raises
+            pass
+        try:
+            app.root.destroy()
+        except tk.TclError:
+            pass
+        try:
+            root.destroy()
+        except tk.TclError:
+            pass
+        monkeypatch.undo()

@@ -55,6 +55,15 @@ def match(query, text):
     if not t:
         return -1, ()
     raw = str(text)
+    if len(t) != len(raw):
+        # DS2 v2.54 — lowering changed the length ('İ'.lower() is
+        # 'i̇', two code points): re-lower per raw character, keeping
+        # the FIRST lowered code point of each, so every index below
+        # — and every highlight position returned — stays aligned
+        # with the raw text the caller actually renders. Without
+        # this, one exotic character shifts every later position and
+        # the palette's highlight runs light up the wrong letters.
+        t = "".join(c.lower()[:1] for c in raw)
     total, positions, prev_idx, search_from = 0, [], -2, 0
     for i, ch in enumerate(q):
         idx = t.find(ch, search_from)

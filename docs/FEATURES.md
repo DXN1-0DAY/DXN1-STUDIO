@@ -498,6 +498,16 @@
 | Git-graph zoom | `GitGraphWindow.zoom_step()` / `zoom_reset()`, keys `+` `−` `0` | A real row-density zoom (0.5×–3.0×): rows, lanes, dots, diagonal edges, click hit-testing and the scroll region rescale together, so a 200-commit repo reads as a trunk or as a spreadsheet at one keystroke; `F5` / `Ctrl+R` refresh from the keyboard |
 | Doc states the rule | `docs/KEYBINDINGS.md` — Tool windows (v2.48) | The keybindings doc gained the window keys and says the rule out loud: a key appears in a hint bar only if the code really binds it — unit-tested so it stays that way |
 
+## The Packs Answer for Themselves (v2.54.0)
+
+| Feature | Where | What it does |
+|---|---|---|
+| Index-aligned fuzzy matching | `fuzzy.match()` | The audit's root fix: lowering a label can change its length ('İ'.lower() is 'i̇' — TWO code points), and every position after it drifted, lighting up the wrong letters in the palette's highlight runs. Matching now re-lowers per raw character (first lowered code point each) when lengths disagree, so positions — and `split_runs` highlight runs — stay aligned with the text actually rendered; the ASCII path is byte-for-byte unchanged |
+| Pack audit | `i18n.pack_stats()` | Every language pack answers for itself: coverage (keys present vs the English source), missing, stale (keys the source no longer names), and highlight-safe — whether every string keeps its length under `.lower()`, the property the fuzzy highlight silently assumes. Built-ins first, then user packs on disk; a pack that cannot be read reports itself as unreadable instead of vanishing |
+| The audit verb | terminal `lang audit` | Prints the audit where you work: one line per pack (code, native name, built-in or user, coverage %, missing, stale), a `· NOT highlight-safe (key…)` marker naming up to three offending keys, and a closing line explaining what highlight-safe means — plus `lang` itself finally joined the terminal help table and the verbs browser |
+| Copy recovery command | `_git_menu_entries()`, `_git_copy_command()` | The branch chip menu's copy sibling, state-aware like the deps menu's pip row: diverged offers `git pull --rebase && git push`, ahead-only offers `git push`, behind-only offers `git pull`, in sync stays silent (a row must earn its place) — the command lands on the clipboard with toast + terminal receipt, ready to run anywhere |
+| Junk kinds ignored | `_git_copy_command()` | An unknown kind copies nothing and raises nothing — a helper row must never become a hazard |
+
 ## The Menus Come to You (v2.53.0)
 
 | Feature | Where | What it does |

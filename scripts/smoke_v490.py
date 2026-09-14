@@ -18,6 +18,7 @@ import shutil
 import subprocess
 import sys
 import tempfile
+import time
 
 HOME = tempfile.mkdtemp(prefix="ds2-home-")
 os.environ["HOME"] = HOME            # before imports: config + activity
@@ -117,6 +118,11 @@ check("diff: Ctrl+U flips back to split", dv.mode == "split")
 dv._focus_text.event_generate("<Control-c>"); app.root.update()
 check("diff: Ctrl+C copies the clean unified patch",
       "beta TWO" in app.root.clipboard_get())
+# the viewer's opening jump lands via an after(50) timer — let it
+# fire before driving the keys, or F3 starts from the -1 baseline
+# and the F3/Shift+F3 pair ends one hunk off (the SPRINT-51 timing
+# flake, now deterministic instead of load-dependent)
+app.root.update(); time.sleep(0.08); app.root.update()
 dv._focus_text.event_generate("<F3>"); app.root.update()
 dv._focus_text.event_generate("<Shift-F3>"); app.root.update()
 check("diff: F3 / Shift+F3 walk the hunks",

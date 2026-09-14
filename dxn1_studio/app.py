@@ -145,6 +145,9 @@ TERMINAL_HELP = (
                              "every 24h, last 14 kept"),
     ("chip <name>", "open a statusbar chip's menu from the keyboard "
                     "— branch · deps · scribe · autosave"),
+    ("lang", "list available UI language packs and the current one"),
+    ("lang audit", "every pack answers for itself — coverage, stale "
+                   "keys, highlight-safe honest audit"),
     ("update", "check GitHub for a newer release"),
     ("whatsnew", "release notes — what changed between tags"),
     ("deps", "cross-check imports vs requirements*.txt "
@@ -3636,6 +3639,34 @@ class DXN1Studio:
             # DS2: switch the UI language pack (i18n activation)
             from . import i18n as _i18n
             arg = text[4:].strip()
+            if arg == "audit":
+                # DS2 v2.54 — every pack answers for itself: coverage,
+                # stale keys, and whether its strings keep the length
+                # .lower() assumes, so fuzzy highlights stay honest
+                try:
+                    stats = _i18n.pack_stats()
+                except Exception:  # noqa: BLE001 — a verb never raises
+                    stats = []
+                self.terminal.log(
+                    "language packs: %d keys in the English source"
+                    % (stats[0]["total"] if stats else 0))
+                for s in stats:
+                    line = ("  %s  %s  [%s]  %d%% — %d missing, "
+                            "%d stale"
+                            % (s["code"], s["name"],
+                               "user" if s["user"] else "built-in",
+                               s["pct"], s["missing"], s["stale"]))
+                    if s["error"]:
+                        line += " · unreadable (%s)" % s["error"]
+                    elif not s["index_safe"]:
+                        line += " · NOT highlight-safe (%s)"
+                        line = line % ", ".join(s["risk_keys"][:3])
+                    self.terminal.log(line)
+                self.terminal.log(
+                    "highlight-safe = every string keeps its length "
+                    "under .lower(), so fuzzy-match positions stay "
+                    "on the characters they matched")
+                return
             codes = _i18n.available()
             if not arg:
                 self.terminal.log("languages: " + ", ".join(codes))
@@ -5684,6 +5715,20 @@ class DXN1Studio:
             entries.append(("Pull from upstream",
                             lambda: self.run_command("git pull"),
                             "", sync_c if behind else None))
+            # DS2 v2.54 — the copy sibling, state-aware like the deps
+            # menu's pip row: diverged offers the recovery line, one
+            # move from sync offers the plain command, in sync stays
+            # silent (a row must earn its place).
+            if diverged:
+                entries.append(("Copy recovery command",
+                                lambda: self._git_copy_command(
+                                    "recovery")))
+            elif ahead:
+                entries.append(("Copy push command",
+                                lambda: self._git_copy_command("push")))
+            elif behind:
+                entries.append(("Copy pull command",
+                                lambda: self._git_copy_command("pull")))
             branch = str(st.get("branch") or "")
             if branch:
                 entries.append(("Copy branch name",
@@ -5971,6 +6016,29 @@ class DXN1Studio:
                            on_log=lambda m: None)
         except Exception:  # noqa: BLE001 — best-effort window
             self.terminal.log("git graph unavailable here")
+
+    def _git_copy_command(self, kind):
+        """DS2 v2.54 — the branch menu's copy sibling: a ready-to-run
+        git line for the branch's state — ``git pull --rebase && git
+        push`` when diverged, the plain push/pull when one move would
+        settle it — straight onto the clipboard, toast + terminal
+        receipt confirming. Junk kinds are ignored. Never raises."""
+        try:
+            cmd = {"recovery": "git pull --rebase && git push",
+                   "push": "git push",
+                   "pull": "git pull"}.get(str(kind or ""))
+            if not cmd:
+                return
+            self.root.clipboard_clear()
+            self.root.clipboard_append(cmd)
+            self.toast("Copied: %s" % cmd, "success")
+            try:
+                self.terminal.log("git: %s (copied — run it anywhere)"
+                                  % cmd)
+            except Exception:  # noqa: BLE001
+                pass
+        except Exception:  # noqa: BLE001 — a menu row must never raise
+            pass
 
     def _copy_branch_name(self, branch):
         """Copy the branch name to the clipboard + a quiet toast."""

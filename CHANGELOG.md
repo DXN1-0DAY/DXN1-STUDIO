@@ -4,6 +4,35 @@ All notable changes to DXN1 STUDIO. Format based on
 [Keep a Changelog](https://keepachangelog.com/); versioning is
 `MAJOR.MINOR.PATCH` while in **beta**.
 
+## [2.54.0] — 2026-09-15 · beta · "every pack answers for itself" (the i18n fuzzy-highlight audit + a branch menu that hands you the command)
+
+### Fixed
+- **Fuzzy highlights can no longer drift** — the audit's root find:
+  lowering a label can change its length ('İ'.lower() is 'i̇', two
+  code points), and every fuzzy-match position after that character
+  was computed against the shifted lowered string while the palette
+  rendered the raw one — highlights lighting the wrong letters.
+  `fuzzy.match()` now re-lowers per raw character when lengths
+  disagree, so positions and `split_runs` runs stay aligned with the
+  text actually rendered; the ASCII path is unchanged.
+
+### Added
+- **Pack audit** — `i18n.pack_stats()` reports every language pack
+  honestly: coverage %, missing keys, stale keys, and
+  highlight-safety (whether `.lower()` keeps each string's length —
+  the property the fuzzy highlight assumes). User packs on disk are
+  included; an unreadable pack reports itself instead of
+  disappearing.
+- **The `lang audit` verb** — the audit in the terminal, one line
+  per pack with the NOT highlight-safe keys named; `lang` itself
+  joined the terminal help table and the verbs browser (a
+  documentation gap since the packs shipped).
+- **Copy recovery command** — the branch chip menu's copy sibling,
+  state-aware: diverged offers `git pull --rebase && git push`,
+  ahead-only `git push`, behind-only `git pull`, in sync stays
+  silent; clipboard + toast + terminal receipt, junk kinds ignored
+  (the same honesty the deps menu's pip row set in v2.53).
+
 ## [2.53.0] — 2026-09-15 · beta · "the menus come to you" (every chip menu opens from the keyboard + a deps menu that hands you the fix)
 
 ### Added
