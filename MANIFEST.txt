@@ -18,6 +18,7 @@ contrast.py
 cronexp.py
 csvkit.py
 cvdlab.py
+depcheck.py
 devtools.py
 diffview.py
 doctor.py

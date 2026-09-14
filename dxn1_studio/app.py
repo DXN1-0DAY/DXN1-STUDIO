@@ -129,6 +129,8 @@ TERMINAL_HELP = (
     ("goto <line>", "jump to a line"),
     ("recent", "list recently opened files"),
     ("update", "check GitHub for a newer release"),
+    ("whatsnew", "release notes — what changed between tags"),
+    ("deps", "cross-check imports vs requirements*.txt"),
     ("hub", "open the Project Hub"),
     ("export", "export the workspace as a ZIP"),
     ("agent <request>", "talk to DXN1 Agents (if enabled)"),
@@ -609,8 +611,9 @@ class DXN1Studio:
             bool(self.config.get("editor_auto_close", True))
         self.root.protocol("WM_DELETE_WINDOW", self._on_close)
         self._greet()
-        if not self.smoke_test and self.config.get("check_updates", True):
-            self.root.after(4000, lambda: self.check_for_updates(manual=False))
+        # DS2 v2.36: one heartbeat drives the boot check AND the slow
+        # periodic re-check (interval clamped 15 min..6 h)
+        self.root.after(4000, self._schedule_update_check)
 
     # ------------------------------------------------------------------- ui
     def setup_ui(self):
@@ -3449,6 +3452,12 @@ class DXN1Studio:
         if low == "update":
             self.check_for_updates(manual=True)
             return
+        if low in ("whatsnew", "whats new", "changelog"):
+            self.show_whatsnew()
+            return
+        if low == "deps" or low.startswith("deps "):
+            self._run_depcheck()
+            return
         if low in ("hub", "project hub"):
             self.open_hub()
             return
@@ -4178,6 +4187,22 @@ class DXN1Studio:
                          "cursors…", "DS2", _save_session_palette))
         except Exception:  # pragma: no cover — palette stays alive
             pass
+        # DS2 v2.36: dependency check (defensive)
+        def _deps_palette():
+            self._run_depcheck()
+        try:
+            cmds.append(("Dependency Check — imports vs "
+                         "requirements…", "DS2", _deps_palette))
+        except Exception:  # pragma: no cover — palette stays alive
+            pass
+        # DS2 v2.36: what's new on demand (defensive)
+        def _whatsnew_palette():
+            self.show_whatsnew()
+        try:
+            cmds.append(("What's New — release notes digest…",
+                         "DS2", _whatsnew_palette))
+        except Exception:  # pragma: no cover — palette stays alive
+            pass
         # DS2: scribe goal (defensive)
         def _scribe_goal_palette():
             self._scribe_click()
@@ -4725,6 +4750,63 @@ class DXN1Studio:
             return skipped != str(latest or "")
         except Exception:  # noqa: BLE001 — default is to speak up
             return True
+
+    def _schedule_update_check(self):
+        """DS2 v2.36: the update heartbeat — boot check + slow re-check.
+
+        One ``after`` loop drives both: the first tick (4s after boot)
+        is the classic boot check, every later tick waits
+        ``update_check_secs`` (clamped 15 min..6 h). Gated by the
+        ``check_updates`` master switch; the polite skip memory
+        applies like everywhere else. Always reschedules while the
+        root lives."""
+        try:
+            if not self.smoke_test and \
+                    self.config.get("check_updates", True):
+                self.check_for_updates(manual=False)
+        except Exception:
+            errors.log_exception("update heartbeat", quiet=True)
+        try:
+            _secs = int(self.config.get("update_check_secs", 3600)
+                        or 3600)
+            _secs = max(900, min(21600, _secs))
+            self._update_check_job = self.root.after(
+                _secs * 1000, self._schedule_update_check)
+        except Exception:  # noqa: BLE001 — dying root is fine
+            pass
+
+    def _run_depcheck(self):
+        """DS2 v2.36: ``deps`` — imports vs requirements, in the
+        terminal. Pure static analysis, never executes project code."""
+        try:
+            if not self.project_dir:
+                self.toast("No workspace open — deps needs one",
+                           kind="info")
+                return
+            from . import depcheck as _dc
+            rep = _dc.check(self.project_dir)
+            text = _dc.describe(rep)
+            if not text:
+                self.toast("deps: no Python files in this workspace",
+                           kind="info")
+                return
+            for ln in text.splitlines():
+                self.terminal.log(ln)
+        except Exception:
+            errors.log_exception("deps check", quiet=True)
+
+    def show_whatsnew(self):
+        """DS2 v2.36: open the What's New viewer on demand (terminal
+        ``whatsnew`` / palette)."""
+        try:
+            from . import whatsnew as _wn
+            entries = _wn.load_entries()
+            _wn.open_whatsnew(
+                self.root, self.theme,
+                highlight=entries[0]["version"] if entries else "",
+                on_log=lambda m: self.terminal.log(m))
+        except Exception:
+            errors.log_exception("whatsnew", quiet=True)
 
     # ----------------------------------------------------------- shortcuts
     def show_shortcuts(self):
@@ -5435,6 +5517,12 @@ class SettingsDialog(tk.Toplevel):
             value=bool(cfg.get("session_autosave", True)))
         self.updates_v = tk.BooleanVar(
             value=bool(cfg.get("check_updates", True)))
+        try:   # DS2 v2.36: update heartbeat interval, minutes
+            _upd_min = max(15, min(360, int(
+                cfg.get("update_check_secs", 3600)) // 60))
+        except Exception:
+            _upd_min = 60
+        self.updint_v = tk.IntVar(value=_upd_min)
 
         box = tk.Frame(self, bg=t["bg"])
         box.pack(padx=26, pady=20)
@@ -5533,7 +5621,8 @@ class SettingsDialog(tk.Toplevel):
                  "Snapshots tabs and cursor spots every minute, so even "
                  "a crash comes back."),
                 (self.updates_v, "Check for updates",
-                 "Quietly ask GitHub on boot; toast when a new release is up.")):
+                 "Quietly ask GitHub on boot and on a slow heartbeat; "
+                 "a release you skipped stays silent.")):
             row = tk.Frame(sec2, bg=t["card"])
             row.pack(fill=tk.X, pady=3, ipady=4)
             tk.Checkbutton(row, variable=var, bg=t["card"], fg=t["text"],
@@ -5546,6 +5635,22 @@ class SettingsDialog(tk.Toplevel):
             tk.Label(row, text=f"  ·  {sub}", bg=t["card"],
                      fg=t["text_secondary"], font=(FONT_UI, 8)).pack(
                 side=tk.LEFT)
+
+        # DS2 v2.36: update heartbeat interval (minutes)
+        row = tk.Frame(sec2, bg=t["card"])
+        row.pack(fill=tk.X, pady=3, ipady=4)
+        tk.Label(row, text="Update heartbeat", bg=t["card"],
+                 fg=t["text"], font=(FONT_UI, 10, "bold")
+                 ).pack(side=tk.LEFT, padx=(12, 4))
+        tk.Spinbox(row, from_=15, to=360, increment=15,
+                   textvariable=self.updint_v, width=5, bg=t["editor"],
+                   fg=t["text"], buttonbackground=t["card"],
+                   relief=tk.FLAT, insertbackground=t["text"],
+                   highlightthickness=0).pack(side=tk.LEFT)
+        tk.Label(row, text="  ·  minutes between quiet GitHub checks "
+                           "while the studio runs (15–360)",
+                 bg=t["card"], fg=t["text_secondary"],
+                 font=(FONT_UI, 8)).pack(side=tk.LEFT)
 
         # --- agents
         sec3 = self._section(box, "DXN1 Agents")
@@ -5680,6 +5785,12 @@ class SettingsDialog(tk.Toplevel):
         cfg.set("restore_session", bool(self.session_v.get()))
         cfg.set("session_autosave", bool(self.sesauto_v.get()))
         cfg.set("check_updates", bool(self.updates_v.get()))
+        try:   # DS2 v2.36: heartbeat minutes -> clamped seconds
+            _upd_secs = max(900, min(21600,
+                                     int(self.updint_v.get()) * 60))
+        except Exception:
+            _upd_secs = 3600
+        cfg.set("update_check_secs", _upd_secs)
         # editor changes apply live; colours need the rebuild
         self.app.editor.set_font_size(cfg.get("editor_font_size", 11))
         self.app.editor.set_wrap(bool(cfg.get("word_wrap", False)))

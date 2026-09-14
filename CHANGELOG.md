@@ -4,6 +4,33 @@ All notable changes to DXN1 STUDIO. Format based on
 [Keep a Changelog](https://keepachangelog.com/); versioning is
 `MAJOR.MINOR.PATCH` while in **beta**.
 
+## [2.36.0] — 2026-09-14 · beta · "keeps you current" (update heartbeat + deps cross-check)
+
+### Added
+- **Update heartbeat** — update checks are no longer boot-only: a
+  quiet after-loop re-asks GitHub while the studio runs (default
+  hourly, Settings ▸ *Update heartbeat* 15–360 min, clamped
+  15 min..6 h). The polite skip memory applies — a release you
+  declined stays silent; a newer one nags.
+- **`deps` — the dependency cross-check** (new `depcheck.py`): an
+  AST walk over the workspace's `*.py` files vs `requirements*.txt`
+  (plus `pyproject.toml [project] dependencies`) that reports
+  **imported but never required** and **required but never
+  imported**. Pure static analysis — the project's code is never
+  executed. A table of famous distribution↔import pairs
+  (Pillow→PIL, beautifulsoup4→bs4, PyYAML→yaml, …) covers the
+  classic mapping traps; unknown pairs fall back to PEP 503
+  normalisation and the report honestly flags best-effort caveats.
+  Run it from the terminal (`deps`), the palette, or with no
+  requirements file at all — you get a notice, not an error.
+- **`whatsnew` terminal verb** — the What's New release-rail viewer
+  opens on demand (`whatsnew` / `whats new` / `changelog`), next to
+  the Help menu entry and the once-per-version auto-open.
+- Palette commands for both: *Dependency Check — imports vs
+  requirements…* and *What's New — release notes digest…*.
+- Settings ▸ *Check for updates* text now tells the truth about the
+  heartbeat and the skip memory.
+
 ## [2.35.0] — 2026-09-14 · beta · "the boot path that never lies" (engine-first restore + polite updater)
 
 ### Changed

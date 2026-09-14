@@ -3136,3 +3136,142 @@ def test_engine_first_restore(monkeypatch, tmp_path):
             root.destroy()
         except tk.TclError:
             pass
+
+
+def test_depcheck(tmp_path):
+    """DS2 v2.36 — dependency cross-check: import scanning (as/from/
+    relative), stdlib-vs-local-vs-third classification, requirements
+    parsing (pins, extras, comments, plumbing lines), the famous
+    alias table, and the missing/unused verdicts — plus the honest
+    no-requirements note."""
+    from dxn1_studio import depcheck as dc
+    # names: canonical + top_imports
+    assert dc.canonical("Pillow_-2") == "pillow-2"
+    assert dc.canonical("") == ""
+    import ast as _ast
+    tree = _ast.parse(
+        "import os\nimport requests as rq\nfrom PIL import Image\n"
+        "from .rel import x\nfrom a.b.c import d\n")
+    got = []
+    for node in _ast.walk(tree):
+        got.extend(dc.top_imports(node))
+    assert sorted(got) == ["PIL", "a", "os", "requests"], got
+    # scan_imports: junk files skipped, paths sorted
+    f1 = tmp_path / "main.py"
+    f1.write_text("import os\nimport flask\n", encoding="utf-8")
+    f2 = tmp_path / "broken.py"
+    f2.write_text("def oops(:\n", encoding="utf-8")
+    scanned = dc.scan_imports([str(f1), str(f2), str(tmp_path / "x.txt")])
+    assert str(f1) in scanned and scanned[str(f1)] == ["flask", "os"]
+    assert str(f2) not in scanned and \
+        str(tmp_path / "x.txt") not in scanned
+    # requirements parsing
+    rq = tmp_path / "requirements.txt"
+    rq.write_text(
+        "flask>=3.0  # web\n"
+        "Pillow\n"
+        "uvicorn[standard]==0.30\n"
+        "-r dev.txt\n"
+        "--hash=sha256:abc\n"
+        "# pure comment\n"
+        "\n"
+        "git+https://example.com/x.git\n", encoding="utf-8")
+    names = dc.read_requirements(str(rq))
+    assert names == ["flask", "pillow", "uvicorn"], names
+    assert dc.read_requirements(str(tmp_path / "nope.txt")) == []
+    # alias resolution
+    assert dc.req_import_names({"pillow"}) == {"pillow", "pil"}
+    assert "bs4" in dc.req_import_names({"beautifulsoup4"})
+    # classification
+    std, loc, third = dc.classify(
+        ["os", "tkinter", "mymod", "flask", "PIL"],
+        local_modules={"mymod"})
+    assert std == ["os", "tkinter"] and loc == ["mymod"]
+    assert third == ["PIL", "flask"]
+    # local_modules: stems + packages
+    pkg = tmp_path / "mypkg"
+    pkg.mkdir()
+    (pkg / "__init__.py").write_text("", encoding="utf-8")
+    lm = dc.local_modules(tmp_path)
+    assert "main" in lm and "mypkg" in lm and "rq" not in lm
+    # the full check: missing + unused + clean note
+    proj = tmp_path / "ws"
+    proj.mkdir()
+    (proj / "app.py").write_text(
+        "import os\nimport yaml\nimport yaml as _y\n", encoding="utf-8")
+    (proj / "requirements.txt").write_text(
+        "PyYAML\nflask\n", encoding="utf-8")
+    rep = dc.check(proj)
+    assert rep["files"] == 1 and rep["third_party"] == ["yaml"]
+    assert rep["missing"] == []            # pyyaml alias covers yaml
+    assert rep["unused"] == ["flask"]
+    out = dc.describe(rep)
+    assert "never imported" in out and "flask" in out
+    # missing requirement surfaces with the honest note
+    (proj / "extra.py").write_text("import uvicorn\n", encoding="utf-8")
+    rep2 = dc.check(proj)
+    assert rep2["missing"] == ["uvicorn"]
+    assert "best-effort" in rep2["note"] and dc.describe(rep2)
+    # no requirements at all -> honest note, no crash
+    empty = tmp_path / "bare"
+    empty.mkdir()
+    (empty / "only.py").write_text("import os\n", encoding="utf-8")
+    rep3 = dc.check(empty)
+    assert rep3["files"] == 1 and rep3["req_files"] == []
+    assert "no requirements" in rep3["note"]
+    assert "no requirements" in dc.describe(rep3)   # the note is the value
+    # zero files scanned -> nothing useful to say
+    assert dc.describe(dc.check(tmp_path / "void")) == ""
+    # describe() of a junk report is honest
+    assert dc.describe(None) == "" and dc.describe({}) == ""
+
+
+def test_update_periodic(monkeypatch, tmp_path):
+    """DS2 v2.36 — the update heartbeat: one after-loop drives the
+    boot check and the slow re-check; gated by the master switch and
+    the clamped interval; junk intervals never break the reschedule."""
+    import tkinter as tk
+    try:
+        root = tk.Tk(); root.withdraw()
+    except tk.TclError:
+        return
+    import dxn1_studio.config as cfgmod
+    monkeypatch.setattr(cfgmod, "CONFIG_DIR", str(tmp_path))
+    monkeypatch.setattr(cfgmod, "CONFIG_PATH",
+                        str(tmp_path / "config.json"))
+    monkeypatch.setenv("HOME", str(tmp_path))
+    from dxn1_studio.app import DXN1Studio
+    app = DXN1Studio(cfgmod.Config(), smoke_test=True, no_splash=True)
+    try:
+        # DEFAULTS registered
+        assert cfgmod.DEFAULTS["update_check_secs"] == 3600
+        # smoke mode: the gate silences the check itself…
+        calls = []
+        monkeypatch.setattr(app, "check_for_updates",
+                            lambda manual=False: calls.append(manual))
+        app._schedule_update_check()
+        assert calls == [], "smoke mode must not auto-check"
+        # …but the heartbeat still reschedules
+        assert getattr(app, "_update_check_job", None)
+        # master switch off → silent, still rescheduled
+        app.config.set("check_updates", False)
+        app.config.set("update_check_secs", 900)
+        before = app._update_check_job
+        app._schedule_update_check()
+        assert calls == [] and app._update_check_job != before
+        # switch on (smoke_test lifted) → the check fires
+        app.smoke_test = False
+        app.config.set("check_updates", True)
+        app._schedule_update_check()
+        assert calls == [False], calls
+        # junk intervals clamp into 900..21600 — probe the next tick
+        for junk in ("0", "", "nonsense", 999999, -5):
+            app.config.set("update_check_secs", junk)
+            app._schedule_update_check()
+        assert calls == [False] * 6, calls
+        assert getattr(app, "_update_check_job", None)
+    finally:
+        try:
+            root.destroy()
+        except tk.TclError:
+            pass

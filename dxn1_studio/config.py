@@ -35,6 +35,7 @@ DEFAULTS = {
     "session_autosave_secs": 60,   # interval, clamped 15..600 at runtime
     # --- DS2 v2.35: the polite updater -------------------------------------
     "updater_skip_version": "",    # version the user declined — no auto-nag
+    "update_check_secs": 3600,     # heartbeat interval, clamped 900..21600
     "recent_projects": [],   # [{path, kind, opened}] — hub recents
     "last_project": "",      # most recently opened workspace path
     # --- wizard -----------------------------------------------------------

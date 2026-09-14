@@ -12,7 +12,7 @@ dxn1_studio/
 └── … 83 feature modules, one lane each, described below
 ```
 
-## Design rules (what keeps 83 modules coherent)
+## Design rules (what keeps 84 modules coherent)
 
 1. **One module = one lane.** Every feature lives in its own file
    with a public `open_*(parent, theme, …)` opener, so parallel
@@ -86,13 +86,14 @@ geometry memory).
 
 | Harness | What it proves |
 |---|---|
-| `python3 -m pytest tests/` | 77 unit groups over every pure engine |
+| `python3 -m pytest tests/` | 79 unit groups over every pure engine |
 | `scripts/smoke_v290.py` (Xvfb) | 155 live-window checks across 26 feature windows |
 | `scripts/smoke_v310.py` (Xvfb) | 20 checks: fuzzy highlight runs, per-buffer cursor memory, session cursor merge |
 | `scripts/smoke_v320.py` (Xvfb) | 18 checks: autosave write/switch gates, crash simulation + engine recovery boot, installer `--version` |
 | `scripts/smoke_v330.py` (Xvfb) | 13 checks: save-session-now chip (paint, accent glow, fade job), terminal `session save`, palette fuzzy hit |
 | `scripts/smoke_v340.py` (Xvfb) | 10 checks: HASHES.txt coverage + sha spot-check, Workshop menu entry, live delta pass (unchanged file skipped, no network) |
 | `scripts/smoke_v350.py` (Xvfb) | 20 checks: skip-this-version memory (decline records, auto-check quiet, manual overrides, e2e no-portal), atomic config save, engine-first boot restore with legacy fallback |
+| `scripts/smoke_v360.py` (Xvfb) | 16 checks: update heartbeat gating + junk clamp, live `deps` report (missing/unused/alias), `whatsnew` verb, settings round-trip (minutes → clamped seconds), palette fuzzy hits |
 | `scripts/boot_qa.py` (Xvfb) | 20 checks booting the real studio: menus bound, palette entries live, modules import, scribe chip wired |
 | `python3 -m compileall -q dxn1_studio` | The tree always compiles — the gate before every tag |
 

@@ -430,6 +430,17 @@
 | Fuzzy Quick Open | `path_score()` | Subsequence match over paths with a +3 basename boost — files beat folders; deterministic tie-break keeps short paths first |
 | Never crashes | engine | `None` never matches, non-strings coerce via `str()`, broken key functions fall back to `str(item)`; empty queries preserve the original order; legacy substring filter stays as fallback |
 
+## Dependency Cross-Check
+
+| Feature | Where | What it does |
+|---|---|---|
+| `deps` verb | terminal `deps`, palette *Dependency Check — imports vs requirements…* | Cross-checks the workspace's imports against `requirements*.txt` (and `pyproject.toml [project] dependencies`): reports **imported but never required** and **required but never imported**, with a one-line summary first |
+| Static scanner | `depcheck.scan_imports()` | AST walk over every `*.py` (junk dirs skipped, unreadable files skipped silently) collecting top-level import names — as-imports, from-imports, dotted roots; relative imports count as local |
+| Honest classification | `depcheck.classify()` | Splits names into stdlib (via `sys.stdlib_module_names`), local (root `*.py` stems + packages with `__init__.py`) and third-party — only the third bucket can be missing |
+| Requirements parsing | `depcheck.read_requirements()` | Pins, extras, inline comments, `-r`/`-e`/`--hash` plumbing, `name @ URL` and VCS lines (`git+…`) handled; PEP 503 canonical names out |
+| Famous alias table | `depcheck.ALIASES` | Pillow→PIL, beautifulsoup4→bs4, PyYAML→yaml, scikit-learn→sklearn, python-dotenv→dotenv and ~25 more pairs so `PyYAML` satisfies `import yaml` |
+| Honest caveats | `depcheck.check()` | No requirements file → a notice instead of an error; unknown dist↔import pairs can false-positive, and the report says exactly that |
+
 ## Session Restore
 
 | Feature | Where | What it does |
