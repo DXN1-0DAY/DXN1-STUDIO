@@ -119,4 +119,5 @@
 | JSON workshop | Dev tools → *JSON* | Pretty (2/4), minify, validate, sort keys — errors report the exact `line X, col Y` of the offending byte |
 | Text transformer | Dev tools → *Text* | `snake_case`, `camelCase`, `PascalCase`, `kebab-case`, `CONST_CASE`, Title Case (understands `HTTPServer2`); base64 and URL encode/decode; `\u`/`\U` escape round-trips incl. astral plane; MD5/SHA-1/SHA-256; word/char/line counts; *↑ use output as input* chains transforms |
 | Time converter | Dev tools → *Time* | Ticking ISO clock (local or UTC), epoch ↔ ISO both directions, `Z`-suffix and naive-timestamp handling, relative labels (`3h ago`, `in 2d`) |
+| Color lab | Dev tools → *Color* | hex ↔ rgb ↔ hsl live conversion with swatch, WCAG contrast ratio + AA/AAA grade against any second color, eight harmony swatches (complement, analogous, triadic, lighter/darker) — click one to copy its hex |
 | Terminal shortcuts | terminal `tools` / `devtools` / `regex` | Opens the window; `regex` seeds the pattern from the current editor selection |

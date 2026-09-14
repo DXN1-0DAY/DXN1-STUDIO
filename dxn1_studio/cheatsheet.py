@@ -62,6 +62,8 @@ SHEETS = [
         ("text tab", "snake/camel/kebab, base64, URL%, \\u escapes, "
                      "MD5/SHA, word counts — chain via ↑"),
         ("time tab", "epoch ↔ ISO ↔ '3h ago', ticking clock, local/UTC"),
+        ("color tab", "hex ↔ rgb ↔ hsl, WCAG contrast grade, harmony "
+                      "swatches — click to copy"),
     ]),
     ("TERMINAL TALK", [
         ("help", "List every studio command"),

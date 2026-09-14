@@ -322,6 +322,97 @@ def rel_time(ts, now=None):
     return "now"
 
 
+
+# ------------------------------------------------------------------ color
+
+def hex_to_rgb(s):
+    s = (s or "").strip().lstrip("#")
+    if len(s) == 3:
+        s = "".join(ch * 2 for ch in s)
+    if len(s) != 6:
+        return 0, 0, 0, "need #rgb or #rrggbb"
+    try:
+        return int(s[0:2], 16), int(s[2:4], 16), int(s[4:6], 16), ""
+    except ValueError:
+        return 0, 0, 0, "need hex digits"
+
+
+def rgb_to_hex(r, g, b):
+    clamp = lambda v: max(0, min(255, int(round(v))))  # noqa: E731
+    return "#{:02x}{:02x}{:02x}".format(clamp(r), clamp(g), clamp(b))
+
+
+def rgb_to_hsl(r, g, b):
+    r, g, b = r / 255, g / 255, b / 255
+    mx, mn = max(r, g, b), min(r, g, b)
+    l = (mx + mn) / 2
+    if mx == mn:
+        return 0.0, 0.0, l * 100
+    d = mx - mn
+    s = d / (2 - mx - mn) if l > 0.5 else d / (mx + mn)
+    if mx == r:
+        h = ((g - b) / d) % 6
+    elif mx == g:
+        h = (b - r) / d + 2
+    else:
+        h = (r - g) / d + 4
+    return (h * 60) % 360, s * 100, l * 100
+
+
+def hsl_to_rgb(h, s, l):
+    h, s, l = (h % 360) / 360, max(0, min(1, s / 100)), max(0, min(1, l / 100))
+    if s == 0:
+        r = g = b = l
+    else:
+        def f(n):
+            k = (n + h * 12) % 12
+            a = s * min(l, 1 - l)
+            return l - a * max(-1, min(k - 3, 9 - k, 1))
+        r, g, b = f(0), f(8), f(4)
+    return r * 255, g * 255, b * 255
+
+
+def _chan_lum(c):
+    c = c / 255
+    return c / 12.92 if c <= 0.04045 else ((c + 0.055) / 1.055) ** 2.4
+
+
+def rel_luminance(r, g, b):
+    return (0.2126 * _chan_lum(r) + 0.7152 * _chan_lum(g)
+            + 0.0722 * _chan_lum(b))
+
+
+def contrast_ratio(hex1, hex2):
+    r1, g1, b1, e1 = hex_to_rgb(hex1)
+    r2, g2, b2, e2 = hex_to_rgb(hex2)
+    if e1 or e2:
+        return 0.0
+    l1, l2 = rel_luminance(r1, g1, b1), rel_luminance(r2, g2, b2)
+    hi, lo = max(l1, l2), min(l1, l2)
+    return (hi + 0.05) / (lo + 0.05)
+
+
+def color_harmonies(hex_color):
+    """Complementary, analogous, triadic + lighter/darker neighbours."""
+    r, g, b, err = hex_to_rgb(hex_color)
+    if err:
+        return {}
+    h, s, l = rgb_to_hsl(r, g, b)
+    def hx(hh, ss=None, ll=None):
+        rr, gg, bb = hsl_to_rgb(hh, s if ss is None else ss,
+                                l if ll is None else ll)
+        return rgb_to_hex(rr, gg, bb)
+    return {
+        "base": rgb_to_hex(r, g, b),
+        "complement": hx(h + 180),
+        "analogous -30": hx(h - 30),
+        "analogous +30": hx(h + 30),
+        "triadic 120": hx(h + 120),
+        "triadic 240": hx(h + 240),
+        "lighter +20%": hx(h, ll=l + 20),
+        "darker -20%": hx(h, ll=l - 20),
+    }
+
 # ------------------------------------------------------------------ window
 
 class DevTools(tk.Toplevel):
@@ -349,6 +440,7 @@ class DevTools(tk.Toplevel):
         self._tab_json()
         self._tab_text()
         self._tab_time()
+        self._tab_color()
         self.nb.select(0)
         self.bind("<Escape>", lambda e: self.destroy())
         self.protocol("WM_DELETE_WINDOW", self._close)
@@ -856,6 +948,91 @@ class DevTools(tk.Toplevel):
         self.ts_epoch_var.set(str(ep))
         self._ts_relative()
         self._set_status(self.ts_status, "converted → epoch", ok=True)
+
+
+    # --------------------------------------------------------- tab: color
+
+    def _tab_color(self):
+        t = self.t
+        page = tk.Frame(self.nb, bg=t["bg"])
+        self.nb.add(page, text="  Color  ")
+
+        row = tk.Frame(page, bg=t["bg"])
+        row.pack(fill="x")
+        tk.Label(row, text="hex", bg=t["bg"], fg=t["text_muted"],
+                 font=(FONT_UI, 10)).pack(side="left")
+        self.cl_hex_var = tk.StringVar(value="#4f8cff")
+        self.cl_hex = self._entry(row, self.cl_hex_var)
+        self.cl_hex.pack(side="left", fill="x", expand=True, padx=(8, 8),
+                         ipady=5)
+        self.cl_swatch = tk.Label(row, text="      ", bg="#4f8cff",
+                                  width=4)
+        self.cl_swatch.pack(side="left", fill="y")
+        self.cl_readout = tk.Label(row, text="", bg=t["bg"],
+                                   fg=t["text_secondary"], font=(FONT_MONO, 10))
+        self.cl_readout.pack(side="left", padx=(10, 0))
+        self.cl_hex_var.trace_add("write", lambda *a: self._cl_update())
+
+        row2 = tk.Frame(page, bg=t["bg"])
+        row2.pack(fill="x", pady=(10, 0))
+        tk.Label(row2, text="contrast with", bg=t["bg"],
+                 fg=t["text_muted"], font=(FONT_UI, 10)).pack(side="left")
+        self.cl_vs_var = tk.StringVar(value="#ffffff")
+        self.cl_vs = self._entry(row2, self.cl_vs_var)
+        self.cl_vs.pack(side="left", fill="x", expand=True, padx=(8, 8),
+                        ipady=5)
+        self.cl_ratio = tk.Label(row2, text="", bg=t["bg"],
+                                 fg=t["text_secondary"],
+                                 font=(FONT_MONO, 11))
+        self.cl_ratio.pack(side="left")
+        self.cl_vs_var.trace_add("write", lambda *a: self._cl_update())
+
+        tk.Label(page, text="harmonies — click a swatch to copy its hex",
+                 bg=t["bg"], fg=t["text_muted"],
+                 font=(FONT_UI, 9)).pack(anchor="w", pady=(14, 6))
+        self.cl_harm = tk.Frame(page, bg=t["bg"])
+        self.cl_harm.pack(fill="x")
+        self.cl_status = self._status(page)
+        self._cl_update()
+
+    def _cl_update(self):
+        t = self.t
+        r, g, b, err = hex_to_rgb(self.cl_hex_var.get())
+        if err:
+            try:
+                self.cl_readout.configure(text=err)
+            except tk.TclError:
+                pass
+            return
+        h, s_, l = rgb_to_hsl(r, g, b)
+        try:
+            self.cl_swatch.configure(bg=rgb_to_hex(r, g, b))
+            self.cl_readout.configure(
+                text=f"rgb({r}, {g}, {b})  hsl({h:.0f}, {s_:.0f}%, "
+                     f"{l:.0f}%)")
+        except tk.TclError:
+            return
+        ratio = contrast_ratio(self.cl_hex_var.get(), self.cl_vs_var.get())
+        if ratio:
+            grade = ("AAA" if ratio >= 7 else "AA" if ratio >= 4.5
+                     else "AA-large" if ratio >= 3 else "fail")
+            self.cl_ratio.configure(text=f"{ratio:5.2f}:1  {grade}")
+        else:
+            self.cl_ratio.configure(text="")
+        for wdg in self.cl_harm.winfo_children():
+            wdg.destroy()
+        for name, hx in color_harmonies(self.cl_hex_var.get()).items():
+            cell = tk.Frame(self.cl_harm, bg=t["bg"])
+            cell.pack(side="left", padx=(0, 8))
+            sw = tk.Label(cell, text="      ", bg=hx, cursor="hand2")
+            sw.pack()
+            sw.bind("<Button-1>", lambda e, hx=hx: (
+                self.clipboard_clear(), self.clipboard_append(hx),
+                self._set_status(self.cl_status,
+                                 f"copied {hx}", ok=True)))
+            tk.Label(cell, text=name.replace("analogous ", "an ")
+                     .replace("triadic ", "tr "), bg=t["bg"],
+                     fg=t["text_muted"], font=(FONT_UI, 8)).pack()
 
 
 def open_devtools(parent, theme):

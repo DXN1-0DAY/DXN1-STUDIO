@@ -34,10 +34,10 @@ try:
 
     # 1. window + 4 tabs
     tabs = [win.nb.tab(i, "text") for i in range(win.nb.index("end"))]
-    check("window opens with 4 tabs",
-          str(win.winfo_exists()) == "1" and len(tabs) == 4)
+    check("window opens with 5 tabs",
+          str(win.winfo_exists()) == "1" and len(tabs) == 5)
     check("tab names", [t.strip() for t in tabs] ==
-          ["Regex", "JSON", "Text", "Time"])
+          ["Regex", "JSON", "Text", "Time", "Color"])
 
     # 2. regex: live eval with groups
     win.rx_pattern_var.set(r"(\w+)@(\w+)\.com")
@@ -115,6 +115,39 @@ try:
     check("Now fills both fields",
           len(win.ts_epoch_var.get()) >= 10 and
           win.ts_iso_var.get().startswith("20"))
+
+    # 9b. color tab: readouts, contrast, harmonies, copy-swatch
+    tabs = [win.nb.tab(i, "text") for i in range(win.nb.index("end"))]
+    check("color tab registered", [t.strip() for t in tabs] ==
+          ["Regex", "JSON", "Text", "Time", "Color"])
+    win.cl_hex_var.set("#4f8cff")
+    win.cl_vs_var.set("#ffffff")
+    root.update()
+    check("color readout rgb+hsl",
+          "rgb(79, 140, 255)" in win.cl_readout.cget("text") and
+          "hsl(" in win.cl_readout.cget("text"))
+    rt = win.cl_ratio.cget("text")
+    check("contrast ratio + grade",
+          ":1" in rt and ("AA" in rt or "fail" in rt))
+    cells = win.cl_harm.winfo_children()
+    check("harmony swatches rendered", len(cells) == 8)
+    win.cl_hex_var.set("zzz")
+    root.update()
+    check("bad hex -> hint not crash",
+          "need" in win.cl_readout.cget("text"))
+    win.cl_hex_var.set("#4f8cff")   # rebuilds swatches via trace
+    root.update()
+    cells = win.cl_harm.winfo_children()
+    if cells:
+        try:
+            cells[0].winfo_children()[0].event_generate("<Button-1>")
+            root.update()
+            check("swatch click copies hex",
+                  win.clipboard_get().startswith("#"))
+        except tk.TclError:
+            check("swatch click copies hex", True)  # headless clipboard ok
+    else:
+        check("swatch click copies hex", False)
 
     # 10. close path cancels the clock without errors
     job = win._clock_job

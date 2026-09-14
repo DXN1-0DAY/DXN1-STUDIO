@@ -716,3 +716,29 @@ def test_devtools_json_and_time():
     assert rel_time(now, now=now) == "now"
     assert rel_time("junk") == ""
     assert now_iso().startswith("20")
+
+
+def test_devtools_color_engine():
+    from dxn1_studio.devtools import (hex_to_rgb, rgb_to_hex, rgb_to_hsl,
+                                      hsl_to_rgb, contrast_ratio,
+                                      rel_luminance, color_harmonies)
+    r, g, b, err = hex_to_rgb("#4f8cff")
+    assert (r, g, b, err) == (79, 140, 255, "")
+    assert hex_to_rgb("#abc")[:3] == (170, 187, 204)
+    assert hex_to_rgb("nope")[3] != "" and hex_to_rgb("#12")[3] != ""
+    assert rgb_to_hex(79, 140, 255) == "#4f8cff"
+    assert rgb_to_hex(300, -5, 25.4) == "#ff0019"   # clamped
+    h, s, l = rgb_to_hsl(79, 140, 255)
+    assert 210 < h < 230 and 95 < s <= 100 and 50 < l < 70
+    assert rgb_to_hsl(255, 255, 255) == (0.0, 0.0, 100.0)
+    rr, gg, bb = hsl_to_rgb(h, s, l)
+    assert abs(rr - 79) <= 1 and abs(gg - 140) <= 1 and abs(bb - 255) <= 1
+    # WCAG anchors: black on white = 21:1; same color = 1:1
+    assert abs(contrast_ratio("#000000", "#ffffff") - 21.0) < 0.01
+    assert abs(contrast_ratio("#4f8cff", "#4f8cff") - 1.0) < 0.01
+    assert rel_luminance(255, 255, 255) == 1.0
+    assert rel_luminance(0, 0, 0) == 0.0
+    hm = color_harmonies("#4f8cff")
+    assert len(hm) == 8 and hm["base"] == "#4f8cff"
+    assert all(v.startswith("#") for v in hm.values())
+    assert color_harmonies("hello") == {}  # bad length, not a 3-digit shorthand
