@@ -2249,6 +2249,30 @@ class DXN1Studio:
                          _open_themes))
         except Exception:  # pragma: no cover — palette stays alive
             pass
+        # DS2: task runner + editor minimap (defensive)
+        def _open_tasks():
+            from .term import open_tasks
+            open_tasks(self.root, self.theme, self.project_dir,
+                       on_run=self.run_command,
+                       on_log=lambda m: self.terminal.log(m))
+
+        def _toggle_minimap():
+            if getattr(self, "_minimap", None) is not None:
+                self._minimap.pack_forget()
+                self._minimap = None
+                return
+            from .minimap import Minimap
+            self._minimap = Minimap(self.editor.text_frame, self.theme,
+                                    self.editor.text)
+            self._minimap.pack(side=tk.RIGHT, fill=tk.Y)
+
+        try:
+            cmds += [
+                ("Task runner — project commands…", "DS2", _open_tasks),
+                ("Editor minimap on/off", "DS2", _toggle_minimap),
+            ]
+        except Exception:  # pragma: no cover — palette stays alive
+            pass
         return cmds
 
     def _ds2_restart(self):
