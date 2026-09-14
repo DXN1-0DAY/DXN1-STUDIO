@@ -317,3 +317,12 @@
 |---|---|---|
 | Six new UI keys | `i18n.py`, full translations in all eight packs | `markprev.copy_html` / `markprev.export_html` / `chart.copy_stats` / `unit.copy_result` / `textcase.click_copy` / `charmap.click_copy` — every pack now carries 68 keys |
 | Translated buttons | markprev, charts, unitconv, textcase, charmap | The newest windows' copy/export buttons and hints resolve through the active language pack; `lang es` visibly re-speaks them |
+
+## PassForge (v2.20.0 lane)
+
+| Feature | Where | What it does |
+|---|---|---|
+| Password generator | `pwdgen.py`, Workshop → *PassForge — strong passwords + entropy…*, palette, terminal `passgen` / `password` / `passforge` | Lengths 4–128 from toggled classes (A-Z, a-z, 0-9, symbols) with an optional "no `Il1O0o`" ambiguous-glyph filter |
+| Real CSPRNG | stdlib `secrets.choice` | No home-made randomness anywhere; tests stay deterministic by injecting a seeded rng into `generate()` |
+| Entropy meter | `entropy_bits()` / `strength_label()` | Shannon entropy `length · log2(pool)` with an honest ladder: weak < 28 ≤ fair < 36 ≤ strong < 60 ≤ excellent < 128 ≤ overkill; empty pools and junk input read zero instead of lying |
+| Junk-tolerant | every engine entry | Non-integer lengths, zero/negative lengths, disabled pools all return empty strings; the window asks for options instead of crashing |

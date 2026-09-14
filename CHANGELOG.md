@@ -4,6 +4,11 @@ All notable changes to DXN1 STUDIO. Format based on
 [Keep a Changelog](https://keepachangelog.com/); versioning is
 `MAJOR.MINOR.PATCH` while in **beta**.
 
+## [2.20.0] — 2026-09-14 · beta · "secrets, not guesses"
+
+### Added
+- **PassForge** (`pwdgen.py`, Workshop → *PassForge — strong passwords + entropy…*, terminal `passgen` / `password` / `passforge`) — a cryptographic password generator: toggled character classes (A-Z / a-z / 0-9 / symbols), an "no `Il1O0o`" ambiguous-glyph switch, lengths 4–128, stdlib `secrets` CSPRNG (no home-made randomness), a live Shannon-entropy readout (`20 chars of a 86-glyph pool ≈ 119.1 bits`) and an honest strength ladder from *weak* to *overkill*; one click copies.
+
 ## [2.19.0] — 2026-09-14 · beta · "speak the case, speak the language"
 
 ### Added

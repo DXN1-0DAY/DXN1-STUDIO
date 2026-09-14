@@ -284,6 +284,25 @@ def main():
     check("textcase engine offline", convert("a_b", "kebab") == "a-b")
     tcwin.destroy()
 
+    # ---- PassForge (same smoke, new lane)
+    from dxn1_studio.pwdgen import entropy_bits, open_passforge
+    pfwin = open_passforge(root, theme)
+    pfwin.update_idletasks()
+    check("passforge window opens", pfwin.winfo_exists())
+    check("passforge generates", len(pfwin.out.get()) == 20)
+    check("passforge entropy readout", "bits" in
+          pfwin.strength.cget("text"))
+    pfwin.length.set(12)
+    pfwin.refresh()
+    check("passforge length honored", len(pfwin.out.get()) == 12)
+    pfwin.upper.set(False); pfwin.lower.set(False)
+    pfwin.digits.set(False); pfwin.refresh()
+    check("passforge empty pool honest", "toggle at least one" in
+          pfwin.out.get())
+    check("passforge engine offline",
+          entropy_bits(20) > 100)
+    pfwin.destroy()
+
     # ---- REST bench (same smoke, seventh lane)
     from dxn1_studio.restbench import (RestResponse, build_curl,
                                        format_size,

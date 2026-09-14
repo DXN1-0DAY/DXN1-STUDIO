@@ -1216,6 +1216,15 @@ class DXN1Studio:
                 command=_open_textcase_menu)
         except Exception:  # pragma: no cover — menu stays alive
             pass
+        # DS2: passforge (defensive)
+        def _open_passforge_menu():
+            self.open_passforge()
+        try:
+            workshop_menu.add_command(
+                label="PassForge — strong passwords + entropy…",
+                command=_open_passforge_menu)
+        except Exception:  # pragma: no cover — menu stays alive
+            pass
         workshop_menu.add_separator()
         workshop_menu.add_command(label="Token Usage Dashboard…",
                                   command=_open_usage_menu)
@@ -1675,6 +1684,14 @@ class DXN1Studio:
         try:
             from .textcase import open_textcase
             open_textcase(self.root, self.theme)
+        except Exception:  # noqa: BLE001 — menu stays alive
+            pass
+
+    def open_passforge(self):
+        """DS2: password generator window."""
+        try:
+            from .pwdgen import open_passforge
+            open_passforge(self.root, self.theme)
         except Exception:  # noqa: BLE001 — menu stays alive
             pass
 
@@ -2703,6 +2720,8 @@ class DXN1Studio:
                                 "blocks, click to copy"),
                     ("case", "textcase — convert identifiers between "
                              "snake/camel/kebab/… instantly"),
+                    ("passgen", "PassForge — cryptographic passwords "
+                                "with an entropy meter"),
                     ("scribe <n>", "set the words-per-session goal for "
                                    "the statusbar writing meter"),
                     ("explain", "hand the last error to the agent"),
@@ -2980,6 +2999,12 @@ class DXN1Studio:
             self.terminal.log("TextCase opened — snake/camel/pascal/"
                               "kebab/constant/title/dot/flat, click "
                               "a row to copy")
+            return
+        if low in ("passgen", "password", "passforge"):
+            # DS2: password generator window
+            self.open_passforge()
+            self.terminal.log("PassForge opened — secrets CSPRNG, "
+                              "entropy meter, click generate")
             return
         if low == "lang" or low.startswith("lang "):
             # DS2: switch the UI language pack (i18n activation)
@@ -3671,6 +3696,14 @@ class DXN1Studio:
         try:
             cmds.append(("TextCase — snake/camel/kebab/… converter",
                          "DS2", _open_textcase_palette))
+        except Exception:  # pragma: no cover — palette stays alive
+            pass
+        # DS2: passforge (defensive)
+        def _open_passforge_palette():
+            self.open_passforge()
+        try:
+            cmds.append(("PassForge — strong passwords + entropy…",
+                         "DS2", _open_passforge_palette))
         except Exception:  # pragma: no cover — palette stays alive
             pass
         # DS2: scribe goal (defensive)

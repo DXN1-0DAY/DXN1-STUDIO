@@ -1748,3 +1748,41 @@ def test_textcase_engine():
     assert textcase.words(None) == []
     assert textcase.convert(5, "snake") == ""
     assert textcase.convert("x", "nope") == ""
+
+
+def test_pwdgen_engine():
+    """DS2 pwdgen: pools, CSPRNG generation, entropy, labels."""
+    import random
+    from dxn1_studio import pwdgen
+    # pool composition
+    assert len(pwdgen.pool_for(symbols=False)) == 62
+    assert len(pwdgen.pool_for(symbols=True)) == 86
+    amb = pwdgen.pool_for(exclude_ambiguous=True)
+    assert not (set("Il1O0o") & set(amb))
+    assert pwdgen.pool_for(upper=False, lower=False, digits=False,
+                           symbols=False) == ""
+    # deterministic with injected rng, covers the pool
+    rng = random.Random(7)
+    p = pwdgen.generate(64, symbols=True, rng=rng)
+    assert len(p) == 64
+    assert all(c in pwdgen.pool_for(symbols=True) for c in p)
+    assert pwdgen.generate(16, rng=random.Random(7)) == \
+        pwdgen.generate(16, rng=random.Random(7))
+    # junk input → honest empty
+    assert pwdgen.generate(0) == ""
+    assert pwdgen.generate("x") == ""
+    assert pwdgen.generate(999) == ""
+    assert pwdgen.generate(16, upper=False, lower=False, digits=False,
+                           symbols=False) == ""
+    # entropy math: 62-char pool, 20 chars ≈ 119.1 bits
+    assert abs(pwdgen.entropy_bits(20) - 119.1) < 0.2
+    assert pwdgen.entropy_bits(0) == 0.0
+    assert pwdgen.entropy_bits("x") == 0.0
+    # labels: ordered thresholds, junk → very weak
+    assert pwdgen.strength_label(10) == "weak"
+    assert pwdgen.strength_label(30) == "fair"
+    assert pwdgen.strength_label(45) == "strong"
+    assert pwdgen.strength_label(80) == "excellent"
+    assert pwdgen.strength_label(200) == "overkill"
+    assert pwdgen.strength_label(-5) == "very weak"
+    assert pwdgen.strength_label(None) == "very weak"
