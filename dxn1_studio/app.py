@@ -2292,6 +2292,18 @@ class DXN1Studio:
             )
         except Exception:  # pragma: no cover — palette stays alive
             pass
+        # ---- DS2 notes: scratchpad (defensive)
+        try:
+            from .scratch import open_scratchpad as _open_scratch
+            cmds.append(
+                ("Scratchpad — jot something down", "",
+                 lambda: _open_scratch(
+                     self.root, self.theme, self.config,
+                     workspace=self.project_dir,
+                     on_log=lambda m: self.terminal.log(m))),
+            )
+        except Exception:  # pragma: no cover — palette stays alive
+            pass
         if self.config.get("agents_enabled"):
             cmds += [
                 ("Toggle DXN1 Agents panel", "", self.toggle_agents_panel),
