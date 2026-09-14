@@ -3,7 +3,7 @@
 ## Running
 
 **How do I start the studio?**
-`python3 -m dxn1_studio` from the repo root (or `python main.py`).
+`python3 dxn1-studio` from the repo root (the launcher script).
 Python 3.8+ with Tkinter is the whole requirement; everything else —
 SQLite browser, hasher, REST bench, markdown preview — is stdlib.
 
