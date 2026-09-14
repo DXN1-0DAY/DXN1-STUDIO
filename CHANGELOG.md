@@ -4,6 +4,24 @@ All notable changes to DXN1 STUDIO. Format based on
 [Keep a Changelog](https://keepachangelog.com/); versioning is
 `MAJOR.MINOR.PATCH` while in **beta**.
 
+## [1.7.0] — 2026-09-14 · beta · "the welcome gets smarter"
+
+### Added
+- **Workflow Essentials wizard slide** — new "Four moves worth knowing
+  tonight" step between Agents and Ready: the command palette, quick
+  open, AI quick actions and `remember:` — the shortcuts that make DS2
+  feel like it reads your mind, taught on first launch.
+- **Interactive tour v2** — two new spotlight steps: *Pair mode & quick
+  actions* (for agent users) and *The studio remembers* (memory bank,
+  usage dashboard, visual git suite), so the tour now covers every DS2
+  superpower.
+- **The DS2 Cheat Sheet** (`cheatsheet.py`) — a searchable, grouped
+  reference window: core moves, editor power, the AI workflow, the
+  visual git suite, intelligence features and terminal talk. Live in
+  **Help → DS2 Cheat Sheet…** with a live filter box.
+- **First-run checklist** (`checklist.py`) — a friendly starter
+  checklist for brand-new workspaces.
+
 ## [1.6.0] — 2026-09-14 · beta · "the assistant gets superpowers"
 
 ### Added
