@@ -4,6 +4,46 @@ All notable changes to DXN1 STUDIO. Format based on
 [Keep a Changelog](https://keepachangelog.com/); versioning is
 `MAJOR.MINOR.PATCH` while in **beta**.
 
+## [2.31.0] — 2026-09-14 · beta · "never miss a module again" (installer fix + polish round)
+
+### Fixed
+- **Installer shipped a 19-module list for an 83-module app** — fresh
+  installs crashed on launch with `ModuleNotFoundError: No module named
+  'dxn1_studio.i18n'` (hub.py imports it). install.sh now downloads
+  `MANIFEST.txt` (generated from `dxn1_studio/*.py`, CI-tested to stay
+  in sync) and fetches every module it lists, with a post-download
+  sanity gate that verifies all modules landed. A minimal built-in
+  core list (including `i18n.py`) remains as a fallback.
+- **The in-place updater had the same stale list** — updater.py now
+  resolves the module set from the repo's MANIFEST.txt first, then the
+  locally installed one, then the fallback list; the update portal's
+  progress estimate uses the resolved count and verification compiles
+  every module it actually downloaded.
+- **Installer version-stamp downgrade removed** — the script used to
+  rewrite the downloaded `__init__.py` to claim `1.1.6`, which made the
+  update portal re-prompt forever and mislabel the installed build. The
+  app's real version now always comes from the shipped file.
+
+### Added
+- **Fuzzy highlight rendering** — palette command rows, `@` symbol
+  rows and Quick Open now paint the matched characters bold + accent
+  (white bold on the selected row), via `fuzzy.split_runs`, which
+  merges contiguous match positions into single runs.
+- **Per-buffer cursor memory** — switching tabs or opening another
+  file records the outgoing buffer's insert mark and restores it on
+  return; the close hook merges the whole map into the session
+  snapshot (current file wins).
+- **`install.sh --uninstall`** — removes the app + CLI links, keeps
+  `~/.dxn1-studio` settings.
+
+### Tests
+- 4 new pytest groups (69 total): `split_runs` semantics, cursor-memory
+  record/guards, the manifest↔package drift guard (fails CI the moment
+  a new module isn't in MANIFEST.txt), and updater manifest helpers.
+- New committed UI smoke `scripts/smoke_v310.py` (20 checks): live
+  palette/QuickOpen highlight runs, cursor restore on both switch
+  paths, session snapshot cursor merge.
+
 ## [2.30.0] — 2026-09-14 · beta · "pick up where you left off" (bonus round)
 
 ### Added

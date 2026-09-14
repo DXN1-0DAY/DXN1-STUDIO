@@ -2495,3 +2495,119 @@ def test_session_engine(tmp_path):
     assert len(win.tree.get_children()) == 0
     win._refresh()                               # empty rescan is fine
     win.destroy(); root.destroy()
+
+
+def test_fuzzy_split_runs():
+    """DS2 v2.31 — split_runs renders match positions as merged runs."""
+    f = __import__("dxn1_studio.fuzzy", fromlist=["split_runs"])
+    # non-contiguous positions stay separate runs
+    runs = f.split_runs("quick open", [0, 6, 7])
+    assert runs == [("q", True), ("uick ", False), ("op", True),
+                    ("en", False)]
+    # contiguous positions merge into a single run
+    assert f.split_runs("abcdef", [1, 2, 3]) == [
+        ("a", False), ("bcd", True), ("ef", False)]
+    # round-trip guarantee: joining chunks rebuilds the text exactly
+    for text, pos in (("Quick open a file", (0, 7, 9)), ("x", ()), ("y", (0,))):
+        assert "".join(c for c, _m in f.split_runs(text, pos)) == text
+    # no positions → one unmatched run; junk positions are ignored
+    assert f.split_runs("abc", ()) == [("abc", False)]
+    assert f.split_runs("abc", (-1, 9, "x")) == [("abc", False)]
+    assert f.split_runs(None, [0]) == []
+    assert f.split_runs(123, (1, 2)) == [("1", False), ("23", True)]
+    # every matched chunk is non-empty
+    assert all(c for c, _m in f.split_runs("abc", [0, 2]))
+
+
+def test_cursor_memory_engine():
+    """DS2 v2.31 — per-buffer cursor memory: record + no-crash guards."""
+    from types import SimpleNamespace
+    from dxn1_studio.app import DXN1Studio
+
+    class FakeText:
+        def __init__(self, pos, boom=False):
+            self.pos, self.boom = pos, boom
+
+        def index(self, _mark):
+            if self.boom:
+                raise RuntimeError("tk died")
+            return self.pos
+
+    class FakeEditor:
+        def __init__(self, path, pos, boom=False):
+            self.file_path = path
+            self.text = FakeText(pos, boom)
+
+    stub = SimpleNamespace(editor=FakeEditor("/w/a.py", "7.3"),
+                           _buffer_cursors={})
+    DXN1Studio._remember_cursor(stub)
+    assert stub._buffer_cursors == {"/w/a.py": "7.3"}
+    # re-recording overwrites (current position wins)
+    stub.editor = FakeEditor("/w/a.py", "9.0")
+    DXN1Studio._remember_cursor(stub)
+    assert stub._buffer_cursors["/w/a.py"] == "9.0"
+    # no file open → no-op
+    stub2 = SimpleNamespace(editor=FakeEditor(None, "1.0"),
+                            _buffer_cursors={})
+    DXN1Studio._remember_cursor(stub2)
+    assert stub2._buffer_cursors == {}
+    # a dying text widget must never break recording
+    stub3 = SimpleNamespace(editor=FakeEditor("/w/b.py", "1.0", boom=True),
+                            _buffer_cursors={})
+    DXN1Studio._remember_cursor(stub3)
+    assert stub3._buffer_cursors == {}
+
+
+def test_installer_manifest_sync():
+    """DS2 v2.31 — MANIFEST.txt can never drift from dxn1_studio/*.py.
+
+    Guards the reported 'No module named dxn1_studio.i18n' install bug:
+    the installer used a hardcoded 19-module list while the package grew
+    to 80+. CI now fails the moment the two disagree.
+    """
+    root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    pkg = os.path.join(root, "dxn1_studio")
+    actual = sorted(f for f in os.listdir(pkg)
+                    if f.endswith(".py") and not f.startswith("_hs"))
+    mpath = os.path.join(root, "MANIFEST.txt")
+    assert os.path.isfile(mpath), "MANIFEST.txt missing from repo root"
+    listed = sorted(ln.strip() for ln in open(mpath, encoding="utf-8")
+                    if ln.strip())
+    assert listed == actual, (
+        "MANIFEST.txt out of sync: missing="
+        f"{sorted(set(actual) - set(listed))} stale="
+        f"{sorted(set(listed) - set(actual))}")
+    # the historical bug: i18n.py must always ship
+    assert "i18n.py" in listed
+    # install.sh drives downloads from the manifest, not a hardcoded list
+    sh = open(os.path.join(root, "install.sh"), encoding="utf-8").read()
+    assert "MANIFEST.txt" in sh and "dxn1_studio/$f" in sh
+    # updater falls back to a list that includes i18n.py too
+    from dxn1_studio import updater
+    assert "i18n.py" in updater.MODULES
+    assert set(listed) >= set(updater.MODULES)
+
+
+def test_updater_manifest_helpers(tmp_path):
+    """DS2 v2.31 — updater manifest parsing + resolution order."""
+    from dxn1_studio import updater
+    # parsing: keep only .py lines, dedupe + sort, junk tolerated
+    assert updater.parse_manifest("b.py\na.py\na.py\n\n# note\n") == \
+        ["a.py", "b.py"]
+    assert updater.parse_manifest("") == []
+    assert updater.parse_manifest(None) == []
+    assert updater.parse_manifest("x.txt\nsub/dir.py\n") == ["sub/dir.py"]
+    # local manifest read from an install root
+    (tmp_path / "MANIFEST.txt").write_text("a.py\nb.py\n", encoding="utf-8")
+    assert updater._local_manifest(str(tmp_path)) == ["a.py", "b.py"]
+    # missing/corrupt manifest → None (falls back safely)
+    assert updater._local_manifest(str(tmp_path / "nope")) is None
+    bad = tmp_path / "bad"
+    bad.mkdir()
+    (bad / "MANIFEST.txt").write_bytes(b"\xff\xfe\xfa")
+    assert updater._local_manifest(str(bad)) is None
+    # resolution: local manifest wins over the static fallback list
+    mods = updater.resolve_modules(str(tmp_path))
+    assert mods == ["a.py", "b.py"]
+    fallback = updater.resolve_modules(str(tmp_path / "void"))
+    assert fallback == list(updater.MODULES)

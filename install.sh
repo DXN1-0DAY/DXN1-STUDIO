@@ -1,19 +1,31 @@
 #!/bin/bash
 # DXN1 STUDIO Installer
 # Usage: curl -fsSL https://raw.githubusercontent.com/DXN1-termux/DXN1-STUDIO/master/install.sh | bash
+# Re-run any time to update in place.  Uninstall: install.sh --uninstall
 
 set -e
 
-# One source of truth for the version this installer ships. The IDE itself
-# reads its real version from dxn1_studio/__init__.py after download.
-INSTALLER_VERSION="1.1.6"
+# Bumped with releases; the app's real version always comes from the
+# downloaded dxn1_studio/__init__.py (never stamped over it).
+INSTALLER_VERSION="2.31.0"
 
 INSTALL_DIR="$HOME/.local/share/dxn1-studio"
 BIN_DIR="$HOME/.local/bin"
 REPO="https://raw.githubusercontent.com/DXN1-termux/DXN1-STUDIO/master"
 
+# ---- uninstall ------------------------------------------------------------
+if [ "$1" = "--uninstall" ] || [ "$1" = "-u" ]; then
+    echo "Uninstalling DXN1 STUDIO..."
+    rm -rf "$INSTALL_DIR"
+    rm -f "$BIN_DIR/dxn1" "$BIN_DIR/DXN1" "$BIN_DIR/dxn1-studio" \
+          "$BIN_DIR/DXN1-STUDIO" "$BIN_DIR/DXN1 STUDIO"
+    echo "Removed $INSTALL_DIR and the CLI links."
+    echo "(Your settings and projects in ~/.dxn1-studio were kept.)"
+    exit 0
+fi
+
 echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-echo "   DXN1 STUDIO Installer v$INSTALLER_VERSION (beta)"
+echo "   DXN1 STUDIO Installer v$INSTALLER_VERSION"
 echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
 echo ""
 
@@ -68,24 +80,34 @@ download "$INSTALL_DIR/dxn1" "dxn1" required
 download "$INSTALL_DIR/DXN1 STUDIO" "DXN1%20STUDIO" required
 download "$INSTALL_DIR/README.md" "README.md" required
 
-# package modules — keep in sync with dxn1_studio/*.py in the repo
-for f in __init__.py app.py config.py theme.py widgets.py onboarding.py \
-         tour.py projects.py hub.py splash.py packages.py export.py agent.py \
-         sandbox.py llm.py search.py errors.py gitpanel.py updater.py; do
+# package modules — manifest-driven, so a new module can never be missed
+# (MANIFEST.txt is generated from dxn1_studio/*.py and CI-tested to stay
+# in sync; without it we fall back to a minimal core set)
+MANIFEST="$INSTALL_DIR/MANIFEST.txt"
+if curl -fsSL "$REPO/MANIFEST.txt" -o "$MANIFEST"; then
+    echo "  ✓ MANIFEST.txt ($(wc -l < "$MANIFEST" | tr -d ' ') modules)"
+else
+    echo "  ⚠ manifest fetch failed — using built-in core list"
+    printf '%s\n' __init__.py app.py config.py theme.py widgets.py \
+        onboarding.py tour.py projects.py hub.py splash.py packages.py \
+        export.py agent.py sandbox.py llm.py search.py errors.py \
+        gitpanel.py updater.py i18n.py > "$MANIFEST"
+fi
+while IFS= read -r f; do
+    [ -z "$f" ] && continue
     download "$INSTALL_DIR/dxn1_studio/$f" "dxn1_studio/$f" required
-done
+done < "$MANIFEST"
 
-# the installed copy must never claim an older version than what it ships
-python3 - "$INSTALL_DIR" "$INSTALLER_VERSION" <<'PYEOF'
-import os, re, sys
-root, ver = sys.argv[1], sys.argv[2]
-init = os.path.join(root, "dxn1_studio", "__init__.py")
-try:
-    src = open(init, encoding="utf-8").read()
-    src = re.sub(r'APP_VERSION\s*=\s*"[^"]+"', f'APP_VERSION = "{ver}"', src)
-    open(init, "w", encoding="utf-8").write(src)
-except OSError:
-    pass
+# sanity gate: the app cannot boot unless every manifest module landed
+python3 - "$MANIFEST" "$INSTALL_DIR" <<'PYEOF'
+import os, sys
+manifest, root = sys.argv[1], sys.argv[2]
+names = open(manifest, encoding="utf-8").read().split()
+missing = [f for f in names
+           if not os.path.isfile(os.path.join(root, "dxn1_studio", f))]
+if missing:
+    sys.exit("ERROR: missing modules after download: " + ", ".join(missing))
+print("  ✓ all " + str(len(names)) + " modules present and accounted for")
 PYEOF
 
 # art assets (optional — the IDE falls back to geometric art without them;

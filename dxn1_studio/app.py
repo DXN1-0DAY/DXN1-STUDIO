@@ -248,21 +248,25 @@ class CommandPalette(tk.Toplevel):
             needle = q[1:].strip()
             syms = self.app.editor.symbols()
             if fuzzy is not None and needle:
-                order = fuzzy.filter_ranked(needle, syms,
-                                            key=lambda s: s[2])
+                hits = fuzzy.ranked(needle, [s[2] for s in syms])
+                order = [syms[i] for i, _s, _p in hits]
+                self.positions = [p for _i, _s, p in hits]
             else:
                 order = [s for s in syms
                          if not needle or needle in s[2].lower()]
+                self.positions = []
             self.filtered = [(f"{kind}  {name}", f"line {line}",
                               ("sym", line))
                              for line, kind, name in order]
         else:
             if fuzzy is not None:
-                self.filtered = fuzzy.filter_ranked(
-                    q, self.commands, key=lambda c: c[0])
+                hits = fuzzy.ranked(q, [c[0] for c in self.commands])
+                self.filtered = [self.commands[i] for i, _s, _p in hits]
+                self.positions = [p for _i, _s, p in hits]
             else:
                 self.filtered = [c for c in self.commands
                                  if not q or q in c[0].lower()]
+                self.positions = []
         self.selected = 0
         self._render()
 
@@ -300,9 +304,20 @@ class CommandPalette(tk.Toplevel):
             fg2 = "#ffffff" if active else self.t["text_muted"]
             if isinstance(_fn, tuple) and _fn and _fn[0] == "sym":
                 kind, _, name = label.partition("  ")
-                tk.Label(row, text=name, bg=row.cget("bg"), fg=fg,
-                         font=(FONT_MONO, 10), anchor="w").pack(
-                    side=tk.LEFT, padx=10, pady=6)
+                posset = set(self.positions[i]) \
+                    if i < len(getattr(self, "positions", [])) \
+                    else set()
+                runs = fuzzy.split_runs(name, posset) \
+                    if (fuzzy is not None and posset) else \
+                    [(name, False)]
+                for _ri, (chunk, hit) in enumerate(runs):
+                    tk.Label(row, text=chunk, bg=row.cget("bg"),
+                             fg=self.t.accent if (hit and not active) else fg,
+                             font=(FONT_MONO, 10, "bold") if hit
+                             else (FONT_MONO, 10),
+                             anchor="w").pack(
+                        side=tk.LEFT, padx=10 if _ri == 0 else 0,
+                        pady=6)
                 tk.Label(row, text=kind, bg=row.cget("bg"),
                          fg=self.t.accent if not active else fg,
                          font=(FONT_MONO, 8, "bold")).pack(
@@ -310,9 +325,20 @@ class CommandPalette(tk.Toplevel):
                 tk.Label(row, text=hint, bg=row.cget("bg"), fg=fg2,
                          font=(FONT_UI, 8)).pack(side=tk.RIGHT, padx=10)
             else:
-                tk.Label(row, text=label, bg=row.cget("bg"), fg=fg,
-                         font=(FONT_UI, 10), anchor="w").pack(
-                    side=tk.LEFT, padx=10, pady=6)
+                posset = set(self.positions[i]) \
+                    if i < len(getattr(self, "positions", [])) \
+                    else set()
+                runs = fuzzy.split_runs(label, posset) \
+                    if (fuzzy is not None and posset) else \
+                    [(label, False)]
+                for _ri, (chunk, hit) in enumerate(runs):
+                    tk.Label(row, text=chunk, bg=row.cget("bg"),
+                             fg=self.t.accent if (hit and not active) else fg,
+                             font=(FONT_UI, 10, "bold") if hit
+                             else (FONT_UI, 10),
+                             anchor="w").pack(
+                        side=tk.LEFT, padx=10 if _ri == 0 else 0,
+                        pady=6)
                 if hint:
                     tk.Label(row, text=hint, bg=row.cget("bg"), fg=fg2,
                              font=(FONT_UI, 8)).pack(side=tk.RIGHT, padx=10)
@@ -360,6 +386,7 @@ class QuickOpen(tk.Toplevel):
         self.t = t = app.theme
         self.files = self._scan()
         self.filtered = list(self.files)
+        self.positions = []   # DS2 v2.31: match positions per filtered row
         self.selected = 0
         self.title("Quick Open")
         self.configure(bg=t["card"])
@@ -414,14 +441,21 @@ class QuickOpen(tk.Toplevel):
         q = self.entry.get().strip().lower()
         if not q:
             self.filtered = list(self.files)
+            self.positions = []
         elif fuzzy is not None:
             scored = []
+            positions = []
             for name, rel, full in self.files:
                 s = fuzzy.path_score(q, rel)
                 if s >= 0:
                     scored.append((-s, rel, (name, rel, full)))
+                    positions.append(fuzzy.match(q, rel)[1])
             scored.sort(key=lambda p: (p[0], p[1]))
+            by_rel = {rel: pos
+                      for (_s, rel, _item), pos in zip(scored, positions)}
             self.filtered = [item for _s, _rel, item in scored]
+            self.positions = [by_rel.get(item[1], ())
+                              for item in self.filtered]
         else:
             scored = []
             for name, rel, full in self.files:
@@ -432,6 +466,7 @@ class QuickOpen(tk.Toplevel):
                     scored.append((score, (name, rel, full)))
             scored.sort(key=lambda p: p[0])
             self.filtered = [item for _, item in scored]
+            self.positions = []
         self.selected = 0
         self._render()
 
@@ -457,9 +492,18 @@ class QuickOpen(tk.Toplevel):
             row.pack(fill=tk.X, pady=1)
             fg = "#ffffff" if active else self.t["text"]
             fg2 = "#ffffff" if active else self.t["text_muted"]
-            tk.Label(row, text=name, bg=row.cget("bg"), fg=fg,
-                     font=(FONT_UI, 10), anchor="w").pack(
-                side=tk.LEFT, padx=10, pady=5)
+            # DS2 v2.31: bold-accent the matched chars in the name and
+            # the rel path (positions index into rel)
+            posset = set(self.positions[i]) \
+                if i < len(getattr(self, "positions", [])) else set()
+            runs = fuzzy.split_runs(name, posset) \
+                if (fuzzy is not None and posset) else [(name, False)]
+            for _ri, (chunk, hit) in enumerate(runs):
+                tk.Label(row, text=chunk, bg=row.cget("bg"),
+                         fg=self.t.accent if (hit and not active) else fg,
+                         font=(FONT_UI, 10, "bold") if hit
+                         else (FONT_UI, 10), anchor="w").pack(
+                    side=tk.LEFT, padx=10 if _ri == 0 else 0, pady=5)
             tk.Label(row, text=rel, bg=row.cget("bg"), fg=fg2,
                      font=(FONT_UI, 8), anchor="e").pack(
                 side=tk.RIGHT, padx=10)
@@ -527,6 +571,7 @@ class DXN1Studio:
         self.sidebar_view = "explorer"
         self.terminal_visible = True
         self._tab_frames = {}
+        self._buffer_cursors = {}   # DS2 v2.31: per-tab cursor memory
         self._buffers = {}          # path -> {"content": str, "dirty": bool}
         self.clip_ring = None       # DS2: clipboard history ring
         self._autosave_job = None
@@ -2203,6 +2248,17 @@ class DXN1Studio:
         if filepath:
             self.open_file(filepath)
 
+    def _remember_cursor(self):
+        """DS2 v2.31: stash the current file's insert mark so switching
+        buffers (tab click OR opening another file) comes back exactly
+        where you left off. Best effort by design — never blocks opens."""
+        try:
+            if self.editor.file_path:
+                self._buffer_cursors[self.editor.file_path] = \
+                    str(self.editor.text.index("insert"))
+        except Exception:  # noqa: BLE001
+            pass
+
     def open_file(self, filepath):
         try:
             with open(filepath, "r", encoding="utf-8",
@@ -2212,6 +2268,8 @@ class DXN1Studio:
             errors.log_exception(f"open {filepath}")
             messagebox.showerror("Error", f"Failed to open file:\n{e}")
             return
+        if filepath != self.editor.file_path:
+            self._remember_cursor()   # DS2 v2.31: outgoing buffer cursor
         self._buffers[filepath] = {"content": content, "dirty": False}
         try:  # DS2: keep the outgoing file's bookmarks before swapping
             if self.editor.file_path:
@@ -2476,9 +2534,17 @@ class DXN1Studio:
             w["bar"].config(bg=t.accent if active else bg)
         if filepath and filepath != self.editor.file_path and \
                 filepath in self._buffers:
+            self._remember_cursor()   # DS2 v2.31: outgoing buffer cursor
             content = self._buffers[filepath]["content"]
             self.editor.set_content(content, path=filepath)
             self._sync_split(content, filepath)
+            try:
+                pos = self._buffer_cursors.get(filepath)
+                if pos:
+                    self.editor.text.mark_set("insert", pos)
+                    self.editor.text.see("insert")
+            except Exception:  # noqa: BLE001
+                pass
             self.status_file.config(text=filepath)
             self._update_cursor_pos()
 
@@ -4667,7 +4733,11 @@ class DXN1Studio:
         try:
             from . import session as _ds2_session
             _cur = {}
-            try:
+            try:  # DS2 v2.31: merge per-tab cursors, current wins
+                for _p, _pos in getattr(self, "_buffer_cursors",
+                                        {}).items():
+                    _parts = str(_pos).split(".")
+                    _cur[_p] = (int(_parts[0]), int(_parts[1]))
                 _ins = str(self.editor.text.index("insert")).split(".")
                 if self.editor.file_path:
                     _cur[self.editor.file_path] = (int(_ins[0]),

@@ -160,3 +160,40 @@ if __name__ == "__main__":
     assert score(5, "port 5") > 0                  # coerced to str
     assert filter_ranked("x", [1, "ax"], key=None) == ["ax"]
     print("fuzzy.py self-test OK")
+
+
+def split_runs(text, positions):
+    """Split text into ``(chunk, is_matched)`` runs for rendering.
+
+    Contiguous matched indices merge into one run, so highlighting a
+    substring costs one extra widget, not one per character. Round-trip
+    guarantee: ``"".join(c for c, _m in split_runs(t, p)) == t``.
+    Junk positions (negative, out of range, unhashable) are ignored.
+    """
+    if text is None:
+        return []
+    try:
+        text = str(text)
+    except Exception:  # noqa: BLE001
+        return []
+    good = set()
+    for p in (positions or ()):
+        try:
+            if 0 <= int(p) < len(text):
+                good.add(int(p))
+        except Exception:  # noqa: BLE001
+            continue
+    if not good:
+        return [(text, False)] if text else []
+    runs, cur, matched = [], "", False
+    for i, ch in enumerate(text):
+        m = i in good
+        if m == matched:
+            cur += ch
+        else:
+            if cur:
+                runs.append((cur, matched))
+            cur, matched = ch, m
+    if cur:
+        runs.append((cur, matched))
+    return runs

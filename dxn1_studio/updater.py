@@ -30,13 +30,16 @@ REPO_API = "https://api.github.com/repos/DXN1-termux/DXN1-STUDIO"
 REPO_RAW = "https://raw.githubusercontent.com/DXN1-termux/DXN1-STUDIO/master"
 UA = f"DXN1-Studio/{APP_VERSION} (update-portal)"
 
-# the files an in-place update refreshes — mirrors install.sh exactly
+# Last-resort fallback only — the real list comes from MANIFEST.txt
+# (generated from dxn1_studio/*.py, CI-tested to stay in sync) so a new
+# module can never be missed by an in-place update again.
 MODULES = (
     "__init__.py", "app.py", "config.py", "theme.py", "widgets.py",
     "onboarding.py", "tour.py", "projects.py", "hub.py", "splash.py",
     "packages.py", "export.py", "agent.py", "sandbox.py", "llm.py",
-    "search.py", "errors.py", "gitpanel.py", "updater.py",
+    "search.py", "errors.py", "gitpanel.py", "updater.py", "i18n.py",
 )
+MANIFEST_NAME = "MANIFEST.txt"
 ENTRY_SCRIPTS = ("dxn1-studio", "dxn1", "DXN1 STUDIO")
 ASSETS = ("logo.png", "splash_bg.png", "welcome_hero.png", "hub_hero.png",
           "agents_hero.png", "update_hero.png")
@@ -108,6 +111,40 @@ def _is_git_checkout(root):
     return os.path.isdir(os.path.join(root, ".git"))
 
 
+def parse_manifest(text):
+    """MANIFEST.txt content → sorted unique ``*.py`` module names."""
+    mods = sorted({ln.strip() for ln in (text or "").splitlines()
+                   if ln.strip().endswith(".py")})
+    return mods
+
+
+def _local_manifest(root):
+    """Module list from the installed MANIFEST.txt, or None."""
+    try:
+        with open(os.path.join(root, MANIFEST_NAME), encoding="utf-8") as fh:
+            return parse_manifest(fh.read()) or None
+    except Exception:  # noqa: BLE001 — any read problem → fallback
+        return None
+
+
+def _remote_manifest():
+    """Module list from the repo's MANIFEST.txt, or None."""
+    try:
+        req = urllib.request.Request(
+            f"{REPO_RAW}/{MANIFEST_NAME}", headers={"User-Agent": UA})
+        with urllib.request.urlopen(req, timeout=15) as resp:
+            return parse_manifest(resp.read().decode("utf-8", "replace")) \
+                or None
+    except Exception:  # noqa: BLE001 — network trouble → fallback
+        return None
+
+
+def resolve_modules(root):
+    """The module set an update should refresh, best source first:
+    the repo's MANIFEST.txt, then the installed one, then MODULES."""
+    return _remote_manifest() or _local_manifest(root) or list(MODULES)
+
+
 def _git_pull(root):
     out = subprocess.run(
         ["git", "-C", root, "pull", "--ff-only"], capture_output=True,
@@ -123,7 +160,9 @@ def perform_update(report):
     """
     root = _package_root()
     pkg = os.path.join(root, "dxn1_studio")
-    files = [(f"dxn1_studio/{m}", os.path.join(pkg, m)) for m in MODULES]
+    modules = resolve_modules(root)
+    files = [(f"dxn1_studio/{m}", os.path.join(pkg, m)) for m in modules]
+    files.append((MANIFEST_NAME, os.path.join(root, MANIFEST_NAME)))
     files += [(s, os.path.join(root, s)) for s in ENTRY_SCRIPTS]
     files += [(f"assets/{a}", os.path.join(root, "assets", a))
               for a in ASSETS]
@@ -151,7 +190,7 @@ def perform_update(report):
 
     report(stage="Verifying the new build...")
     import py_compile
-    for m in MODULES:
+    for m in modules:
         path = os.path.join(pkg, m)
         try:
             py_compile.compile(path, doraise=True)
@@ -431,7 +470,9 @@ class UpdatePortal(tk.Toplevel):
         self._target = 0.05
         self._t0 = time.monotonic()
         self._done = 0
-        self._total = len(MODULES) + len(ENTRY_SCRIPTS) + len(ASSETS)
+        est = len(resolve_modules(_package_root())) + 1 \
+            + len(ENTRY_SCRIPTS) + len(ASSETS)
+        self._total = est
         self._paint()
         threading.Thread(target=self._worker, daemon=True).start()
 
