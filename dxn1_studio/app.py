@@ -143,6 +143,8 @@ TERMINAL_HELP = (
     ("activity auto on|off", "the nightly snapshot gate — when on, "
                              "the whole diary lands in exports/ "
                              "every 24h, last 14 kept"),
+    ("chip <name>", "open a statusbar chip's menu from the keyboard "
+                    "— branch · deps · scribe · autosave"),
     ("update", "check GitHub for a newer release"),
     ("whatsnew", "release notes — what changed between tags"),
     ("deps", "cross-check imports vs requirements*.txt "
@@ -834,16 +836,16 @@ class DXN1Studio:
         self._last_chip_menu = None  # DS2 v2.52: the menu now introspects
         self._chip_tip(self.status_git,
                        "Source control — click opens the panel, "
-                       "right-click for actions")
+                       "right-click for actions · Ctrl+Alt+G")
         self._chip_tip(self.status_deps,
                        "Dependency watch — click rescans, "
-                       "right-click for actions")
+                       "right-click for actions · Ctrl+Alt+E")
         self._chip_tip(self.status_sesave,
                        "Session autosave — click to snapshot now, "
-                       "right-click for actions")
+                       "right-click for actions · Ctrl+Alt+A")
         self._chip_tip(self.status_scribe,
                        "Scribe meter — click for session details, "
-                       "right-click for actions")
+                       "right-click for actions · Ctrl+Alt+W")
         # DS2 v2.44: the studio keeps its receipts — every toast is
         # archived in a ring buffer the Activity window can show.
         # DS2 v2.45: the receipts survive the night — reload whatever
@@ -1777,6 +1779,17 @@ class DXN1Studio:
         self.root.bind("<Alt-Down>", lambda e: self.editor.move_line(1))
         self.root.bind("<Control-backslash>", lambda e: self.toggle_split())
         self.root.bind("<Control-Alt-z>", lambda e: self.toggle_zen())
+        # DS2 v2.53: the chip menus come to the keyboard — real
+        # accelerators for the four statusbar menus (the palette rows
+        # advertise them; the v2.47 honest-keys audit polices them)
+        self.root.bind("<Control-Alt-g>", lambda e:
+                       self._open_chip_menu_keyboard("git"))
+        self.root.bind("<Control-Alt-e>", lambda e:
+                       self._open_chip_menu_keyboard("deps"))
+        self.root.bind("<Control-Alt-w>", lambda e:
+                       self._open_chip_menu_keyboard("scribe"))
+        self.root.bind("<Control-Alt-a>", lambda e:
+                       self._open_chip_menu_keyboard("sesave"))
         self.root.bind("<Control-p>", lambda e: self.open_quick_open())
         self.root.bind("<Control-P>", lambda e: self.open_quick_open())
         self.root.bind("<Control-f>", lambda e: self.toggle_find())
@@ -3753,6 +3766,22 @@ class DXN1Studio:
         if low == "palette":
             self.open_palette()
             return
+        if low == "chip" or low.startswith("chip "):
+            # DS2 v2.53 — the statusbar chip menus, from the terminal
+            arg = text[4:].strip().lower()
+            if not arg:
+                self.terminal.log("chips: branch · deps · scribe · "
+                                  "autosave — try: chip branch")
+                return
+            kind = self._CHIP_MENU_ALIASES.get(arg)
+            if kind is None:
+                self.terminal.log("unknown chip '%s' — chips: branch · "
+                                  "deps · scribe · autosave" % arg)
+                return
+            self._open_chip_menu_keyboard(kind)
+            self.terminal.log("%s chip menu opened — Enter runs the "
+                              "highlighted row, Esc puts it away" % arg)
+            return
         if low in ("verbs", "verb"):
             self.open_verbs_window()
             return
@@ -4539,6 +4568,26 @@ class DXN1Studio:
         except Exception:  # pragma: no cover — palette stays alive
             pass
 
+        # DS2 v2.53: the chip menus themselves join the palette — the
+        # keyboard's path to the statusbar's right-click world. The
+        # accelerators are REAL root binds (the honest-keys audit,
+        # v2.47, polices every one of these claims).
+        for _kind, _label, _accel in (
+                ("git", "Branch chip menu — commit, push, pull, "
+                 "graph…", "Ctrl+Alt+G"),
+                ("deps", "Deps chip menu — rescan, repair, watch…",
+                 "Ctrl+Alt+E"),
+                ("scribe", "Scribe chip menu — summary, goal, "
+                 "reset…", "Ctrl+Alt+W"),
+                ("sesave", "Autosave chip menu — snapshot, browse, "
+                 "toggle…", "Ctrl+Alt+A")):
+            def _chip_opener(kind=_kind):
+                self._open_chip_menu_keyboard(kind)
+            try:
+                cmds.append((_label, _accel, _chip_opener))
+            except Exception:  # pragma: no cover — palette stays alive
+                pass
+
         def _scribe_reset_palette():
             self._scribe_reset_from_menu()
         try:
@@ -5258,6 +5307,12 @@ class DXN1Studio:
         if red:
             entries.append(("Queue deps fix (%d missing)" % missing_n,
                             self._deps_queue_fix, "", err_c))
+            # DS2 v2.53 — the repair row's quiet helper: a ready
+            # ``pip install`` line for every missing import, pins via
+            # depcheck.suggested_pins (PIL becomes pillow). A menu row
+            # that hands you the fix, not just the diagnosis.
+            entries.append(("Copy pip install command",
+                            self._deps_copy_install))
         entries.append(("Fresh rescan (bypass cache)",
                         lambda: (self._run_depcheck(force=True),
                                  self._update_depswatch(force=True)),
@@ -5275,6 +5330,85 @@ class DXN1Studio:
         red, a cache-bypassing fresh scan, the watch toggle). Never
         raises."""
         self._render_chip_menu(self._deps_menu_entries(), event)
+
+    def _deps_copy_install(self):
+        """DS2 v2.53 — the deps menu's copy row: a ready ``pip install``
+        line for every missing import, straight onto the clipboard.
+        The pins come from ``depcheck.suggested_pins`` over the stored
+        report's missing list (PIL → pillow, yaml → pyyaml). Honest
+        when nothing is missing; never raises."""
+        try:
+            pins = []
+            try:
+                from . import depcheck as _dc
+                if self.project_dir:
+                    st = _dc.cache_state(self.project_dir)
+                    pins = _dc.suggested_pins(st.get("missing") or [])
+            except Exception:  # noqa: BLE001 — no report, no pins
+                pins = []
+            if not pins:
+                self.toast("No missing imports to install", "info")
+                return
+            cmd = "pip install " + " ".join(pins)
+            self.root.clipboard_clear()
+            self.root.clipboard_append(cmd)
+            self.toast("Copied: %s" % cmd, "success")
+            try:
+                self.terminal.log("deps: %s" % cmd)
+            except Exception:  # noqa: BLE001
+                pass
+        except Exception:  # noqa: BLE001 — a menu row must never raise
+            pass
+
+    # ------------------------------------------- DS2 v2.53 keyboard reach
+    _CHIP_MENU_ALIASES = {
+        "git": "git", "branch": "git", "source control": "git",
+        "deps": "deps", "env": "deps", "dependencies": "deps",
+        "scribe": "scribe", "writing": "scribe",
+        "sesave": "sesave", "autosave": "sesave", "session": "sesave",
+    }
+
+    def _chip_menu_registry(self):
+        """DS2 v2.53 — the four chip menus the keyboard can reach, as
+        ``kind → (entries_fn, chip_widget, human name)``. Resolved at
+        call time so late-built widgets and rebound methods are always
+        current. Never raises."""
+        return {
+            "git": (self._git_menu_entries, self.status_git, "branch"),
+            "deps": (self._deps_menu_entries, self.status_deps, "deps"),
+            "scribe": (self._scribe_menu_entries, self.status_scribe,
+                       "scribe"),
+            "sesave": (self._sesave_menu_entries, self.status_sesave,
+                       "autosave"),
+        }
+
+    def _open_chip_menu_keyboard(self, kind):
+        """DS2 v2.53 — the keyboard's door into a chip menu. Opens the
+        named chip's menu anchored just above its statusbar chip, in
+        "keyboard" mode: the grab is kept (a palette row, an
+        accelerator or this verb is a REAL user gesture — the posted
+        menu hears Enter/arrows/digits immediately) and the usual
+        unpost poller releases it the moment the menu closes. Unknown
+        or unavailable kinds answer honestly with ``False``; a menu
+        must never break typing, so this never raises."""
+        try:
+            key = str(kind or "").strip().lower()
+            key = self._CHIP_MENU_ALIASES.get(key, "")
+            reg = self._chip_menu_registry()
+            if key not in reg:
+                return False
+            entries_fn, chip, _name = reg[key]
+            x = y = 0
+            try:
+                x = chip.winfo_rootx() + 2
+                y = chip.winfo_rooty() - 6
+            except Exception:  # noqa: BLE001 — geometry is garnish
+                pass
+            self._render_chip_menu(entries_fn(), None, mode="keyboard",
+                                   at=(x, y))
+            return True
+        except Exception:  # noqa: BLE001 — never break typing
+            return False
 
     # --------------------------------------------- DS2 v2.43 scribe chip menu
     def _scribe_menu_entries(self):
@@ -5559,7 +5693,7 @@ class DXN1Studio:
                         lambda: self._update_gitchip(force=True)))
         return entries
 
-    def _render_chip_menu(self, entries, event=None):
+    def _render_chip_menu(self, entries, event=None, mode=None, at=None):
         """DS2 v2.42 — one themed popup renderer for every statusbar
         chip menu (git, deps, …): ``(label, command)`` rows,
         ``("---", None)`` = separator, popped at the cursor.
@@ -5579,8 +5713,19 @@ class DXN1Studio:
         stay Tk's own menu traversal; Home/End and digits 1-9 are
         wired on top. Introspectable: the posted menu carries
         ``_ds2_rows`` and the app keeps ``self._last_chip_menu``.
-        The popup itself is best-effort — a menu must never break
-        typing."""
+        v2.53 — the menus come to you: ``mode`` names how the menu
+        was opened — "gesture" (a real pointer event; the default
+        when ``event`` is given), "program" (no event, no gesture —
+        the tests' way in, grab released at once, exactly the v2.52
+        seam) and "keyboard" (opened by a REAL user gesture that
+        wasn't a pointer — a palette row, an accelerator, a verb:
+        the grab is kept so the posted menu hears Enter/arrows
+        immediately, and ``at`` anchors it just above its chip
+        instead of at a cursor that isn't there). Same poller, same
+        cleanup contract in every mode. The popup itself is
+        best-effort — a menu must never break typing."""
+        effective = mode or ("gesture" if event is not None
+                             else "program")
         try:
             t = self.theme
             menu = tk.Menu(self.root, tearoff=0, bg=t["sidebar"],
@@ -5610,19 +5755,34 @@ class DXN1Studio:
             try:
                 x = getattr(event, "x_root", 0) or 0
                 y = getattr(event, "y_root", 0) or 0
+                if event is None and at:
+                    try:            # v2.53 — an explicit anchor (the chip)
+                        x, y = int(at[0]), int(at[1])
+                    except Exception:  # noqa: BLE001 — junk anchor → 0,0
+                        pass
+                if effective == "keyboard" and event is None:
+                    try:            # float just ABOVE the chip, not on it
+                        h = int(menu.winfo_reqheight())
+                        if h > 0:
+                            y = max(0, y - h - 6)
+                    except Exception:  # noqa: BLE001 — garnish geometry
+                        pass
                 menu.tk_popup(x, y)
             finally:
-                # v2.52 — a menu opened by a REAL pointer gesture keeps
-                # Tk's grab while it is up: that grab is exactly what
-                # routes keys to the posted menu, and the unpost
-                # poller below releases it the moment the menu closes.
-                # A programmatic open (event=None — the tests' way in)
-                # has no gesture to serve and releases at once, so
-                # nothing outlives the call: Tk's grab state is
-                # per-DISPLAY and process-wide, and a grab left held
-                # at teardown keeps swallowing pointer events from
-                # whatever runs next (found by the pytest interps).
-                if event is None:
+                # v2.52 — a menu opened by a REAL gesture keeps Tk's
+                # grab while it is up: that grab is exactly what routes
+                # keys to the posted menu, and the unpost poller below
+                # releases it the moment the menu closes. v2.53 — a
+                # keyboard open (palette row / accelerator / verb) is
+                # just as real a gesture, so "keyboard" keeps the grab
+                # too. A programmatic open (event=None, no mode — the
+                # tests' way in) has no gesture to serve and releases
+                # at once, so nothing outlives the call: Tk's grab
+                # state is per-DISPLAY and process-wide, and a grab
+                # left held at teardown keeps swallowing pointer
+                # events from whatever runs next (found by the pytest
+                # interps).
+                if effective == "program":
                     menu.grab_release()
             try:
                 menu._ds2_rows = [tuple(e) for e in entries]

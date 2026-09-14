@@ -258,7 +258,8 @@ for _name in ("app.py",):
         _src[_name] = fh.read()
 _ap = _src["app.py"]
 check("source: the gesture gate is real",
-      "if event is None:\n                    menu.grab_release()" in _ap)
+      'if effective == "program":\n'
+      "                    menu.grab_release()" in _ap)
 check("source: the unpost poller is armed",
       "self._arm_menu_unpost_poll(menu, prev_focus)" in _ap
       and "menu._ds2_poll = lambda: poll(attempts)" in _ap)

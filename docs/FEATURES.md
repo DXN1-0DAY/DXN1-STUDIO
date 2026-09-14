@@ -498,6 +498,18 @@
 | Git-graph zoom | `GitGraphWindow.zoom_step()` / `zoom_reset()`, keys `+` `−` `0` | A real row-density zoom (0.5×–3.0×): rows, lanes, dots, diagonal edges, click hit-testing and the scroll region rescale together, so a 200-commit repo reads as a trunk or as a spreadsheet at one keystroke; `F5` / `Ctrl+R` refresh from the keyboard |
 | Doc states the rule | `docs/KEYBINDINGS.md` — Tool windows (v2.48) | The keybindings doc gained the window keys and says the rule out loud: a key appears in a hint bar only if the code really binds it — unit-tested so it stays that way |
 
+## The Menus Come to You (v2.53.0)
+
+| Feature | Where | What it does |
+|---|---|---|
+| Keyboard doors to every chip menu | `_open_chip_menu_keyboard()`, `_chip_menu_registry()` | The four statusbar menus stop living only under right-click: the branch, deps, scribe and autosave menus open from the keyboard, anchored just above their own chip (the menu's requested height lifts it clear of the statusbar) and in the renderer's new "keyboard" mode — a palette row, an accelerator or a verb is a REAL user gesture, so the grab is kept and the posted menu hears Enter/arrows/digits immediately, the same contract a right-click gets |
+| Palette rows | `palette_commands()` | Four new rows — *Branch chip menu*, *Deps chip menu*, *Scribe chip menu*, *Autosave chip menu* — advertise `Ctrl+Alt+G/E/W/A` and open their menu through the keyboard path; the v2.47 honest-keys audit polices every claim, so the accelerators are really bound |
+| Real accelerators | root binds `<Control-Alt-g/e/w/a>` | `Ctrl+Alt+G` opens the branch menu (commit, push, pull, graph), `Ctrl+Alt+E` the deps menu (rescan, repair, watch), `Ctrl+Alt+W` the scribe menu (summary, goal, reset), `Ctrl+Alt+A` the autosave menu (snapshot, browse, toggle) — chosen to miss every existing `Ctrl+Alt+` binding (s/d/h/r/z) |
+| The chip verb | terminal `chip <name>` | `chip branch` (aliases: `git`), `chip deps` (`env`, `dependencies`), `chip scribe` (`writing`), `chip autosave` (`session`, `sesave`) each open their menu and log the honest receipt — "Enter runs the highlighted row, Esc puts it away"; bare `chip` lists the four names, an unknown chip is told honestly |
+| Copy pip install command | `_deps_copy_install()`, deps menu red state | When the deps chip is red, the menu gains a helper beside the repair row: one click puts a ready `pip install <pins>` line on the clipboard — pins from `depcheck.suggested_pins` over the stored report's missing list (PIL becomes pillow, yaml becomes pyqml-canonical names), a toast and a terminal receipt confirm, and with nothing missing the row's work is an honest "No missing imports to install" |
+| Tooltips name the key | `_chip_tip()` | All four chip tooltips now end with their accelerator ("right-click for actions · Ctrl+Alt+G") — discovery at the point of use, not just in the docs |
+| The seam stays honest | `_render_chip_menu(mode=…)` | Three named modes: "gesture" (a real pointer event — grab kept), "program" (`event=None`, the tests' way in — grab released at once, the v2.52 seam untouched) and "keyboard" (a real non-pointer gesture — grab kept, anchored `at` the chip). Same poller, same dismissal, same cleanup contract in every mode |
+
 ## Menus That Learn the Keyboard (v2.52.0)
 
 | Feature | Where | What it does |

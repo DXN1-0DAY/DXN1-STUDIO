@@ -91,8 +91,9 @@ check("verbs: the browser lists itself + deps advertises watch",
 check("verbs: filter empty = all, junk = none",
       vb.filter_rows(rows, "") == rows
       and vb.filter_rows(rows, "zzzqqq") == [])
+_dep_hits = [c for c, _ in vb.filter_rows(rows, "deps")]
 check("verbs: filter hits verb and description",
-      [c for c, _ in vb.filter_rows(rows, "deps")] == ["deps"]
+      "deps" in _dep_hits and "chip <name>" in _dep_hits
       and bool(vb.filter_rows(rows, "MARKDOWN")))
 
 # ------------------------------------------------------- app: the chip

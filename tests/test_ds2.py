@@ -3725,7 +3725,10 @@ def test_verbs_window(tmp_path):
     assert "commit" in dict(rows)["git <args>"]
     # filter: empty = everything, substring = honest, junk = nothing
     assert verbs.filter_rows(rows, "") == rows
-    assert [c for c, _ in verbs.filter_rows(rows, "deps")] == ["deps"]
+    # v2.53: "deps" also matches the chip verb's description — both
+    # rows surface, in the help table's own order
+    dep_hits = [c for c, _ in verbs.filter_rows(rows, "deps")]
+    assert "deps" in dep_hits and "chip <name>" in dep_hits, dep_hits
     assert verbs.filter_rows(rows, "MARKDOWN"), "desc match, any case"
     assert verbs.filter_rows(rows, "zzzqqqxxx") == []
     # the browser lists itself now, and deps advertises watch
@@ -5685,6 +5688,195 @@ def test_menu_keys(tmp_path):
         except Exception:  # noqa: BLE001 — teardown never raises
             pass
         try:
+            aroot.destroy()
+        except tk.TclError:
+            pass
+        try:
+            root.destroy()
+        except tk.TclError:
+            pass
+        monkeypatch.undo()
+
+
+# ------------------------------------------ chip menus from anywhere (v2.53)
+def test_menu_reach(tmp_path):
+    """DS2 v2.53 — the menus come to you: the four chip menus open
+    from the keyboard (palette rows + real Ctrl+Alt+G/E/W/A root
+    binds + a `chip <name>` verb), a keyboard-opened menu keeps the
+    grab (a real gesture, released by the usual poller/dismiss), the
+    deps menu's red state gains a Copy pip install command row with
+    suggested_pins behind it, the chip tooltips name their
+    accelerator, and the Settings search still finds the snapshot
+    picker. The v2.52 seam is untouched: event=None with no mode
+    still releases at once."""
+    import tkinter as tk
+    try:
+        root = tk.Tk(); root.withdraw()
+    except tk.TclError:
+        return
+    import pytest
+    import dxn1_studio.config as cfgmod
+    from dxn1_studio.app import (DXN1Studio, SettingsDialog,
+                                 accel_pattern, looks_like_accel)
+
+    # --- pure units: the four new accelerators translate exactly,
+    # and the alias table answers to the names a human would type
+    assert accel_pattern("Ctrl+Alt+G") == "<Control-Alt-g>"
+    assert accel_pattern("Ctrl+Alt+E") == "<Control-Alt-e>"
+    assert accel_pattern("Ctrl+Alt+W") == "<Control-Alt-w>"
+    assert accel_pattern("Ctrl+Alt+A") == "<Control-Alt-a>"
+    from dxn1_studio.app import DXN1Studio as _App
+    A = _App._CHIP_MENU_ALIASES
+    assert A["branch"] == "git" and A["git"] == "git"
+    assert A["autosave"] == "sesave" and A["session"] == "sesave"
+    assert A["env"] == "deps" and A["writing"] == "scribe"
+    assert A.get("nonsense") is None
+
+    monkeypatch = pytest.MonkeyPatch()
+    monkeypatch.setattr(cfgmod, "CONFIG_DIR", str(tmp_path))
+    monkeypatch.setattr(cfgmod, "CONFIG_PATH",
+                        str(tmp_path / "config.json"))
+    monkeypatch.setenv("HOME", str(tmp_path))
+    app = DXN1Studio(cfgmod.Config(), smoke_test=True, no_splash=True)
+    try:
+        app.root.update()
+        # --- the four palette rows exist and their claims are real
+        cmds = app.palette_commands()
+        wants = {"Branch chip menu": "Ctrl+Alt+G",
+                 "Deps chip menu": "Ctrl+Alt+E",
+                 "Scribe chip menu": "Ctrl+Alt+W",
+                 "Autosave chip menu": "Ctrl+Alt+A"}
+        found = {}
+        for label, hint, _fn in cmds:
+            for head, accel in wants.items():
+                if label.startswith(head):
+                    found[head] = hint
+        assert found == wants, found
+        for hint in wants.values():
+            assert looks_like_accel(hint)
+            pat = accel_pattern(hint)
+            assert pat and app.root.bind(pat), \
+                "%r advertised but not bound" % hint
+        # --- the honest-keys audit still passes WITH the new claims
+        audited = 0
+        for label, hint, _fn in app.palette_commands():
+            if not looks_like_accel(hint):
+                continue
+            pat = accel_pattern(hint)
+            assert pat and app.root.bind(pat), \
+                "%r advertises %r but nothing is bound" % (label, hint)
+            audited += 1
+        assert audited >= 19, audited
+
+        # --- keyboard opens: each kind posts its menu, keeps the
+        # grab (a real gesture), introspects, and dismisses clean
+        for alias in ("branch", "deps", "scribe", "autosave"):
+            assert app._open_chip_menu_keyboard(alias) is True, alias
+            app.root.update()
+            menu = app._last_chip_menu
+            assert menu is not None and menu.winfo_exists(), alias
+            rows = getattr(menu, "_ds2_rows", [])
+            assert rows, "no introspectable rows for %s" % alias
+            # a keyboard open is a real gesture: the grab is KEPT
+            current = str(app.root.tk.call("grab", "current"))
+            assert current, "keyboard open lost the grab (%s)" % alias
+            # the first activatable row is awake for Enter
+            assert menu.index("active") is not None
+            app._dismiss_chip_menu()
+            app.root.update()
+            assert str(app.root.tk.call("grab", "current")) == ""
+        # unknown kinds answer honestly
+        assert app._open_chip_menu_keyboard("nonsense") is False
+        assert app._open_chip_menu_keyboard("") is False
+
+        # --- the deps menu's copy row: craft a red workspace, then
+        # the row exists, invokes, and the clipboard tells the truth
+        import subprocess
+        from dxn1_studio import depcheck as dc
+        ws = tmp_path / "depws"
+        ws.mkdir()
+        (ws / "mod.py").write_text("import fakelib_x\n"
+                                   "import os\n", encoding="utf-8")
+        subprocess.run(["git", "init", "-q"], cwd=str(ws))
+        rep = dc.check(str(ws))
+        assert "fakelib_x" in rep["missing"], rep
+        dc._store_cache(str(ws), rep)
+        app.project_dir = str(ws)
+        entries = app._deps_menu_entries()
+        repair = [e for e in entries if e[0].startswith("Queue deps fix")]
+        copyrow = [e for e in entries if e[0] == "Copy pip install command"]
+        assert repair and copyrow, entries
+        app.root.clipboard_clear()
+        copyrow[0][1]()               # the row's command, directly
+        app.root.update()
+        got = app.root.clipboard_get()
+        assert got.startswith("pip install "), got
+        assert "fakelib" in got, got
+        # the honest empty state: no workspace, no crash, no install
+        app.project_dir = ""
+        app._deps_copy_install()
+        app.root.update()
+        app._dismiss_chip_menu()
+
+        # --- the verb: chip <name> opens through the real dispatcher
+        assert app._open_chip_menu_keyboard("writing") is True
+        app.root.update()
+        app._dismiss_chip_menu()
+        app.root.update()
+        logs = []
+        _old_log = app.terminal.log
+
+        def _rec(m, *a, **k):
+            logs.append(str(m))
+        app.terminal.log = _rec
+        try:
+            app.handle_terminal_command("chip")           # bare → the list
+            app.handle_terminal_command("chip nonsense")  # honest miss
+            app.handle_terminal_command("chip branch")    # the real thing
+        finally:
+            app.terminal.log = _old_log
+        app.root.update()
+        assert any("chips: branch" in m for m in logs), logs
+        assert any("unknown chip 'nonsense'" in m for m in logs), logs
+        app._dismiss_chip_menu()
+        app.root.update()
+
+        # --- the Settings search still finds the snapshot picker
+        dlg = SettingsDialog(app)
+        try:
+            dlg._filter_settings("snapshot")
+            act = [s for s in dlg._sections if s["title"] == "Activity"]
+            assert act, "no Activity section"
+            visible = [w for w, _info in act[0]["rows"]
+                       if w.winfo_manager() == "pack"]
+            assert visible, "search 'snapshot' hid the whole section"
+            texts = " ".join(dlg._texts_of(w) for w in visible)
+            assert "Hours between snapshots" in texts, texts
+            dlg._filter_settings("")   # everything comes back
+        finally:
+            dlg.destroy()
+
+        # --- source agreement: tooltips wear the accelerators, the
+        # renderer speaks the three modes, the verb is wired
+        base = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+        with open(os.path.join(base, "dxn1_studio", "app.py"),
+                  encoding="utf-8") as fh:
+            src = fh.read()
+        assert src.count("right-click for actions · Ctrl+Alt+") == 4
+        assert 'mode="keyboard"' in src
+        assert 'if effective == "program":' in src
+        assert "y = max(0, y - h - 6)" in src
+        assert 'low == "chip" or low.startswith("chip ")' in src
+        assert '("chip <name>",' in src
+        assert '"Copy pip install command"' in src
+        assert "suggested_pins" in src
+    finally:
+        try:
+            app._dismiss_chip_menu()    # belt: nothing stays posted
+        except Exception:  # noqa: BLE001 — teardown never raises
+            pass
+        try:
+            aroot = app.root
             aroot.destroy()
         except tk.TclError:
             pass

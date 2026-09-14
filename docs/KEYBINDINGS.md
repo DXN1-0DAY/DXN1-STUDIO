@@ -84,6 +84,20 @@ really bind.
 | `Ctrl+Return` | Scratchpad: stamp a new bullet |
 | `Enter` / `Esc` | Writing-goal dialog: set / cancel |
 
+## Chip menus from anywhere (v2.53)
+The menus themselves joined the keyboard: every statusbar chip menu
+(branch, deps, scribe, autosave) opens without the mouse, from the
+palette, an accelerator or the terminal `chip <name>` verb. A
+keyboard-opened menu keeps the grab exactly like a right-clicked one —
+Enter/arrows/digits work immediately — and floats just above its chip.
+| Keys | Action |
+|---|---|
+| `Ctrl+Alt+G` | branch chip menu — commit, push, pull, graph |
+| `Ctrl+Alt+E` | deps chip menu — rescan, repair, watch |
+| `Ctrl+Alt+W` | scribe chip menu — summary, goal, reset |
+| `Ctrl+Alt+A` | autosave chip menu — snapshot, browse, toggle |
+| `chip <name>` | terminal: `branch` · `deps` · `scribe` · `autosave` (aliases `git`/`env`/`writing`/`session`) |
+
 ## Chip menus (v2.52)
 Right-click a statusbar chip (git, deps, scribe, session autosave) and
 the menu answers to the keyboard: a real right-click keeps Tk's grab

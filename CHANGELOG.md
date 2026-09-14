@@ -4,6 +4,49 @@ All notable changes to DXN1 STUDIO. Format based on
 [Keep a Changelog](https://keepachangelog.com/); versioning is
 `MAJOR.MINOR.PATCH` while in **beta**.
 
+## [2.53.0] — 2026-09-15 · beta · "the menus come to you" (every chip menu opens from the keyboard + a deps menu that hands you the fix)
+
+### Added
+- **Keyboard doors to every chip menu** — the four statusbar menus
+  (branch, deps, scribe, autosave) stop living only under
+  right-click: palette rows, real accelerators and a terminal verb
+  all open them anchored just above their own chip, in the
+  renderer's new "keyboard" mode. A palette row, an accelerator or a
+  verb is a REAL user gesture, so the grab is kept (the v2.52
+  lesson: that grab is what routes keys to the posted menu) and
+  Enter/arrows/digits work immediately — the same contract a
+  right-click gets, with the same unpost poller releasing it.
+- **Real accelerators** — `Ctrl+Alt+G` branch menu, `Ctrl+Alt+E`
+  deps menu, `Ctrl+Alt+W` scribe menu, `Ctrl+Alt+A` autosave menu;
+  chosen to miss every existing `Ctrl+Alt+` binding (s/d/h/r/z),
+  advertised by the palette rows and policed by the v2.47
+  honest-keys audit.
+- **The `chip <name>` verb** — `chip branch` (`git`), `chip deps`
+  (`env`), `chip scribe` (`writing`), `chip autosave` (`session`);
+  bare `chip` lists the four names, an unknown chip is told
+  honestly, and every open logs its receipt ("Enter runs the
+  highlighted row, Esc puts it away").
+- **Copy pip install command** — when the deps chip is red, its
+  menu gains a helper beside the repair row: one click puts a ready
+  `pip install <pins>` line on the clipboard, pins resolved by
+  `depcheck.suggested_pins` over the stored report's missing list
+  (PIL → pillow, yaml → pyyaml), toast + terminal receipt confirm,
+  and with nothing missing the answer is an honest info card.
+- **Tooltips name the key** — all four chip tooltips end with their
+  accelerator ("right-click for actions · Ctrl+Alt+G"), so the
+  keyboard path is discoverable at the point of use.
+
+### Changed
+- `_render_chip_menu()` names its opening modes: "gesture" (pointer,
+  grab kept), "program" (`event=None`, the tests' seam — grab
+  released at once, untouched) and "keyboard" (a real non-pointer
+  gesture — grab kept, anchored at the chip). Same poller, same
+  dismissal, same cleanup contract in every mode.
+- `tests/test_ds2.py` gained the `test_menu_reach` group (the doors,
+  the kept grab, the clipboard truth, the verb, the settings-search
+  pin) and `scripts/smoke_v530.py` drives the round through the real
+  studio (30 checks).
+
 ## [2.52.0] — 2026-09-15 · beta · "the menus learn the keyboard" (chip menus answer to keys + the git menu wears its divergence + a real snapshot-interval picker)
 
 ### Added
