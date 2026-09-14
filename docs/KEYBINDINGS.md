@@ -1,43 +1,59 @@
-# DS2 Keybindings — every shortcut in the studio
+# DXN1 STUDIO 2 — Keybindings
 
-## Global
+Every binding works from the main window; editor-scope ones need the
+code editor focused. The command palette (**Ctrl+K**) can trigger
+all of this by name — the terminal (`help`) knows them as commands.
 
+## Files & windows
 | Keys | Action |
 |---|---|
-| `Ctrl+K` / `Ctrl+Shift+P` | Command palette (type `@` for symbols in this file) |
-| `Ctrl+P` | Quick open (fuzzy file jump) |
-| `Ctrl+,` | Settings |
-| `F5` | Run project |
-| `Ctrl+S` | Save |
 | `Ctrl+N` | New file |
-| `Ctrl+O` | Open file |
-| `Ctrl+W` | Close tab |
+| `Ctrl+O` | Open file… |
+| `Ctrl+P` | Quick Open (fuzzy; also opens recent picker via `Ctrl+R`) |
+| `Ctrl+R` | Recent files picker |
+| `Ctrl+S` | Save |
+| `Ctrl+W` | Close active tab |
+| `Ctrl+Tab` | Next tab |
+| `Ctrl+\` | Toggle split editor view |
+| `Ctrl+,` | Settings |
+| `Ctrl+Shift+V` | Paste from clipboard history |
+| `F5` | Re-render (markdown preview) / run task context |
+| `Esc` | Close most tool windows |
 
-## Editor
-
+## Editing
 | Keys | Action |
 |---|---|
-| `Ctrl+F` | Find in file |
-| `Ctrl+G` | Go to line |
+| `Ctrl+F` | Find (toggle find bar) |
+| `Ctrl+G` | Go to line… |
+| `Ctrl+D` | Duplicate line |
+| `Ctrl+H` | Editor replace / history helper |
 | `Ctrl+/` | Toggle comment |
-| `Ctrl+Shift+D` | Duplicate line |
-| `Ctrl+Shift+K` | Delete line |
+| `Ctrl+Y` | Redo / line helper |
 | `Alt+Up` / `Alt+Down` | Move line up / down |
-| `Ctrl+F2` | Toggle bookmark · `F2` next bookmark |
-| `Ctrl+\` | Split editor |
-| `Ctrl++` / `Ctrl+-` | Editor text bigger / smaller |
-| `Tab` | Expand snippet (`def`, `class`, `try`, `with`, `fn`, `log`…) |
-| `F3` / `Shift+F3` | Next / previous diff hunk (in the diff viewer) |
 
-## AI (DS2)
-
-| Where | Action |
+## Bookmarks
+| Keys | Action |
 |---|---|
-| Select code → `Ctrl+K` → "AI: …" | Explain / Refactor / Docstring / Tests / Fix / Types / Optimize |
-| Agent chat: `remember: <fact>` | Teach the workspace memory bank |
-| Palette → "AI: review this file" | Gutter-eyes review with severity findings |
-| Palette → "Pair mode" | Plan → approve → build (sandboxed) |
+| `Ctrl+F2` | Toggle bookmark on the current line (also: gutter click) |
+| `F2` / `Shift+F2` | Next / previous bookmark |
 
-## Terminal commands
+## Line tools (v2.12)
+| Keys | Action |
+|---|---|
+| `Ctrl+Alt+S` | Sort lines A→Z (selection or whole buffer) |
+| `Ctrl+Alt+D` | Deduplicate lines |
+| `Ctrl+Alt+H` | Shuffle lines (seeded, deterministic) |
+| `Ctrl+Alt+R` | Reverse lines |
 
-`help` · `run` · `git status` · `todo` · `palette` · `dxn1 studio`
+## Modes
+| Keys | Action |
+|---|---|
+| `Ctrl+K` | Command palette (everything above, by name) |
+| `Ctrl+Alt+Z` | Toggle zen mode |
+
+## Terminal commands (type `help` in the terminal)
+`run`, `git …`, `db <file>`, `tree <dir>`, `hash <file>`,
+`focus <min>`, `clip`, `md`, `color`, `rest`, `scribe <n>`,
+`sort <mode>`, `todo`, `gen`, `env`, `jwt <token>`, `cron <expr>`,
+`readability`, `palette`, `goto <line>`, `recent`, `split`, `zen`,
+`update`, `hub`, `explain`

@@ -1,91 +1,97 @@
-# DS2 Architecture — how the studio fits together
+# DXN1 STUDIO 2 — Architecture
 
-> DXN1 STUDIO is a desktop IDE in pure Python + Tkinter. DS2 adds a
-> constellation of feature modules around the same core. This document
-> maps the terrain for contributors.
-
-## The layer cake
+DS2 is a single-process, pure-Python desktop IDE: **Python 3 +
+Tkinter + the standard library**, with optional AI backends. No
+framework, no build step, no native dependencies — clone it, run it.
 
 ```
-┌──────────────────────────────────────────────────────────┐
-│ app.py  — DXN1Studio: window, tabs, palette, menus, glue │
-├──────────────────────────────────────────────────────────┤
-│ panels: explorer (widgets.FileTree), gitpanel, search,   │
-│         packages, agent.py (DXN1 Agents)                 │
-├──────────────────────────────────────────────────────────┤
-│ editor: widgets.CodeEditor (+ Highlighter, snippets2)    │
-├──────────────────────────────────────────────────────────┤
-│ brains: llm.py (Pollinations / GitHub Models / BYOK /    │
-│         Kilo) → sandbox.AgentEngine (tool loop)          │
-├──────────────────────────────────────────────────────────┤
-│ DS2 feature modules (self-contained, defensively wired)  │
-├──────────────────────────────────────────────────────────┤
-│ theme.py — two palettes × accents (+ custom overrides)   │
-│ config.py — one JSON file under ~/.dxn1-studio           │
-└──────────────────────────────────────────────────────────┘
+dxn1_studio/
+├── app.py            ← the studio: window, menus, palette, terminal, wiring
+├── widgets.py        ← core widgets: file explorer, code editor, terminal
+├── config.py/theme.py← persistence + theme engine (everything is themed)
+└── … 60+ feature modules, one lane each, described below
 ```
 
-## DS2 module conventions
+## Design rules (what keeps 67 modules coherent)
 
-Every DS2 module follows the same contract, which is why the studio
-stays stable even if one of them is missing:
+1. **One module = one lane.** Every feature lives in its own file
+   with a public `open_*(parent, theme, …)` opener, so parallel
+   contributors never collide.
+2. **Defensive wiring.** `app.py` attaches each module through
+   `try/except` closures — a broken feature deactivates itself, the
+   studio keeps booting (menu, palette, terminal and help entries
+   are all defensive patches).
+3. **Pure engines + thin windows.** Logic that can be tested is a
+   plain function/class (`ClipRing`, `FocusEngine`, `parse_blocks`,
+   `http_request`, `shade_ramp`…); the Tk window is a dumb shell
+   over it. That's why `tests/` runs headless and fast.
+4. **Never raise at the UI boundary.** Every window refresh, poller
+   and close path swallows and logs; error reporting goes through
+   `errors.py`.
+5. **Persist into the workspace, not the OS.** `.dxn1/` holds
+   bookmarks, scan history, agent memory; the user-level store holds
+   config, sessions and window geometry.
 
-1. **Self-contained** — one file, stdlib + Tk only, its own `_run_git`
-   (or equivalent) helper, no imports from other DS2 modules at module
-   level (lazy imports inside functions where needed).
-2. **Defensively wired** — the entry point in `app.py` wraps the
-   import + call in `try/except`; a broken feature can never break a
-   session.
-3. **Themed end-to-end** — everything reads from the resolved
-   `Theme` object; no hardcoded colours outside documented tint pairs
-   (see `diffview.TINTS`).
-4. **No modal dialogs for danger** — two-click confirms
-   (`delete` → `sure?` → 3-second auto-disarm).
-5. **Threads never touch Tk** — worker threads push to a
-   `queue.Queue`; the UI thread drains it via `after(45, …)`
-   (see `quick_actions.StreamToText`).
-6. **Analytics never cost a generation** — usage/memory failures are
-   swallowed (`sandbox._record_usage`, `memory.recall_block`).
+## Layer map
 
-## Module map (DS2)
+### Core
+| Module | Role |
+|---|---|
+| `app` | Main window: menus, command palette (Ctrl+K), terminal command router, statusbar chips, session save/restore, toasts, what's-new |
+| `widgets` | File explorer, code editor (gutter, bookmarks, minimap hooks), terminal |
+| `config` | JSON-backed settings + needs-onboarding flow |
+| `theme` | Theme engine (`from_config`), dark/light/community palettes |
+| `errors` | Traceback capture, quiet logging, explain-handoff to the agent |
+| `splash`, `onboarding`, `tour`, `checklist`, `whatsnew`, `cheatsheet` | First-run & learnability surface |
 
-| Module | Talks to | Persists to |
-|---|---|---|
-| `diffview.py` | difflib, `git show` | — |
-| `gitgraph.py` | `git log --all` | — |
-| `branches.py` | `git for-each-ref`, `checkout`, `merge` | — |
-| `memory.py` | `AgentEngine` (prompt injection) | `<workspace>/.dxn1/memory.json` |
-| `usagedash.py` | wraps backend `chat`/`chat_stream` | `~/.dxn1-studio/usage.json` |
-| `quick_actions.py` | `llm.build_backend` | — |
-| `commit_msg.py` | `git diff --cached`, backend | — |
-| `ai_lint.py` | backend, editor selection | — |
-| `pair.py` | `sandbox.AgentEngine` (full tool loop) | — |
-| `cheatsheet.py` | — | — |
-| `workspace_stats.py` | `os.walk` (capped), `git rev-list` | — |
-| `community_themes.py` | `theme.from_config` | `config.custom_theme` |
-| `snippets2.py` | editor Text widget | `~/.dxn1-studio/snippets.json` |
-| `macros.py` | editor actions | `~/.dxn1-studio/macros.json` |
-| `multicursor.py` | editor Text widget | — |
+### Editor features
+`multicursor`, `snippets2`, `macros`, `minimap`, `linesort` (sort/
+dedupe/shuffle/trim), `bookmarks` (persistent, gutter, F2 nav),
+`outline`, `search` (find-in-files), `diffview`, `recents`,
+`quick_actions`, `scratch`, `zen` (focus writing + session stats),
+`scribe` (statusbar words/WPM meter), `focus` (pomodoro),
+`clipboard` (paste-from-history ring), `geom` (per-screen window
+geometry memory).
 
-## The theme engine
+### Git & projects
+`gitpanel` (source control sidebar), `branches` (branch manager),
+`gitgraph` (visual graph), `commit_msg` (AI commit messages),
+`backup` (workspace snapshots), `export` (ZIP/export), `projects`
+(scaffolding), `hub` (Project Hub), `gallery` (templates),
+`workspace_stats`, `filestats` (+ scan-history sparkline),
+`treeexport` (ASCII tree for READMEs).
 
-`theme.Theme` resolves one of two base palettes (`dark`/`light`) plus
-an accent (6 colours). DS2 adds a third layer: `config.custom_theme`
-overrides any subset of palette keys at resolution time
-(`theme.from_config`). Resolution is defensive — unknown keys are
-ignored, missing keys fall back — so community themes are data, not
-code.
+### Developer tools (Workshop menu)
+`devtools` (regex/JSON/text/time), `sqlitelab` (SQLite browser),
+`hasher` (checksums/manifests), `restbench` (HTTP workbench),
+`colorkit` (hex/rgb/hsl + WCAG contrast + ramps), `markprev`
+(live markdown preview), `jwt`, `cronexp`, `envcheck`, `gen`
+(test data), `readability`, `usagedash`, `packages`, `doctor`
+(environment audit).
 
-## Restart-driven settings
+### AI surface
+`agent` (DXN1 Agents 2.0 panel), `llm` (pluggable backends),
+`ai_lint` (AI code review), `memory` (per-workspace agent memory),
+`prompts` (prompt library), `pair` (pair mode), `sandbox`
+(agent tool loop with permissions), `quick_actions`.
 
-Theme changes (and a few others) restart the studio: set config,
-`restart_requested = True`, destroy the root after 120 ms; the
-launcher reboots the app. DS2's `_ds2_restart` mirrors `switch_theme`
-exactly.
+### Platform
+`i18n` (translation catalogs), `plugins` (Plugin API v1 + registry),
+`sync` (settings sync), `term` (task runner), `updater`
+(update portal), `community_themes` (theme gallery).
 
-## Concurrency rules (for agents & contributors)
+## Testing & QA harness
 
-- Validate before every push: `python3 -m compileall -q dxn1_studio`
-- Engine logic is testable headless (no Tk window needed): import the
-  module and call its pure functions
-- CI runs `compileall` + a headless boot smoke test on 3.8–3.13
+| Harness | What it proves |
+|---|---|
+| `python3 -m pytest tests/` | ~50 unit groups over every pure engine |
+| `scripts/smoke_v290.py` (Xvfb) | 66 live-window checks across ten feature windows |
+| `scripts/boot_qa.py` (Xvfb) | Boots the real studio: menus bound, palette entries live, modules import, scribe chip wired |
+| `python3 -m compileall -q dxn1_studio` | The tree always compiles — the gate before every tag |
+
+## Release protocol
+
+Every feature increment: conventional commit → push. Every hour:
+bump `APP_VERSION` + README badge + CHANGELOG, run all four gates,
+`git tag vX.Y.Z`, `git push origin master --tags`. The tag history
+(`git tag --sort=-v`) doubles as the sprint's feature timeline.
