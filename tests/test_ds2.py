@@ -512,3 +512,54 @@ def test_whatsnew_parser_and_upgrade_gate():
     assert new_entries(real, None) == real[:1]
     assert new_entries(real, "99.0.0") == []
     assert plain_bullet("**b** `c`") == "b c"
+
+
+# --------------------------------------------- hub insights (DS2 v2.6.0)
+def test_hub_insights_engines(tmp_path):
+    from dxn1_studio.workspace_stats import (
+        aggregate_insights, aggregate_line, current_branch, stats_for)
+
+    ws = tmp_path / "insws"
+    (ws / "sub").mkdir(parents=True)
+    (ws / "a.py").write_text("x = 1\n")
+    (ws / "sub" / "b.py").write_text("y = 2\n")
+    (ws / "c.md").write_text("# hi\n")
+    (ws / "data.bin").write_bytes(b"\x00\x01")
+    stats = stats_for(str(ws))
+    assert stats["files"] == 4
+    assert stats["primary_language"] == "Python"
+
+    # aggregate: empty stats entries are skipped, mix normalizes to 100 %
+    ag = aggregate_insights([stats, {}, None])
+    assert ag["workspaces"] == 1 and ag["files"] == 4
+    assert ag["top"] and ag["top"][0][0] == "Python"
+    assert sum(p for _n, p in ag["top"]) == 100
+    line = aggregate_line(ag)
+    assert "1 workspace  " in line and "Python" in line and "4 files" in line
+    # plural + empty cases
+    two = aggregate_insights([stats, stats])
+    assert two["workspaces"] == 2 and "2 workspaces" in aggregate_line(two)
+    assert aggregate_line(aggregate_insights([])) == ""
+    assert aggregate_line(None) == ""
+
+    # branch: non-git dir → '', git repo (this checkout) → non-empty
+    assert current_branch(str(ws)) == ""
+    here = str(tmp_path)  # not a repo either, still must not raise
+    assert current_branch(here) in ("", "(unknown)") or isinstance(
+        current_branch(here), str)
+
+
+def test_sniff_encoding_labels(tmp_path):
+    """DS2 v2.6: the statusbar's encoding sniffer labels common cases."""
+    from dxn1_studio.app import DXN1Studio
+
+    p_utf = tmp_path / "u.py"
+    p_utf.write_text("print('héllo')\n", encoding="utf-8")
+    p_bom = tmp_path / "b.py"
+    p_bom.write_bytes(b"\xef\xbb\xbfprint('x')\n")
+    p_bin = tmp_path / "b.bin"
+    p_bin.write_bytes(b"\xff\xfe\x00\xfa")
+    assert DXN1Studio._sniff_encoding(str(p_utf)) == "UTF-8"
+    assert DXN1Studio._sniff_encoding(str(p_bom)) == "UTF-8 BOM"
+    assert DXN1Studio._sniff_encoding(str(p_bin)) in ("non-UTF8", "UTF-16")
+    assert DXN1Studio._sniff_encoding(str(tmp_path / "nope.py")) == ""
