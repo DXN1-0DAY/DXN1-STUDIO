@@ -4,6 +4,14 @@ All notable changes to DXN1 STUDIO. Format based on
 [Keep a Changelog](https://keepachangelog.com/); versioning is
 `MAJOR.MINOR.PATCH` while in **beta**.
 
+## [2.18.0] — 2026-09-14 · beta · "every glyph at your fingertips"
+
+### Added
+- **Character Map** (`charmap.py`, Workshop → *Character Map…*, terminal `charmap` / `char` / `unicode`) — a click-to-copy Unicode browser: 25 curated offline blocks (Arrows, Math Operators, Box Drawing, Geometric Shapes, Hiragana, CJK, Currency…), search by block name, by hex codepoint (`U+2192`, `0x00e9`, `2192`) or paste a literal character; clicking a glyph copies it and prints `U+00E9 · é · LATIN SMALL LETTER E WITH ACUTE`; "copy all shown" grabs the whole grid.
+
+### Changed
+- **First tr() plumbing** — the splash-screen tagline, the Project Hub welcome headline (name substituted in all seven packs) and the git-panel commit-message placeholder now resolve through language packs, so `lang es` / `lang zh` visibly re-speaks core surfaces after restart; placeholder clearing uses a locale-safe translated prefix.
+
 ## [2.17.0] — 2026-09-14 · beta · "see the numbers, know the words"
 
 ### Added
