@@ -2588,7 +2588,7 @@ def test_installer_manifest_sync():
     assert set(listed) >= set(updater.MODULES)
 
 
-def test_updater_manifest_helpers(tmp_path):
+def test_updater_manifest_helpers(monkeypatch, tmp_path):
     """DS2 v2.31 — updater manifest parsing + resolution order."""
     from dxn1_studio import updater
     # parsing: keep only .py lines, dedupe + sort, junk tolerated
@@ -2606,8 +2606,55 @@ def test_updater_manifest_helpers(tmp_path):
     bad.mkdir()
     (bad / "MANIFEST.txt").write_bytes(b"\xff\xfe\xfa")
     assert updater._local_manifest(str(bad)) is None
-    # resolution: local manifest wins over the static fallback list
+    # resolution: remote source is stubbed away (CI may or may not have
+    # network) — with no remote, the local manifest wins over fallback
+    monkeypatch.setattr(updater, "_remote_manifest", lambda: None)
     mods = updater.resolve_modules(str(tmp_path))
     assert mods == ["a.py", "b.py"]
     fallback = updater.resolve_modules(str(tmp_path / "void"))
     assert fallback == list(updater.MODULES)
+    # and when a remote manifest IS reachable it takes priority
+    monkeypatch.setattr(updater, "_remote_manifest", lambda: ["r.py"])
+    assert updater.resolve_modules(str(tmp_path)) == ["r.py"]
+
+
+# ------------------------------------------------------------ v2.31 polish
+def test_buffer_cursor_memory(monkeypatch, tmp_path):
+    """DS2 v2.31 — per-buffer cursor memory: open_file records the
+    outgoing insert mark and a tab switch restores it exactly."""
+    import tkinter as tk
+    try:
+        root = tk.Tk(); root.withdraw()
+    except tk.TclError:
+        return
+    # hermetic config — the app must not touch the real ~/.dxn1-studio
+    import dxn1_studio.config as cfgmod
+    monkeypatch.setattr(cfgmod, "CONFIG_DIR", str(tmp_path))
+    monkeypatch.setattr(cfgmod, "CONFIG_PATH",
+                        str(tmp_path / "config.json"))
+    from dxn1_studio.app import DXN1Studio
+    app = DXN1Studio(cfgmod.Config(), smoke_test=True, no_splash=True)
+    try:
+        fa = tmp_path / "alpha.py"
+        fa.write_text("def gmm_thre(x):\n    return x\n" +
+                      "".join(f"line {i}\n" for i in range(3, 13)),
+                      encoding="utf-8")
+        fb = tmp_path / "beta.py"
+        fb.write_text("beta one\nbeta two\n", encoding="utf-8")
+        app.open_file(str(fa))
+        root.update()
+        app.editor.text.mark_set("insert", "7.3")
+        app.open_file(str(fb))          # outgoing cursor must be recorded
+        assert app._buffer_cursors[str(fa)] == "7.3"
+        app._activate_tab(str(fa))      # tab switch must restore it
+        root.update()
+        assert app.editor.text.index("insert") == "7.3"
+        # _remember_cursor is best effort — junk state never raises
+        app.editor.file_path = None
+        app._remember_cursor()          # must not raise
+        assert True
+    finally:
+        try:
+            root.destroy()
+        except tk.TclError:
+            pass
