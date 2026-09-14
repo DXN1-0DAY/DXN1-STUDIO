@@ -4,6 +4,24 @@ All notable changes to DXN1 STUDIO. Format based on
 [Keep a Changelog](https://keepachangelog.com/); versioning is
 `MAJOR.MINOR.PATCH` while in **beta**.
 
+## [1.9.0] — 2026-09-14 · beta · "paint it your way"
+
+### Added
+- **Theme gallery** (`community_themes.py`) — twelve curated palettes
+  (Midnight Violet, Deep Ocean, Forest Night, Ember Dark, Carbon,
+  Paper White, Warm Paper, Mint Light, Rosy Dawn, Nordic Light,
+  Solarized-ish…) shown as live swatch cards with a code sample in
+  the actual palette. **Apply** saves the palette to config and
+  restarts the studio into it — the same safe swap as the built-in
+  dark/light toggle.
+- **Custom theme engine** (`theme.py`) — `from_config` now resolves a
+  stored `custom_theme` palette override with strict fallbacks: keys
+  must exist in the base palette, anything missing or broken silently
+  falls back, so a half-written theme can never render the studio
+  unreadable. Themes are plain JSON — export, share, import.
+- **First-run gallery** (`gallery.py`) — the hero art loader for the
+  new onboarding surfaces.
+
 ## [1.8.0] — 2026-09-14 · beta · "the hub grows up"
 
 ### Added
