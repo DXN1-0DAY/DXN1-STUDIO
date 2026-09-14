@@ -4,6 +4,14 @@ All notable changes to DXN1 STUDIO. Format based on
 [Keep a Changelog](https://keepachangelog.com/); versioning is
 `MAJOR.MINOR.PATCH` while in **beta**.
 
+## [2.14.0] — 2026-09-14 · beta · "write it, see it"
+
+### Added
+- **Markdown preview** (`markprev.py`, Workshop → *Markdown Preview…*, palette, terminal `md` / `preview` / `markdown`) — dual-pane window: edit markdown on the left, live rendered result on the right; opens pre-loaded with the current editor buffer.
+- **Zero-dependency markdown engine** — `parse_blocks` (headings, fenced code with language, blockquotes, ordered/unordered lists, pipe tables, horizontal rules, paragraph folding) + `inline_spans` (bold, italic, strikethrough, inline code, links); pure stdlib, unit-tested.
+- **Live re-render** — debounced 300 ms while typing, F5 for instant; status bar reports words, lines, blocks and render time in ms.
+- **HTML export** — one click copies a standalone styled HTML document or saves it via *Export HTML…*.
+
 ## [2.13.0] — 2026-09-14 · beta · "nothing copied is lost"
 
 ### Added
