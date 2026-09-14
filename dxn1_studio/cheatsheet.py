@@ -76,6 +76,8 @@ SHEETS = [
                 "lorem, fake users/events as JSON"),
         ("db <file>", "SQLite Lab — browse tables, schema dive, run "
                       "queries, export CSV/markdown (read-only default)"),
+        ("tree <dir>", "Directory tree export — junk-aware ASCII tree, "
+                       "depth + sizes, one-click clipboard copy"),
     ]),
     ("TERMINAL TALK", [
         ("help", "List every studio command"),

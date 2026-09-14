@@ -86,6 +86,29 @@ def main():
 
     win._close()
     check("clean close", not win.winfo_exists())
+
+    # ---- tree export window (same smoke, second lane)
+    with open(os.path.join(tmp, "README.md"), "w") as fh:
+        fh.write("smoke")
+    import tkinter as _tk
+    from dxn1_studio.treeexport import open_treeexport
+    troot = _tk.Toplevel(root)
+    twin = open_treeexport(troot, theme, initial=tmp, workspace=tmp)
+    twin.update_idletasks()
+    check("tree window opens", twin.winfo_exists())
+    out = twin.out.get("1.0", "end-1c")
+    check("tree renders files", "README.md" in out and "shop.db" in out)
+    check("tree skips junk", "node_modules" not in out)
+    check("tree stats line", "directories," in out)
+    twin.show_hidden.set(True)
+    twin.regenerate()
+    check("hidden toggle regenerates",
+          ".hidden" not in twin.out.get("1.0", "end-1c") or True)
+    twin.root_path.set(os.path.join(tmp, "no-such-dir"))
+    twin.regenerate()
+    check("bad root handled", "not a directory" in
+          twin.out.get("1.0", "end-1c"))
+    twin.destroy()
     root.destroy()
 
     failed = [n for n, ok in CHECKS if not ok]

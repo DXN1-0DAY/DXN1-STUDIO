@@ -153,3 +153,13 @@
 | Query bench | *Query* tab, F5 | One statement at a time — SELECT fills a grid (capped at 500 rows), writes report affected counts and refresh the sidebar; errors land in the status line, never a crash |
 | DB intel | *Info* tab | SQLite version, file size from page math, page/freelist counts, journal mode, encoding, table/view census |
 | Pure engine | `tests/test_ds2.py` | connect / introspection / sample / query / export / markdown / finder all unit-tested — writes blocked read-only, affected counts correct, quoting safe (`qident`), markdown pipes escaped |
+
+## The Tree Export (v2.9.0)
+
+| Feature | Where | What it does |
+|---|---|---|
+| Directory tree export | `treeexport.py`, Workshop → *Directory Tree Export…*, palette, terminal `tree` / `tree <dir>` | Turns any folder into a README-ready ASCII tree — `├──`/`└──` connectors, directories first, one-click copy to clipboard or save as .txt/.md |
+| Junk-aware skipping | engine (shared skip set) | `.git`, `node_modules`, `__pycache__`, `.venv`, `dist`, `build` and friends never pollute your tree — the skipped count shows in the stats line |
+| Depth & size controls | toolbar | Depth spinner (1–6), hidden-files toggle, per-file human sizes (`2.0 KB`) — the tree regenerates live on every toggle (or press F5) |
+| Honest stats | status bar | `N dirs · M files · size`, skipped-junk count, and a visible *truncated* flag when the entry cap kicks in — no silent lies |
+| Pure engine | `tests/test_ds2.py` | skip rules, dir-first sorting, depth caps, hidden toggle, size math and invalid-root safety are all unit-tested |

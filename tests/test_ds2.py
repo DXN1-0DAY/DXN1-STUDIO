@@ -1048,3 +1048,49 @@ def test_sqlitelab_engine():
     assert sl.human_size(0) == "0 B" and "KB" in sl.human_size(2048)
     assert sl.human_size("junk") == "?"
     assert sl.list_tables(sqlite3.connect(":memory:")) == []
+
+
+def test_treeexport_engine():
+    # DS2 v2.9.0 — directory tree export: skips, sorting, caps, render
+    import os
+    import tempfile
+
+    from dxn1_studio import treeexport as te
+
+    tmp = tempfile.mkdtemp(prefix="ds2-tree-")
+    os.makedirs(os.path.join(tmp, "src", "pkg"))
+    os.makedirs(os.path.join(tmp, "node_modules", "junk"))
+    os.makedirs(os.path.join(tmp, ".hidden"))
+    open(os.path.join(tmp, "README.md"), "w").write("hi")
+    open(os.path.join(tmp, "src", "pkg", "core.py"), "w").write("x" * 2048)
+    open(os.path.join(tmp, "src", "main.py"), "w").write("y" * 100)
+    open(os.path.join(tmp, "node_modules", "junk", "x.js"), "w").write("z")
+
+    lines, stats = te.build_tree(tmp, max_depth=3)
+    names = [n for _, n, _, _ in lines]
+    assert "node_modules" not in names and ".hidden" not in names
+    assert "src" in names and "README.md" in names
+    assert stats["dirs"] == 2 and stats["files"] == 3
+    assert stats["skipped"] == 1
+    assert stats["bytes"] == 2048 + 100 + 2
+    assert names.index("src") < names.index("README.md")  # dirs first
+
+    txt = te.render_tree(tmp, lines, stats)
+    assert "├──" in txt or "└──" in txt
+    assert "2.0 KB" in txt and "2 directories, 3 files" in txt
+    assert "junk dirs skipped" in txt
+
+    # hidden toggle + depth cap + size toggle
+    l2, _s2 = te.build_tree(tmp, max_depth=1, show_hidden=True)
+    n2 = [n for _, n, _, _ in l2]
+    assert ".hidden" in n2 and "pkg" not in n2
+    l3, s3 = te.build_tree(tmp, max_depth=2, show_sizes=False)
+    t3 = te.render_tree(tmp, l3, s3, show_sizes=False)
+    assert "2.0 KB" not in t3
+
+    # invalid root is safe; helpers sane
+    assert te.build_tree(os.path.join(tmp, "nope")) == ([], {
+        "dirs": 0, "files": 0, "bytes": 0, "truncated": False,
+        "skipped": 0})
+    assert te.human_size(0) == "0 B" and "KB" in te.human_size(2048)
+    assert te.human_size("junk") == "?"

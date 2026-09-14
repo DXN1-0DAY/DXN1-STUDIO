@@ -1024,6 +1024,15 @@ class DXN1Studio:
                     pass
             return _go
 
+        def _open_tree_menu():
+            try:
+                from .treeexport import open_treeexport
+                open_treeexport(self.root, self.theme,
+                                initial=self.project_dir or "",
+                                workspace=self.project_dir or "")
+            except Exception:  # pragma: no cover — menu stays alive
+                pass
+
         def _open_sqlite_menu():
             try:
                 from .sqlitelab import open_sqlitelab
@@ -1075,6 +1084,9 @@ class DXN1Studio:
         workshop_menu.add_command(
             label="SQLite Browser…",
             command=_open_sqlite_menu)
+        workshop_menu.add_command(
+            label="Directory Tree Export…",
+            command=_open_tree_menu)
         workshop_menu.add_separator()
         workshop_menu.add_command(label="Token Usage Dashboard…",
                                   command=_open_usage_menu)
@@ -2393,6 +2405,8 @@ class DXN1Studio:
                     ("gen", "generate UUIDs, nanoids, fake users, JSON"),
                     ("db <file>", "browse SQLite databases — tables, "
                                   "schema, queries"),
+                    ("tree <dir>", "ASCII directory tree for READMEs — "
+                                   "skips junk, copies to clipboard"),
                     ("explain", "hand the last error to the agent"),
                     ("git <args>", "run git in the workspace (status, add,"),
                     ("", "commit, log… output streams below"),
@@ -2550,6 +2564,24 @@ class DXN1Studio:
                                       "in the workspace, use Open…")
             except Exception as exc:  # noqa: BLE001 — terminal stays alive
                 self.terminal.log(f"db failed: {exc}")
+            return
+        if low == "tree" or low.startswith("tree "):
+            # DS2: directory tree export (optional path argument)
+            try:
+                from .treeexport import open_treeexport
+                arg = text[5:].strip() if len(text) > 5 else ""
+                if arg and not os.path.isdir(arg):
+                    cand = os.path.join(self.project_dir or "", arg)
+                    arg = cand if os.path.isdir(cand) else ""
+                if arg and not os.path.isdir(arg):
+                    self.terminal.log(f"no such directory: {arg}")
+                    arg = ""
+                open_treeexport(self.root, self.theme, initial=arg,
+                                workspace=self.project_dir or "")
+                self.terminal.log("Tree export opened" +
+                                  (f" — {arg}" if arg else " — workspace"))
+            except Exception as exc:  # noqa: BLE001 — terminal stays alive
+                self.terminal.log(f"tree failed: {exc}")
             return
         if low.startswith("goto "):
             num = text[5:].strip()
@@ -3058,6 +3090,17 @@ class DXN1Studio:
         try:
             cmds.append(("SQLite browser — tables, schema, queries…",
                          "DS2", _open_db))
+        except Exception:  # pragma: no cover — palette stays alive
+            pass
+        # DS2: directory tree export (defensive)
+        def _open_tree():
+            from .treeexport import open_treeexport
+            open_treeexport(self.root, self.theme,
+                            initial=getattr(self, "project_dir", "") or "",
+                            workspace=getattr(self, "project_dir", "") or "")
+        try:
+            cmds.append(("Directory tree export — README-ready ASCII…",
+                         "DS2", _open_tree))
         except Exception:  # pragma: no cover — palette stays alive
             pass
         return cmds
