@@ -102,6 +102,58 @@ def current_branch(repo):
     return out.strip() if ok else "HEAD"
 
 
+# ------------------------------------------------------------------ tags
+def create_tag(repo, name, message="", ref="HEAD"):
+    """Create a tag; annotated (with message) when a message is given.
+    Returns (ok, output)."""
+    name = (name or "").strip()
+    if not name:
+        return False, "tag name is required"
+    if " " in name or "~" in name or "^" in name or ":" in name:
+        return False, "invalid tag name"
+    if message:
+        ok, out, err = run_git(repo, "tag", "-a", name, "-m", message, ref)
+    else:
+        ok, out, err = run_git(repo, "tag", name, ref)
+    return ok, (out or err or "").strip()
+
+
+def delete_tag(repo, name):
+    ok, out, err = run_git(repo, "tag", "-d", name)
+    return ok, (out or err or "").strip()
+
+
+def push_tag(repo, name, remote="origin", delete=False):
+    """Push one tag (or delete it on the remote with delete=True)."""
+    spec = f":refs/tags/{name}" if delete else name
+    ok, out, err = run_git(repo, "push", remote, spec)
+    return ok, (out or err or "").strip()
+
+
+def push_all_tags(repo, remote="origin"):
+    ok, out, err = run_git(repo, "push", remote, "--tags")
+    return ok, (out or err or "").strip()
+
+
+def tag_details(repo, name):
+    """(sha, subject, date, annotation) for a tag — annotation empty
+    for lightweight tags."""
+    ok, out, _ = run_git(
+        repo, "log", "-1", "--pretty=format:%H\x1f%s\x1f%ci", name)
+    if not ok:
+        return None
+    parts = out.split("\x1f", 2)
+    if len(parts) != 3:
+        return None
+    sha, subject, date = parts
+    annotation = ""
+    ok, out, _ = run_git(repo, "tag", "-l", "--format=%(contents)", name)
+    if ok and out.strip() and out.strip() != name:
+        annotation = out.strip()
+    return {"sha": sha, "subject": subject, "date": date,
+            "annotation": annotation}
+
+
 class BranchManager(tk.Toplevel):
     """Create / switch / merge / clean up — without the terminal."""
 
@@ -170,6 +222,11 @@ class BranchManager(tk.Toplevel):
                        padx=12, pady=6)
         btn.pack(side=tk.LEFT, padx=(8, 0))
         btn.bind("<Button-1>", lambda e: self.create_branch())
+        tag_btn = tk.Label(row, text="＋ Tag", bg=t["card"],
+                           fg=t["text_secondary"], font=(FONT_UI, 9, "bold"),
+                           cursor="hand2", padx=12, pady=6)
+        tag_btn.pack(side=tk.LEFT, padx=(6, 0))
+        tag_btn.bind("<Button-1>", lambda e: self.create_tag_dialog())
 
     def _build_list(self):
         t = self.t
@@ -237,18 +294,122 @@ class BranchManager(tk.Toplevel):
             flow = tk.Frame(row, bg=self.t["bg"])
             flow.pack(fill=tk.X)
             for i, (name, sha) in enumerate(tags[:14]):
-                chip = tk.Label(flow, text=f"⏕ {name}", bg=self.t["card"],
-                                fg=self.t["text_secondary"],
-                                font=(FONT_MONO, 8), padx=8, pady=3)
-                chip.grid(row=i // 5, column=i % 5, sticky="w", padx=2,
+                chip = tk.Frame(flow, bg=self.t["card"],
+                                highlightthickness=1,
+                                highlightbackground=self.t["card_border"])
+                chip.grid(row=i // 4, column=i % 4, sticky="w", padx=2,
                           pady=2)
-                chip.bind("<Double-Button-1>",
-                          lambda e, n=name: self.checkout(n))
-                Tooltip(chip, f"{sha} — double-click to checkout")
+                lbl = tk.Label(chip, text=f"⏕ {name}", bg=self.t["card"],
+                               fg=self.t["text_secondary"],
+                               font=(FONT_MONO, 8), padx=6, pady=3)
+                lbl.pack(side=tk.LEFT)
+                lbl.bind("<Double-Button-1>",
+                         lambda e, n=name: self.checkout(n))
+                push = tk.Label(chip, text="⇧", bg=self.t["card"],
+                                fg=self.t["text_muted"],
+                                font=(FONT_UI, 8), padx=4,
+                                cursor="hand2")
+                push.pack(side=tk.RIGHT)
+                push.bind("<Button-1>",
+                          lambda e, n=name: self._push_tag(n))
+                dele = tk.Label(chip, text="✕", bg=self.t["card"],
+                                fg=self.t["text_muted"],
+                                font=(FONT_UI, 8), padx=4,
+                                cursor="hand2")
+                dele.pack(side=tk.RIGHT)
+                dele.bind("<Button-1>",
+                          lambda e, n=name: self._delete_tag(n))
+                Tooltip(chip, f"{sha} — double-click to checkout, "
+                              f"⇧ to push, ✕ to delete")
         self._say(f"{len(locals_)} local · {len(remotes)} remote · "
                   f"{len(tags)} tags")
 
     # -------------------------------------------------------------- rows
+    # ---------------------------------------------------------------- tags
+    def create_tag_dialog(self):
+        """Small dialog: tag name + optional annotation message."""
+        if not self.workspace:
+            self._say("No workspace open.")
+            return
+        dlg = tk.Toplevel(self)
+        dlg.title("New tag")
+        dlg.configure(bg=self.t["bg"])
+        dlg.transient(self)
+        dlg.grab_set()
+        dlg.resizable(False, False)
+        tk.Label(dlg, text="Tag the current commit (HEAD)",
+                 bg=self.t["bg"], fg=self.t["text"],
+                 font=(FONT_UI, 11, "bold")).pack(anchor="w", padx=16,
+                                                  pady=(14, 2))
+        tk.Label(dlg, text="Annotated tags keep a message — recommended "
+                           "for releases.",
+                 bg=self.t["bg"], fg=self.t["text_muted"],
+                 font=(FONT_UI, 8)).pack(anchor="w", padx=16)
+        name_e = tk.Entry(dlg, bg=self.t["editor"], fg=self.t["text"],
+                          insertbackground=self.t["text"], relief=tk.FLAT,
+                          font=(FONT_MONO, 10), width=34)
+        name_e.pack(padx=16, pady=(10, 4), ipady=5)
+        msg_e = tk.Entry(dlg, bg=self.t["editor"], fg=self.t["text"],
+                         insertbackground=self.t["text"], relief=tk.FLAT,
+                         font=(FONT_MONO, 9), width=34)
+        msg_e.pack(padx=16, pady=(0, 8), ipady=4)
+        msg_e.insert(0, "")
+        msg_e.insert(0, "release note (optional)")
+
+        def _focus(_e):
+            if msg_e.get() == "release note (optional)":
+                msg_e.delete(0, tk.END)
+        msg_e.bind("<FocusIn>", _focus)
+
+        err = tk.Label(dlg, text="", bg=self.t["bg"], fg="#f85149",
+                       font=(FONT_UI, 8))
+        err.pack(anchor="w", padx=16)
+
+        def _go(_e=None):
+            name = name_e.get().strip()
+            msg = msg_e.get().strip()
+            if msg == "release note (optional)":
+                msg = ""
+            ok, out = create_tag(self.workspace, name, message=msg)
+            if not ok:
+                err.config(text=out or "tag failed")
+                return
+            self.on_log(f"tag created: {name}")
+            dlg.grab_release()
+            dlg.destroy()
+            self.refresh()
+
+        name_e.bind("<Return>", _go)
+        msg_e.bind("<Return>", _go)
+        go = tk.Label(dlg, text="Create tag  ⏕", bg=self.t.accent,
+                      fg="#ffffff", font=(FONT_UI, 9, "bold"),
+                      cursor="hand2", padx=14, pady=6)
+        go.pack(anchor="w", padx=16, pady=(4, 14))
+        go.bind("<Button-1>", _go)
+        name_e.focus_set()
+        self._center_dialog(dlg)
+
+    def _push_tag(self, name):
+        ok, out = push_tag(self.workspace, name)
+        self._say(f"tag {name} pushed ✓" if ok
+                  else f"push failed: {(out or '')[:80]}")
+        self.on_log(f"tag pushed: {name}" if ok else f"tag push failed")
+
+    def _delete_tag(self, name):
+        ok, out = delete_tag(self.workspace, name)
+        if ok:
+            self.on_log(f"tag deleted: {name}")
+            self.refresh()
+        else:
+            self._say(f"delete failed: {(out or '')[:80]}")
+
+    def _center_dialog(self, dlg):
+        dlg.update_idletasks()
+        w, h = dlg.winfo_reqwidth(), dlg.winfo_reqheight()
+        x = self.winfo_rootx() + (self.winfo_width() - w) // 2
+        y = self.winfo_rooty() + (self.winfo_height() - h) // 3
+        dlg.geometry(f"+{max(0, x)}+{max(0, y)}")
+
     def _branch_row(self, b, subject, local=True):
         t = self.t
         row = tk.Frame(self.list_inner, bg=t["card"],
