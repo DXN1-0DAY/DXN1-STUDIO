@@ -6674,3 +6674,188 @@ def test_pack_files(tmp_path):
         except tk.TclError:
             pass
         monkeypatch.undo()
+
+
+def test_lang_check(tmp_path):
+    """DS2 v2.58 — the pack gets a checkup: check_mapping reads a
+    mapping the way an import WOULD and reports unknown keys, empty
+    values, junk pairs and highlight-unsafe strings before anything
+    moves (unsafe is a property of the value, stale keys included —
+    pack_diff's own semantics); check_pack reviews an installed pack
+    (built-ins + the user pack on disk — what the runtime speaks);
+    check_pack_file reviews a file and answers honestly for
+    unreadable ones; `lang check [code|file]` opens both doors and
+    `lang pack <code> [dest]` exports a pack without opening the
+    desk — never overwriting what is already there."""
+    import tkinter as tk
+    try:
+        root = tk.Tk(); root.withdraw()
+    except tk.TclError:
+        return
+    import json
+    import os
+    import pytest
+    import dxn1_studio.config as cfgmod
+    from dxn1_studio import i18n as i18nmod
+    from dxn1_studio import langedit as le
+
+    # --- data layer: the checkup core
+    mixed = {"menu.file": "MiArchivo",             # real
+             "menu.edit": i18nmod.EN["menu.edit"],  # seed
+             "junk.key": "x",                       # unknown
+             "menu.view": "   "}                    # empty
+    rep = le.check_mapping(mixed)
+    assert rep["pairs"] == 4 and rep["real"] == 1 and rep["seeds"] == 1
+    assert rep["covered"] == 2 and rep["junk"] == 0
+    assert rep["unknown"] == ["junk.key"] and rep["empty"] == ["menu.view"]
+    assert rep["covered_pct"] == int(round(2 * 100.0 / len(i18nmod.EN)))
+    assert rep["real_pct"] == int(round(1 * 100.0 / len(i18nmod.EN)))
+    # junk pairs: non-string keys AND values are skipped like an
+    # import skips them
+    rep2 = le.check_mapping({"k": 3, 5: "x", None: "y"})
+    assert rep2["junk"] == 3 and rep2["pairs"] == 0
+    # a None mapping checks clean and empty
+    rep3 = le.check_mapping(None)
+    assert rep3["pairs"] == 0 and rep3["covered_pct"] == 0
+    # unsafe is a property of the VALUE — stale keys included
+    rep4 = le.check_mapping({"a.b": "İstanbul"})
+    assert rep4["unsafe"] == ["a.b"] and rep4["unknown"] == ["a.b"]
+    # check_pack: es speaks for itself — clean, every number full
+    r = le.check_pack("es")
+    assert r["name"] == "Español" and r["code"] == "es"
+    assert r["real_pct"] == 100 and r["covered_pct"] == 100
+    assert r["unknown"] == [] and r["empty"] == [] and r["unsafe"] == []
+    # check_pack_file: a good file, and the honest refusals
+    d = tmp_path / "files"; d.mkdir()
+    good = d / "good.json"
+    good.write_text(json.dumps({"menu.file": "MiArchivo",
+                                "junk.key": "x", "menu.view": ""}),
+                    encoding="utf-8")
+    f = le.check_pack_file(str(good))
+    assert f["ok"] and f["pairs"] == 3
+    assert f["unknown"] == ["junk.key"] and f["empty"] == ["menu.view"]
+    arr = d / "arr.json"; arr.write_text("[1,2]", encoding="utf-8")
+    f2 = le.check_pack_file(str(arr))
+    assert not f2["ok"] and f2["error"] == "not a JSON object"
+    bad = d / "bad.json"; bad.write_text("{nope", encoding="utf-8")
+    f3 = le.check_pack_file(str(bad))
+    assert not f3["ok"] and f3["error"] == "JSONDecodeError"
+    f4 = le.check_pack_file(str(d / "missing.json"))
+    assert not f4["ok"] and f4["error"] == "FileNotFoundError"
+    # a seeded pack is structurally clean and 0% real — the ledger
+    # line carries the honesty
+    le.save_user_pack("seed58", dict(i18nmod.EN))
+    r2 = le.check_pack("seed58")
+    assert r2["pairs"] == len(i18nmod.EN)
+    assert r2["seeds"] == len(i18nmod.EN) and r2["real"] == 0
+    assert r2["real_pct"] == 0 and r2["covered_pct"] == 100
+    assert r2["unknown"] == [] and r2["empty"] == []
+
+    # --- through the real app: both doors of lang check + lang pack
+    monkeypatch = pytest.MonkeyPatch()
+    monkeypatch.setattr(cfgmod, "CONFIG_DIR", str(tmp_path / "cfg"))
+    monkeypatch.setattr(cfgmod, "CONFIG_PATH",
+                        str(tmp_path / "cfg" / "config.json"))
+    monkeypatch.setenv("HOME", str(tmp_path / "home"))
+    real_lang = tmp_path / "homelang"
+    monkeypatch.setattr(i18nmod, "LANG_DIR", str(real_lang))
+    from dxn1_studio.app import DXN1Studio
+    app = DXN1Studio(cfgmod.Config(), smoke_test=True, no_splash=True)
+    try:
+        app.root.update()
+        logs = []
+        app.terminal.log = lambda m, *a, **k: logs.append(str(m))
+
+        def run(cmd):
+            logs.clear()
+            app.handle_terminal_command(cmd)
+            return "\n".join(logs)
+
+        # bare lang check with en current: the source has nothing
+        # to check
+        blob = run("lang check")
+        assert "nothing to check" in blob and "lang check <code|file>" \
+            in blob, blob
+        # bare lang check with a pack current: reviews that pack
+        i18nmod.set_language("es")
+        blob = run("lang check")
+        i18nmod.set_language("en")
+        assert "lang check es" in blob and "verdict: clean" in blob, blob
+        # named pack: head, ledger line, verdict, the way out
+        blob = run("lang check es")
+        assert "lang check es — Español [built-in]" in blob, blob
+        assert "coverage 100%" in blob and "100% real" in blob, blob
+        assert "verdict: clean" in blob
+        assert "share it with lang pack es" in blob, blob
+        # a seeded pack: structurally clean, honestly 0% real
+        le.save_user_pack("seed58", dict(i18nmod.EN))
+        blob = run("lang check seed58")
+        assert "0% real" in blob and "verdict: clean" in blob, blob
+        assert ("though %d strings still read English — lang diff "
+                "seed58 names them" % len(i18nmod.EN)) in blob, blob
+        # unknown code and no file: both doors named
+        blob = run("lang check nosuch")
+        assert "unknown language 'nosuch' and no such file" in blob, blob
+        # file mode: findings by name, findings counted in verdict
+        blob = run("lang check %s" % good)
+        assert "lang check %s" % good in blob, blob
+        assert "1 unknown key — the source never names it" in blob, blob
+        assert "1 empty value — an import drops it back to English" \
+            in blob, blob
+        assert "verdict: 2 findings" in blob, blob
+        assert "import it from the desk" in blob, blob
+        # file mode: unreadable answers honestly
+        blob = run("lang check %s" % bad)
+        assert "unreadable (JSONDecodeError)" in blob, blob
+        blob = run("lang check %s" % arr)
+        assert "not a JSON object" in blob, blob
+
+        # lang pack: the terminal door for sharing
+        dest = tmp_path / "out" / "es.json"
+        dest.parent.mkdir()
+        blob = run("lang pack es %s" % dest)
+        assert "wrote" in blob and str(dest) in blob, blob
+        with open(dest, encoding="utf-8") as fh:
+            data = json.load(fh)
+        assert data.get("menu.file") == "Archivo"
+        assert set(data) <= set(i18nmod.EN)
+        # never overwrites — sharing should not destroy
+        blob = run("lang pack es %s" % dest)
+        assert "already exists — not overwriting" in blob, blob
+        # en is refused — the source is not shared
+        blob = run("lang pack en %s" % (tmp_path / "en.json"))
+        assert "nothing to share" in blob, blob
+        # bare and unknown
+        blob = run("lang pack")
+        assert "usage: lang pack <code> [dest]" in blob, blob
+        blob = run("lang pack nosuch")
+        assert "unknown language 'nosuch'" in blob, blob
+        # a directory dest lands <code>.json inside it
+        blob = run("lang pack fr %s" % dest.parent)
+        assert (dest.parent / "fr.json").exists()
+        assert "wrote" in blob, blob
+
+        # source agreement
+        base = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+        with open(os.path.join(base, "dxn1_studio", "langedit.py"),
+                  encoding="utf-8") as fh:
+            lesrc = fh.read()
+        assert "def check_mapping" in lesrc
+        assert "def check_pack(" in lesrc and "def check_pack_file" in lesrc
+        with open(os.path.join(base, "dxn1_studio", "app.py"),
+                  encoding="utf-8") as fh:
+            src = fh.read()
+        assert "def _emit_checkup" in src
+        assert '"lang check [code|file]"' in src
+        assert '"lang pack <code> [dest]"' in src
+        assert "not overwriting" in src
+    finally:
+        try:
+            app.root.destroy()
+        except tk.TclError:
+            pass
+        try:
+            root.destroy()
+        except tk.TclError:
+            pass
+        monkeypatch.undo()

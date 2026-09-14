@@ -25,6 +25,14 @@ working copy — the desk's own exports, user packs and
 ``export_template`` files alike, with junk skipped and counted and
 nothing written to the pack until Save.
 
+v2.58 gave the pack a **checkup**: ``check_mapping`` /
+``check_pack`` / ``check_pack_file`` read a mapping the way an
+import WOULD and report what it would meet — unknown keys, empty
+values, junk pairs, highlight-unsafe strings — before anything
+moves, and the terminal verbs ``lang check [code|file]`` and
+``lang pack <code> [dest]`` open the sharing loop from the
+keyboard: check before you send, export without opening the desk.
+
 The model is the audit's (v2.54), restated as editing:
 
 - **translated** — the pack carries its own string for the key;
@@ -203,6 +211,89 @@ def merge_pack_file(path, work):
             work.pop(key, None)
         applied += 1
     return applied, skipped
+
+
+def check_mapping(data):
+    """DS2 v2.58 — the checkup core. Reads a key→value mapping the
+    way ``merge_pack_file`` would, and reports what an import would
+    meet — BEFORE anything moves. The findings:
+
+    - ``junk``    non-string keys or values (an import skips them);
+    - ``empty``   whitespace-only values (an import drops the key —
+                  back to English; legal, but silent);
+    - ``unknown`` keys the English source never names (they ride
+                  along as dead weight and age into stale);
+    - ``unsafe``  values that change length under ``str.lower()``
+                  (v2.54's highlight contract);
+    - ``real`` / ``seeds`` counts and ``covered_pct`` / ``real_pct``
+      — the honest ledger, computed for the thing in hand.
+
+    ``data`` is read, never kept; a ``None`` mapping checks clean
+    and empty. Never raises."""
+    en = _i18n.EN
+    total = len(en)
+    rep = {"pairs": 0, "junk": 0, "empty": [], "unknown": [],
+           "unsafe": [], "real": 0, "seeds": 0, "covered": 0,
+           "covered_pct": None, "real_pct": None}
+    for key, val in (data or {}).items():
+        if not isinstance(key, str) or not isinstance(val, str):
+            rep["junk"] += 1
+            continue
+        rep["pairs"] += 1
+        if not val.strip():
+            rep["empty"].append(key)
+            continue
+        # unsafe is a property of the VALUE — the same semantics
+        # pack_diff applies, stale keys included
+        if is_unsafe(val):
+            rep["unsafe"].append(key)
+        if key not in en:
+            rep["unknown"].append(key)
+            continue
+        rep["covered"] += 1
+        if val == en[key]:
+            rep["seeds"] += 1
+        else:
+            rep["real"] += 1
+    for name in ("empty", "unknown", "unsafe"):
+        rep[name].sort()
+    rep["covered_pct"] = (int(round(rep["covered"] * 100.0 / total))
+                          if total else 100)
+    rep["real_pct"] = (int(round(rep["real"] * 100.0 / total))
+                       if total else 100)
+    return rep
+
+
+def check_pack(code):
+    """DS2 v2.58 — check up on an INSTALLED pack: built-in strings
+    with the user pack on disk layered over — what the runtime
+    actually speaks. The checkup core over ``own_translations``,
+    plus the pack's name. Never raises."""
+    rep = check_mapping(own_translations(code))
+    rep["code"] = code
+    rep["name"] = _i18n.LANG_NAMES.get(code, code)
+    return rep
+
+
+def check_pack_file(path):
+    """DS2 v2.58 — check up on a pack FILE before sharing or
+    importing it: the desk's own exports, user packs and
+    ``export_template`` files alike. An unreadable or non-dict file
+    answers ``{"ok": False, "error": ...}`` instead of a guess —
+    the same honesty ``merge_pack_file`` owes. Never raises."""
+    rep = {"ok": False, "error": None, "path": path}
+    try:
+        with open(path, "r", encoding="utf-8") as fh:
+            data = json.load(fh)
+    except (OSError, ValueError, TypeError) as exc:
+        rep["error"] = exc.__class__.__name__
+        return rep
+    if not isinstance(data, dict):
+        rep["error"] = "not a JSON object"
+        return rep
+    rep["ok"] = True
+    rep.update(check_mapping(data))
+    return rep
 
 
 def pack_diff(code):

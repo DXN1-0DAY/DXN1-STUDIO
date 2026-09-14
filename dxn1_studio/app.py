@@ -154,6 +154,13 @@ TERMINAL_HELP = (
     ("lang edit [code]", "open the translation desk — edit a pack "
                          "beside its English source; saved strings "
                          "become a user pack that overrides built-ins"),
+    ("lang check [code|file]", "the checkup — a pack or a pack file "
+                               "answers for itself before sharing: "
+                               "unknown keys, empty values, junk "
+                               "pairs, highlight-unsafe, real_pct"),
+    ("lang pack <code> [dest]", "write a pack's own strings as a "
+                                "shareable .json file (default "
+                                "./<code>.json) — never overwrites"),
     ("update", "check GitHub for a newer release"),
     ("whatsnew", "release notes — what changed between tags"),
     ("deps", "cross-check imports vs requirements*.txt "
@@ -3731,6 +3738,145 @@ class DXN1Studio:
                     "from English, over the English total — edit the "
                     "untouched ones in `lang edit %s`" % code)
                 return
+            if arg == "check" or arg.startswith("check "):
+                # DS2 v2.58 — the pack gets a checkup: a pre-flight
+                # before sharing or importing. A code reviews the
+                # installed pack (built-ins + the user pack on disk —
+                # what the runtime speaks); a path to a .json file
+                # reviews the file itself, unreadable ones included.
+                # The checkup reads the way an import WOULD and
+                # reports before anything moves.
+                from . import langedit as _le
+                rest = arg[5:].strip()
+                if not rest:
+                    cur = _i18n.current()
+                    if cur == "en":
+                        self.terminal.log(
+                            "bare lang check reviews the current "
+                            "language — English is the source and has "
+                            "nothing to check; name a pack or a .json "
+                            "file (lang check <code|file>)")
+                        return
+                    rest = cur
+                code = rest.lower()
+                if code in _i18n.available():
+                    try:
+                        rep = _le.check_pack(code)
+                    except Exception:  # noqa: BLE001 — a verb never raises
+                        rep = None
+                    if not rep:
+                        self.terminal.log("lang check unavailable here")
+                        return
+                    kind = ("user" if os.path.exists(
+                        os.path.join(_i18n.LANG_DIR,
+                                     code + ".json"))
+                        else ("built-in" if code in _i18n.PACKS
+                              else "new"))
+                    self._emit_checkup(
+                        "lang check %s — %s [%s]" % (
+                            code, rep["name"], kind), rep,
+                        "share it with lang pack %s, or edit the "
+                        "findings in the desk (lang edit %s)"
+                        % (code, code),
+                        diff_code=code)
+                    return
+                path = os.path.expanduser(rest)
+                if os.path.isfile(path):
+                    try:
+                        frep = _le.check_pack_file(path)
+                    except Exception:  # noqa: BLE001
+                        frep = None
+                    if not frep:
+                        self.terminal.log("lang check unavailable here")
+                        return
+                    if not frep.get("ok"):
+                        self.terminal.log(
+                            "lang check %s — unreadable (%s) — there "
+                            "is nothing to import from a file that "
+                            "will not open"
+                            % (rest, frep.get("error")))
+                        return
+                    self._emit_checkup(
+                        "lang check %s" % rest, frep,
+                        "import it from the desk (lang edit → Import "
+                        "pack), or fix the file first")
+                    return
+                self.terminal.log(
+                    "unknown language '%s' and no such file — "
+                    "available: %s (a path to a .json pack file "
+                    "checks too)"
+                    % (rest, ", ".join(_i18n.available())))
+                return
+            if arg == "pack" or arg.startswith("pack "):
+                # DS2 v2.58 — the terminal door for sharing: write a
+                # pack's own strings as a user-pack-shaped JSON file
+                # (what the desk imports back, and set_language would
+                # layer over built-ins untouched). Never overwrites —
+                # sharing should not destroy.
+                import re as _re2
+                from . import langedit as _le
+                rest = arg[4:].strip()
+                parts = rest.split(None, 1)
+                code = parts[0].lower() if parts else ""
+                dest = parts[1].strip() if len(parts) > 1 else ""
+                if not code:
+                    self.terminal.log(
+                        "usage: lang pack <code> [dest] — write a "
+                        "pack's own strings as a shareable .json "
+                        "(default: ./<code>.json); available: %s"
+                        % ", ".join(c for c in _i18n.available()
+                                    if c != "en"))
+                    return
+                if not _re2.match(r"^[a-z0-9][a-z0-9_-]{0,15}$", code):
+                    self.terminal.log(
+                        "'%s' is not a pack code — lowercase letters, "
+                        "digits, _ or - (e.g. es, pt_br)" % code)
+                    return
+                if code == "en":
+                    self.terminal.log(
+                        "English is the source of truth — there is "
+                        "nothing to share; name a pack (available: %s)"
+                        % ", ".join(c for c in _i18n.available()
+                                    if c != "en"))
+                    return
+                if code not in _i18n.available():
+                    self.terminal.log(
+                        "unknown language '%s' — available: %s"
+                        % (code, ", ".join(_i18n.available())))
+                    return
+                if not dest:
+                    dest = os.path.join(os.getcwd(), code + ".json")
+                else:
+                    if len(dest) >= 2 and dest[0] == dest[-1] \
+                            and dest[0] in "\"'":
+                        dest = dest[1:-1]
+                    dest = os.path.expanduser(dest)
+                    if os.path.isdir(dest):
+                        dest = os.path.join(dest, code + ".json")
+                if os.path.exists(dest):
+                    self.terminal.log(
+                        "%s already exists — not overwriting (name "
+                        "another path: lang pack %s <dest>)"
+                        % (dest, code))
+                    return
+                try:
+                    n = _le.export_pack(code, dest)
+                except OSError as exc:
+                    self.terminal.log(
+                        "could not write %s (%s) — nothing written"
+                        % (dest, exc.__class__.__name__))
+                    return
+                except Exception:  # noqa: BLE001 — a verb never raises
+                    self.terminal.log("could not write %s — nothing "
+                                      "written" % dest)
+                    return
+                self.terminal.log(
+                    "lang pack %s — wrote %d string%s to %s — the "
+                    "desk imports it back (lang edit → Import pack), "
+                    "and `lang check` on the file says what an "
+                    "import would meet"
+                    % (code, n, "" if n == 1 else "s", dest))
+                return
             if arg == "audit":
                 # DS2 v2.54 — every pack answers for itself: coverage,
                 # stale keys, and whether its strings keep the length
@@ -4904,6 +5050,60 @@ class DXN1Studio:
             except Exception:  # noqa: BLE001
                 pass
             return None
+
+    def _emit_checkup(self, head, rep, hint, diff_code=None):
+        """DS2 v2.58 — one checkup, printed: the ledger line first
+        (what the thing in hand WOULD do), then every finding by
+        name, then the verdict and the way out. Shared by both doors
+        of `lang check` — installed packs and pack files answer
+        alike."""
+        def _list(vals):
+            sample = ", ".join(vals[:8])
+            return sample + ", …" if len(vals) > 8 else sample
+        log = self.terminal.log
+        log(head)
+        log("  %d pair%s read · %d real, %d still English · "
+            "coverage %d%% · %d%% real"
+            % (rep["pairs"], "" if rep["pairs"] == 1 else "s",
+               rep["real"], rep["seeds"], rep["covered_pct"],
+               rep["real_pct"]))
+        findings = (rep["junk"] + len(rep["empty"])
+                    + len(rep["unknown"]) + len(rep["unsafe"]))
+        if rep["junk"]:
+            log("  %d non-string pair%s — an import skips %s"
+                % (rep["junk"], "" if rep["junk"] == 1 else "s",
+                   "it" if rep["junk"] == 1 else "them"))
+        if rep["empty"]:
+            log("  %d empty value%s — an import drops %s back to "
+                "English: %s"
+                % (len(rep["empty"]),
+                   "" if len(rep["empty"]) == 1 else "s",
+                   "it" if len(rep["empty"]) == 1 else "them",
+                   _list(rep["empty"])))
+        if rep["unknown"]:
+            log("  %d unknown key%s — the source never names %s; "
+                "dead weight that ages into stale: %s"
+                % (len(rep["unknown"]),
+                   "" if len(rep["unknown"]) == 1 else "s",
+                   "it" if len(rep["unknown"]) == 1 else "them",
+                   _list(rep["unknown"])))
+        if rep["unsafe"]:
+            log("  %d NOT highlight-safe — length changes under "
+                ".lower(): %s"
+                % (len(rep["unsafe"]), _list(rep["unsafe"])))
+        if findings:
+            log("verdict: %d finding%s — an import survives them, "
+                "but a pack worth sharing is worth fixing"
+                % (findings, "" if findings == 1 else "s"))
+        else:
+            log("verdict: clean — nothing blocks an import")
+        if diff_code and rep["seeds"]:
+            log("  though %d string%s still read English — lang diff "
+                "%s name%s %s"
+                % (rep["seeds"], "" if rep["seeds"] == 1 else "s",
+                   diff_code, "s" if rep["seeds"] != 1 else "",
+                   "it" if rep["seeds"] == 1 else "them"))
+        log(hint)
 
     def open_settings(self):
         SettingsDialog(self)

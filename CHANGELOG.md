@@ -4,6 +4,43 @@ All notable changes to DXN1 STUDIO. Format based on
 [Keep a Changelog](https://keepachangelog.com/); versioning is
 `MAJOR.MINOR.PATCH` while in **beta**.
 
+## [2.58.0] — 2026-09-15 · beta · "the pack gets a checkup" (validate before sharing + the terminal export verb)
+
+### Added
+- **The checkup core** — `langedit.check_mapping()` reads a
+  key→value mapping the way an import WOULD and reports what it
+  would meet before anything moves: non-string pairs (junk — an
+  import skips them), whitespace values (empty — an import drops
+  them back to English), keys the source never names (unknown —
+  dead weight that ages into stale), and values that change length
+  under `.lower()` (unsafe — the highlight contract, a property of
+  the value, stale keys included), with real/seeds and
+  `covered_pct`/`real_pct` riding along — the honest ledger
+  computed for the thing in hand. `check_pack()` reviews an
+  installed pack (what the runtime speaks); `check_pack_file()`
+  reviews a file and answers with the error class for unreadable
+  and non-dict ones, the same honesty `merge_pack_file` owes.
+- **`lang check [code|file]`** — the pre-flight before sharing:
+  one ledger line (`N pairs read · N real, N still English ·
+  coverage N% · N% real`), every finding by name, then the verdict
+  — `clean — nothing blocks an import`, or `N findings — a pack
+  worth sharing is worth fixing`. A code reviews the installed
+  pack, a path reviews the file itself; the bare verb reviews the
+  current language (`en` has nothing to check); a seeded pack reads
+  0% real with a pointer at `lang diff`. Unknown codes get the list
+  plus the file hint.
+- **`lang pack <code> [dest]`** — the terminal door for sharing:
+  writes a pack's own strings as a user-pack-shaped JSON file
+  (default `./<code>.json`, a directory dest lands `<code>.json`
+  inside it) — what the desk imports back, and `lang check` on the
+  file says what an import would meet.
+
+### Changed
+- **`lang pack` never overwrites** — an existing file is answered
+  with `not overwriting` instead of being replaced: sharing should
+  not destroy. `en` is refused (the source is not shared);
+  unwritable paths report the OSError class honestly.
+
 ## [2.57.0] — 2026-09-15 · beta · "packs travel light" (export/import pack files + the audit prints every number)
 
 ### Added
