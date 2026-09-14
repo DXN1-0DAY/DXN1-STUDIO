@@ -99,6 +99,8 @@ SHEETS = [
                  "time/speed, all units at once, offline"),
         ("lang", "Language — switch UI language packs (en es fr de "
                  "pt zh hi ja), remembered across restarts"),
+        ("charmap", "Character Map — browse Unicode blocks, search "
+                    "by name or U+codepoint, click to copy"),
         ("scribe <n>", "Writing meter — ✎ chip in the statusbar shows "
                        "words, WPM and goal progress; click for a "
                        "session toast")

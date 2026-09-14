@@ -245,6 +245,24 @@ def main():
           0.621371192237) < 1e-9)
     uwin.destroy()
 
+    # ---- Character Map (same smoke, new lane)
+    from dxn1_studio.charmap import search, open_charmap
+    cmwin = open_charmap(root, theme)
+    cmwin.update_idletasks()
+    check("charmap window opens", cmwin.winfo_exists())
+    check("charmap default block grid", "characters" in
+          cmwin.status.cget("text"))
+    cmwin.query.set("U+2192")
+    cmwin.refresh()
+    check("charmap hex search", "1 characters" in
+          cmwin.status.cget("text"))
+    cmwin.query.set("zzz-no-block-named-this")
+    cmwin.refresh()
+    check("charmap junk tolerated", "nothing matches" in
+          cmwin.status.cget("text"))
+    check("charmap engine offline", search("2192") == ["\u2192"])
+    cmwin.destroy()
+
     # ---- REST bench (same smoke, seventh lane)
     from dxn1_studio.restbench import (RestResponse, build_curl,
                                        format_size,

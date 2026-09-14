@@ -1692,3 +1692,27 @@ def test_unitconv_engine():
     # formatted strings never raise
     assert unitconv.convert_str("x", "km", "mi") == "—"
     assert unitconv.convert_str(1, "km", "mi").endswith("mi")
+
+def test_charmap_engine():
+    """DS2 charmap: blocks, search, describe — pure + junk-tolerant."""
+    from dxn1_studio import charmap
+    names = charmap.block_names()
+    assert "Arrows" in names and "Box Drawing" in names
+    assert names == sorted(names)
+    arrows = charmap.chars_in("arrows")
+    assert "\u2192" in arrows and len(arrows) <= 512
+    assert charmap.chars_in("nope") == []
+    assert charmap.chars_in(None) == []
+    # search: literal char, hex codepoint (2 spellings), block substring
+    assert charmap.search("a") == ["a"]
+    assert charmap.search("2192") == ["\u2192"]
+    assert charmap.search("U+00E9") == ["\u00e9"]
+    box = charmap.search("box", limit=999)
+    assert "\u2500" in box  # box-drawing glyph itself, not the name
+    assert charmap.search("") == []
+    assert charmap.search(None) == []
+    # describe: codepoint + name, unnamed tolerated
+    d = charmap.describe("\u00e9")
+    assert d.startswith("U+00E9") and "LATIN SMALL LETTER E" in d
+    assert "<unnamed>" in charmap.describe("\uE000")
+    assert charmap.describe(None) == ""
