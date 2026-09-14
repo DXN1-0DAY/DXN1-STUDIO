@@ -2313,6 +2313,7 @@ class DXN1Studio:
                     ("readability", "reading level of the current file"),
                     ("jwt <token>", "decode a JWT — header, payload, exp"),
                     ("env", "lint the workspace .env + masked copy"),
+                    ("gen", "generate UUIDs, nanoids, fake users, JSON"),
                     ("explain", "hand the last error to the agent"),
                     ("git <args>", "run git in the workspace (status, add,"),
                     ("", "commit, log… output streams below"),
@@ -2434,6 +2435,16 @@ class DXN1Studio:
                                   "workspace .env if present")
             except Exception as exc:  # noqa: BLE001 — terminal stays alive
                 self.terminal.log(f"env failed: {exc}")
+            return
+        if low in ("gen", "generate", "uuid"):
+            # DS2: test data & ID generator
+            try:
+                from .gen import open_generator
+                open_generator(self.root, self.theme)
+                self.terminal.log("Data generator opened — UUIDs, ULIDs, "
+                                  "nanoids, passwords, fake users")
+            except Exception as exc:  # noqa: BLE001 — terminal stays alive
+                self.terminal.log(f"gen failed: {exc}")
             return
         if low.startswith("goto "):
             num = text[5:].strip()
@@ -2923,6 +2934,15 @@ class DXN1Studio:
         try:
             cmds.append((".env lint & mask — keep secrets safe…",
                          "DS2", _open_env))
+        except Exception:  # pragma: no cover — palette stays alive
+            pass
+        # DS2: test data & ID generator (defensive)
+        def _open_gen():
+            from .gen import open_generator
+            open_generator(self.root, self.theme)
+        try:
+            cmds.append(("Data generator — UUIDs, nanoids, fake users…",
+                         "DS2", _open_gen))
         except Exception:  # pragma: no cover — palette stays alive
             pass
         return cmds

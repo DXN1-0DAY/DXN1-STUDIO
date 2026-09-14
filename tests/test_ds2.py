@@ -930,3 +930,41 @@ def test_envcheck_engine():
     assert lint_env("") == []
     # no newline at EOF is an info, not an error
     assert lint_env("A=1")[0][1] == "info"
+
+
+def test_gen_engine():
+    from dxn1_studio import gen as g
+    import re
+    us = g.uuid4s(8)
+    assert all(re.match(r"^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-"
+                        r"[89ab][0-9a-f]{3}-[0-9a-f]{12}$", x)
+               for x in us)
+    assert len(set(us)) == 8
+    ul = g.ulids(5)
+    assert all(len(x) == 26 and all(c in g._CROCKFORD for c in x)
+               for x in ul)
+    assert ul[0][0] >= ul[-1][0]        # newest first, monotonic-ish
+    assert g.ulids(1, now_ms=0)[0].startswith("0" * 10)
+    na = g.nanoids(50)
+    assert all(len(x) == 21 for x in na) and len(set(na)) == 50
+    assert all(len(x) == 32 for x in g.hex_tokens(4))
+    for p in g.passwords(30, 20):
+        assert len(p) == 20
+        assert any(c.isupper() for c in p) and any(c.islower() for c in p)
+        assert any(c.isdigit() for c in p) and any(not c.isalnum()
+                                                   for c in p)
+    assert all(len(x) == 6 and x.isdigit() for x in g.pins(5, 6))
+    assert len(g.lorem(3, 4).split("\n\n")) == 3
+    users = g.fake_users(12)
+    assert len(users) == 12 and users[0]["id"] == 1
+    assert len({u["username"] for u in users}) == 12
+    assert all("@" in u["email"] for u in users)
+    assert '"first_name"' in g.fake_json(3, "users")
+    assert '"type"' in g.fake_json(3, "events")
+    assert g.fake_json(2, "ids").startswith("[")
+    out, err = g.generate("ULID", 3)
+    assert err == "" and len(out.splitlines()) == 3
+    out, err = g.generate("mystery", 3)
+    assert "unknown" in err and out == ""
+    out, err = g.generate("PIN (6)", 1000)   # clamped, never dies
+    assert err == ""

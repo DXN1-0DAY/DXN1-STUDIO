@@ -110,6 +110,12 @@
 | Encoding + EOL chip | `app.py` statusbar | `UTF-8 · LF` (or `UTF-8 BOM` / `UTF-16` / `non-UTF8` / `CRLF` / `CR`) for the current file; sniffed per open, EOL live per keystroke |
 | Smarter error explainer | `app.py::extract_error_block` | Terminal `explain` now understands pytest `FAILED …::test` summaries and unittest `FAIL: test_x` headers (with assert context), guarded against ordinary "Failed to …" lines |
 
+## Making & Testing (v2.8.0)
+
+| Feature | Where | What it does |
+|---|---|---|
+| Data generator | `gen.py`, palette, terminal `gen` | Fills your clipboard with dev fuel: proper RFC 4122 UUID v4, spec-length ULIDs (26-char Crockford, newest first), nanoids, 32-char hex tokens, 20-char passwords with guaranteed class coverage (secrets module everywhere), PINs, lorem paragraphs, and fake users / fake events as ready-to-paste JSON |
+
 ## Scheduling & Prose (v2.8.0)
 
 | Feature | Where | What it does |

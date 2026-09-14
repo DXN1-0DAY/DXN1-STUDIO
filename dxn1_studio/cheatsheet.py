@@ -72,6 +72,8 @@ SHEETS = [
                         "expiry (decode only, never verified)"),
         ("env", "Lint the workspace .env — duplicates, quoting, secret "
                 "smells — and copy a masked version"),
+        ("gen", "Test data generator — UUID v4, ULID, nanoid, passwords, "
+                "lorem, fake users/events as JSON"),
     ]),
     ("TERMINAL TALK", [
         ("help", "List every studio command"),

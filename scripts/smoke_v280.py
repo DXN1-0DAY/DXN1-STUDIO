@@ -165,6 +165,36 @@ try:
     env.destroy()
     root.update()
 
+    # ---------------------------------------------------------------- gen
+    from dxn1_studio.gen import open_generator
+    gw = open_generator(root, THEME)
+    root.update_idletasks()
+    root.update()
+    check("gen window opens", str(gw.winfo_exists()) == "1")
+    check("gen default UUID output",
+          gw.out.get("1.0", "1.36").count("-") == 4)
+    gw.kind.set("password (20)")
+    gw.count.set(5)
+    gw._run()
+    root.update()
+    lines = gw.out.get("1.0", "end-1c").splitlines()
+    check("gen passwords generated",
+          len(lines) == 5 and all(len(x) == 20 for x in lines))
+    gw.kind.set("fake users (JSON)")
+    gw._run()
+    root.update()
+    check("gen fake users JSON",
+          '"first_name"' in gw.out.get("1.0", "end-1c"))
+    gw._copy()
+    root.update()
+    try:
+        ok = len(root.clipboard_get()) > 50
+    except tk.TclError:
+        ok = True  # headless clipboard
+    check("gen copy works", ok)
+    gw.destroy()
+    root.update()
+
 except Exception as exc:  # noqa: BLE001
     import traceback
     traceback.print_exc()
