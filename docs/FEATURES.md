@@ -110,6 +110,14 @@
 | Encoding + EOL chip | `app.py` statusbar | `UTF-8 · LF` (or `UTF-8 BOM` / `UTF-16` / `non-UTF8` / `CRLF` / `CR`) for the current file; sniffed per open, EOL live per keystroke |
 | Smarter error explainer | `app.py::extract_error_block` | Terminal `explain` now understands pytest `FAILED …::test` summaries and unittest `FAIL: test_x` headers (with assert context), guarded against ordinary "Failed to …" lines |
 
+## Scheduling & Prose (v2.8.0)
+
+| Feature | Where | What it does |
+|---|---|---|
+| Cron decoder ring | `cronexp.py`, palette, terminal `cron <expr>` | Any cron string becomes a plain-English sentence ("at 09:00, on MON"), a field-by-field table (names, steps, ranges, lists, 7==Sunday, `@hourly`…`@reboot` shorthands) and the next five run times — computed by a built-in minute-stepper with month fast-forward, no cron daemon needed |
+| Readability report | `readability.py`, palette, terminal `readability` | Flesch Reading Ease with a human verdict, Flesch–Kincaid grade, Gunning Fog, complex-word %, sentences-over-25-words list and a word-pressure table (stopwords filtered); one click copies the report as markdown |
+| Terminal help refresh | terminal `help` | The studio command list now covers `tools`, `cron`, `readability` and `explain` |
+
 ## The Pocket Knife (v2.7.0)
 
 | Feature | Where | What it does |

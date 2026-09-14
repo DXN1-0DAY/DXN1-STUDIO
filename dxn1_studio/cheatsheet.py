@@ -64,6 +64,10 @@ SHEETS = [
         ("time tab", "epoch ↔ ISO ↔ '3h ago', ticking clock, local/UTC"),
         ("color tab", "hex ↔ rgb ↔ hsl, WCAG contrast grade, harmony "
                       "swatches — click to copy"),
+        ("cron <expr>", "Decode any cron schedule — plain English, field "
+                        "table, next five runs (`cron 0 9 * * 1-5`)"),
+        ("readability", "Flesch / Kincaid / Fog report for the current "
+                        "file: long sentences + word pressure"),
     ]),
     ("TERMINAL TALK", [
         ("help", "List every studio command"),

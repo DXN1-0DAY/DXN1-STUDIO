@@ -742,3 +742,100 @@ def test_devtools_color_engine():
     assert len(hm) == 8 and hm["base"] == "#4f8cff"
     assert all(v.startswith("#") for v in hm.values())
     assert color_harmonies("hello") == {}  # bad length, not a 3-digit shorthand
+
+
+def test_cronexp_engine():
+    from datetime import datetime
+    from dxn1_studio.cronexp import (describe, parse_cron, next_runs,
+                                     field_table)
+    # parsing: every shorthand resolves
+    assert parse_cron("@daily")[0] == parse_cron("0 0 * * *")[0]
+    assert parse_cron("@hourly")[0]["minute"] == [0]
+    assert "@reboot" in parse_cron("@reboot")[1]
+    # names, steps, ranges, lists, 7==Sunday
+    f, err = parse_cron("*/15 9-17 * * mon-fri")
+    assert err == "" and f["minute"] == [0, 15, 30, 45]
+    assert f["dow"] == [1, 2, 3, 4, 5]
+    f, _ = parse_cron("* * * * 7")
+    assert f["dow"] == [0]                      # 7 normalizes to Sunday
+    f, _ = parse_cron("0 0 * dec,jan *")
+    assert f["month"] == [1, 12]
+    # garbage never raises
+    assert parse_cron("junk")[1] != ""
+    assert parse_cron("99 * * * *")[1] != ""
+    assert parse_cron("*/0 * * * *")[1] != ""
+    assert parse_cron("0 9 * *")[1] != ""       # 4 fields
+    assert parse_cron("")[1] != ""
+    # describe sentences
+    assert describe("0 9 * * 1")[0] == "at 09:00, on MON"
+    assert describe("5 * * * *")[0] == "at :05 past every hour"
+    assert describe("* * * * *")[0] == "every minute"
+    assert describe("30 4 1,15 * *")[0] == "at 04:30, on day 1, 15 of the month"
+    assert "JAN" in describe("0 0 1 1 *")[0]
+    assert describe("@daily")[0] == describe("0 0 * * *")[0]
+    # next runs: daily -> tomorrow and the day after, both midnight
+    runs, err = next_runs("@daily", count=3,
+                          now=datetime(2026, 9, 14, 10, 0))
+    assert err == "" and len(runs) == 3
+    assert (runs[0].month, runs[0].day, runs[0].hour) == (9, 15, 0)
+    assert (runs[2].month, runs[2].day) == (9, 17)
+    # mon-only 9am skips a Sunday start
+    runs, _ = next_runs("0 9 * * 1", count=2,
+                        now=datetime(2026, 9, 14, 10, 0))  # Monday 10:00
+    assert all(r.weekday() == 0 and r.hour == 9 for r in runs)
+    assert runs[0].day == 21
+    # yearly: three consecutive years
+    runs, _ = next_runs("0 0 1 1 *", count=3,
+                        now=datetime(2026, 9, 14, 10, 0))
+    assert [r.year for r in runs] == [2027, 2028, 2029]
+    # field table rows: names render uppercase, star fields say every
+    rows = field_table("*/15 9-17 * * mon-fri")
+    assert rows[0][2] == "0, 15, 30, 45"
+    assert rows[4][2] == "MON, TUE, WED, THU, FRI"  # calendar order
+    assert rows[2][2].startswith("every day-of-month")
+
+
+def test_readability_engine():
+    from dxn1_studio.readability import (syllables, sentences, words,
+                                         flesch_reading_ease,
+                                         flesch_kincaid_grade,
+                                         grade_label, gunning_fog,
+                                         stats, long_sentences,
+                                         top_words, report_text)
+    assert syllables("cat") == 1 and syllables("apple") == 2
+    assert syllables("documentation") == 5
+    assert syllables("queue") == 1 and syllables("syllable") == 3
+    assert syllables("") == 0 and syllables("123 45") == 0
+    assert sentences("One. Two! Three?")[2] == "Three"
+    assert sentences("no terminator here") == ["no terminator here"]
+    assert sentences("") == []
+    assert len(words("Hello, world! It's 2026.")) == 3  # digits are not prose
+    easy = "The cat sat on the mat. It was a cat and the cat was happy."
+    hard = ("Incontrovertible administrator considerations "
+            "characterized the unprecedented industrialization, "
+            "disproportionately compromising the feasibility of the "
+            "constitutionality, nevertheless perpetuating an "
+            "incomprehensible bureaucratization of the international "
+            "responsibilities.")
+    assert flesch_reading_ease(easy) > flesch_reading_ease(hard)
+    assert flesch_kincaid_grade(hard) > flesch_kincaid_grade(easy)
+    assert gunning_fog(hard) > gunning_fog(easy)
+    assert grade_label(95) == "very easy" and grade_label(10) == "very difficult"
+    assert grade_label(62) == "plain English"
+    assert flesch_reading_ease("") == 0.0
+    assert stats("") == {} and stats("Short bit.")["words"] == 2
+    st = stats(easy)
+    assert st["sentences"] == 2 and st["words"] == 15
+    long_text = ("This single sentence wanders on and on through clause "
+                 "after clause without ever finding a natural resting "
+                 "place for its reader, piling subordination upon "
+                 "subordination until the poor sentence finally, "
+                 "exhaustively, mercifully collapses.")
+    longs = long_sentences("Short one. " + long_text)
+    assert longs and longs[0][0] > 25
+    top = top_words(easy)
+    assert top[0][0] == "cat" and top[0][1] == 3
+    # report renders both ways and never raises on empty input
+    assert "Readability" in report_text(easy, "demo")
+    assert report_text("", "empty").startswith("No prose")
+    assert report_text(easy, "demo", markdown=True).startswith("# Readability")

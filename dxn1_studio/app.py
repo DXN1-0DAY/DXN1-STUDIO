@@ -2308,6 +2308,10 @@ class DXN1Studio:
                     ("find <text>", "find text in the current file"),
                     ("palette", "open the command palette (Ctrl+K)"),
                     ("todo", "scan the workspace for TODO / FIXME"),
+                    ("tools", "developer tools: regex, JSON, text, time"),
+                    ("cron <expr>", "decode a cron schedule + next runs"),
+                    ("readability", "reading level of the current file"),
+                    ("explain", "hand the last error to the agent"),
                     ("git <args>", "run git in the workspace (status, add,"),
                     ("", "commit, log… output streams below"),
                     ("split", "toggle split editor view"),
@@ -2378,6 +2382,31 @@ class DXN1Studio:
                                   "text, time")
             except Exception as exc:  # noqa: BLE001 — terminal stays alive
                 self.terminal.log(f"tools failed: {exc}")
+            return
+        if low == "cron" or low.startswith("cron "):
+            # DS2: decode a cron expression (or open the explainer empty)
+            try:
+                from .cronexp import open_cron
+                arg = text[4:].strip() if len(text) > 4 else ""
+                open_cron(self.root, self.theme, initial=arg)
+                self.terminal.log("Cron explainer opened" +
+                                  (f" — {arg}" if arg else ""))
+            except Exception as exc:  # noqa: BLE001 — terminal stays alive
+                self.terminal.log(f"cron failed: {exc}")
+            return
+        if low in ("readability", "prose"):
+            # DS2: how hard is the current file to read?
+            try:
+                from .readability import open_readability
+                open_readability(self.root, self.theme,
+                                 text=self.editor.text.get("1.0", "end-1c"),
+                                 name=os.path.basename(
+                                     getattr(self, "current_path", "")
+                                     or getattr(self.editor, "path", "")
+                                     or "file"))
+                self.terminal.log("Readability report opened")
+            except Exception as exc:  # noqa: BLE001 — terminal stays alive
+                self.terminal.log(f"readability failed: {exc}")
             return
         if low.startswith("goto "):
             num = text[5:].strip()
@@ -2822,6 +2851,31 @@ class DXN1Studio:
         try:
             cmds.append(("Developer tools — regex, JSON, text, time…",
                          "DS2", _open_devtools_palette))
+        except Exception:  # pragma: no cover — palette stays alive
+            pass
+        # DS2: cron decoder ring (defensive)
+        def _open_cron():
+            from .cronexp import open_cron
+            open_cron(self.root, self.theme,
+                      initial=self.editor.text.get("sel.first", "sel.last")
+                      .strip())
+        try:
+            cmds.append(("Cron explainer — decode schedule strings…",
+                         "DS2", _open_cron))
+        except Exception:  # pragma: no cover — palette stays alive
+            pass
+        # DS2: readability report for the current file (defensive)
+        def _open_readability():
+            from .readability import open_readability
+            open_readability(self.root, self.theme,
+                             text=self.editor.text.get("1.0", "end-1c"),
+                             name=os.path.basename(
+                                 getattr(self, "current_path", "")
+                                 or getattr(self.editor, "path", "")
+                                 or "file"))
+        try:
+            cmds.append(("Readability report for this file…",
+                         "DS2", _open_readability))
         except Exception:  # pragma: no cover — palette stays alive
             pass
         return cmds
