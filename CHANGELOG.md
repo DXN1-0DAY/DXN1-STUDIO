@@ -4,6 +4,28 @@ All notable changes to DXN1 STUDIO. Format based on
 [Keep a Changelog](https://keepachangelog.com/); versioning is
 `MAJOR.MINOR.PATCH` while in **beta**.
 
+## [2.34.0] — 2026-09-14 · beta · "stream the difference" (delta updates)
+
+### Added
+- **Delta updates** — the update portal now fetches `HASHES.txt`
+  (sha256 of all 94 shipped files, sha256sum format) before touching
+  anything, hashes the local install and downloads **only the files
+  that actually changed or are missing**. A one-module fix no longer
+  re-streams the whole IDE; byte-identical files are skipped. If
+  HASHES.txt is unreachable the classic full download runs exactly as
+  before — the delta pass is an optimization, never a risk.
+- **Installer integrity gate** — `install.sh` verifies every
+  downloaded module's sha256 against HASHES.txt: a truncated or
+  corrupted download now fails the install with a clear message
+  instead of shipping a broken IDE.
+- **HASHES.txt + generator** — `scripts/gen_hashes.py` regenerates the
+  checksum manifest in one command; a CI drift test fails the moment
+  any shipped file changes without it (same guard pattern as
+  MANIFEST.txt).
+- Workshop ▸ *Save Session Now — snapshot tabs + cursors* menu entry,
+  completing the four entry points (menu, palette, terminal, chip)
+  to the session snapshot engine.
+
 ## [2.33.0] — 2026-09-14 · beta · "the session you can see" (save now + chip)
 
 ### Added

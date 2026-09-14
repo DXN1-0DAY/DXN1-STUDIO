@@ -441,3 +441,13 @@
 | Session manager | Workshop → *Session Restore — pick up where you left off…*, palette, terminal `session` / `sessions` / `resume` | Browse every saved workspace (tabs count + saved time), preview its files with the active one marked, restore with one click — files reopen and the cursor jumps back to its line |
 | Cursor memory | `snapshot()` / `restore_plan()` | `{path: (line, col)}` per session; only the position is restored that files still exist — ghost files are filtered, never error |
 | Durable store | engine | Corrupt JSON reads back as empty; save returns honest `(ok, error)`; up to 40 sessions kept, newest first; `base=` override makes the whole store testable |
+
+## Delta Updates
+
+| Feature | Where | What it does |
+|---|---|---|
+| HASHES.txt | repo root, `scripts/gen_hashes.py` | sha256 (sha256sum format) of all 94 shipped files — 83 modules, entry scripts, README, MANIFEST and the six art assets; CI-tested to stay in sync, regenerating is one command |
+| Delta update | `updater._remote_hashes()` + delta pass | The update portal fetches HASHES.txt first, hashes the local install and streams **only the files that actually changed or are missing** — a one-module fix no longer re-downloads the whole IDE; unchanged files are skipped byte-identical |
+| Honest fallback | `perform_update()` | HASHES.txt unreachable → the classic full download runs exactly as before; the delta pass is an optimization, never a correctness risk |
+| Installer integrity gate | `install.sh` | After downloading all modules the installer verifies every sha256 against HASHES.txt — a truncated or corrupted download fails the install with a clear message instead of shipping a broken IDE |
+| Workshop shortcut | Workshop ▸ *Save Session Now — snapshot tabs + cursors* | The session snapshot joins the menu bar next to Session Restore (palette, terminal and statusbar chip were already there) |

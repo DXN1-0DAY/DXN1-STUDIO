@@ -1470,6 +1470,15 @@ class DXN1Studio:
                 command=_open_session_menu)
         except Exception:  # pragma: no cover — menu stays alive
             pass
+        # DS2 v2.34: save session now (defensive)
+        def _save_session_menu():
+            self.save_session_now()
+        try:
+            workshop_menu.add_command(
+                label="Save Session Now — snapshot tabs + cursors",
+                command=_save_session_menu)
+        except Exception:  # pragma: no cover — menu stays alive
+            pass
         workshop_menu.add_separator()
         workshop_menu.add_command(label="Token Usage Dashboard…",
                                   command=_open_usage_menu)

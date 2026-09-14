@@ -13,6 +13,7 @@ Everything here is stdlib: urllib for the network, Tk for the show,
 optional PIL only to rescale the art to any screen shape.
 """
 
+import hashlib
 import json
 import os
 import queue
@@ -40,6 +41,7 @@ MODULES = (
     "search.py", "errors.py", "gitpanel.py", "updater.py", "i18n.py",
 )
 MANIFEST_NAME = "MANIFEST.txt"
+HASHES_NAME = "HASHES.txt"   # DS2 v2.34: sha256 per file — delta basis
 ENTRY_SCRIPTS = ("dxn1-studio", "dxn1", "DXN1 STUDIO")
 ASSETS = ("logo.png", "splash_bg.png", "welcome_hero.png", "hub_hero.png",
           "agents_hero.png", "update_hero.png")
@@ -145,6 +147,57 @@ def resolve_modules(root):
     return _remote_manifest() or _local_manifest(root) or list(MODULES)
 
 
+# ------------------------------------------------- DS2 v2.34: delta fuel
+def parse_hashes(text):
+    """HASHES.txt content → ``{rel_path: sha256_hex}``.
+
+    sha256sum-compatible lines: ``<64-hex>  <rel path>`` (paths may
+    contain spaces). Junk tolerated — comments, blank lines, short or
+    non-hex digests and separator-less lines are skipped, never
+    raised."""
+    out = {}
+    for ln in (text or "").splitlines():
+        ln = ln.strip()
+        if not ln or ln.startswith("#"):
+            continue
+        parts = ln.split(None, 1)
+        if len(parts) != 2:
+            continue
+        hexd = parts[0].strip().lower()
+        rel = parts[1].strip().lstrip("*")
+        if len(hexd) != 64 or any(c not in "0123456789abcdef"
+                                  for c in hexd):
+            continue
+        if not rel:
+            continue
+        out[rel] = hexd
+    return out
+
+
+def _local_sha256(path):
+    """sha256 of a local file, or ``None`` when missing/unreadable."""
+    try:
+        h = hashlib.sha256()
+        with open(path, "rb") as fh:
+            for chunk in iter(lambda: fh.read(1 << 16), b""):
+                h.update(chunk)
+        return h.hexdigest()
+    except Exception:  # noqa: BLE001 — missing file = must download
+        return None
+
+
+def _remote_hashes():
+    """The repo's HASHES.txt as a dict, or None when unreachable."""
+    try:
+        req = urllib.request.Request(
+            f"{REPO_RAW}/{HASHES_NAME}", headers={"User-Agent": UA})
+        with urllib.request.urlopen(req, timeout=15) as resp:
+            return parse_hashes(resp.read().decode("utf-8", "replace")) \
+                or None
+    except Exception:  # noqa: BLE001 — network trouble → full download
+        return None
+
+
 def _git_pull(root):
     out = subprocess.run(
         ["git", "-C", root, "pull", "--ff-only"], capture_output=True,
@@ -163,6 +216,7 @@ def perform_update(report):
     modules = resolve_modules(root)
     files = [(f"dxn1_studio/{m}", os.path.join(pkg, m)) for m in modules]
     files.append((MANIFEST_NAME, os.path.join(root, MANIFEST_NAME)))
+    files.append((HASHES_NAME, os.path.join(root, HASHES_NAME)))
     files += [(s, os.path.join(root, s)) for s in ENTRY_SCRIPTS]
     files += [(f"assets/{a}", os.path.join(root, "assets", a))
               for a in ASSETS]
@@ -173,10 +227,23 @@ def perform_update(report):
         git_ok, _ = _git_pull(root)
 
     if not git_ok:
+        # DS2 v2.34: delta pass — HASHES.txt tells us what really
+        # changed, so an update streams only the differences instead
+        # of re-downloading all ~90 files every single time.
+        report(stage="Checking what actually changed...")
+        hashes = _remote_hashes() or {}
+        changed = []
+        skipped = 0
+        for rel, dest in files:
+            want = hashes.get(rel)
+            if want is not None and _local_sha256(dest) == want:
+                skipped += 1          # byte-identical — keep ours
+                continue
+            changed.append((rel, dest))
         total = len(files)
         report(stage="Downloading the new build...", total=total)
-        done = 0
-        for rel, dest in files:
+        done = skipped
+        for rel, dest in changed:
             try:
                 _download(rel, dest)
             except Exception as exc:  # noqa: BLE001 — surface in the portal
@@ -184,6 +251,8 @@ def perform_update(report):
                 return False
             done += 1
             report(done=done, detail=os.path.basename(rel))
+        report(detail=f"delta: {len(changed)} changed, "
+                      f"{skipped} unchanged")
     else:
         report(done=len(files), total=len(files),
                detail="git pull --ff-only")

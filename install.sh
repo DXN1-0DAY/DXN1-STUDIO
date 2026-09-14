@@ -8,7 +8,7 @@ set -e
 
 # Bumped with releases; the app's real version always comes from the
 # downloaded dxn1_studio/__init__.py (never stamped over it).
-INSTALLER_VERSION="2.33.0"
+INSTALLER_VERSION="2.34.0"
 
 INSTALL_DIR="$HOME/.local/share/dxn1-studio"
 BIN_DIR="$HOME/.local/bin"
@@ -100,21 +100,57 @@ else
         export.py agent.py sandbox.py llm.py search.py errors.py \
         gitpanel.py updater.py i18n.py > "$MANIFEST"
 fi
+# DS2 v2.34: sha256 manifest — lets us verify every downloaded module
+# landed byte-perfect (and lets the updater stream only deltas)
+HASHES="$INSTALL_DIR/HASHES.txt"
+if curl -fsSL "$REPO/HASHES.txt" -o "$HASHES"; then
+    echo "  ✓ HASHES.txt ($(wc -l < "$HASHES" | tr -d ' ') checksums)"
+else
+    echo "  ⚠ HASHES.txt unavailable — integrity gate will be skipped"
+    rm -f "$HASHES"
+fi
 while IFS= read -r f; do
     [ -z "$f" ] && continue
     download "$INSTALL_DIR/dxn1_studio/$f" "dxn1_studio/$f" required
 done < "$MANIFEST"
 
 # sanity gate: the app cannot boot unless every manifest module landed
-python3 - "$MANIFEST" "$INSTALL_DIR" <<'PYEOF'
-import os, sys
-manifest, root = sys.argv[1], sys.argv[2]
-names = open(manifest, encoding="utf-8").read().split()
+# (DS2 v2.34: plus sha256 verification against HASHES.txt when present —
+# a corrupted or truncated download fails the install instead of the app)
+python3 - "$MANIFEST" "$INSTALL_DIR" "$HASHES" <<'PYEOF'
+import hashlib, os, sys
+manifest, root, hashes = sys.argv[1], sys.argv[2], sys.argv[3]
+names = [f for f in open(manifest, encoding="utf-8").read().split() if f]
 missing = [f for f in names
            if not os.path.isfile(os.path.join(root, "dxn1_studio", f))]
 if missing:
     sys.exit("ERROR: missing modules after download: " + ", ".join(missing))
 print("  ✓ all " + str(len(names)) + " modules present and accounted for")
+want = {}
+if os.path.isfile(hashes):
+    for ln in open(hashes, encoding="utf-8"):
+        parts = ln.strip().split(None, 1)
+        if len(parts) == 2 and len(parts[0]) == 64:
+            want[parts[1].strip()] = parts[0].lower()
+if want:
+    bad = []
+    for f in names:
+        path = os.path.join(root, "dxn1_studio", f)
+        exp = want.get("dxn1_studio/" + f)
+        if not exp:
+            continue
+        h = hashlib.sha256()
+        with open(path, "rb") as fh:
+            for chunk in iter(lambda: fh.read(1 << 16), b""):
+                h.update(chunk)
+        if h.hexdigest() != exp:
+            bad.append(f)
+    if bad:
+        sys.exit("ERROR: sha256 mismatch (corrupt download): "
+                 + ", ".join(bad) + " — re-run the installer")
+    print("  ✓ sha256 verified against HASHES.txt")
+else:
+    print("  ⚠ integrity check skipped (no HASHES.txt)")
 PYEOF
 
 # art assets (optional — the IDE falls back to geometric art without them;

@@ -2842,3 +2842,105 @@ def test_save_session_now(monkeypatch, tmp_path):
             root.destroy()
         except tk.TclError:
             pass
+
+
+def test_updater_delta(monkeypatch, tmp_path):
+    """DS2 v2.34 — delta updates: hash parsing, local sha, and
+    perform_update downloads only files that actually changed (or are
+    missing) when HASHES.txt is available; full download otherwise."""
+    import hashlib
+    from dxn1_studio import updater
+    # parse_hashes: sha256sum lines, junk tolerated, spaces in paths
+    text = ("# comment\n"
+            "nopath\n"
+            + "0" * 64 + "  dxn1_studio/a.py\n"
+            + "ZZZZ  junk.py\n"
+            + "f" * 64 + "  DXN1 STUDIO\n")
+    got = updater.parse_hashes(text)
+    assert got == {"dxn1_studio/a.py": "0" * 64,
+                   "DXN1 STUDIO": "f" * 64}
+    assert updater.parse_hashes("") == {}
+    assert updater.parse_hashes(None) == {}
+    # local sha: None for missing files, real digest for present ones
+    p = tmp_path / "x.bin"
+    p.write_bytes(b"hello delta")
+    assert updater._local_sha256(str(p)) == \
+        hashlib.sha256(b"hello delta").hexdigest()
+    assert updater._local_sha256(str(tmp_path / "nope")) is None
+
+    # perform_update delta behaviour on a fake install root
+    pkg = tmp_path / "dxn1_studio"
+    pkg.mkdir()
+    (pkg / "a.py").write_text("x = 1\n", encoding="utf-8")
+    monkeypatch.setattr(updater, "_package_root", lambda: str(tmp_path))
+    monkeypatch.setattr(updater, "resolve_modules", lambda root: ["a.py"])
+    monkeypatch.setattr(updater, "_is_git_checkout", lambda root: False)
+    same = hashlib.sha256(b"x = 1\n").hexdigest()
+    monkeypatch.setattr(updater, "_remote_hashes",
+                        lambda: {"dxn1_studio/a.py": same})
+    downloads = []
+    monkeypatch.setattr(updater, "_download",
+                        lambda rel, dest: downloads.append(rel) or 10)
+    msgs = []
+
+    def rep(**kw):
+        msgs.append(kw)
+
+    assert updater.perform_update(rep) is True
+    assert "dxn1_studio/a.py" not in downloads, \
+        "byte-identical file must be skipped by the delta pass"
+    assert "MANIFEST.txt" in downloads and "HASHES.txt" in downloads
+
+    # changed file → its sha differs → downloaded
+    (pkg / "a.py").write_text("x = 2\n", encoding="utf-8")
+    downloads.clear()
+    assert updater.perform_update(rep) is True
+    assert "dxn1_studio/a.py" in downloads
+
+    # HASHES.txt unreachable → full download (legacy behaviour kept)
+    monkeypatch.setattr(updater, "_remote_hashes", lambda: None)
+    downloads.clear()
+    assert updater.perform_update(rep) is True
+    assert len(downloads) == 1 + 1 + 1 + 3 + 6, \
+        "module + manifest + hashes + 3 entry scripts + 6 assets"
+    assert "dxn1_studio/a.py" in downloads
+
+
+def test_hashes_sync():
+    """DS2 v2.34 — HASHES.txt can never drift from the shipped files.
+
+    Mirrors scripts/gen_hashes.py: every MANIFEST module, entry script,
+    asset and MANIFEST.txt itself must be listed with its current sha256.
+    CI fails the moment a file changes without regenerating HASHES.txt.
+    """
+    import hashlib
+    root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    hpath = os.path.join(root, "HASHES.txt")
+    assert os.path.isfile(hpath), "HASHES.txt missing from repo root"
+    from dxn1_studio import updater
+    listed = updater.parse_hashes(open(hpath, encoding="utf-8").read())
+
+    mods = [ln.strip() for ln in
+            open(os.path.join(root, "MANIFEST.txt"), encoding="utf-8")
+            if ln.strip()]
+    expected_rel = ([f"dxn1_studio/{m}" for m in mods]
+                    + ["dxn1-studio", "dxn1", "DXN1 STUDIO", "README.md",
+                       "MANIFEST.txt"]
+                    + [f"assets/{a}" for a in
+                       ("logo.png", "splash_bg.png", "welcome_hero.png",
+                        "hub_hero.png", "agents_hero.png",
+                        "update_hero.png")])
+    missing = [r for r in expected_rel if r not in listed]
+    assert not missing, f"HASHES.txt does not cover: {missing}"
+
+    def sha(path):
+        h = hashlib.sha256()
+        with open(path, "rb") as fh:
+            for chunk in iter(lambda: fh.read(1 << 16), b""):
+                h.update(chunk)
+        return h.hexdigest()
+
+    stale = [r for r in expected_rel
+             if listed[r] != sha(os.path.join(root, r))]
+    assert not stale, (
+        "HASHES.txt stale (run scripts/gen_hashes.py): " + ", ".join(stale))
