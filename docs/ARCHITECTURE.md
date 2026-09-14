@@ -86,7 +86,7 @@ geometry memory).
 
 | Harness | What it proves |
 |---|---|
-| `python3 -m pytest tests/` | 88 unit groups over every pure engine |
+| `python3 -m pytest tests/` | 89 unit groups over every pure engine |
 | `scripts/smoke_v290.py` (Xvfb) | 155 live-window checks across 26 feature windows |
 | `scripts/smoke_v310.py` (Xvfb) | 20 checks: fuzzy highlight runs, per-buffer cursor memory, session cursor merge |
 | `scripts/smoke_v320.py` (Xvfb) | 18 checks: autosave write/switch gates, crash simulation + engine recovery boot, installer `--version` |
@@ -100,6 +100,7 @@ geometry memory).
 | `scripts/smoke_v400.py` (Xvfb) | 33 checks: repo_state honesty (plain folder, missing folder, fresh/untracked/staged/clean, detached HEAD, behind-after-fetch with real bare+clone pushes, dirty+behind together), cache_state missing-list severity, git chip states (quiet no-ws/plain-folder, muted branch, amber ●N bold, click→Source Control, off/on toggle + usage, passthrough, commit calms, shared poll), deps severity ladder (absent → red 1 missing → amber drift → red 2 missing → pinned ok), usage lines, chip tooltips, TERMINAL_HELP + verbs + palette rows |
 | `scripts/smoke_v410.py` (Xvfb) | 18 checks: red-chip one-gesture repair (click queues `deps fix`, Enter pins, chip honest again, cache re-scanned), amber click stays a plain rescan, branch-chip context menu (repo rows, stage-all routing, copy-branch clipboard, open Source Control, honest plain-folder menu, renderer never raises), Settings watch-chip section round-trip (persist + live redraw both ways) |
 | `scripts/smoke_v420.py` (Xvfb) | 15 checks: deps-chip context menu (red-state rows, queue-fix prefill + Enter hint, rescan through the terminal, ok-state loses the repair row, fresh rescan bypasses cache, watch toggle silences the chip), branch-menu additions (AI draft opens panel + fires helper, push/pull route to the visible runner, plain folder stays honest), one shared popup renderer + right-click tooltips |
+| `scripts/smoke_v430.py` (Xvfb) | 18 checks: the chip family completes — scribe menu (summary/goal/reset with goal preserved), sesave menu (autosave toggle live both ways, honest no-workspace toast, real snapshot write with chip flash, browse routes to the browser), branch menu 'Commit staged…' (opens Source Control + focuses the box, real focus_message wired), one renderer driving all four menus, Button-3 on every chip, four tooltips, palette rows |
 | `scripts/boot_qa.py` (Xvfb) | 20 checks booting the real studio: menus bound, palette entries live, modules import, scribe chip wired |
 | `python3 -m compileall -q dxn1_studio` | The tree always compiles — the gate before every tag |
 

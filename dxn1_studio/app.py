@@ -715,6 +715,8 @@ class DXN1Studio:
                                       font=(FONT_UI, 9), cursor="hand2")
         self.status_scribe.pack(side=tk.RIGHT, padx=(0, 12))
         self.status_scribe.bind("<Button-1>", self._scribe_click)
+        # DS2 v2.43: every chip has a menu — the scribe chip joins
+        self.status_scribe.bind("<Button-3>", self._scribe_chip_menu)
         # DS2 v2.33: session autosave chip — quiet last-saved hint;
         # click it to snapshot right now
         self.status_sesave = tk.Label(right, text="", bg=t["statusbar"],
@@ -723,6 +725,8 @@ class DXN1Studio:
         self.status_sesave.pack(side=tk.RIGHT, padx=(0, 12))
         self.status_sesave.bind("<Button-1>",
                                 lambda _e: self.save_session_now())
+        # DS2 v2.43: every chip has a menu — the autosave chip joins
+        self.status_sesave.bind("<Button-3>", self._sesave_chip_menu)
         # DS2 v2.39: dependency watch chip — a quiet "deps ok" that
         # turns amber the moment the workspace drifts from the last
         # deps report; click it to rescan
@@ -755,9 +759,11 @@ class DXN1Studio:
                        "Dependency watch — click rescans, "
                        "right-click for actions")
         self._chip_tip(self.status_sesave,
-                       "Session autosave — click to snapshot now")
+                       "Session autosave — click to snapshot now, "
+                       "right-click for actions")
         self._chip_tip(self.status_scribe,
-                       "Scribe meter — click to open the writing panel")
+                       "Scribe meter — click for session details, "
+                       "right-click for actions")
 
         # toast layer (placed above the status bar, right aligned)
         self.toast_layer = tk.Frame(self.root, bg=t["bg"])
@@ -4373,6 +4379,22 @@ class DXN1Studio:
                          "DS2", _scribe_goal_palette))
         except Exception:  # pragma: no cover — palette stays alive
             pass
+        # DS2 v2.43: chip-family rows (defensive)
+        def _sesave_snapshot_palette():
+            self.save_session_now()
+        try:
+            cmds.append(("Session — snapshot tabs now…",
+                         "DS2", _sesave_snapshot_palette))
+        except Exception:  # pragma: no cover — palette stays alive
+            pass
+
+        def _scribe_reset_palette():
+            self._scribe_reset_from_menu()
+        try:
+            cmds.append(("Scribe — reset the writing meter…",
+                         "DS2", _scribe_reset_palette))
+        except Exception:  # pragma: no cover — palette stays alive
+            pass
         # DS2: focus timer (defensive)
         def _open_focus():
             from .focus import open_focus
@@ -5062,6 +5084,79 @@ class DXN1Studio:
         raises."""
         self._render_chip_menu(self._deps_menu_entries(), event)
 
+    # --------------------------------------------- DS2 v2.43 scribe chip menu
+    def _scribe_menu_entries(self):
+        """DS2 v2.43 — the scribe chip's context menu rows as
+        ``(label, command)`` pairs: the session summary toast, the
+        writing-goal flow and a meter reset. Pure data, rendered by
+        the shared `_render_chip_menu`."""
+        return [("Session summary", self._scribe_click),
+                ("Set writing goal…", self._scribe_goal_from_menu),
+                ("Reset session meter", self._scribe_reset_from_menu)]
+
+    def _scribe_goal_from_menu(self):
+        """DS2 v2.43 — queue ``scribe goal `` in the terminal input:
+        type the number, press Enter — nothing fires by accident
+        (the same one-gesture contract as the deps repair row)."""
+        self._prefill_terminal("scribe goal ")
+        self.terminal.log("scribe goal is queued — type a word count "
+                          "and press Enter")
+
+    def _scribe_reset_from_menu(self):
+        """DS2 v2.43 — zero the writing meter: words, wpm and the
+        elapsed clock restart from now (the goal is preserved).
+        Never raises."""
+        try:
+            chip = self.scribe_chip
+            if chip is None:
+                self.terminal.log("scribe chip unavailable")
+                return
+            chip.reset()
+            self.status_scribe.configure(text=chip.text())
+            self.toast("Scribe meter reset — fresh counts from now",
+                       "info")
+        except Exception:  # noqa: BLE001 — a menu row must never raise
+            pass
+
+    def _scribe_chip_menu(self, event=None):
+        """DS2 v2.43 — right-click the scribe chip: summary, goal and
+        reset in one themed menu. Never raises."""
+        self._render_chip_menu(self._scribe_menu_entries(), event)
+
+    # --------------------------------------------- DS2 v2.43 sesave chip menu
+    def _sesave_menu_entries(self):
+        """DS2 v2.43 — the session-autosave chip's context menu rows:
+        snapshot now, the snapshot browser, and the autosave switch
+        (the row reads the live config when clicked — honest). Pure
+        data, rendered by the shared `_render_chip_menu`."""
+        return [("Snapshot session now", self.save_session_now),
+                ("Browse snapshots…", self.open_session_restore),
+                ("---", None),
+                ("Autosave on/off", self._sesave_autosave_toggle)]
+
+    def _sesave_autosave_toggle(self):
+        """DS2 v2.43 — flip ``session_autosave`` live: the 60s loop
+        reads the config every tick, so the switch lands on the next
+        beat. Honest feedback either way. Never raises."""
+        try:
+            cur = bool(self.config.get("session_autosave", True))
+            self.config.set("session_autosave", not cur)
+            state = "off" if cur else "on"
+            self.toast("Session autosave %s" % state, "info")
+            try:
+                self.terminal.log("session autosave is now %s — the "
+                                  "60s loop picks it up on its next "
+                                  "beat" % state)
+            except Exception:  # noqa: BLE001
+                pass
+        except Exception:  # noqa: BLE001 — a menu row must never raise
+            pass
+
+    def _sesave_chip_menu(self, event=None):
+        """DS2 v2.43 — right-click the autosave chip: snapshot,
+        browse, toggle in one themed menu. Never raises."""
+        self._render_chip_menu(self._sesave_menu_entries(), event)
+
     def _git_menu_entries(self):
         """DS2 v2.41 — the branch-chip context menu's rows, as
         ``(label, command)`` pairs (``("---", None)`` = separator).
@@ -5079,6 +5174,8 @@ class DXN1Studio:
             entries.append(("Commit graph", self._open_git_graph_chip))
             entries.append(("Stage all changes",
                             lambda: self.run_command("git add -A")))
+            entries.append(("Commit staged…",
+                            self._commit_staged_from_chip))
             entries.append(("Draft AI commit message",
                             self._ai_commit_from_chip))
             entries.append(("Push to origin",
@@ -5140,6 +5237,20 @@ class DXN1Studio:
             self.git_view.ai_message()
         except Exception:  # noqa: BLE001 — best-effort draft
             self.terminal.log("git: AI message unavailable here")
+
+    def _commit_staged_from_chip(self):
+        """DS2 v2.43 — the branch chip menu's commit entry: bring the
+        Source Control panel forward and put the cursor in the
+        commit message box (the panel guards repo state itself —
+        the menu only opens the door). Never raises."""
+        try:
+            self.show_sidebar_view("git")
+        except Exception:  # noqa: BLE001 — the panel may be absent
+            pass
+        try:
+            self.git_view.focus_message()
+        except Exception:  # noqa: BLE001 — best-effort focus
+            self.terminal.log("git: commit box unavailable here")
 
     def _open_git_graph_chip(self):
         """Commit graph from the chip menu — same window the palette

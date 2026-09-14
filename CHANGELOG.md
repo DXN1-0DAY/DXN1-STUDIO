@@ -4,6 +4,42 @@ All notable changes to DXN1 STUDIO. Format based on
 [Keep a Changelog](https://keepachangelog.com/); versioning is
 `MAJOR.MINOR.PATCH` while in **beta**.
 
+## [2.43.0] — 2026-09-15 · beta · "the whole family is chipped in" (scribe + autosave menus, Commit staged…)
+
+### Added
+- **Scribe chip context menu** — right-click the ✎ writing chip for
+  the lane's actions in one themed menu: **Session summary** (the
+  same toast the click gives — words, current/peak wpm, elapsed
+  time, goal %), **Set writing goal…** (queues `scribe goal ` in
+  the terminal input — type the number, press Enter; the same
+  one-gesture contract as the deps repair row, nothing fires by
+  accident) and **Reset session meter** (words, wpm and the elapsed
+  clock restart from now, the goal survives, the chip repaints and
+  a toast confirms).
+- **Session-autosave chip context menu** — right-click the ◐ session
+  chip: **Snapshot session now** (the same path as the click — tabs
+  and cursor spots on disk with visible feedback), **Browse
+  snapshots…** (the existing snapshot browser, one menu row away)
+  and **Autosave on/off**.
+- **Live autosave toggle** — the menu's switch flips
+  `session_autosave` immediately; the 60s autosave loop reads the
+  config every tick, so the change lands on its next beat. A toast
+  and a terminal line say which way it went.
+- **Branch chip menu: Commit staged…** — one row opens the Source
+  Control panel and puts the cursor straight into the commit
+  message box (`gitpanel.focus_message()`; the panel's own
+  FocusIn binding clears the placeholder by itself) — stage, type,
+  Enter.
+- **Palette rows** — *Session — snapshot tabs now…* and *Scribe —
+  reset the writing meter…* join the command palette.
+
+### Changed
+- **Every chip has a menu, for real** — all four statusbar chips
+  (branch, deps, session autosave, scribe) now bind right-click,
+  and every tooltip advertises it: what the chip is, what a click
+  does, that a right-click opens the lane's actions. One shared
+  themed renderer drives all four menus.
+
 ## [2.42.0] — 2026-09-15 · beta · "every chip has a menu" (deps menu + AI draft + push/pull)
 
 ### Added

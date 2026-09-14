@@ -209,6 +209,16 @@ class GitPanel(tk.Frame):
             self.msg.delete(0, tk.END)
             self.msg.config(fg=self.theme["text"])
 
+    def focus_message(self):
+        """DS2 v2.43 — put the cursor in the commit message box (the
+        branch chip menu's 'Commit staged…' row lands here). The
+        panel's own FocusIn binding clears the placeholder by
+        itself; best-effort, never raises."""
+        try:
+            self.msg.focus_set()
+        except Exception:  # noqa: BLE001 — garnish, never fatal
+            pass
+
     # ------------------------------------------------------------- state
     def set_workspace(self, path):
         self.workspace = path if path and os.path.isdir(path) else None

@@ -469,12 +469,23 @@
 | One cheap probe | 3 s throttle + shared 30 s poll | One `git status` call max per 3 s (forced on saves, clicks and boot); the drift poll that watches deps now watches the git lane in the same pass — one timer, both lanes |
 | Click opens Source Control | app `_git_chip_click()` | The chip points at work; the Source Control panel is where it gets done — click opens the panel and redraws the chip in one gesture |
 | Watch toggle | terminal `git watch [on|off]`, palette *Source control watch on/off…* | Bare `git watch` flips the branch chip (default on, persisted as `git_watch`); junk gets an honest usage line; plain `git <args>` commands still pass through to the shell untouched (the intercept is prefix-exact) |
-| Context menu | right-click the branch chip, app `_git_menu_entries()` | The lane's actions in one themed menu: Open Source Control, Commit graph, Stage all changes, Draft AI commit message, Push to origin, Pull from upstream, Copy branch name (clipboard + toast), Rescan — repo rows appear only when a repository is watched, so a plain folder gets the honest two-row menu |
+| Context menu | right-click the branch chip, app `_git_menu_entries()` | The lane's actions in one themed menu: Open Source Control, Commit graph, Stage all changes, **Commit staged…**, Draft AI commit message, Push to origin, Pull from upstream, Copy branch name (clipboard + toast), Rescan — repo rows appear only when a repository is watched, so a plain folder gets the honest two-row menu |
+| Commit staged… | menu row, app `_commit_staged_from_chip()` + `gitpanel.focus_message()` | One row opens the Source Control panel and puts the cursor straight into the commit message box — stage, type, Enter; the panel guards repo state itself (the menu only opens the door) |
 | AI commit draft | menu row, app `_ai_commit_from_chip()` | One row brings the Source Control panel forward and fires its ✨ AI helper — the diff is read, a Conventional Commits draft streams into the commit box, the user edits/commits as always (the panel guards repo and brain state itself) |
 | Push / Pull rows | menu rows through the visible terminal runner | The two everyday git verbs join the menu, routed through `run_command` so output, errors and credentials stay exactly where they always are — the menu never shells out invisibly |
 | Settings toggles | Settings ▸ *Statusbar watch chips*, `deps_watch` / `git_watch` | Both watch chips live in the Settings dialog beside their terminal verbs; saving persists and redraws both chips immediately |
 | Chip tooltips | app `_chip_tip()` | Hover any statusbar chip (git, deps, session autosave, scribe) and a quiet themed tooltip explains what it is, what clicking it does and that a right-click opens its menu |
-| One shared renderer | app `_render_chip_menu()` | Every statusbar chip menu (branch + deps) is built by one themed popup renderer — `(label, command)` rows, `"---"` separators, cursor-anchored, best-effort by contract: a menu must never break typing |
+| One shared renderer | app `_render_chip_menu()` | Every statusbar chip menu (branch, deps, scribe, session autosave) is built by one themed popup renderer — `(label, command)` rows, `"---"` separators, cursor-anchored, best-effort by contract: a menu must never break typing |
+
+## The Chip Family (v2.43.0)
+
+| Feature | Where | What it does |
+|---|---|---|
+| Scribe chip menu | right-click the scribe chip, app `_scribe_menu_entries()` | The writing lane's actions in one themed menu: **Session summary** (the same toast the click gives), **Set writing goal…** (queues `scribe goal ` in the terminal input — type the number, press Enter, nothing fires by accident), **Reset session meter** (words, wpm and the elapsed clock restart from now; the goal survives) |
+| Scribe meter reset | menu row, app `_scribe_reset_from_menu()` + `scribe.ScribeChip.reset()` | A fresh writing session without touching the goal — the chip repaints immediately and a toast confirms the reset |
+| Autosave chip menu | right-click the session chip, app `_sesave_menu_entries()` | The session lane's actions in one themed menu: **Snapshot session now**, **Browse snapshots…** (the existing snapshot browser), a separator, **Autosave on/off** |
+| Autosave toggle | menu row, app `_sesave_autosave_toggle()` | Flips `session_autosave` live — the 60s autosave loop reads the config every tick, so the switch lands on the next beat; a toast and a terminal line say which way it went |
+| Family tooltips | app `_chip_tip()` | All four chips (git, deps, session autosave, scribe) advertise their menus on hover: what the chip is, what a click does, that a right-click opens the lane's actions |
 
 ## Session Restore
 
