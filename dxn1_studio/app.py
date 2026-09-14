@@ -1024,6 +1024,15 @@ class DXN1Studio:
                     pass
             return _go
 
+        def _open_hash_menu():
+            try:
+                from .hasher import open_hasher
+                open_hasher(self.root, self.theme,
+                            initial=self.project_dir or "",
+                            workspace=self.project_dir or "")
+            except Exception:  # pragma: no cover — menu stays alive
+                pass
+
         def _open_tree_menu():
             try:
                 from .treeexport import open_treeexport
@@ -1087,6 +1096,9 @@ class DXN1Studio:
         workshop_menu.add_command(
             label="Directory Tree Export…",
             command=_open_tree_menu)
+        workshop_menu.add_command(
+            label="Hasher — checksums…",
+            command=_open_hash_menu)
         workshop_menu.add_separator()
         workshop_menu.add_command(label="Token Usage Dashboard…",
                                   command=_open_usage_menu)
@@ -2407,6 +2419,8 @@ class DXN1Studio:
                                   "schema, queries"),
                     ("tree <dir>", "ASCII directory tree for READMEs — "
                                    "skips junk, copies to clipboard"),
+                    ("hash <file>", "checksums: MD5/SHA-1/256/512, folder "
+                                    "manifests, paste-a-hash verify"),
                     ("explain", "hand the last error to the agent"),
                     ("git <args>", "run git in the workspace (status, add,"),
                     ("", "commit, log… output streams below"),
@@ -2582,6 +2596,24 @@ class DXN1Studio:
                                   (f" — {arg}" if arg else " — workspace"))
             except Exception as exc:  # noqa: BLE001 — terminal stays alive
                 self.terminal.log(f"tree failed: {exc}")
+            return
+        if low == "hash" or low.startswith("hash "):
+            # DS2: hasher lab (optional file/folder argument)
+            try:
+                from .hasher import open_hasher
+                arg = text[5:].strip() if len(text) > 5 else ""
+                if arg and not os.path.exists(arg):
+                    cand = os.path.join(self.project_dir or "", arg)
+                    arg = cand if os.path.exists(cand) else ""
+                if arg and not os.path.exists(arg):
+                    self.terminal.log(f"no such file or folder: {arg}")
+                    arg = ""
+                open_hasher(self.root, self.theme, initial=arg,
+                            workspace=self.project_dir or "")
+                self.terminal.log("Hasher opened" +
+                                  (f" — {arg}" if arg else ""))
+            except Exception as exc:  # noqa: BLE001 — terminal stays alive
+                self.terminal.log(f"hash failed: {exc}")
             return
         if low.startswith("goto "):
             num = text[5:].strip()
@@ -3101,6 +3133,17 @@ class DXN1Studio:
         try:
             cmds.append(("Directory tree export — README-ready ASCII…",
                          "DS2", _open_tree))
+        except Exception:  # pragma: no cover — palette stays alive
+            pass
+        # DS2: hasher (defensive)
+        def _open_hash():
+            from .hasher import open_hasher
+            open_hasher(self.root, self.theme,
+                        initial=getattr(self, "project_dir", "") or "",
+                        workspace=getattr(self, "project_dir", "") or "")
+        try:
+            cmds.append(("Hasher — checksums & manifest verify…",
+                         "DS2", _open_hash))
         except Exception:  # pragma: no cover — palette stays alive
             pass
         return cmds

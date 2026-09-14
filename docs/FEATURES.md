@@ -163,3 +163,13 @@
 | Depth & size controls | toolbar | Depth spinner (1–6), hidden-files toggle, per-file human sizes (`2.0 KB`) — the tree regenerates live on every toggle (or press F5) |
 | Honest stats | status bar | `N dirs · M files · size`, skipped-junk count, and a visible *truncated* flag when the entry cap kicks in — no silent lies |
 | Pure engine | `tests/test_ds2.py` | skip rules, dir-first sorting, depth caps, hidden toggle, size math and invalid-root safety are all unit-tested |
+
+## The Hasher (v2.10.0)
+
+| Feature | Where | What it does |
+|---|---|---|
+| Checksum lab | `hasher.py`, Workshop → *Hasher — checksums…*, palette, terminal `hash` / `hash <file>` | Hash any file or folder with MD5 / SHA-1 / SHA-256 / SHA-512 — results in a grid with digest, size and path |
+| Chunked engine | `hash_file` / `hash_bytes` | 1 MiB chunks — a 4 GB file never loads into memory; pure stdlib, raises only real OS/algorithm errors |
+| Folder manifests | `hash_dir` + *Copy/Save manifest* | Recursive, hidden-file-aware (toggleable via engine kwargs), sorted, `sha256sum -c`-compatible lines (`<digest>␣␣<relpath>`, 5000-file cap) |
+| Paste-a-hash verify | right panel | Paste an expected digest → instant MATCH / MISMATCH verdict; paste a whole manifest → *Verify ALL* reports `N ok · M MISMATCH · K not in pasted manifest` |
+| Tests | `tests/test_ds2.py` | Digest correctness against `hashlib`, folder walk order, manifest round-trip, malformed/comment/binary-marker line parsing |

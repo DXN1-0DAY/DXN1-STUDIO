@@ -109,6 +109,34 @@ def main():
     check("bad root handled", "not a directory" in
           twin.out.get("1.0", "end-1c"))
     twin.destroy()
+
+    # ---- hasher window (same smoke, third lane)
+    from dxn1_studio.hasher import open_hasher
+    hwin = open_hasher(root, theme, initial=db, workspace=tmp)
+    hwin.update_idletasks()
+    check("hasher window opens", hwin.winfo_exists())
+    hwin.run_hash()
+    check("file hashed to grid", len(hwin.grid.get_children()) == 1)
+    dig = hwin.grid.set(hwin.grid.get_children()[0], "digest")
+    import hashlib as _hl
+    check("digest matches hashlib", dig ==
+          _hl.sha256(open(db, "rb").read()).hexdigest())
+    hwin.target.set(tmp)
+    hwin.run_hash()
+    check("folder manifest rows", len(hwin.grid.get_children()) >= 2)
+    hwin.expect.delete("1.0", "end")
+    hwin.expect.insert("1.0", dig + "  " + os.path.basename(db))
+    hwin._rows = list(getattr(hwin, "_rows", []))
+    hwin.verify_all()
+    check("manifest verdict ok", "ok" in
+          hwin.verdict.cget("text"))
+    hwin.expect.delete("1.0", "end")
+    hwin.expect.insert("1.0", "deadbeef" + "0" * 56 +
+                       "  " + os.path.basename(db))
+    hwin.verify_all()
+    check("mismatch flagged", "MISMATCH" in
+          hwin.verdict.cget("text"))
+    hwin.destroy()
     root.destroy()
 
     failed = [n for n, ok in CHECKS if not ok]

@@ -78,6 +78,8 @@ SHEETS = [
                       "queries, export CSV/markdown (read-only default)"),
         ("tree <dir>", "Directory tree export — junk-aware ASCII tree, "
                        "depth + sizes, one-click clipboard copy"),
+        ("hash <file>", "Hasher — chunked MD5/SHA digests, folder "
+                        "manifests (sha256sum -c style), verify verdicts"),
     ]),
     ("TERMINAL TALK", [
         ("help", "List every studio command"),

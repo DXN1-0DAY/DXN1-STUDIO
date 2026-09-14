@@ -1094,3 +1094,53 @@ def test_treeexport_engine():
         "skipped": 0})
     assert te.human_size(0) == "0 B" and "KB" in te.human_size(2048)
     assert te.human_size("junk") == "?"
+
+
+def test_hasher_engine():
+    # DS2 v2.10.0 — chunked digests, folder manifests, line parsing
+    import hashlib
+    import os
+    import tempfile
+
+    from dxn1_studio import hasher as hh
+
+    tmp = tempfile.mkdtemp(prefix="ds2-hash-")
+    os.makedirs(os.path.join(tmp, "sub"))
+    f1 = os.path.join(tmp, "a.txt")
+    open(f1, "wb").write(b"hello world")
+    open(os.path.join(tmp, "sub", "b.bin"), "wb").write(b"x" * 3000)
+    open(os.path.join(tmp, ".hidden"), "wb").write(b"no")
+
+    d, size = hh.hash_file(f1, "sha256")
+    assert d == hashlib.sha256(b"hello world").hexdigest() and size == 11
+    assert hh.hash_bytes(b"hello world", "md5") == \
+        hashlib.md5(b"hello world").hexdigest()
+    try:
+        hh.hash_file(f1, "nope")
+        assert False
+    except ValueError:
+        pass
+
+    rows = hh.hash_dir(tmp, "sha256")
+    assert [r[3] for r in rows] == ["a.txt", "sub/b.bin"]
+    assert rows[0][2] == 11 and rows[1][2] == 3000
+    assert hh.hash_dir(os.path.join(tmp, "nope")) == []
+
+    line = hh.manifest_line("sha256", d, 11, "a.txt")
+    assert line == f"{d}  a.txt"
+    got, path, err = hh.verify_line(line)
+    assert got == d and err == "" and path == "a.txt"
+    got2, path2, _e2 = hh.verify_line(f"{d} *b.bin")
+    assert got2 == d and path2 == "b.bin"
+    assert hh.verify_line("# comment") == (None, "", "")
+    assert hh.verify_line("") == (None, "", "")
+    assert hh.verify_line("short z") == (None, "", "malformed line")
+
+    # verify-all logic mirrors the window: digest lookup by rel path
+    text = "\n".join(hh.manifest_line(*r) for r in rows)
+    expected = {}
+    for ln in text.splitlines():
+        dig, p, _e = hh.verify_line(ln)
+        if dig and p:
+            expected[p] = dig
+    assert expected == {"a.txt": d, "sub/b.bin": rows[1][1]}
