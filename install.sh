@@ -6,7 +6,7 @@ set -e
 
 # One source of truth for the version this installer ships. The IDE itself
 # reads its real version from dxn1_studio/__init__.py after download.
-INSTALLER_VERSION="1.1.5"
+INSTALLER_VERSION="1.1.6"
 
 INSTALL_DIR="$HOME/.local/share/dxn1-studio"
 BIN_DIR="$HOME/.local/bin"
@@ -88,8 +88,9 @@ except OSError:
     pass
 PYEOF
 
-# art assets (optional — the IDE falls back to geometric art without them)
-for f in logo.png welcome_hero.png hub_hero.png agents_hero.png update_hero.png; do
+# art assets (optional — the IDE falls back to geometric art without them;
+# splash_bg.png is what powers the animated boot card — v1.1.6 hotfix)
+for f in logo.png splash_bg.png welcome_hero.png hub_hero.png agents_hero.png update_hero.png; do
     download "$INSTALL_DIR/assets/$f" "assets/$f" optional
 done
 

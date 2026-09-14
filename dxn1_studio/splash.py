@@ -131,6 +131,9 @@ class Splash:
         self._flat_shine = tk.Frame(self._flat_track, bg=self.accent,
                                     width=56, height=4)
         self._flat_shine.place(x=0, y=0)
+        # same coordinate language as the art card, so the shimmer loop
+        # never has to guess which build path ran (v1.1.6 hotfix)
+        self.track = (0, 280)
 
         self.status_lbl = tk.Label(inner, text="warming up the editor",
                                    bg=DARK_BG, fg=MUTED,
@@ -168,13 +171,13 @@ class Splash:
         if self.closed:
             return
         self._shine += 7
-        span = self.track[1] - self.track[0] - 56
+        t0, t1 = getattr(self, "track", (0, 280))
+        span = max(1, t1 - t0 - 56)
         pos = abs((self._shine % (2 * span)) - span)   # ping-pong
         try:
             if hasattr(self, "_shine_rect"):
                 self.canvas.coords(self._shine_rect,
-                                   self.track[0] + pos, 286,
-                                   self.track[0] + pos + 56, 290)
+                                   t0 + pos, 286, t0 + pos + 56, 290)
             elif hasattr(self, "_flat_shine"):
                 self._flat_shine.place(x=pos, y=0)
         except tk.TclError:

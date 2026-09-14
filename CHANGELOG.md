@@ -4,6 +4,23 @@ All notable changes to DXN1 STUDIO. Format based on
 [Keep a Changelog](https://keepachangelog.com/); versioning is
 `MAJOR.MINOR.PATCH` while in **beta**.
 
+## [1.1.6] — 2026-09-14 · beta
+
+### Fixed
+- **Launch crash on fresh installs** — on machines where the splash
+  artwork wasn't present, the boot card's shimmer animation touched a
+  coordinate pair that only exists on the artwork path
+  (`'Splash' object has no attribute 'track'`) and the studio died
+  before its first frame. The flat fallback card now speaks the same
+  coordinate language, the shimmer loop reads track bounds defensively,
+  and — belt and braces — a broken splash can never again stop boot:
+  any exception in the splash now falls through to the studio proper.
+- **Installers now ship the splash art** — `splash_bg.png` was missing
+  from both the `install.sh` asset list and the Update Portal's
+  in-place refresh list, so streamed installs always ran without the
+  animated boot card. Both lists now include it (and the portal
+  auto-repairs the missing file on the next update).
+
 ## [1.1.5] — 2026-09-14 · beta
 
 ### Added

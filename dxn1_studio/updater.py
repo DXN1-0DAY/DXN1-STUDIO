@@ -38,8 +38,8 @@ MODULES = (
     "search.py", "errors.py", "gitpanel.py", "updater.py",
 )
 ENTRY_SCRIPTS = ("dxn1-studio", "dxn1", "DXN1 STUDIO")
-ASSETS = ("logo.png", "welcome_hero.png", "hub_hero.png", "agents_hero.png",
-          "update_hero.png")
+ASSETS = ("logo.png", "splash_bg.png", "welcome_hero.png", "hub_hero.png",
+          "agents_hero.png", "update_hero.png")
 
 MIN_SHOW_SECONDS = 3.0     # the progress show never flashes past too fast
 

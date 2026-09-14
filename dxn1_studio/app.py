@@ -1066,8 +1066,16 @@ class DXN1Studio:
             self._after_splash()
         else:
             self._splash_active = True
-            Splash(self.root, accent=self.theme.accent, duration_ms=2000,
-                   on_done=self._after_splash)
+            try:
+                Splash(self.root, accent=self.theme.accent, duration_ms=2000,
+                       on_done=self._after_splash)
+            except Exception:            # noqa: BLE001 — boot must survive
+                # the splash is cosmetic; a broken one may never stop the
+                # studio from opening (v1.1.6 hotfix — see CHANGELOG)
+                import traceback
+                traceback.print_exc()
+                self._splash_active = False
+                self._after_splash()
         self.root.mainloop()
 
     def _after_splash(self):
