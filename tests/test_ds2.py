@@ -1225,3 +1225,35 @@ def test_linesort_engine():
     assert ls.transform_lines(None, "az") is None
     assert ls.transform_lines("b\na", "nope") == "b\na"
     assert ls.transform_lines("b\na", "az", "x", "y") == "b\na"
+
+
+def test_clipboard_ring():
+    # DS2 v2.13.0 — bounded dedup clipboard memory + previews
+    from dxn1_studio.clipboard import ClipRing, preview_of
+
+    r = ClipRing(3)
+    for txt in ("first", "second", "third"):
+        assert r.add(txt)
+    assert r.items() == ["third", "second", "first"]
+
+    # evicts oldest, moves repeats to front, ignores newest dupes
+    assert r.add("fourth")
+    assert r.items() == ["fourth", "third", "second"]
+    assert r.add("second")
+    assert r.items() == ["second", "fourth", "third"]
+    assert not r.add("second")
+
+    # junk is rejected, never raises
+    assert not r.add("") and not r.add("   ") and not r.add(None)
+    assert not r.add(42)
+
+    r.clear()
+    assert len(r) == 0 and r.items() == []
+    assert ClipRing(0).size == 1
+    assert ClipRing("5").size == 5
+
+    # previews: one line, collapsed whitespace, capped with ellipsis
+    assert preview_of("hello\n\tworld") == "hello world"
+    assert len(preview_of("x" * 200)) == 90
+    assert preview_of("x" * 200).endswith("…")
+    assert preview_of(None) == "" and preview_of(5) == ""

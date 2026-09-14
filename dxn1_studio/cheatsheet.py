@@ -85,6 +85,8 @@ SHEETS = [
         ("sort <mode>", "Line tools — sort az/za/len, dedupe, shuffle, "
                         "reverse, trim; selection or whole file "
                         "(Ctrl+Alt+S/D/H/R)"),
+        ("clip", "Clipboard history — last 25 copies, double-click to "
+                 "paste back (Ctrl+Shift+V)"),
     ]),
     ("TERMINAL TALK", [
         ("help", "List every studio command"),

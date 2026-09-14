@@ -414,6 +414,7 @@ class DXN1Studio:
         self.terminal_visible = True
         self._tab_frames = {}
         self._buffers = {}          # path -> {"content": str, "dirty": bool}
+        self.clip_ring = None       # DS2: clipboard history ring
         self._autosave_job = None
         self._palette = None
         self._quick_open = None
@@ -948,6 +949,9 @@ class DXN1Studio:
                               command=lambda: self.apply_line_tool("reverse"))
         edit_menu.add_command(label="Trim Trailing Whitespace",
                               command=lambda: self.apply_line_tool("trim"))
+        edit_menu.add_command(label="Paste from History…",
+                              accelerator="Ctrl+Shift+V",
+                              command=self.paste_from_history)
         # DS2: line tools — sort & dedupe on the selection
         edit_menu.add_command(label="Sort Lines (A→Z)",
                               command=lambda: self.editor.sort_lines())
@@ -1210,6 +1214,8 @@ class DXN1Studio:
                        self.apply_line_tool("shuffle"))
         self.root.bind("<Control-Alt-r>", lambda e:
                        self.apply_line_tool("reverse"))
+        self.root.bind("<Control-Shift-V>", lambda e:
+                       self.paste_from_history())
         self.root.bind("<Control-g>", lambda e: self.goto_line_dialog())
         self.root.bind("<Alt-Up>", lambda e: self.editor.move_line(-1))
         self.root.bind("<Alt-Down>", lambda e: self.editor.move_line(1))
@@ -1444,6 +1450,44 @@ class DXN1Studio:
         if not self.config.get("tour_done"):
             self.root.after(800, self.start_tour)
         self.root.after(1600, self._maybe_show_whatsnew)   # DS2: once/tag
+        self.root.after(2500, self._clip_poll)   # DS2: clipboard history
+
+    def _clip_poll(self):
+        """DS2: background clipboard watcher (never raises)."""
+        try:
+            if self.clip_ring is None:
+                from .clipboard import ClipRing
+                self.clip_ring = ClipRing()
+            clip = self.root.clipboard_get()
+            if clip:
+                self.clip_ring.add(clip)
+        except Exception:  # noqa: BLE001 — poller stays alive
+            pass
+        try:
+            self.root.after(1500, self._clip_poll)
+        except Exception:  # noqa: BLE001 — dying root is fine
+            pass
+
+    def paste_from_history(self):
+        """DS2: open the clipboard history window."""
+        try:
+            from .clipboard import open_cliphistory
+
+            def _paste(text):
+                try:
+                    self.editor.text.insert("insert", text)
+                    self.editor.modified = True
+                    self.editor.update_line_numbers()
+                    self.editor.highlighter.schedule()
+                    self._mark_dirty()
+                except Exception:  # noqa: BLE001
+                    pass
+
+            open_cliphistory(self.root, self.theme,
+                             paste_callback=_paste,
+                             ring=self.clip_ring)
+        except Exception:  # noqa: BLE001 — menu stays alive
+            pass
 
     def _maybe_show_whatsnew(self):
         """DS2: announce each new version exactly once after an upgrade."""
@@ -2455,6 +2499,7 @@ class DXN1Studio:
                                     "manifests, paste-a-hash verify"),
                     ("focus <min>", "pomodoro focus timer — work/break "
                                     "cycles with session dots"),
+                    ("clip", "clipboard history — paste earlier copies"),
                     ("explain", "hand the last error to the agent"),
                     ("git <args>", "run git in the workspace (status, add,"),
                     ("", "commit, log… output streams below"),
@@ -2682,6 +2727,11 @@ class DXN1Studio:
                               (" (selection)" if
                                self.editor.text.tag_ranges("sel")
                                else " (whole file)"))
+            return
+        if low == "clip":
+            # DS2: clipboard history window
+            self.paste_from_history()
+            self.terminal.log("Clipboard history opened")
             return
         if low.startswith("goto "):
             num = text[5:].strip()
@@ -3261,6 +3311,14 @@ class DXN1Studio:
                              lambda m=_mode: self.apply_line_tool(m)))
             except Exception:  # pragma: no cover — palette stays alive
                 pass
+        # DS2: clipboard history (defensive)
+        def _open_clip():
+            self.paste_from_history()
+        try:
+            cmds.append(("Clipboard history — paste earlier copies…",
+                         "DS2", _open_clip))
+        except Exception:  # pragma: no cover — palette stays alive
+            pass
         # DS2: focus timer (defensive)
         def _open_focus():
             from .focus import open_focus

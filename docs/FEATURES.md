@@ -193,3 +193,13 @@
 | Trailing-newline honesty | engine | A file ending in `\n` never grows a sortable phantom empty line — the terminator shape is preserved byte-for-byte |
 | Range discipline | engine | Text outside the selection is preserved exactly; dedupe/shuffle only ever touch the requested block |
 | Pure engine | `tests/test_ds2.py` | Deterministic with an injected RNG, clamps hostile ranges, never raises on non-text input |
+
+## Clipboard History (v2.13.0)
+
+| Feature | Where | What it does |
+|---|---|---|
+| Clipboard memory | `clipboard.py`, Edit menu → *Paste from History…*, palette, terminal `clip`, **Ctrl+Shift+V** | A background poller (1.5 s, never raises) watches the system clipboard and keeps the last 25 distinct entries in a bounded ring — copies made anywhere on your desktop show up in the studio |
+| Paste-back window | double-click / Enter | Pastes the chosen entry at the editor cursor (marks the buffer dirty properly); with no editor focus it copies the entry back to the clipboard |
+| Smart dedupe | `ClipRing` engine | Re-copying an older entry moves it to the top instead of duplicating it; identical consecutive copies are ignored; empty/whitespace and non-string payloads never enter the ring |
+| One-line previews | list rows | Whitespace collapsed, 90-char cap with an ellipsis — multi-line snippets stay scannable |
+| Pure engine | `tests/test_ds2.py` | Ring bounds, eviction order, repeat-to-front, junk rejection, size coercion and preview truncation are all unit-tested |
