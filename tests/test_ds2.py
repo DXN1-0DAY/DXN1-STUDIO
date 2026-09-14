@@ -3275,3 +3275,149 @@ def test_update_periodic(monkeypatch, tmp_path):
             root.destroy()
         except tk.TclError:
             pass
+
+
+def test_deps_fix(tmp_path):
+    """DS2 v2.37 — deps fix: reverse-alias pin suggestions, atomic
+    deduped appends to requirements.txt, on-demand file creation, and
+    the app-level `deps fix` verb that closes the loop (report → fix →
+    re-check finds nothing missing)."""
+    import tkinter as tk
+    from dxn1_studio import depcheck as dc
+    # suggestion mapping (reverse aliases)
+    assert dc.dist_for_import("PIL") == "pillow"
+    assert dc.dist_for_import("yaml") == "pyyaml"
+    assert dc.dist_for_import("cv2") == "opencv-python"
+    assert dc.dist_for_import("jwt") == "pyjwt"
+    assert dc.dist_for_import("flask") == "flask"
+    assert dc.suggested_pins(["PIL", "yaml", "PIL"]) == ["pillow",
+                                                         "pyyaml"]
+    assert dc.suggested_pins(None) == []
+    # atomic deduped append
+    proj = tmp_path / "ws"
+    proj.mkdir()
+    (proj / "main.py").write_text("import yaml\nimport uvicorn\n",
+                                  encoding="utf-8")
+    (proj / "requirements.txt").write_text("PyYAML\n", encoding="utf-8")
+    res = dc.fix_requirements(str(proj), ["uvicorn", "pyyaml"])
+    assert res["ok"] and res["added"] == ["uvicorn"], res
+    assert res["target"].endswith("requirements.txt")
+    body = (proj / "requirements.txt").read_text(encoding="utf-8")
+    assert "PyYAML" in body and "uvicorn" in body
+    assert "# added by deps on" in body
+    # second run is a no-op (dedupe)
+    res2 = dc.fix_requirements(str(proj), ["uvicorn"])
+    assert res2["ok"] and res2["added"] == []
+    assert not os.path.exists(str(proj / "requirements.txt.tmp"))
+    # a missing requirements file is created on demand
+    bare = tmp_path / "bare-ws"
+    bare.mkdir()
+    res3 = dc.fix_requirements(str(bare), ["requests"])
+    assert res3["ok"] and res3["added"] == ["requests"]
+    assert (bare / "requirements.txt").is_file()
+    # app-level verb on a FRESH workspace: report + fix + re-check clean
+    proj2 = tmp_path / "ws2"
+    proj2.mkdir()
+    (proj2 / "main.py").write_text("import yaml\nimport httpx\n",
+                                   encoding="utf-8")
+    (proj2 / "requirements.txt").write_text("PyYAML\n", encoding="utf-8")
+    try:
+        root = tk.Tk(); root.withdraw()
+    except tk.TclError:
+        return
+    import dxn1_studio.config as cfgmod
+    monkey_tmp = tmp_path / "cfg"
+    monkey_tmp.mkdir()
+    import pytest  # noqa: F401
+    from dxn1_studio.app import DXN1Studio
+    cfgmod.CONFIG_DIR = str(monkey_tmp)
+    cfgmod.CONFIG_PATH = str(monkey_tmp / "config.json")
+    os.environ["HOME"] = str(tmp_path)
+    app = DXN1Studio(cfgmod.Config(), smoke_test=True, no_splash=True)
+    try:
+        logs = []
+        real_log = app.terminal.log
+        app.terminal.log = lambda s, *a, **k: logs.append(str(s))
+        app.project_dir = str(proj2)
+        app.handle_terminal_command("deps fix")
+        app.terminal.log = real_log
+        blob = "\n".join(logs)
+        assert "deps fix: added 1 pin(s)" in blob, blob
+        assert "httpx" in blob
+        # the report precedes the fix
+        assert "deps: 1 file(s) scanned" in blob
+        # re-check: nothing missing any more
+        rep = dc.check(str(proj2))
+        assert rep["missing"] == []
+        # nothing to fix → the honest line
+        logs.clear()
+        app.terminal.log = lambda s, *a, **k: logs.append(str(s))
+        app.handle_terminal_command("deps fix")
+        app.terminal.log = real_log
+        assert any("nothing to add" in s for s in logs), logs
+    finally:
+        try:
+            root.destroy()
+        except tk.TclError:
+            pass
+
+
+def test_help_verb(monkeypatch, tmp_path):
+    """DS2 v2.37 — `help <verb>`: exact verb rows, substring hits,
+    fuzzy fallback, the honest no-help line, and the unchanged bare
+    `help` full listing."""
+    from dxn1_studio.app import matching_help_rows
+    assert matching_help_rows("") == []
+    assert matching_help_rows(None) == []
+    exact = matching_help_rows("deps")
+    assert exact and exact[0][0] == "deps"
+    # verb word of a multi-word command
+    assert matching_help_rows("run")[0][0] == "run"
+    # substring across commands and descriptions
+    sess = matching_help_rows("session")
+    assert len(sess) >= 2 and all("session" in r[0].lower()
+                                  or "session" in r[1].lower()
+                                  for r in sess)
+    # fuzzy fallback: "dps" is a subsequence of "deps" but no substring
+    assert matching_help_rows("dps")[0][0] == "deps"
+    # honest empty for a query nothing can match
+    assert matching_help_rows("deplo") == []
+    # gibberish matches nothing
+    assert matching_help_rows("zzzqqqxxx") == []
+
+    import tkinter as tk
+    try:
+        root = tk.Tk(); root.withdraw()
+    except tk.TclError:
+        return
+    import dxn1_studio.config as cfgmod
+    monkeypatch.setattr(cfgmod, "CONFIG_DIR", str(tmp_path))
+    monkeypatch.setattr(cfgmod, "CONFIG_PATH",
+                        str(tmp_path / "config.json"))
+    monkeypatch.setenv("HOME", str(tmp_path))
+    from dxn1_studio.app import DXN1Studio, TERMINAL_HELP
+    app = DXN1Studio(cfgmod.Config(), smoke_test=True, no_splash=True)
+    try:
+        logs = []
+        real_log = app.terminal.log
+        app.terminal.log = lambda s, *a, **k: logs.append(str(s))
+        try:
+            app.handle_terminal_command("help deps")
+            assert any("cross-check imports" in s for s in logs), logs
+            logs.clear()
+            app.handle_terminal_command("help session")
+            assert sum("session" in s for s in logs) >= 2
+            logs.clear()
+            app.handle_terminal_command("help zzzqqqxxx")
+            assert any("No help for" in s for s in logs), logs
+            logs.clear()
+            app.handle_terminal_command("help")
+            assert any("Studio commands:" in s for s in logs)
+            assert sum(1 for s in logs if " — " in s) >= len(TERMINAL_HELP)
+        finally:
+            app.terminal.log = real_log
+    finally:
+        try:
+            root.destroy()
+        except tk.TclError:
+            pass

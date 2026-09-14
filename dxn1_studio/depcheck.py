@@ -23,6 +23,7 @@ import ast
 import os
 import re
 import sys
+import time
 
 try:  # py3.11+ — pyproject.toml [project] dependencies support
     import tomllib
@@ -70,6 +71,18 @@ ALIASES = {
     "python-jose": "jose",
     "python-multipart": "multipart",
 }
+
+# reverse map: import name -> the distribution we would pin. Ties
+# (three opencv dists ship cv2) resolved by an explicit hint so the
+# suggestion is the classic package, not an exotic variant.
+ALIASES_INV = {}
+for _dist in sorted(ALIASES):
+    ALIASES_INV.setdefault(ALIASES[_dist], _dist)
+ALIASES_INV.update({
+    "cv2": "opencv-python",
+    "google": "protobuf",
+    "pypdf": "pypdf",
+})
 
 _REQ_NAME = re.compile(r"^([A-Za-z0-9][A-Za-z0-9._-]*)")
 
@@ -200,6 +213,72 @@ def req_import_names(req_names):
     return out
 
 
+# -------------------------------------------------------------------- fix
+def dist_for_import(imp):
+    """Best-effort distribution name for an import name — the reverse
+    alias table first, else the name itself (PEP 503 canonical)."""
+    n = canonical(imp)
+    return ALIASES_INV.get(n, n)
+
+
+def suggested_pins(missing_imports):
+    """Distribution names worth pinning for missing imports — deduped,
+    sorted, canonical. ``PIL`` becomes ``pillow``, ``yaml`` becomes
+    ``pyyaml``, ``flask`` stays ``flask``."""
+    out = []
+    for imp in missing_imports or []:
+        d = dist_for_import(imp)
+        if d and d not in out:
+            out.append(d)
+    return sorted(out)
+
+
+def fix_requirements(root, pins, path=None):
+    """Append missing pins to a requirements file — atomically, never
+    overwriting content, never duplicating a line already present.
+
+    Returns ``{ok, added, target, error}``. When no requirements file
+    exists and ``path`` is not given, ``requirements.txt`` is created
+    at the workspace root. """
+    root = str(root)
+    if path:
+        target = str(path)
+    else:
+        found = find_requirements(root)
+        target = found[0] if found else os.path.join(root,
+                                                     "requirements.txt")
+    existing = set()
+    if os.path.isfile(target):
+        existing = {canonical(n) for n in read_requirements(target)}
+    fresh = sorted({canonical(p) for p in (pins or [])
+                    if p and canonical(p) not in existing})
+    if not fresh:
+        return {"ok": True, "added": [], "target": target, "error": ""}
+    stamp = time.strftime("%Y-%m-%d")
+    block = (f"# added by deps on {stamp}\n"
+             + "\n".join(fresh) + "\n")
+    try:
+        old = ""
+        if os.path.isfile(target):
+            with open(target, "r", encoding="utf-8",
+                      errors="replace") as fh:
+                old = fh.read()
+        if old and not old.endswith("\n"):
+            old += "\n"
+        tmp = target + ".tmp"
+        d = os.path.dirname(target)
+        if d:
+            os.makedirs(d, exist_ok=True)
+        with open(tmp, "w", encoding="utf-8") as fh:
+            fh.write(old + block)
+        os.replace(tmp, target)
+        return {"ok": True, "added": fresh, "target": target,
+                "error": ""}
+    except Exception as exc:  # noqa: BLE001 — honest failure
+        return {"ok": False, "added": [], "target": target,
+                "error": str(exc)}
+
+
 # ----------------------------------------------------------------- local
 def local_modules(root):
     """Import names the workspace itself provides: ``*.py`` stems and
@@ -325,4 +404,26 @@ if __name__ == "__main__":
     assert describe(rep2) == ""
     assert canonical("Pillow_-2") == "pillow-2"
     assert read_requirements("/no/such/file") == []
+    # fix lane: suggestions + atomic append + dedupe
+    assert dist_for_import("PIL") == "pillow"
+    assert dist_for_import("yaml") == "pyyaml"
+    assert dist_for_import("cv2") == "opencv-python"
+    assert dist_for_import("flask") == "flask"
+    assert suggested_pins(["PIL", "yaml", "PIL"]) == ["pillow",
+                                                       "pyyaml"]
+    reqp = os.path.join(base, "requirements.txt")
+    res = fix_requirements(base, ["uvicorn", "flask", "httpx"])
+    assert res["ok"] and res["added"] == ["httpx", "uvicorn"], res
+    body = open(reqp).read()
+    assert "uvicorn" in body and "# added by deps on" in body
+    res2 = fix_requirements(base, ["uvicorn"])
+    assert res2["ok"] and res2["added"] == [], res2
+    assert open(reqp).read().count("uvicorn") == 1
+    # a missing requirements file is created on demand
+    bare = os.path.join(base, "sub")
+    os.makedirs(bare, exist_ok=True)
+    res3 = fix_requirements(bare, ["requests"])
+    assert res3["ok"] and res3["added"] == ["requests"]
+    assert os.path.isfile(os.path.join(bare, "requirements.txt"))
+    assert not os.path.exists(reqp + ".tmp"), "atomic append leaves no tmp"
     print("depcheck.py self-test OK")

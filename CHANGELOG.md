@@ -4,6 +4,26 @@ All notable changes to DXN1 STUDIO. Format based on
 [Keep a Changelog](https://keepachangelog.com/); versioning is
 `MAJOR.MINOR.PATCH` while in **beta**.
 
+## [2.37.0] — 2026-09-14 · beta · "deps that fix themselves" (deps fix + help <verb>)
+
+### Added
+- **`deps fix`** — the dependency cross-check can now heal the file
+  it audits: missing imports are appended to `requirements*.txt` as
+  canonical PEP 503 pins (via the reverse alias table — `import
+  yaml` pins **pyyaml**, `from PIL import …` pins **pillow**,
+  `import cv2` pins **opencv-python**). The append is atomic
+  (temp-file + replace), marked with a `# added by deps on <date>`
+  comment, dedupes against everything already present, and creates
+  `requirements.txt` on demand when the workspace has none. A second
+  run is always an honest no-op.
+- **`help <verb>`** — the terminal answers per-verb questions:
+  exact command match first, then substring over commands and
+  descriptions, then the three closest fuzzy hits (so `help dps`
+  still finds `deps`); an unknown verb gets an honest "No help for"
+  line. The bare `help` listing is unchanged.
+- Workshop ▸ *Dependency Check — imports vs requirements…* menu
+  entry, next to Session Restore and Save Session Now.
+
 ## [2.36.0] — 2026-09-14 · beta · "keeps you current" (update heartbeat + deps cross-check)
 
 ### Added

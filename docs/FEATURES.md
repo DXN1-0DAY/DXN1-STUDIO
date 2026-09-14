@@ -440,6 +440,8 @@
 | Requirements parsing | `depcheck.read_requirements()` | Pins, extras, inline comments, `-r`/`-e`/`--hash` plumbing, `name @ URL` and VCS lines (`git+…`) handled; PEP 503 canonical names out |
 | Famous alias table | `depcheck.ALIASES` | Pillow→PIL, beautifulsoup4→bs4, PyYAML→yaml, scikit-learn→sklearn, python-dotenv→dotenv and ~25 more pairs so `PyYAML` satisfies `import yaml` |
 | Honest caveats | `depcheck.check()` | No requirements file → a notice instead of an error; unknown dist↔import pairs can false-positive, and the report says exactly that |
+| Self-healing pins | terminal `deps fix`, `depcheck.fix_requirements()` | Missing imports become canonical pins appended atomically to `requirements*.txt` (`# added by deps on <date>`) — the reverse alias table picks the distribution (`yaml` → `pyyaml`, `PIL` → `pillow`); deduped against existing lines, creates the file on demand, second run is a no-op |
+| Per-verb help | terminal `help <verb>`, `matching_help_rows()` | Exact command match, then substring over commands/descriptions, then the three closest fuzzy hits — `help dps` finds `deps`; unknown verbs get an honest "No help for" line |
 
 ## Session Restore
 

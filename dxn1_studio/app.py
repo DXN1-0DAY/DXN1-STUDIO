@@ -138,6 +138,28 @@ TERMINAL_HELP = (
 )
 
 
+def matching_help_rows(query, rows=TERMINAL_HELP):
+    """DS2 v2.37: help for one verb — exact command match first, then
+    substring over commands/descriptions, then the three closest
+    fuzzy hits. Empty when nothing matches."""
+    q = str(query or "").strip().lower()
+    if not q:
+        return []
+    exact = [r for r in rows if q == r[0] or q == r[0].split(" ")[0]]
+    if exact:
+        return exact
+    sub = [r for r in rows if q in r[0].lower() or q in r[1].lower()]
+    if sub:
+        return sub
+    try:
+        from . import fuzzy as _fz
+        scored = sorted(((_fz.score(q, r[0]), r) for r in rows),
+                        key=lambda t: t[0], reverse=True)
+        return [r for s, r in scored[:3] if s > 0]
+    except Exception:  # noqa: BLE001 — help must never raise
+        return []
+
+
 def extract_error_block(text, max_lines=60, max_chars=4000):
     """DS2 v2.6: pull the most recent error block out of terminal text.
 
@@ -1480,6 +1502,15 @@ class DXN1Studio:
             workshop_menu.add_command(
                 label="Save Session Now — snapshot tabs + cursors",
                 command=_save_session_menu)
+        except Exception:  # pragma: no cover — menu stays alive
+            pass
+        # DS2 v2.37: dependency check (defensive)
+        def _deps_menu():
+            self._run_depcheck()
+        try:
+            workshop_menu.add_command(
+                label="Dependency Check — imports vs requirements…",
+                command=_deps_menu)
         except Exception:  # pragma: no cover — menu stays alive
             pass
         workshop_menu.add_separator()
@@ -3053,6 +3084,16 @@ class DXN1Studio:
             for cmd, desc in TERMINAL_HELP:
                 self.terminal.log(f"  {cmd:<18} — {desc}")
             return
+        if low.startswith("help "):
+            # DS2 v2.37: help for one verb — `help deps`
+            rows = matching_help_rows(text[5:])
+            if rows:
+                for cmd, desc in rows:
+                    self.terminal.log(f"  {cmd:<18} — {desc}")
+            else:
+                self.terminal.log(f"No help for '{text[5:].strip()}' — "
+                                  "type `help` for the full list")
+            return
         if low == "clear":
             self.terminal.clear()
             return
@@ -3456,7 +3497,8 @@ class DXN1Studio:
             self.show_whatsnew()
             return
         if low == "deps" or low.startswith("deps "):
-            self._run_depcheck()
+            self._run_depcheck(
+                fix=(low == "deps fix" or low.startswith("deps fix ")))
             return
         if low in ("hub", "project hub"):
             self.open_hub()
@@ -4775,9 +4817,11 @@ class DXN1Studio:
         except Exception:  # noqa: BLE001 — dying root is fine
             pass
 
-    def _run_depcheck(self):
-        """DS2 v2.36: ``deps`` — imports vs requirements, in the
-        terminal. Pure static analysis, never executes project code."""
+    def _run_depcheck(self, fix=False):
+        """DS2 v2.36/v2.37: ``deps`` — imports vs requirements, in the
+        terminal. Pure static analysis, never executes project code.
+        With ``fix`` (``deps fix``) missing imports are appended to the
+        requirements file as canonical pins — atomically, deduped."""
         try:
             if not self.project_dir:
                 self.toast("No workspace open — deps needs one",
@@ -4792,6 +4836,24 @@ class DXN1Studio:
                 return
             for ln in text.splitlines():
                 self.terminal.log(ln)
+            if not fix:
+                return
+            pins = _dc.suggested_pins(rep.get("missing") or [])
+            if not pins:
+                self.terminal.log("deps fix: nothing to add — imports "
+                                  "and requirements agree")
+                return
+            res = _dc.fix_requirements(self.project_dir, pins)
+            if res.get("ok") and res.get("added"):
+                self.terminal.log(
+                    f"deps fix: added {len(res['added'])} pin(s) to "
+                    f"{os.path.basename(res.get('target') or '')}: "
+                    + ", ".join(res["added"]))
+            elif res.get("ok"):
+                self.terminal.log("deps fix: requirements already "
+                                  "cover every import")
+            else:
+                self.terminal.log(f"deps fix failed: {res.get('error', '')}")
         except Exception:
             errors.log_exception("deps check", quiet=True)
 

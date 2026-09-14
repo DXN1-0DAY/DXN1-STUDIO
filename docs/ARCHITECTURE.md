@@ -86,7 +86,7 @@ geometry memory).
 
 | Harness | What it proves |
 |---|---|
-| `python3 -m pytest tests/` | 79 unit groups over every pure engine |
+| `python3 -m pytest tests/` | 81 unit groups over every pure engine |
 | `scripts/smoke_v290.py` (Xvfb) | 155 live-window checks across 26 feature windows |
 | `scripts/smoke_v310.py` (Xvfb) | 20 checks: fuzzy highlight runs, per-buffer cursor memory, session cursor merge |
 | `scripts/smoke_v320.py` (Xvfb) | 18 checks: autosave write/switch gates, crash simulation + engine recovery boot, installer `--version` |
@@ -94,6 +94,7 @@ geometry memory).
 | `scripts/smoke_v340.py` (Xvfb) | 10 checks: HASHES.txt coverage + sha spot-check, Workshop menu entry, live delta pass (unchanged file skipped, no network) |
 | `scripts/smoke_v350.py` (Xvfb) | 20 checks: skip-this-version memory (decline records, auto-check quiet, manual overrides, e2e no-portal), atomic config save, engine-first boot restore with legacy fallback |
 | `scripts/smoke_v360.py` (Xvfb) | 16 checks: update heartbeat gating + junk clamp, live `deps` report (missing/unused/alias), `whatsnew` verb, settings round-trip (minutes → clamped seconds), palette fuzzy hits |
+| `scripts/smoke_v370.py` (Xvfb) | 15 checks: `deps fix` appends/dedupes/creates requirements.txt with alias-correct pins, second-run no-op, `help <verb>` exact/substring/fuzzy/honest-miss, bare `help` intact, Workshop Dependency Check entry |
 | `scripts/boot_qa.py` (Xvfb) | 20 checks booting the real studio: menus bound, palette entries live, modules import, scribe chip wired |
 | `python3 -m compileall -q dxn1_studio` | The tree always compiles — the gate before every tag |
 
