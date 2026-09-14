@@ -622,3 +622,15 @@
 | Workshop shortcut | Workshop ▸ *Save Session Now — snapshot tabs + cursors* | The session snapshot joins the menu bar next to Session Restore (palette, terminal and statusbar chip were already there) |
 | Skip this version | portal decline → `updater_skip_version` | "I'll stay on this version" remembers the exact release: the automatic boot check goes quiet for it (a one-line terminal note points to `update`), manual checks always open the portal, and any newer release nags again |
 | Atomic config saves | `Config.save()` | Preferences write to a temp file and `os.replace` into place — a crash mid-save can no longer tear config.json (which also silently destroyed the session records crash recovery depends on) |
+
+## The Translator Gets a Desk (v2.55.0)
+
+| Feature | Where | What it does |
+|---|---|---|
+| Translation desk | `langedit.PackEditor`, terminal `lang edit [code]`, Settings ▸ Look & feel ▸ *Edit a language pack…*, palette | Every English key beside its translation in one themed window: the EN source read-only above, the translation box below, list markers at a glance — ● translated, ○ missing (English shows through), ✕ stale (the source dropped the key), ⚠ translated but NOT highlight-safe. Typing commits into the working copy live, so the header meter (covered/total, %, missing, stale, unsafe) is always honest |
+| Filters + search | desk filter chips | All / Missing / Stale / Unsafe chips over the key list, plus a type-to-filter box across keys, translations and English source — a translator with an hour can work only the missing bucket and stop |
+| Live unsafe warning | desk detail pane | The v2.54 highlight contract as you type: a string that changes length under `.lower()` (İ → 'i̇' is two code points) gets an inline red warning, because every fuzzy highlight after it would shift. Flagged live, counted in the meter, ⚠ on the row |
+| Atomic user packs | `langedit.save_user_pack()` | Save writes `~/.dxn1-studio/lang/<code>.json` via temp file + `os.replace` — a crash mid-save cannot tear the pack. Empty translations mean "back to English" and are dropped; a pack that is the active language re-activates on save, so edited strings go live at once |
+| Seed from English | desk button | Fill every missing key with the English string — a starting point to edit down, the desk's version of `export_template`. Nothing is written until Save |
+| The chooser | `langedit.PackChooser` | Bare `lang edit` (or the Settings/palette door) opens the desk's door: one honest row per pack with live coverage from `pack_stats`, or name a new code to start clean. Junk codes get an inline reason; `en` is refused — the source of truth is translated FROM, not edited |
+| Honest verbosity | everywhere | Unknown codes through the verb are refused with the naming rules, stale keys are kept on save (the desk edits, it does not silently drop), and the launcher window that grows to fit its content: the AI quick-actions menu now accounts for its real requested width instead of clipping at a fixed 300px |

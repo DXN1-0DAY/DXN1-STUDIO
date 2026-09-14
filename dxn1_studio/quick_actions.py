@@ -420,7 +420,13 @@ class ActionsMenu(tk.Toplevel):
             self.update_idletasks()
             x = self.app.root.winfo_rootx() + 80
             y = self.app.root.winfo_rooty() + 120
-            self.geometry(f"{self.WIDTH}x{self.winfo_reqheight()}+{x}+{y}")
+            # v2.55 — width accounting: the launcher asks for 300 but
+            # its content wins the argument. Long action labels and a
+            # full hint bar can request MORE than WIDTH, and a fixed
+            # geometry clips them at the right edge; the window now
+            # grows to fit whatever it actually packed.
+            w = max(self.WIDTH, self.winfo_reqwidth())
+            self.geometry(f"{w}x{self.winfo_reqheight()}+{x}+{y}")
         except tk.TclError:
             pass
 

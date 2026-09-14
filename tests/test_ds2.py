@@ -6047,3 +6047,221 @@ def test_i18n_audit(tmp_path):
         except tk.TclError:
             pass
         monkeypatch.undo()
+
+
+def test_lang_edit(tmp_path):
+    """DS2 v2.55 — the translation desk: every English key beside its
+    translation, missing/stale/unsafe marked honestly, an atomic
+    save that writes a user pack overriding built-ins (live the
+    moment its pack is active), the İ highlight-safety contract as a
+    live typed warning, the chooser that refuses junk codes and the
+    source of truth itself, and the ActionsMenu that grows to fit
+    what it packed instead of clipping it."""
+    import tkinter as tk
+    try:
+        root = tk.Tk(); root.withdraw()
+    except tk.TclError:
+        return
+    import pytest
+    import json
+    import os
+    import dxn1_studio.config as cfgmod
+    from dxn1_studio import i18n as i18nmod
+    from dxn1_studio import langedit as le
+
+    # --- data layer: the pack's own strings vs the working dict
+    own = le.own_translations("es")
+    assert own and own.get("menu.file") == "Archivo"
+    assert le.own_translations("en") == {}          # en is the source
+    assert le.own_translations("no-such-pack") == {}
+    working = le.pack_working("es")
+    assert working["menu.file"] == "Archivo"
+    assert len(working) == len(i18nmod.EN)
+    # a user pack on disk layers over the built-in
+    monkeypatch = pytest.MonkeyPatch()
+    lang_dir = tmp_path / "lang"
+    lang_dir.mkdir()
+    (lang_dir / "es.json").write_text(
+        json.dumps({"menu.file": "MiArchivo"}), encoding="utf-8")
+    monkeypatch.setattr(i18nmod, "LANG_DIR", str(lang_dir))
+    assert le.own_translations("es")["menu.file"] == "MiArchivo"
+    monkeypatch.undo()
+
+    # --- the İ predicate: the v2.54 highlight contract, editable
+    assert le.is_unsafe("İstanbul") and not le.is_unsafe("")
+    assert not le.is_unsafe("plain ascii")
+
+    # --- save: atomic, empty values dropped, junk refused
+    monkeypatch.setattr(i18nmod, "LANG_DIR", str(lang_dir))
+    n = le.save_user_pack("desktest", {"menu.file": "Fichier",
+                                       "gone.key": "   ",
+                                       7: "no"})
+    assert n == 1
+    data = json.loads((lang_dir / "desktest.json").read_text(
+        encoding="utf-8"))
+    assert data == {"menu.file": "Fichier"}
+    counts = le.pack_counts("desktest")
+    assert counts["covered"] == 1 and counts["missing"] == \
+        len(i18nmod.EN) - 1 and counts["stale"] == 0
+    # junk codes never become filenames
+    assert not le.CODE_RE.match("Bad Code!")
+    assert le.CODE_RE.match("pt_br") and le.CODE_RE.match("ca")
+    monkeypatch.undo()
+
+    # --- through the real app: the desk, the verb, the chooser
+    monkeypatch = pytest.MonkeyPatch()
+    monkeypatch.setattr(cfgmod, "CONFIG_DIR", str(tmp_path / "cfg"))
+    monkeypatch.setattr(cfgmod, "CONFIG_PATH",
+                        str(tmp_path / "cfg" / "config.json"))
+    monkeypatch.setenv("HOME", str(tmp_path / "home"))
+    real_lang = tmp_path / "homelang"
+    monkeypatch.setattr(i18nmod, "LANG_DIR", str(real_lang))
+    from dxn1_studio.app import DXN1Studio, TERMINAL_HELP
+    app = DXN1Studio(cfgmod.Config(), smoke_test=True, no_splash=True)
+    try:
+        app.root.update()
+        # the help table knows the desk and the browser flattens it
+        verbs_list = [r[0] for r in TERMINAL_HELP]
+        assert "lang edit [code]" in verbs_list, verbs_list
+        # `lang edit es` opens the desk through the real dispatcher
+        app.handle_terminal_command("lang edit es")
+        app.root.update()
+        desks = [w for w in app.root.winfo_children()
+                 if isinstance(w, le.PackEditor)]
+        assert len(desks) == 1 and desks[0].code == "es"
+        desk = desks[0]
+        # header counts agree with pack_counts, list shows every key
+        assert "92/92" in desk.meter.cget("text") or \
+            "%d/%d" % (len(i18nmod.EN), len(i18nmod.EN)) \
+            in desk.meter.cget("text")
+        assert len(desk._row_keys) == len(i18nmod.EN)
+        # select a missing-able key, type, live commit
+        desk._select_index(0)
+        key = desk._current
+        desk.edit.delete("1.0", "end")
+        desk.edit.insert("1.0", "TranslationDeskValue")
+        desk._flush_edit()
+        assert desk.work[key] == "TranslationDeskValue"
+        # an unsafe string is flagged live, in so many words
+        desk.edit.delete("1.0", "end")
+        desk.edit.insert("1.0", "İçerik")
+        desk._flush_edit()
+        assert "NOT highlight-safe" in desk.warn.cget("text")
+        assert desk._state_of(key, "İçerik") == "unsafe"
+        # filters: unsafe bucket holds exactly the İ key now
+        desk._set_filter("unsafe")
+        assert desk._row_keys == [key], desk._row_keys
+        desk._set_filter("all")
+        # clear puts English back (missing again)
+        desk._clear_key()
+        assert key not in desk.work
+        # seed fills every missing key from English
+        desk.work.pop("menu.file", None)
+        desk._seed_from_en()
+        assert len([k for k in i18nmod.EN if k in desk.work]) == \
+            len(i18nmod.EN)
+        # (seed put the ENGLISH string back into menu.file — that is
+        # what seeding means; restore the built-in value for the
+        # save round-trip below)
+        desk.work["menu.file"] = "Archivo"
+        # save writes the user pack; with the pack ACTIVE it goes
+        # live at once
+        i18nmod.set_language("es")
+        assert desk._save() is True
+        saved = json.loads(
+            (real_lang / "es.json").read_text(encoding="utf-8"))
+        assert saved.get("menu.file") == "Archivo"  # built-in values
+        # select menu.file's row the way a click would, then retype
+        desk._select_index(desk._row_keys.index("menu.file"))
+        assert desk._current == "menu.file"
+        desk.edit.delete("1.0", "end")
+        desk.edit.insert("1.0", "DeskRules")
+        desk._flush_edit()
+        assert desk.work["menu.file"] == "DeskRules"
+        desk._save()
+        assert i18nmod.tr("menu.file") == "DeskRules"
+        i18nmod.set_language("en")
+        desk._close()
+        # `lang edit` with no code opens the chooser
+        app.handle_terminal_command("lang edit")
+        app.root.update()
+        choosers = [w for w in app.root.winfo_children()
+                    if isinstance(w, le.PackChooser)]
+        assert len(choosers) == 1, choosers
+        chooser = choosers[0]
+        rows = chooser._rows_frame.winfo_children()
+        assert len(rows) >= 7          # es fr de pt zh hi ja, en excluded
+        # junk code → honest inline error, no desk opened
+        before = len([w for w in app.root.winfo_children()
+                      if isinstance(w, le.PackEditor)])
+        chooser.code_var.set("Bad Code!")
+        assert chooser._open_new() is False
+        assert "not a pack code" in chooser.err.cget("text")
+        # the source of truth is not edited
+        chooser.code_var.set("en")
+        assert chooser._open_new() is False
+        assert "source of truth" in chooser.err.cget("text")
+        # a valid new code opens a fresh desk (empty work)
+        chooser.code_var.set("tlh")
+        assert chooser._open_new() is True
+        app.root.update()
+        desks = [w for w in app.root.winfo_children()
+                 if isinstance(w, le.PackEditor)]
+        assert len(desks) == before + 1 and desks[-1].code == "tlh"
+        assert desks[-1].work == {}    # a clean slate
+        desks[-1]._close()
+        chooser._close()
+        # junk and en through the verb, honestly
+        logs = []
+        _old_log = app.terminal.log
+
+        def _rec(m, *a, **k):
+            logs.append(str(m))
+        app.terminal.log = _rec
+        try:
+            app.handle_terminal_command("lang edit NOPE!!")
+            app.handle_terminal_command("lang edit en")
+        finally:
+            app.terminal.log = _old_log
+        assert any("not a pack code" in m for m in logs), logs
+        assert any("translated FROM" in m for m in logs), logs
+        # ActionsMenu width accounting: grows to fit its content
+        from dxn1_studio import quick_actions as qa
+        menu = qa.ActionsMenu(app)
+        app.root.update()
+        try:
+            w_geo = int(menu.geometry().split("x")[0])
+            assert w_geo >= menu.winfo_reqwidth(), (w_geo,
+                                                    menu.winfo_reqwidth())
+            assert w_geo >= qa.ActionsMenu.WIDTH
+        finally:
+            try:
+                menu.destroy()
+            except tk.TclError:
+                pass
+        # source agreement: the desk is written where it runs
+        base = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+        with open(os.path.join(base, "dxn1_studio", "langedit.py"),
+                  encoding="utf-8") as fh:
+            lesrc = fh.read()
+        assert "def save_user_pack" in lesrc and "os.replace" in lesrc
+        assert "NOT highlight-safe" in lesrc
+        with open(os.path.join(base, "dxn1_studio", "app.py"),
+                  encoding="utf-8") as fh:
+            src = fh.read()
+        assert '"lang edit [code]"' in src
+        assert "Edit a language pack…" in src
+        with open(os.path.join(base, "dxn1_studio", "quick_actions.py"),
+                  encoding="utf-8") as fh:
+            qsrc = fh.read()
+        assert "w = max(self.WIDTH, self.winfo_reqwidth())" in qsrc
+    finally:
+        try:
+            app.root.destroy()
+        except tk.TclError:
+            pass
+        try:
+            root.destroy()
+        except tk.TclError:
+            pass
+        monkeypatch.undo()

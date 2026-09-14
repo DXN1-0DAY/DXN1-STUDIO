@@ -1,0 +1,739 @@
+"""DXN1 STUDIO — the translation desk (DS2 v2.55).
+
+A real desk for pack translators. Until now a community pack meant
+hand-writing JSON against a key list you had to scrape out of the
+audit; the desk shows every English key beside its translation,
+marks what is missing, stale or highlight-unsafe, and saves a user
+pack to ``~/.dxn1-studio/lang/<code>.json`` — the file
+``i18n.set_language`` already layers over the built-ins, so saved
+strings go live the moment their pack is active.
+
+The model is the audit's (v2.54), restated as editing:
+
+- **translated** — the pack carries its own string for the key;
+- **missing** — the pack says nothing; the studio falls back to
+  English at runtime (shown as English in the desk, marked ○);
+- **stale** — the pack carries a key the English source no longer
+  names (kept on save: the desk edits, it does not silently drop);
+- **unsafe** — the string changes length under ``str.lower()``
+  (İ lowercases to two code points), which is exactly the property
+  fuzzy-match highlight positions assume — typed live, flagged
+  live, counted in the header.
+
+Never raises: every callback is guarded, because a desk that breaks
+typing is worse than no desk.
+"""
+
+import json
+import os
+import re
+import tkinter as tk
+
+from . import i18n as _i18n
+from .theme import FONT_UI, FONT_MONO
+
+# pack codes name a JSON file on disk — keep them filename-honest
+CODE_RE = re.compile(r"^[a-z0-9][a-z0-9_-]{0,15}$")
+
+# listbox markers — one glyph, read at a glance
+_M_TRANSLATED = "●"   # the pack speaks for itself
+_M_MISSING = "○"      # English shows through
+_M_STALE = "✕"        # the source dropped this key
+_M_UNSAFE = "⚠"       # translated, and NOT highlight-safe
+
+
+# ---------------------------------------------------------------- data
+def own_translations(code):
+    """The pack's OWN strings, no English fill: built-in values with
+    the user pack on disk layered over — exactly what
+    ``i18n.set_language`` layers on top of EN. A fresh (or junk)
+    code answers ``{}``. Never raises."""
+    try:
+        code = (code or "").lower()
+    except Exception:  # noqa: BLE001 — junk code, empty pack
+        return {}
+    own = {}
+    if code and code != "en" and code in _i18n.PACKS:
+        own.update(_i18n.PACKS[code])
+    own.update(_read_user_pack(code))
+    return own
+
+
+def pack_working(code):
+    """The effective runtime dict for a code — EN with the pack's
+    own strings on top (what ``tr()`` answers from). Never the live
+    pack object: a copy, safe to mutate."""
+    working = dict(_i18n.EN)
+    working.update(own_translations(code))
+    return working
+
+
+def _user_pack_path(code):
+    return os.path.join(_i18n.LANG_DIR, "%s.json" % code)
+
+
+def _read_user_pack(code):
+    """Strings from ``~/.dxn1-studio/lang/<code>.json``, or ``{}``."""
+    try:
+        with open(_user_pack_path(code), "r", encoding="utf-8") as fh:
+            data = json.load(fh)
+        if isinstance(data, dict):
+            return {str(k): str(v) for k, v in data.items()
+                    if isinstance(k, str) and isinstance(v, str)}
+    except (OSError, ValueError, TypeError):
+        pass
+    return {}
+
+
+def is_unsafe(text):
+    """v2.54's highlight contract, as a predicate: does this string
+    change length under ``str.lower()``? (İ → 'i̇' is the classic.)
+    Empty strings are safe by definition — there is nothing to
+    highlight."""
+    try:
+        return bool(text) and len(text.lower()) != len(text)
+    except Exception:  # noqa: BLE001 — junk is not a crash
+        return False
+
+
+def save_user_pack(code, mapping):
+    """Write a user pack atomically (tmp file + ``os.replace``) and
+    return the number of strings written. Empty/whitespace values
+    are dropped — an empty translation means "back to English" —
+    and non-string pairs are refused. ``LANG_DIR`` is created if
+    missing; OSError reaches the caller, which reports it honestly."""
+    clean = {str(k): str(v) for k, v in (mapping or {}).items()
+             if isinstance(k, str) and isinstance(v, str) and v.strip()}
+    directory = _i18n.LANG_DIR
+    if not os.path.isdir(directory):
+        os.makedirs(directory, exist_ok=True)
+    path = _user_pack_path(code)
+    tmp = path + ".tmp"
+    with open(tmp, "w", encoding="utf-8") as fh:
+        json.dump(clean, fh, ensure_ascii=False, indent=2, sort_keys=True)
+        fh.write("\n")
+    os.replace(tmp, path)
+    return len(clean)
+
+
+def pack_counts(code):
+    """The desk's header numbers for a code, computed the same way
+    ``i18n.pack_stats`` computes them: covered, total, missing,
+    stale, unsafe. Never raises."""
+    en = _i18n.EN
+    own = own_translations(code)
+    in_en = set(en)
+    covered = len([k for k in own if k in in_en])
+    stale = len([k for k in own if k not in in_en])
+    unsafe = len([k for k, v in own.items() if is_unsafe(v)])
+    total = len(en)
+    pct = int(round(covered * 100.0 / total)) if total else 100
+    return {"covered": covered, "total": total, "pct": pct,
+            "missing": total - covered, "stale": stale,
+            "unsafe": unsafe}
+
+
+# ---------------------------------------------------------------- desk
+class PackEditor(tk.Toplevel):
+    """The desk itself: every English key beside its translation,
+    filter chips (All / Missing / Stale / Unsafe), a search box, a
+    live unsafe warning and an atomic Save. Ctrl+S saves, Esc
+    closes; selection loads the detail pane; typing commits into the
+    working copy at once, so the meter is always honest."""
+
+    def __init__(self, app, code, on_log=None):
+        self.app = app
+        self.code = (code or "en").lower()
+        t = self.theme = app.theme
+        self.on_log = on_log
+        super().__init__(app.root)
+        self.title("Translation desk — %s" % self.code)
+        self.configure(bg=t["bg"])
+        self.transient(app.root)
+        self.resizable(True, True)
+        self.minsize(560, 460)
+        self.geometry("680x560")
+
+        # working copy: the pack's own strings, edited in place
+        self.work = own_translations(self.code)
+        self._filter = "all"
+        self._current = None          # key shown in the detail pane
+
+        self._build_header()
+        self._build_filters()
+        self._build_lists()
+        self._build_detail()
+
+        self.bind("<Escape>", lambda e: self._close())
+        self.bind("<Control-s>", lambda e: self._save())
+        self.bind("<Destroy>", self._on_destroy, add="+")
+        try:
+            from . import hints
+            self._hintbar = hints.hint_bar(
+                self, t,
+                pairs=(("Ctrl+S", "save pack"),),
+                notes=("click a key, type, Ctrl+S writes the pack",))
+        except Exception:  # noqa: BLE001 — garnish
+            self._hintbar = None
+
+        self._refresh()
+        self._log("translation desk open for '%s' — %s"
+                  % (self.code, self._meter_text()))
+        try:
+            self.listbox.focus_set()
+        except Exception:  # noqa: BLE001 — focus is garnish
+            pass
+
+    # ---------------------------------------------------------- build
+    def _build_header(self):
+        t = self.theme
+        head = tk.Frame(self, bg=t["bg"])
+        head.pack(fill=tk.X, padx=14, pady=(12, 0))
+        name = _i18n.LANG_NAMES.get(self.code, self.code)
+        kind = ("user pack" if os.path.exists(_user_pack_path(self.code))
+                else ("built-in pack"
+                      if self.code in _i18n.PACKS else "new pack"))
+        tk.Label(head, text="TRANSLATION DESK",
+                 bg=t["bg"], fg=t["text"],
+                 font=(FONT_UI, 11, "bold")).pack(anchor="w")
+        tk.Label(head, text="%s · %s · %s"
+                 % (self.code, name, kind),
+                 bg=t["bg"], fg=t["text_muted"],
+                 font=(FONT_UI, 9)).pack(anchor="w")
+        self.meter = tk.Label(head, text="", bg=t["bg"],
+                              fg=t["text_secondary"],
+                              font=(FONT_UI, 9))
+        self.meter.pack(anchor="w", pady=(2, 4))
+
+    def _build_filters(self):
+        t = self.theme
+        row = tk.Frame(self, bg=t["bg"])
+        row.pack(fill=tk.X, padx=14)
+        self._chips = {}
+        for key, label in (("all", "All"), ("missing", "Missing"),
+                           ("stale", "Stale"), ("unsafe", "Unsafe")):
+            chip = tk.Label(row, text=label, bg=t["card"],
+                            fg=t["text"], cursor="hand2",
+                            font=(FONT_UI, 9), padx=10, pady=3)
+            chip.pack(side=tk.LEFT, padx=(0, 6))
+            chip.bind("<Button-1>",
+                      lambda e, k=key: self._set_filter(k))
+            self._chips[key] = chip
+        self.search_var = tk.StringVar()
+        entry = tk.Entry(row, textvariable=self.search_var,
+                         bg=t["editor"], fg=t["text"],
+                         insertbackground=t["text"], relief=tk.FLAT,
+                         font=(FONT_MONO, 9), highlightthickness=1,
+                         highlightbackground=t["border"],
+                         highlightcolor=t.accent, width=18)
+        entry.pack(side=tk.RIGHT)
+        entry.bind("<KeyRelease>", lambda e: self._refresh_rows())
+        self.search_entry = entry
+        self._paint_chips()
+
+    def _build_lists(self):
+        t = self.theme
+        wrap = tk.Frame(self, bg=t["card"], highlightthickness=1,
+                        highlightbackground=t["card_border"])
+        wrap.pack(fill=tk.BOTH, expand=True, padx=14, pady=(8, 6))
+        bar = tk.Scrollbar(wrap, orient=tk.VERTICAL)
+        self.listbox = tk.Listbox(
+            wrap, yscrollcommand=bar.set, bg=t["editor"], fg=t["text"],
+            selectbackground=t.accent, selectforeground="#ffffff",
+            relief=tk.FLAT, font=(FONT_MONO, 9), activestyle="none",
+            exportselection=False)
+        bar.config(command=self.listbox.yview)
+        bar.pack(side=tk.RIGHT, fill=tk.Y)
+        self.listbox.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
+        self.listbox.bind("<<ListboxSelect>>", self._on_select)
+
+    def _build_detail(self):
+        t = self.theme
+        pane = tk.Frame(self, bg=t["bg"])
+        pane.pack(fill=tk.X, padx=14, pady=(0, 6))
+        tk.Label(pane, text="EN SOURCE", bg=t["bg"],
+                 fg=t["text_muted"],
+                 font=(FONT_UI, 8, "bold")).pack(anchor="w")
+        self.source = tk.Text(pane, height=2, wrap=tk.WORD,
+                              bg=t["editor"], fg=t["text_secondary"],
+                              relief=tk.FLAT, font=(FONT_MONO, 9),
+                              highlightthickness=1,
+                              highlightbackground=t["border"],
+                              state=tk.DISABLED)
+        self.source.pack(fill=tk.X, pady=(2, 6))
+        tk.Label(pane, text="TRANSLATION", bg=t["bg"],
+                 fg=t["text_muted"],
+                 font=(FONT_UI, 8, "bold")).pack(anchor="w")
+        self.edit = tk.Text(pane, height=3, wrap=tk.WORD,
+                            bg=t["editor"], fg=t["text"],
+                            insertbackground=t["text"],
+                            relief=tk.FLAT, font=(FONT_MONO, 10),
+                            highlightthickness=1,
+                            highlightbackground=t["border"],
+                            highlightcolor=t.accent)
+        self.edit.pack(fill=tk.X, pady=(2, 2))
+        self.edit.bind("<KeyRelease>", lambda e: self._flush_edit())
+        self.warn = tk.Label(pane, text="", bg=t["bg"], fg="#f85149",
+                             font=(FONT_UI, 8), anchor="w",
+                             wraplength=600, justify="left")
+        self.warn.pack(anchor="w")
+
+        btns = tk.Frame(pane, bg=t["bg"])
+        btns.pack(fill=tk.X, pady=(4, 0))
+        clear = tk.Label(btns, text="Clear key", bg=t["card"],
+                         fg=t["text"], cursor="hand2",
+                         font=(FONT_UI, 9), padx=10, pady=4)
+        clear.pack(side=tk.LEFT)
+        clear.bind("<Button-1>", lambda e: self._clear_key())
+        seed = tk.Label(btns, text="Seed missing from English",
+                        bg=t["card"], fg=t["text"], cursor="hand2",
+                        font=(FONT_UI, 9), padx=10, pady=4)
+        seed.pack(side=tk.LEFT, padx=(8, 0))
+        seed.bind("<Button-1>", lambda e: self._seed_from_en())
+        self.save_btn = tk.Label(btns, text="Save pack", bg=t.accent,
+                                 fg="#ffffff", cursor="hand2",
+                                 font=(FONT_UI, 9, "bold"),
+                                 padx=14, pady=4)
+        self.save_btn.pack(side=tk.RIGHT)
+        self.save_btn.bind("<Button-1>", lambda e: self._save())
+        self.status = tk.Label(btns, text="", bg=t["bg"],
+                               fg=t["text_muted"],
+                               font=(FONT_UI, 8), anchor="e")
+        self.status.pack(side=tk.RIGHT, padx=(0, 10))
+
+    # ---------------------------------------------------------- state
+    def _rows(self):
+        """The keys the list should show under the current filter and
+        search, in stable order: EN source order, then stale keys."""
+        q = ""
+        try:
+            q = self.search_var.get().strip().lower()
+        except Exception:  # noqa: BLE001 — no search yet
+            pass
+        en = _i18n.EN
+        out = []
+        for key in en:
+            val = self.work.get(key)
+            state = self._state_of(key, val)
+            if not self._filter_ok(key, val, state):
+                continue
+            if q and q not in key.lower() \
+                    and q not in str(val or "").lower() \
+                    and q not in str(en[key]).lower():
+                continue
+            out.append(key)
+        for key in sorted(k for k in self.work if k not in en):
+            val = self.work.get(key)
+            state = self._state_of(key, val)
+            if not self._filter_ok(key, val, state):
+                continue
+            if q and q not in key.lower() \
+                    and q not in str(val or "").lower():
+                continue
+            out.append(key)
+        return out
+
+    @staticmethod
+    def _state_of(key, val):
+        """One of translated / missing / stale / unsafe — unsafe wins
+        as the marker (it is the thing to fix first)."""
+        if val is None:
+            return "missing" if key in _i18n.EN else "hidden"
+        if is_unsafe(val):
+            return "unsafe"
+        if key not in _i18n.EN:
+            return "stale"
+        return "translated"
+
+    def _filter_ok(self, key, val, state):
+        f = self._filter
+        if f == "all":
+            return state != "hidden"
+        if f == "missing":
+            return state == "missing"
+        if f == "stale":
+            return state == "stale"
+        if f == "unsafe":
+            return state == "unsafe"
+        return state != "hidden"
+
+    def _marker(self, state):
+        return {"translated": _M_TRANSLATED, "missing": _M_MISSING,
+                "stale": _M_STALE, "unsafe": _M_UNSAFE}.get(state, "○")
+
+    def _meter_text(self):
+        c = pack_counts(self.code)
+        return ("%d/%d keys · %d%% · %d missing · %d stale · "
+                "%d unsafe" % (c["covered"], c["total"], c["pct"],
+                               c["missing"], c["stale"], c["unsafe"]))
+
+    # -------------------------------------------------------- actions
+    def _set_filter(self, key):
+        self._filter = key
+        self._paint_chips()
+        self._refresh_rows()
+
+    def _paint_chips(self):
+        t = self.theme
+        for key, chip in self._chips.items():
+            active = key == self._filter
+            try:
+                chip.config(bg=t.accent if active else t["card"],
+                            fg="#ffffff" if active else t["text"])
+            except Exception:  # noqa: BLE001 — a dying chip is fine
+                pass
+
+    def _refresh(self):
+        """Recompute meter + rows + detail from the working copy."""
+        try:
+            self.meter.config(text=self._meter_text())
+        except Exception:  # noqa: BLE001 — a dying window is fine
+            pass
+        self._refresh_rows()
+
+    def _refresh_rows(self):
+        try:
+            rows = self._rows()
+            self.listbox.delete(0, tk.END)
+            for key in rows:
+                state = self._state_of(key, self.work.get(key))
+                self.listbox.insert(tk.END,
+                                    "%s  %s" % (self._marker(state), key))
+            self._row_keys = rows
+            if rows:
+                if self._current not in rows:
+                    self._select_index(0)
+                else:
+                    self._select_index(rows.index(self._current),
+                                        quiet=True)
+            else:
+                self._current = None
+                self._load_detail(None)
+        except Exception:  # noqa: BLE001 — the desk never raises
+            pass
+
+    def _select_index(self, idx, quiet=False):
+        try:
+            self.listbox.selection_clear(0, tk.END)
+            self.listbox.selection_set(idx)
+            self.listbox.see(idx)
+            if not quiet:
+                self._on_select()
+        except Exception:  # noqa: BLE001
+            pass
+
+    def _on_select(self, _event=None):
+        try:
+            sel = self.listbox.curselection()
+            key = self._row_keys[sel[0]] if sel else None
+            self._load_detail(key)
+        except Exception:  # noqa: BLE001 — the desk never raises
+            pass
+
+    def _load_detail(self, key):
+        """Put a key's EN source and working translation in the detail
+        pane (empty translation box for missing keys — the translator
+        starts from nothing, not from English)."""
+        self._current = key
+        try:
+            self.source.config(state=tk.NORMAL)
+            self.source.delete("1.0", tk.END)
+            self.source.insert("1.0", _i18n.EN.get(key, "")
+                               if key in _i18n.EN
+                               else "(not in the English source — stale)")
+            self.source.config(state=tk.DISABLED)
+            self.edit.delete("1.0", tk.END)
+            self.edit.insert("1.0", self.work.get(key, ""))
+            self._warn_check()
+        except Exception:  # noqa: BLE001
+            pass
+
+    def _flush_edit(self):
+        """Commit the translation box into the working copy — live,
+        on every keystroke; an empty box means the key goes missing
+        again. Newlines flatten to spaces (packs are single-line
+        strings). Then the meter and markers stay honest."""
+        key = self._current
+        if key is None:
+            return
+        try:
+            raw = self.edit.get("1.0", "end-1c")
+            val = " ".join(raw.split("\n")).strip()
+            if val:
+                self.work[key] = val
+            else:
+                self.work.pop(key, None)
+            self._warn_check()
+            self._refresh_rows()
+            self.meter.config(text=self._meter_text())
+        except Exception:  # noqa: BLE001 — the desk never raises
+            pass
+
+    def _warn_check(self):
+        """The live unsafe flag: this string changes length under
+        .lower() and would shift fuzzy highlights after it."""
+        try:
+            key = self._current
+            val = self.work.get(key) if key else None
+            if key and val and is_unsafe(val):
+                self.warn.config(
+                    text="⚠ NOT highlight-safe — this string changes "
+                         "length under .lower() (like İstanbul), so "
+                         "every fuzzy highlight after it would shift")
+            else:
+                self.warn.config(text="")
+        except Exception:  # noqa: BLE001
+            pass
+
+    def _clear_key(self):
+        """Drop the selected key from the working copy — the pack
+        stops speaking for it and English shows through again."""
+        key = self._current
+        if not key:
+            return
+        try:
+            self.work.pop(key, None)
+            self._refresh()
+            self._load_detail(key)
+            self._log("cleared '%s' — English shows through again"
+                      % key)
+        except Exception:  # noqa: BLE001
+            pass
+
+    def _seed_from_en(self):
+        """Fill every missing key with the English string — a starting
+        point to edit down, the desk's version of export_template.
+        Nothing is written until Save."""
+        try:
+            seeded = 0
+            for key, val in _i18n.EN.items():
+                if key not in self.work:
+                    self.work[key] = val
+                    seeded += 1
+            self._refresh()
+            self._log("seeded %d missing key(s) from English — edit "
+                      "them down and Ctrl+S" % seeded)
+            try:
+                self.status.config(
+                    text="seeded %d" % seeded)
+            except Exception:  # noqa: BLE001
+                pass
+        except Exception:  # noqa: BLE001 — the desk never raises
+            pass
+
+    def _save(self, _event=None):
+        """Write the working copy as a user pack (atomic). If this
+        pack is the active language it re-activates at once, so
+        saved strings go live immediately."""
+        try:
+            count = save_user_pack(self.code, self.work)
+            if _i18n.current() == self.code:
+                _i18n.set_language(self.code)
+            try:
+                self.status.config(text="saved %d strings" % count)
+            except Exception:  # noqa: BLE001
+                pass
+            self._log("saved %d strings to %s — a user pack that "
+                      "overrides built-ins%s"
+                      % (count, _user_pack_path(self.code),
+                         " (re-activated, live now)"
+                         if _i18n.current() == self.code else ""))
+            self._refresh()
+            return True
+        except Exception as exc:  # noqa: BLE001 — report, don't raise
+            try:
+                self.status.config(text="save failed")
+            except Exception:  # noqa: BLE001
+                pass
+            self._log("save failed: %s" % exc)
+            return False
+
+    def _log(self, message):
+        try:
+            if self.on_log:
+                self.on_log(message)
+        except Exception:  # noqa: BLE001 — logging is garnish
+            pass
+
+    def _close(self):
+        try:
+            self.destroy()
+        except Exception:  # noqa: BLE001 — dying root is fine
+            pass
+
+    def _on_destroy(self, _event=None):
+        pass  # nothing to clean: the working copy lives only here
+
+
+# ------------------------------------------------------------- chooser
+class PackChooser(tk.Toplevel):
+    """The desk's door: pick an existing pack to edit (built-ins and
+    user packs, with live coverage from pack_stats), or name a new
+    code and start from a clean slate. Esc closes; a junk code gets
+    an honest inline error."""
+
+    def __init__(self, app, on_log=None):
+        self.app = app
+        t = self.theme = app.theme
+        self.on_log = on_log
+        super().__init__(app.root)
+        self.title("Translation desk — choose a pack")
+        self.configure(bg=t["card"])
+        self.transient(app.root)
+        self.resizable(False, False)
+
+        wrap = tk.Frame(self, bg=t["card"], highlightthickness=1,
+                        highlightbackground=t["card_border"])
+        wrap.pack(fill=tk.BOTH, expand=True, padx=1, pady=1)
+        tk.Label(wrap, text="TRANSLATION DESK", bg=t["card"],
+                 fg=t["text"], font=(FONT_UI, 11,
+                                     "bold")).pack(anchor="w",
+                                                   padx=16,
+                                                   pady=(14, 2))
+        tk.Label(wrap, text="Pick a pack to edit, or name a new code. "
+                            "Saved strings become a user pack that "
+                            "overrides built-ins.",
+                 bg=t["card"], fg=t["text_muted"], font=(FONT_UI, 8),
+                 wraplength=320, justify="left",
+                 anchor="w").pack(anchor="w", padx=16, pady=(0, 8))
+
+        self._rows_frame = tk.Frame(wrap, bg=t["card"])
+        self._rows_frame.pack(fill=tk.X, padx=16)
+        self._paint_packs()
+
+        sep = tk.Frame(wrap, bg=t["card_border"], height=1)
+        sep.pack(fill=tk.X, padx=16, pady=8)
+
+        newrow = tk.Frame(wrap, bg=t["card"])
+        newrow.pack(fill=tk.X, padx=16, pady=(0, 4))
+        tk.Label(newrow, text="New pack code:", bg=t["card"],
+                 fg=t["text"], font=(FONT_UI, 9)).pack(side=tk.LEFT)
+        self.code_var = tk.StringVar()
+        self.entry = tk.Entry(newrow, textvariable=self.code_var,
+                              bg=t["editor"], fg=t["text"],
+                              insertbackground=t["text"],
+                              relief=tk.FLAT, font=(FONT_MONO, 10),
+                              highlightthickness=1,
+                              highlightbackground=t["border"],
+                              highlightcolor=t.accent, width=12)
+        self.entry.pack(side=tk.LEFT, padx=(8, 0), ipady=3)
+        go = tk.Label(newrow, text="Open desk", bg=t.accent,
+                      fg="#ffffff", cursor="hand2",
+                      font=(FONT_UI, 9, "bold"), padx=12, pady=4)
+        go.pack(side=tk.LEFT, padx=(8, 0))
+        go.bind("<Button-1>", lambda e: self._open_new())
+        self.err = tk.Label(wrap, text="", bg=t["card"], fg="#f85149",
+                            font=(FONT_UI, 8), anchor="w",
+                            wraplength=320, justify="left")
+        self.err.pack(anchor="w", padx=16, pady=(2, 10))
+
+        self.bind("<Escape>", lambda e: self._close())
+        self.bind("<Return>", lambda e: self._open_new())
+        try:
+            from . import hints
+            self._hintbar = hints.hint_bar(self, t,
+                                           pairs=(("Return",
+                                                   "open desk"),))
+        except Exception:  # noqa: BLE001 — garnish
+            self._hintbar = None
+        try:
+            self.entry.focus_set()
+        except Exception:  # noqa: BLE001 — focus is garnish
+            pass
+
+    def _paint_packs(self):
+        """One honest row per pack (English excluded — the source of
+        truth is not edited, it is translated FROM)."""
+        try:
+            for w in self._rows_frame.winfo_children():
+                w.destroy()
+            t = self.theme
+            stats = [s for s in _i18n.pack_stats() if s["code"] != "en"]
+            for s in stats:
+                kind = "user" if s["user"] else "built-in"
+                label = ("%s · %s · %s · %d%%"
+                         % (s["code"], s["name"], kind, s["pct"]))
+                if s["error"]:
+                    label += " · unreadable"
+                row = tk.Label(self._rows_frame, text=label,
+                               bg=t["card"], fg=t["text"],
+                               cursor="hand2", font=(FONT_UI, 9),
+                               anchor="w", padx=8, pady=4)
+                row.pack(fill=tk.X, pady=1)
+                row.bind("<Enter>", lambda e, w=row:
+                         w.config(bg=t.accent))
+                row.bind("<Leave>", lambda e, w=row:
+                         w.config(bg=t["card"]))
+                row.bind("<Button-1>", lambda e, c=s["code"]:
+                         self._open(c))
+        except Exception:  # noqa: BLE001 — the door never jams
+            pass
+
+    def _open(self, code):
+        try:
+            PackEditor(self.app, code, on_log=self.on_log)
+            self._close()
+            return True
+        except Exception:  # noqa: BLE001 — a desk that won't open
+            try:
+                self.err.config(text="could not open the desk for '%s'"
+                                     % code)
+            except Exception:  # noqa: BLE001
+                pass
+            return False
+
+    def _open_new(self, _event=None):
+        """Validate the typed code honestly: lowercase letters,
+        digits, _ or - (it becomes a filename). An existing code
+        just opens that pack — the desk edits, it does not clobber."""
+        try:
+            code = self.code_var.get().strip().lower()
+            if not code:
+                self.err.config(text="name a code first — lowercase "
+                                     "letters, digits, _ or -")
+                return False
+            if not CODE_RE.match(code):
+                self.err.config(text="'%s' is not a pack code — "
+                                     "lowercase letters, digits, _ or "
+                                     "- (e.g. ca, pt_br)" % code)
+                return False
+            if code == "en":
+                self.err.config(text="English is the source of truth — "
+                                     "it is translated FROM, not edited")
+                return False
+            return self._open(code)
+        except Exception:  # noqa: BLE001 — the door never jams
+            return False
+
+    def _close(self):
+        try:
+            self.destroy()
+        except Exception:  # noqa: BLE001 — dying root is fine
+            pass
+
+
+# ---------------------------------------------------------------- open
+def open_pack_editor(app, code=None, on_log=None):
+    """Open the translation desk: with ``code`` the editor at once,
+    without it the chooser first. Returns the Toplevel (chooser or
+    editor) or None. Never raises — callers can fire-and-forget."""
+    try:
+        if code is None:
+            return PackChooser(app, on_log=on_log)
+        return PackEditor(app, code, on_log=on_log)
+    except Exception:  # noqa: BLE001 — the desk must never break typing
+        return None
+
+
+def palette_commands(app):
+    """Palette-ready command tuples (the quick_actions convention)."""
+    return [("Edit a language pack…", "DS2",
+             lambda: open_pack_editor(
+                 app, on_log=lambda m: _log_to(app, m)))]
+
+
+def _log_to(app, message):
+    try:
+        app.terminal.log(message)
+    except Exception:  # noqa: BLE001 — logging is garnish
+        pass

@@ -4,6 +4,37 @@ All notable changes to DXN1 STUDIO. Format based on
 [Keep a Changelog](https://keepachangelog.com/); versioning is
 `MAJOR.MINOR.PATCH` while in **beta**.
 
+## [2.55.0] — 2026-09-15 · beta · "the translator gets a desk" (a real editor for language packs + a launcher that grows to fit)
+
+### Added
+- **Translation desk** — a themed editor for any language pack: every
+  English key beside its translation, ● translated / ○ missing /
+  ✕ stale / ⚠ unsafe list markers, All · Missing · Stale · Unsafe
+  filter chips over the key list plus a type-to-filter box, the EN
+  source read-only above the translation box, and typing that commits
+  into the working copy live so the header meter (covered/total,
+  %, missing, stale, unsafe) never lies. Open it three ways:
+  `lang edit [code]` (no code names the chooser), Settings ▸
+  Look & feel ▸ *Edit a language pack…*, or the palette row.
+- **Live highlight-safety warning** — the v2.54 audit's contract as
+  you type: a string that changes length under `.lower()` (İ is the
+  classic) gets an inline red warning, because every fuzzy highlight
+  after it would shift.
+- **Atomic user packs** — Save writes `~/.dxn1-studio/lang/<code>.json`
+  via temp file + `os.replace`; empty translations mean "back to
+  English" and are dropped; an active pack re-activates on save so
+  edited strings go live at once. **Seed from English** fills every
+  missing key as a starting point to edit down.
+- **The chooser** — one honest row per pack with live coverage from
+  `pack_stats`, or name a new code for a clean slate; junk codes get
+  an inline reason and `en` is refused (the source of truth is
+  translated FROM, not edited).
+
+### Fixed
+- **The AI quick-actions launcher no longer clips** — it asked for
+  300px but long action labels and a full hint bar can request more;
+  the geometry now grows to the real requested width.
+
 ## [2.54.0] — 2026-09-15 · beta · "every pack answers for itself" (the i18n fuzzy-highlight audit + a branch menu that hands you the command)
 
 ### Fixed

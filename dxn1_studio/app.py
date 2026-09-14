@@ -148,6 +148,9 @@ TERMINAL_HELP = (
     ("lang", "list available UI language packs and the current one"),
     ("lang audit", "every pack answers for itself — coverage, stale "
                    "keys, highlight-safe honest audit"),
+    ("lang edit [code]", "open the translation desk — edit a pack "
+                         "beside its English source; saved strings "
+                         "become a user pack that overrides built-ins"),
     ("update", "check GitHub for a newer release"),
     ("whatsnew", "release notes — what changed between tags"),
     ("deps", "cross-check imports vs requirements*.txt "
@@ -3639,6 +3642,28 @@ class DXN1Studio:
             # DS2: switch the UI language pack (i18n activation)
             from . import i18n as _i18n
             arg = text[4:].strip()
+            if arg == "edit" or arg.startswith("edit "):
+                # DS2 v2.55 — the translation desk: edit any pack
+                # beside its English source and save a user pack
+                # that overrides built-ins. No code names the
+                # chooser; a code opens that desk directly.
+                rest = arg[4:].strip().lower()
+                if not rest:
+                    self._open_lang_desk()
+                    return
+                import re as _re
+                if not _re.match(r"^[a-z0-9][a-z0-9_-]{0,15}$", rest):
+                    self.terminal.log(
+                        "'%s' is not a pack code — lowercase letters, "
+                        "digits, _ or - (e.g. es, pt_br)" % rest)
+                    return
+                if rest == "en":
+                    self.terminal.log(
+                        "English is the source of truth — it is "
+                        "translated FROM, not edited")
+                    return
+                self._open_lang_desk(rest)
+                return
             if arg == "audit":
                 # DS2 v2.54 — every pack answers for itself: coverage,
                 # stale keys, and whether its strings keep the length
@@ -4223,6 +4248,13 @@ class DXN1Studio:
             cmds += _qa.palette_commands(self)
         except Exception:  # pragma: no cover — palette stays alive
             pass
+        # DS2 v2.55: the translation desk (defensive) — one row, the
+        # chooser decides which pack gets the desk
+        try:
+            from . import langedit as _langedit
+            cmds += _langedit.palette_commands(self)
+        except Exception:  # pragma: no cover — palette stays alive
+            pass
         # DS2: AI review (gutter eyes) + pair mode (defensive)
         def _open_pair():
             from .pair import open_pair
@@ -4761,6 +4793,31 @@ class DXN1Studio:
         self.root.after(3400, frame.destroy)
 
     # ------------------------------------------------------------ settings
+    def _open_lang_desk(self, code=None):
+        """DS2 v2.55 — open the translation desk (the chooser when no
+        code is named, that pack's desk when one is). Best-effort by
+        contract: a desk that cannot open here logs honestly and the
+        studio keeps typing."""
+        try:
+            from . import langedit as _langedit
+            win = _langedit.open_pack_editor(
+                self, code, on_log=lambda m: self.terminal.log(m))
+            if win is not None:
+                self.terminal.log(
+                    "translation desk open%s — saved strings become a "
+                    "user pack that overrides built-ins"
+                    % (" for '%s'" % code if code else ""))
+            else:
+                self.terminal.log("translation desk unavailable here")
+            return win
+        except Exception as exc:  # noqa: BLE001 — garnish must not bite
+            try:
+                self.terminal.log("translation desk unavailable (%s)"
+                                  % exc)
+            except Exception:  # noqa: BLE001
+                pass
+            return None
+
     def open_settings(self):
         SettingsDialog(self)
 
@@ -7181,6 +7238,19 @@ class SettingsDialog(tk.Toplevel):
                            activebackground=t["card"], activeforeground=t["text"],
                            selectcolor=t["editor"], highlightthickness=0, bd=0
                            ).pack(side=tk.LEFT, padx=8)
+
+        # DS2 v2.55: the translation desk is one click from Settings —
+        # languages travel on the sync bundle, now they are editable too
+        lrow = tk.Frame(sec1, bg=t["card"])
+        lrow.pack(fill=tk.X, pady=(6, 0))
+        tk.Label(lrow, text="UI language:", bg=t["card"], fg=t["text"],
+                 font=(FONT_UI, 9)).pack(side=tk.LEFT)
+        lang_btn = tk.Label(lrow, text="Edit a language pack…",
+                            bg=t["card"], fg=t.accent, cursor="hand2",
+                            font=(FONT_UI, 9, "underline"))
+        lang_btn.pack(side=tk.LEFT, padx=(6, 0))
+        lang_btn.bind("<Button-1>",
+                      lambda e: self._open_lang_desk())
 
         # --- editor
         secE = self._section(box, "Editor")
