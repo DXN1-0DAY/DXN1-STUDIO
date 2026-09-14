@@ -2179,6 +2179,18 @@ class DXN1Studio:
                          _gallery_cmd))
         except Exception:  # pragma: no cover — palette stays alive
             pass
+        # ---- DS2 diagnostics: environment doctor (defensive)
+        try:
+            from .doctor import open_doctor as _open_doctor
+            cmds.append(
+                ("Doctor — check my environment", "",
+                 lambda: _open_doctor(
+                     self.root, self.theme, self.config,
+                     workspace=self.project_dir,
+                     on_log=lambda m: self.terminal.log(m))),
+            )
+        except Exception:  # pragma: no cover — palette stays alive
+            pass
         if self.config.get("agents_enabled"):
             cmds += [
                 ("Toggle DXN1 Agents panel", "", self.toggle_agents_panel),
