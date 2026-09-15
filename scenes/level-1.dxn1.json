@@ -1,0 +1,28 @@
+{
+  "name": "level-1",
+  "bg": "#0b0e1a",
+  "gravity": 1500,
+  "magnet": 120,
+  "next": "scenes/level-2.dxn1.json",
+  "camera": { "x": 200, "y": 250, "zoom": 0.85 },
+  "entities": [
+    { "name": "hero", "tag": "player", "x": 60, "y": 300, "w": 34, "h": 44, "color": "#8b5cf6" },
+    { "name": "start-ledge", "x": 0, "y": 400, "w": 560, "h": 40, "color": "#1f2937" },
+    { "name": "pit-fangs", "tag": "spike", "x": 590, "y": 430, "w": 50, "h": 28, "color": "#ef4444" },
+    { "name": "the-gap", "tag": "mover", "x": 620, "y": 372, "w": 140, "h": 20, "color": "#38bdf8",
+      "path": [ { "x": 620, "y": 372 }, { "x": 760, "y": 372 } ], "pspeed": 70 },
+    { "name": "far-ledge", "x": 800, "y": 400, "w": 520, "h": 40, "color": "#1f2937" },
+    { "name": "watcher", "tag": "spike", "x": 940, "y": 372, "w": 44, "h": 28, "color": "#ef4444" },
+    { "name": "elevator", "tag": "mover", "x": 1330, "y": 372, "w": 120, "h": 20, "color": "#38bdf8",
+      "path": [ { "x": 1330, "y": 372 }, { "x": 1330, "y": 250 } ], "pspeed": 55 },
+    { "name": "sky-ledge", "x": 1460, "y": 250, "w": 220, "h": 30, "color": "#1f2937" },
+    { "name": "gem-1", "tag": "coin", "x": 240, "y": 330, "w": 22, "h": 22, "color": "#facc15" },
+    { "name": "gem-2", "tag": "coin", "x": 340, "y": 290, "w": 22, "h": 22, "color": "#facc15" },
+    { "name": "gem-3", "tag": "coin", "x": 700, "y": 300, "w": 22, "h": 22, "color": "#facc15" },
+    { "name": "gem-4", "tag": "coin", "x": 900, "y": 330, "w": 22, "h": 22, "color": "#facc15" },
+    { "name": "gem-5", "tag": "coin", "x": 1530, "y": 200, "w": 22, "h": 22, "color": "#facc15" },
+    { "name": "tip", "tag": "sign", "x": 600, "y": 300, "w": 140, "h": 20, "color": "#a78bfa", "text": "ride the mover →", "tsize": 18 },
+    { "name": "tip-2", "tag": "sign", "x": 1240, "y": 300, "w": 120, "h": 20, "color": "#a78bfa", "text": "↑ elevator", "tsize": 18 },
+    { "name": "out", "tag": "goal", "x": 1590, "y": 180, "w": 40, "h": 70, "color": "#22c55e" }
+  ]
+}

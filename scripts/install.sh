@@ -1,22 +1,22 @@
 #!/usr/bin/env bash
 # ============================================================
-# DXN1 STUDIO 3 — one-line installer.
+# DXN1 STUDIO 3 — one-line installer. Fully native, fully C++23.
 #
 #    curl -fsSL https://raw.githubusercontent.com/DXN1-termux/DXN1-STUDIO/master/scripts/install.sh | bash
 #
 # What it does:
-#   1. checks the tools (git, node, python3 — honest about each)
+#   1. checks the tools (git; a C++23 compiler — g++ or clang++)
 #   2. clones STUDIO 3 into ~/dxn1-studio-3 (or updates it)
-#   3. tries to install Electron for the full desktop experience
-#      (skipped with --demo, or when npm/electron is unavailable —
-#      you still get the beautiful web preview + demo filesystem)
+#   3. builds the native core (make -C native) and runs the engine
+#      selftest, so you know it's green before you play
 #   4. writes a `dxn3` launcher into ~/.local/bin
 #
-# Flags:  --demo   browser mode only (perfect for Termux/Android) —
-#                 skip Electron
-#         --dir X install into X (default ~/dxn1-studio-3)
-#         --dir=X same, = form
-#         --run   launch STUDIO 3 when the installer finishes
+# There is no Electron, no Node and no Python in this repo. The studio
+# is one C++23 binary; the only dependency is libstdc++.
+#
+# Flags:  --dir X  install into X (default ~/dxn1-studio-3)
+#         --dir=X  same, = form
+#         --run    launch STUDIO 3 when the installer finishes
 # The script prints every step and never touches anything outside
 # its install directory and ~/.local/bin (the dxn3 launcher).
 # ============================================================
@@ -25,22 +25,20 @@ set -u
 REPO_URL="https://github.com/DXN1-termux/DXN1-STUDIO.git"
 DEFAULT_DIR="$HOME/dxn1-studio-3"
 INSTALL_DIR="$DEFAULT_DIR"
-WANT_WEB=0
 WANT_RUN=0
 
 # --- curl|bash safe: read flags, never stdin -----------------
 _args=("$@")
 for ((i=0; i<${#_args[@]}; i++)); do
   case "${_args[$i]}" in
-    --demo|--web) WANT_WEB=1 ;;
     --run) WANT_RUN=1 ;;
     --dir) [ $((i+1)) -lt ${#_args[@]} ] && { INSTALL_DIR="${_args[$((i+1))]}"; ((i++)); } ;;
     --dir=*) INSTALL_DIR="${_args[$i]#--dir=}" ;;
-    -h|--help) sed -n '2,24p' "$0"; exit 0 ;;
+    -h|--help) sed -n '2,26p' "$0"; exit 0 ;;
   esac
 done
 
-C_G="\033[1;32m"; C_B="\033[1;36m"; C_Y="\033[1;33m"; C_R="\033[1;31m"; C_D="\033[2m"
+C_G="\033[32m"; C_B="\033[36m"; C_Y="\033[33m"; C_R="\033[31m"; C_D="\033[2m"
 say()  { printf "%b\n" "$1"; }
 ok()   { say "  ${C_G}✔${C_D} $1"; }
 warn() { say "  ${C_Y}▲${C_D} $1"; }
@@ -49,16 +47,31 @@ bad()  { say "  ${C_R}✘${C_D} $1"; }
 say ""
 say "${C_B}  ╭──────────────────────────────────────────╮"
 say "${C_B}  │   DXN1  STUDIO  3   —   installer        │"
+say "${C_B}  │   native C++23 · terminal truecolor      │"
 say "${C_B}  ╰──────────────────────────────────────────╯${C_D}"
-say "${C_D}  code · games · one studio${C_D}"
+say "${C_D}  code · games · one binary${C_D}"
 say ""
 
 # --- 1. tool check -------------------------------------------
 have() { command -v "$1" >/dev/null 2>&1; }
 MISSING=0
-for t in git node python3; do
-  if have "$t"; then ok "$t $( "$t" --version 2>&1 | head -1 )" ; else bad "$t not found"; MISSING=1; fi
-done
+if have git; then ok "git $( git --version 2>&1 | head -1 )"; else bad "git not found"; MISSING=1; fi
+CXX_BIN=""
+if have g++; then CXX_BIN=g++
+elif have clang++; then CXX_BIN=clang++
+fi
+if [ -n "$CXX_BIN" ]; then
+  ok "$CXX_BIN $( $CXX_BIN --version 2>&1 | head -1 )"
+  if printf 'int main(){}' | $CXX_BIN -x c++ -std=c++23 - -o /tmp/dxn3_cxx_probe.$$ 2>/dev/null; then
+    ok "C++23 compiles"
+    rm -f /tmp/dxn3_cxx_probe.$$
+  else
+    warn "$CXX_BIN rejects -std=c++23 — the build may fail (needs GCC 12+ / clang 17+)"
+  fi
+else
+  bad "no C++ compiler found (need g++ or clang++ with C++23)"
+  MISSING=1
+fi
 if [ $MISSING -eq 1 ]; then
   say ""
   bad "install the tools above, then re-run this installer."
@@ -84,41 +97,25 @@ else
   fi
 fi
 
-# --- 3. electron (the desktop face) --------------------------
-ELECTRON_OK=0
-if [ "$WANT_WEB" = "1" ]; then
-  warn "--web given — skipping Electron (web preview only)"
-elif have npm; then
-  say ""
-  say "${C_B}→ installing Electron (this can take a minute)${C_D}"
-  if ( cd "$INSTALL_DIR" && npm install --no-audit --no-fund --loglevel=error ) >/dev/null 2>&1 \
-     && [ -d "$INSTALL_DIR/node_modules/electron" ]; then
-    ok "Electron installed — full desktop mode ready"
-    ELECTRON_OK=1
-  else
-    warn "Electron could not be installed here (no binaries for this"
-    warn "platform, or npm had a bad day). Web preview still works."
-  fi
+# --- 3. build + selftest -------------------------------------
+say ""
+say "${C_B}→ building the native core (takes ~10 seconds)${C_D}"
+if ( cd "$INSTALL_DIR" && make -s -C native ) >/tmp/dxn3_install_build.log 2>&1 \
+   && [ -x "$INSTALL_DIR/native/build/dxn3-native" ]; then
+  ok "native core built — one binary, zero dependencies"
 else
-  warn "npm not found — web preview mode only"
+  say "   build log (tail):"
+  tail -8 /tmp/dxn3_install_build.log 2>/dev/null | sed 's/^/     /'
+  bad "the native core did not build — please open an issue with the log above"
+  exit 1
 fi
-
-# --- 3.5 the native core (C++23) -----------------------------
-# Best effort: if a C++23 compiler exists, build the native Spark
-# studio. No compiler, no problem — the web/desktop studio is complete
-# without it; the native binary is a bonus, not a dependency.
-NATIVE_OK=0
-if command -v g++ >/dev/null 2>&1 || command -v clang++ >/dev/null 2>&1; then
-  say "${C_D}building the native C++23 core (native/)…${C_D}"
-  if ( cd "$INSTALL_DIR" && make -s -C native ) >/dev/null 2>&1 \
-     && [ -x "$INSTALL_DIR/native/build/dxn3-native" ]; then
-    NATIVE_OK=1
-    ok "native core built — dxn3 --native plays scenes in your terminal"
-  else
-    warn "native core did not build (older compiler?) — continuing without it"
-  fi
+say "${C_D}→ running the engine selftest${C_D}"
+if "$INSTALL_DIR/native/build/dxn3-selftest" >/tmp/dxn3_install_test.log 2>&1; then
+  ok "$(tail -1 /tmp/dxn3_install_test.log)"
 else
-  warn "no C++ compiler found — skipping the native core (optional)"
+  bad "selftest failed?!"
+  tail -5 /tmp/dxn3_install_test.log 2>/dev/null | sed 's/^/     /'
+  exit 1
 fi
 
 # --- 4. the dxn3 launcher ------------------------------------
@@ -127,29 +124,13 @@ mkdir -p "$BIN_DIR" 2>/dev/null || BIN_DIR="/usr/local/bin"
 LAUNCHER="$BIN_DIR/dxn3"
 cat > "$LAUNCHER" << LAUNCH
 #!/usr/bin/env bash
-# DXN1 STUDIO 3 launcher (generated by install.sh)
+# DXN1 STUDIO 3 launcher (generated by install.sh) — the native studio
 DIR="$INSTALL_DIR"
-NATIVE="\$DIR/native/build/dxn3-native"
-if [ "\$1" = "--native" ]; then
-  shift
-  if [ -x "\$NATIVE" ]; then
-    SCENE="\$1"
-    if [ -n "\$SCENE" ] && [ ! -f "\$SCENE" ] && [ -f "\$DIR/\$SCENE" ]; then
-      SCENE="\$DIR/\$SCENE"   # scenes resolve from the install root too
-    fi
-    exec "\$NATIVE" \${SCENE:+--scene "\$SCENE"}
-  fi
-  echo "dxn3: the native core was not built on this machine" >&2
-  echo "      (needs g++ or clang++ with C++23 — rerun install.sh)" >&2
-  exit 1
+SCENE="\$1"
+if [ -n "\$SCENE" ] && [ ! -f "\$SCENE" ] && [ -f "\$DIR/\$SCENE" ]; then
+  SCENE="\$DIR/\$SCENE"          # scenes resolve from the install root too
 fi
-if [ -d "\$DIR/node_modules/electron" ] && command -v npx >/dev/null 2>&1; then
-  cd "\$DIR" && exec npx electron . "\$@"
-fi
-if [ ! -x "\$(command -v node 2>/dev/null)" ] && [ -x "\$NATIVE" ]; then
-  exec "\$NATIVE" \${1:+--scene "\$1"}   # no node? the native studio plays
-fi
-cd "\$DIR" && exec node scripts/webserve.js "\${1:-8388}"
+exec "\$DIR/native/build/dxn3-native" \${SCENE:+--scene "\$SCENE"}
 LAUNCH
 chmod +x "$LAUNCHER"
 case ":$PATH:" in *":$BIN_DIR":*) ok "launcher at $LAUNCHER" ;;
@@ -158,27 +139,17 @@ esac
 
 # --- done ----------------------------------------------------
 say ""
-say "${C_G}  ✔ STUDIO 3 is installed${C_D}"
+say "${C_G}  ✔ STUDIO 3 is installed — one C++23 binary, zero dependencies${C_D}"
 say ""
-say "  ${C_B}start it:${C_D}"
-say "      dxn3              ${C_D}# desktop (Electron) or web preview${C_D}"
-say "      dxn3 --demo       ${C_D}# force web preview on :8388${C_D}"
-[ "$NATIVE_OK" = "1" ] && \
-say "      dxn3 --native     ${C_D}# Spark in your terminal, C++23, zero deps${C_D}"
+say "  ${C_B}play it:${C_D}"
+say "      dxn3                              ${C_D}# the playground scene${C_D}"
+say "      dxn3 scenes/level-1.dxn1.json     ${C_D}# any scene${C_D}"
 say ""
-say "  ${C_B}first steps inside:${C_D}"
-say "      ${C_D}Ctrl K — command palette · F5 — play the game scene${C_D}"
-say "      ${C_D}open scenes/*.dxn1.json — the Spark editor is live${C_D}"
-say ""
-[ "$ELECTRON_OK" = "0" ] && say "  ${C_Y}note:${C_D} running in web preview mode — the UI is identical,"
-say "  ${C_D}the game brain (real git, python engine) activates on desktop.${C_D}"
+say "  ${C_B}keys:${C_D}  ${C_D}a/d run · w/space jump · r reset · +/- zoom · f fit${C_D}"
+say "      ${C_D}tab inspect the entities · e read the scene source · q quit${C_D}"
 say ""
 
 if [ "$WANT_RUN" = "1" ]; then
   say "${C_B}→ launching STUDIO 3…${C_D}"
-  if [ -d "$INSTALL_DIR/node_modules/electron" ]; then
-    ( cd "$INSTALL_DIR" && exec npx electron . ) &
-  else
-    ( cd "$INSTALL_DIR" && exec node scripts/webserve.js 8388 --open ) &
-  fi
+  ( cd "$INSTALL_DIR" && exec ./native/build/dxn3-native )
 fi

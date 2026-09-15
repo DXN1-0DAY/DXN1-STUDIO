@@ -1,62 +1,57 @@
 #!/usr/bin/env bash
 # DXN1 STUDIO 3 — quality gates. Everything must stay green, always.
+# Fully native: the only requirements are a C++23 compiler, git and coreutils.
 set -u
 cd "$(dirname "$0")/.."
 FAIL=0
 
-echo "── gate 1: node --check (every JS file)"
-for f in electron/*.js renderer/*.js; do
-  if node --check "$f" 2>&1; then echo "   ok  $f"; else echo "   FAIL $f"; FAIL=1; fi
-done
-
-echo "── gate 2: python compileall (the brain)"
-if python3 -m compileall -q engine; then echo "   ok  engine"; else echo "   FAIL engine"; FAIL=1; fi
-
-echo "── gate 3: engine unit tests"
-if /home/z/.venv/bin/python3 -m pytest tests/ -q 2>/dev/null || python3 -m pytest tests/ -q; then
-  echo "   ok  pytest"; else echo "   FAIL pytest"; FAIL=1; fi
-
-echo "── gate 4: version trio"
-V=$(cat VERSION)
-PKG=$(python3 -c "import json;print(json.load(open('package.json'))['version'])")
-APP=$(grep -o 'const VERSION = "[^"]*"' renderer/app.js | cut -d'"' -f2)
-HTML=$(grep -o 'id="st-version" class="chip">v[^<]*' renderer/index.html | sed 's/.*>v//')
-# package.json carries the semver-nearest form (3.0.02 -> 3.0.2: semver
-# cannot express leading zeros); everything else is canonical.
-PKGN=$(python3 -c "print('.'.join(str(int(p)) for p in '$PKG'.split('.')))")
-VN=$(python3 -c "print('.'.join(str(int(p)) for p in '$V'.split('.')))")
-echo "   VERSION=$V package.json=$PKG app.js=$APP index.html=$HTML"
-if [ "$V" = "$APP" ] && [ "$APP" = "$HTML" ] && [ "$PKGN" = "$VN" ]; then
-  echo "   ok  trio consistent"
-else echo "   FAIL trio mismatch"; FAIL=1; fi
-
-echo "── gate 5: scene JSON validity"
-python3 - <<'EOF'
-import json, glob, sys
-bad = 0
-for p in glob.glob("scenes/*.json"):
-    try:
-        s = json.load(open(p))
-        assert isinstance(s.get("entities"), list)
-    except Exception as e:
-        print(f"   FAIL {p}: {e}"); bad = 1
-    else:
-        print(f"   ok  {p} ({len(s['entities'])} entities)")
-sys.exit(bad)
-EOF
-[ $? -ne 0 ] && FAIL=1
-
-echo "── gate 6: renderer selftest (highlighter + Spark schema)"
-if node scripts/selftest.js; then echo "   ok  selftest"; else echo "   FAIL selftest"; FAIL=1; fi
-
-echo "── gate 7: native core (C++23)"
+echo "── gate 1: native build (g++ -std=c++23, zero-warning policy)"
 if make -s -C native >/tmp/dxn3_native_build.log 2>&1 \
-   && ./native/build/dxn3-selftest >/tmp/dxn3_native_selftest.log 2>&1; then
-  echo "   ok  build (g++ -std=c++23, zero warnings policy)"
+   && [ -x native/build/dxn3-native ] && [ -x native/build/dxn3-selftest ]; then
+  echo "   ok  build"
+else
+  echo "   FAIL native — build log:"
+  tail -15 /tmp/dxn3_native_build.log 2>/dev/null
+  FAIL=1
+fi
+
+echo "── gate 2: engine selftest"
+if native/build/dxn3-selftest >/tmp/dxn3_native_selftest.log 2>&1; then
   echo "   ok  $(tail -1 /tmp/dxn3_native_selftest.log)"
 else
-  echo "   FAIL native — build log:"; tail -15 /tmp/dxn3_native_build.log 2>/dev/null
-  echo "   FAIL native — selftest log:"; tail -5 /tmp/dxn3_native_selftest.log 2>/dev/null
+  echo "   FAIL selftest — log:"
+  tail -8 /tmp/dxn3_native_selftest.log 2>/dev/null
+  FAIL=1
+fi
+
+echo "── gate 3: every scene renders one real headless frame"
+for s in scenes/*.dxn1.json; do
+  if OUT=$(native/build/dxn3-native --scene "$s" </dev/null 2>&1) \
+     && printf '%s' "$OUT" | grep -q "frame rendered"; then
+    echo "   ok  $s  ($(printf '%s' "$OUT" | grep -o 'entities=[0-9]*' | head -1))"
+  else
+    echo "   FAIL $s"
+    printf '%s\n' "$OUT" | tail -3
+    FAIL=1
+  fi
+done
+
+echo "── gate 4: the Electron farewell is complete (zero remnants)"
+LE=$(git ls-files | grep -icE 'electron|renderer/|webserve|server\.py|selftest\.js|package\.json' || true)
+if [ "$LE" -eq 0 ]; then
+  echo "   ok  no electron-era files tracked"
+else
+  echo "   FAIL $LE electron-era file(s) still tracked:"
+  git ls-files | grep -iE 'electron|renderer/|webserve|server\.py|selftest\.js|package\.json' | head -5
+  FAIL=1
+fi
+
+echo "── gate 5: VERSION ↔ CHANGELOG consistency"
+V=$(cat VERSION)
+if head -4 CHANGELOG.md | grep -q "$V"; then
+  echo "   ok  VERSION=$V is the top CHANGELOG entry"
+else
+  echo "   FAIL VERSION=$V not found at the top of CHANGELOG.md"
   FAIL=1
 fi
 

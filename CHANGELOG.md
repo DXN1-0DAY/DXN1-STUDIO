@@ -1,3 +1,25 @@
+## v3.0.06 — the Electron farewell: fully C++23
+
+**One binary to rule them all**
+- Deleted, for real and forever: `electron/`, the JS renderer, the Python
+  engine and its QA stand-in, `package.json`, the Node scripts, the pytest
+  lane and the stale UI screenshots. Nothing in the tree mentions Electron
+  outside this changelog's history.
+- `scripts/gates.sh` rebuilt native-only: zero-warning C++23 build, the
+  engine selftest, **every scene must render one real headless frame**,
+  zero electron-era files tracked, VERSION ↔ CHANGELOG consistency. The
+  gates need nothing but a C++23 compiler now — the QA lane eats its own
+  dog food.
+- `scripts/install.sh` rebuilt: checks git + g++/clang++ (probing that
+  C++23 actually compiles), clones, builds, runs the selftest, writes the
+  `dxn3` launcher. The curl one-liner stays exactly where it was.
+- New campaign scene `scenes/level-1.dxn1.json` — **the gap**: a mover
+  bridge over a spiked pit, an elevator to a sky ledge, a five-coin arc and
+  a goal that chains into level-2. The campaign is now
+  playground → level-1 → level-2 → home.
+- README + ARCHITECTURE rewritten around the native core. The studio is
+  one binary; the past lives in git history.
+
 # Changelog — DXN1 STUDIO 3
 
 Giant hourly updates. Every version is worth installing.
