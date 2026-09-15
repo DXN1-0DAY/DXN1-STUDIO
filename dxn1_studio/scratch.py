@@ -127,6 +127,11 @@ class Scratchpad:
                             highlightthickness=1,
                             highlightbackground=_SC_C["border"],
                             highlightcolor=self.accent, undo=True)
+        from .theme import make_scrollbar
+        _sb = make_scrollbar(self.win, _SC_C, "vertical",
+                             command=self.text.yview)
+        self.text.configure(yscrollcommand=_sb.set)
+        _sb.pack(side="right", fill="y")
         self.text.pack(fill="both", expand=True, padx=14, pady=(4, 12))
         self.text.insert("1.0", load_scratch(workspace))
         self.text.bind("<KeyRelease>", self._schedule_save)

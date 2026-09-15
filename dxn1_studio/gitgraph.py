@@ -223,6 +223,10 @@ class GitGraphWindow(tk.Toplevel):
         wrap.pack(fill=tk.BOTH, expand=True)
         self.canvas = tk.Canvas(wrap, bg=t["bg"], highlightthickness=0,
                                 bd=0)
+        hsb = ttk.Scrollbar(wrap, orient=tk.HORIZONTAL,
+                            command=self.canvas.xview)
+        hsb.pack(side=tk.BOTTOM, fill=tk.X)
+        self.canvas.configure(xscrollcommand=hsb.set)
         self.canvas.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
         sb = ttk.Scrollbar(wrap, orient=tk.VERTICAL,
                            command=self.canvas.yview)

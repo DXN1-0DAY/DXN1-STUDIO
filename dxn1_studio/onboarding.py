@@ -275,6 +275,9 @@ class WelcomeWizard:
                              highlightthickness=0)
             prev.pack(padx=6, pady=(6, 4))
             self._draw_preview(prev, mode)
+            # decorative preview: content is clamped to the canvas —
+            # a 1-2px drift must not turn the card into a scroll target
+            prev.configure(scrollregion=(0, 0, 168, 76))
             tk.Label(card, text=label, bg=self.colors["card"], fg=self.colors["text"],
                      font=(FONT_UI, 12, "bold")).pack(anchor="w", padx=10)
             tk.Label(card, text=sub, bg=self.colors["card"], fg=self.colors["secondary"],

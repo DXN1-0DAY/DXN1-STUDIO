@@ -357,6 +357,10 @@ class CronExplainer(tk.Toplevel):
                               ("meaning", "meaning", 380)):
             self.table.heading(cid, text=label)
             self.table.column(cid, width=w, anchor="w")
+        from .theme import make_scrollbar
+        _tsb = make_scrollbar(tw, t, "vertical", command=self.table.yview)
+        self.table.configure(yscrollcommand=_tsb.set)
+        _tsb.pack(side="right", fill="y")
         self.table.pack(fill="x")
 
         tk.Label(self, text="next runs (local time)", bg=t["bg"],
@@ -365,6 +369,9 @@ class CronExplainer(tk.Toplevel):
         self.runs = tk.Text(self, height=6, relief="flat", bg=t["editor"],
                             fg=t["text"], font=(FONT_MONO, 11), bd=0,
                             padx=10, pady=6, wrap="word", state="disabled")
+        _rsb = make_scrollbar(self, t, "vertical", command=self.runs.yview)
+        self.runs.configure(yscrollcommand=_rsb.set)
+        _rsb.pack(side="right", fill="y", padx=(0, 12), pady=(0, 12))
         self.runs.pack(fill="both", expand=True, padx=12, pady=(0, 12))
 
     def _update(self):

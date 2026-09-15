@@ -364,17 +364,29 @@ class MarkdownPreview(tk.Toplevel):
         body = tk.Frame(self, bg=t.get("bg", "#16161e"))
         body.pack(fill=tk.BOTH, expand=True)
 
-        self.src = tk.Text(body, wrap="word", undo=True,
+        pane_l = tk.Frame(body, bg=t.get("bg", "#16161e"))
+        pane_l.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
+        pane_r = tk.Frame(body, bg=t.get("bg", "#16161e"))
+        pane_r.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
+
+        self.src = tk.Text(pane_l, wrap="word", undo=True,
                            bg=t.get("editor_bg", "#1a1a24"),
                            fg=t.get("editor_fg", "#e8e8f0"),
                            insertbackground=t.get("text", "#e8e8f0"),
                            relief=tk.FLAT, padx=10, pady=8,
                            font=("Courier", 11))
-        self.view = tk.Text(body, wrap="word", state=tk.DISABLED,
+        self.view = tk.Text(pane_r, wrap="word", state=tk.DISABLED,
                             bg=t.get("bg", "#16161e"),
                             fg=t.get("text", "#e8e8f0"),
                             relief=tk.FLAT, padx=14, pady=10)
+        from .theme import make_scrollbar
+        _ssb = make_scrollbar(pane_l, t, "vertical", command=self.src.yview)
+        self.src.configure(yscrollcommand=_ssb.set)
+        _ssb.pack(side=tk.RIGHT, fill=tk.Y)
         self.src.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
+        _vsb = make_scrollbar(pane_r, t, "vertical", command=self.view.yview)
+        self.view.configure(yscrollcommand=_vsb.set)
+        _vsb.pack(side=tk.RIGHT, fill=tk.Y)
         self.view.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
 
         try:

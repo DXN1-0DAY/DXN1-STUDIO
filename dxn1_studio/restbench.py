@@ -279,6 +279,10 @@ class RestBench(tk.Toplevel):
                                fg=t.get("text", "#e8e8f0"),
                                insertbackground=t.get("text", "#fff"),
                                relief=tk.FLAT)
+        from .theme import make_scrollbar
+        _hsb = make_scrollbar(mid, t, "vertical", command=self.headers.yview)
+        self.headers.configure(yscrollcommand=_hsb.set)
+        _hsb.pack(side=tk.RIGHT, fill=tk.Y, padx=(0, 10), pady=(0, 4))
         self.headers.pack(fill=tk.X, padx=10, pady=(0, 4))
         self.headers.insert("1.0",
                             "Content-Type: application/json\n"
@@ -288,6 +292,9 @@ class RestBench(tk.Toplevel):
                             fg=t.get("text", "#e8e8f0"),
                             insertbackground=t.get("text", "#fff"),
                             relief=tk.FLAT)
+        _bsb = make_scrollbar(mid, t, "vertical", command=self.body.yview)
+        self.body.configure(yscrollcommand=_bsb.set)
+        _bsb.pack(side=tk.RIGHT, fill=tk.Y, padx=(0, 10), pady=(0, 6))
         self.body.pack(fill=tk.BOTH, padx=10, pady=(0, 6))
 
     def _build_response_pane(self):
@@ -308,6 +315,9 @@ class RestBench(tk.Toplevel):
                             fg=t.get("text", "#e8e8f0"),
                             relief=tk.FLAT, padx=8, pady=6,
                             font=("Courier", 10))
+        _vsb = make_scrollbar(box, t, "vertical", command=self.view.yview)
+        self.view.configure(yscrollcommand=_vsb.set)
+        _vsb.pack(side=tk.RIGHT, fill=tk.Y, padx=(0, 6))
         self.view.pack(fill=tk.BOTH, expand=True)
         self.view.tag_configure("hdr",
                                 foreground=t.get("text_muted", "#8a8a9a"))

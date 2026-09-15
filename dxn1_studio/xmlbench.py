@@ -202,6 +202,10 @@ class XmlBench(tk.Toplevel):
                              fg=t.get("text", "#e8e8f0"),
                              insertbackground=t.get("text", "#fff"),
                              relief=tk.FLAT, padx=8, pady=6)
+        from .theme import make_scrollbar
+        _isb = make_scrollbar(left, t, "vertical", command=self.input.yview)
+        self.input.configure(yscrollcommand=_isb.set)
+        _isb.pack(side=tk.RIGHT, fill=tk.Y, pady=(4, 0))
         self.input.pack(fill=tk.BOTH, expand=True, pady=(4, 0))
         self.input.insert("1.0", initial or SAMPLE_XML)
         self.input.bind("<KeyRelease>", lambda _e: self._schedule())
@@ -226,6 +230,9 @@ class XmlBench(tk.Toplevel):
                               bg=t.get("editor_bg", "#1a1a24"),
                               fg=t.get("text", "#e8e8f0"),
                               relief=tk.FLAT, padx=8, pady=6)
+        _osb = make_scrollbar(right, t, "vertical", command=self.output.yview)
+        self.output.configure(yscrollcommand=_osb.set)
+        _osb.pack(side=tk.RIGHT, fill=tk.Y, pady=(4, 0))
         self.output.pack(fill=tk.BOTH, expand=True, pady=(4, 0))
         self.output.configure(state=tk.DISABLED)
 

@@ -187,6 +187,10 @@ class HasherWindow(tk.Toplevel):
                              ("path", 320, "w")):
             self.grid.heading(col, text=col)
             self.grid.column(col, width=w, anchor=anch)
+        from .theme import make_scrollbar
+        _gsb = make_scrollbar(left, t, "vertical", command=self.grid.yview)
+        self.grid.configure(yscrollcommand=_gsb.set)
+        _gsb.pack(side=tk.RIGHT, fill=tk.Y)
         self.grid.pack(fill=tk.BOTH, expand=True)
         gbar = tk.Frame(left, bg=t.get("bg", "#16161e"))
         gbar.pack(fill=tk.X)
@@ -211,6 +215,10 @@ class HasherWindow(tk.Toplevel):
                               bg=t.get("editor", "#1b1b24"),
                               fg=t.get("text", "#e8e8f0"),
                               insertbackground=t.get("text", "#e8e8f0"))
+        _esb = make_scrollbar(right, t, "vertical",
+                              command=self.expect.yview)
+        self.expect.configure(yscrollcommand=_esb.set)
+        _esb.pack(side=tk.RIGHT, fill=tk.Y)
         self.expect.pack(fill=tk.X, pady=4)
         self._btn2(right, "Verify first row", self.verify_first).pack(
             anchor="w", pady=2)

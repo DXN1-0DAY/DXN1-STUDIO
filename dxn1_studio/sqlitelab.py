@@ -26,6 +26,7 @@ import tkinter as tk
 from tkinter import filedialog, messagebox, ttk
 
 from . import hints
+from .theme import make_scrollbar
 
 __all__ = [
     "connect", "list_tables", "table_columns", "table_indexes",
@@ -389,6 +390,11 @@ class SQLiteLab(tk.Toplevel):
         self.tables_tv.column("#0", width=170, stretch=True)
         self.tables_tv.column("kind", width=54, anchor="center")
         self.tables_tv.column("rows", width=60, anchor="e")
+        from .theme import make_scrollbar
+        _tsb = make_scrollbar(left, t, "vertical",
+                              command=self.tables_tv.yview)
+        self.tables_tv.configure(yscrollcommand=_tsb.set)
+        _tsb.pack(side=tk.RIGHT, fill=tk.Y)
         self.tables_tv.pack(fill=tk.Y, expand=True)
         self.tables_tv.tag_configure("view", foreground=t.get(
             "text_muted", "#8a8a9a"))
@@ -425,6 +431,10 @@ class SQLiteLab(tk.Toplevel):
         self.browse_tv = ttk.Treeview(
             browse, show="headings", height=20,
             style=self._style_seed + ".Treeview")
+        _bsb = make_scrollbar(browse, t, "vertical",
+                              command=self.browse_tv.yview)
+        self.browse_tv.configure(yscrollcommand=_bsb.set)
+        _bsb.pack(side=tk.RIGHT, fill=tk.Y, padx=(0, 4), pady=4)
         self.browse_tv.pack(fill=tk.BOTH, expand=True, padx=4, pady=4)
         bb = tk.Frame(browse, bg=t.get("bg", "#16161e"))
         bb.pack(fill=tk.X)

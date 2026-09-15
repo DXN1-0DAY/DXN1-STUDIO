@@ -336,6 +336,11 @@ class TaskRunnerWindow:
                            state="disabled", wrap="none",
                            highlightthickness=1,
                            highlightbackground=_TR_C["border"])
+        from .theme import make_scrollbar
+        _sb = make_scrollbar(right, _TR_C, "vertical",
+                             command=self.out.yview)
+        self.out.configure(yscrollcommand=_sb.set)
+        _sb.pack(side="right", fill="y")
         self.out.pack(fill="both", expand=True, pady=(4, 12))
 
         self.refresh_tasks()

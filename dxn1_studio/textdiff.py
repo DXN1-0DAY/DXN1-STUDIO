@@ -182,6 +182,10 @@ class TextDiff(tk.Toplevel):
                               bg=t.get("editor_bg", "#1a1a24"),
                               fg=t.get("text", "#e8e8f0"),
                               relief=tk.FLAT, padx=8, pady=6)
+        from .theme import make_scrollbar
+        _osb = make_scrollbar(body, t, "vertical", command=self.output.yview)
+        self.output.configure(yscrollcommand=_osb.set)
+        _osb.pack(side=tk.RIGHT, fill=tk.Y, padx=(0, 10), pady=(4, 0))
         self.output.pack(fill=tk.BOTH, expand=True,
                          padx=10, pady=(4, 0))
         self.output.configure(state=tk.DISABLED)
@@ -228,6 +232,11 @@ class TextDiff(tk.Toplevel):
                          insertbackground=self.theme.get("text",
                                                          "#fff"),
                          relief=tk.FLAT, padx=8, pady=6)
+        from .theme import make_scrollbar
+        _sb = make_scrollbar(frame, self.theme, "vertical",
+                             command=widget.yview)
+        widget.configure(yscrollcommand=_sb.set)
+        _sb.pack(side=tk.RIGHT, fill=tk.Y, pady=(4, 0))
         widget.pack(fill=tk.BOTH, expand=True, pady=(4, 0))
         return widget
 

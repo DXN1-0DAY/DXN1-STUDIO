@@ -127,6 +127,11 @@ class PairSession(tk.Toplevel):
                             wrap=tk.WORD, highlightthickness=1,
                             highlightbackground=t["border"],
                             highlightcolor=t.accent)
+        from .theme import make_scrollbar
+        _psb = make_scrollbar(self, self.t, "vertical",
+                              command=self.plan.yview)
+        self.plan.configure(yscrollcommand=_psb.set)
+        _psb.pack(side=tk.RIGHT, fill=tk.Y, padx=(0, 12), pady=(0, 6))
         self.plan.pack(fill=tk.BOTH, expand=True, padx=12, pady=(0, 6))
 
         footer = tk.Frame(self, bg=self.t["statusbar"])

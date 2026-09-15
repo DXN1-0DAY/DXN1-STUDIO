@@ -241,6 +241,11 @@ class MemoryEditor(tk.Toplevel):
                                font=(FONT_MONO, 9), highlightthickness=1,
                                highlightbackground=t["border"],
                                highlightcolor=t.accent, wrap=tk.WORD)
+        from .theme import make_scrollbar
+        _sb = make_scrollbar(srow, t, tk.VERTICAL,
+                             command=self.summary.yview)
+        self.summary.configure(yscrollcommand=_sb.set)
+        _sb.pack(side=tk.RIGHT, fill=tk.Y)
         self.summary.pack(fill=tk.X, pady=(2, 0))
         self.summary.insert("1.0", self.bank.summary)
         save = tk.Label(srow, text="Save summary", bg=t["card"],

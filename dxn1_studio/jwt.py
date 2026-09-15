@@ -162,6 +162,10 @@ class JWTWindow(tk.Toplevel):
                       bg=t["editor"], fg=t["text"],
                       insertbackground=t["text"], font=(FONT_MONO, 10),
                       padx=8, pady=6, bd=0)
+        from .theme import make_scrollbar
+        sb = make_scrollbar(wrap, t, "vertical", command=txt.yview)
+        txt.configure(yscrollcommand=sb.set)
+        sb.pack(side="right", fill="y")
         txt.pack(fill="both", expand=True)
         return wrap, txt
 
@@ -227,6 +231,10 @@ class JWTWindow(tk.Toplevel):
                               ("h", "human", 340)):
             self.claims.heading(cid, text=label)
             self.claims.column(cid, width=w, anchor="w")
+        from .theme import make_scrollbar
+        _csb = make_scrollbar(tw, t, "vertical", command=self.claims.yview)
+        self.claims.configure(yscrollcommand=_csb.set)
+        _csb.pack(side="right", fill="y")
         self.claims.pack(fill="both", expand=True)
 
     def _update(self):

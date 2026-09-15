@@ -229,6 +229,10 @@ class EnvLintWindow(tk.Toplevel):
                            fg=t["text"], insertbackground=t["text"],
                            font=(FONT_MONO, 10), padx=8, pady=6, bd=0,
                            undo=True)
+        from .theme import make_scrollbar
+        _isb = make_scrollbar(lw, t, "vertical", command=self.inp.yview)
+        self.inp.configure(yscrollcommand=_isb.set)
+        _isb.pack(side="right", fill="y")
         self.inp.pack(fill="both", expand=True)
         self.inp.bind("<<Modified>>", self._on_modify)
 
@@ -246,7 +250,13 @@ class EnvLintWindow(tk.Toplevel):
                               ("m", "message", 330)):
             self.find.heading(cid, text=label)
             self.find.column(cid, width=w, anchor="w")
+        _fsb = make_scrollbar(fw, t, "vertical", command=self.find.yview)
+        self.find.configure(yscrollcommand=_fsb.set)
+        _fsb.pack(side="right", fill="y")
         self.find.pack(fill="both", expand=True)
+        _fhb = make_scrollbar(fw, t, "horizontal", command=self.find.xview)
+        self.find.configure(xscrollcommand=_fhb.set)
+        _fhb.pack(side="bottom", fill="x")
         self.find.tag_configure("error", foreground=t["text"])
         self.find.tag_configure("warn", foreground=t["text_secondary"])
         self.find.tag_configure("info", foreground=t["text_muted"])
@@ -260,6 +270,12 @@ class EnvLintWindow(tk.Toplevel):
                               bg=t["editor"], fg=t["text"],
                               font=(FONT_MONO, 10), padx=8, pady=6, bd=0,
                               state="disabled")
+        _msb = make_scrollbar(mw, t, "vertical", command=self.masked.yview)
+        self.masked.configure(yscrollcommand=_msb.set)
+        _msb.pack(side="right", fill="y")
+        _mhb = make_scrollbar(mw, t, "horizontal", command=self.masked.xview)
+        self.masked.configure(xscrollcommand=_mhb.set)
+        _mhb.pack(side="bottom", fill="x")
         self.masked.pack(fill="both", expand=True)
 
         self.status = tk.Label(self, text="", bg=t["bg"],

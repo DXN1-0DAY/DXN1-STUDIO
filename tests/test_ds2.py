@@ -7721,7 +7721,10 @@ def test_width_sweep_five(tmp_path):
         for i, ln in enumerate(lines):
             if not pat.search(ln):
                 continue
-            window = "\n".join(lines[i:i + 120])
+            # 160: the fit call may sit a little further from the
+            # geometry line in windows whose build grew (scrollbars,
+            # legends) — the INTENT is "a fit call owns this window"
+            window = "\n".join(lines[i:i + 160])
             if ("fit_to_content" in window or "_fit_w" in window
                     or "restore_root" in window):
                 continue

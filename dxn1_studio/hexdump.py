@@ -181,6 +181,10 @@ class ByteSnoop(tk.Toplevel):
                              fg=t.get("text", "#e8e8f0"),
                              insertbackground=t.get("text", "#fff"),
                              relief=tk.FLAT, padx=8, pady=6)
+        from .theme import make_scrollbar
+        _sb = make_scrollbar(left, t, "vertical", command=self.input.yview)
+        self.input.configure(yscrollcommand=_sb.set)
+        _sb.pack(side=tk.RIGHT, fill=tk.Y, pady=(4, 0))
         self.input.pack(fill=tk.BOTH, expand=True, pady=(4, 0))
         self.input.insert("1.0", initial or SAMPLE_TEXT)
         self.input.bind("<KeyRelease>", lambda _e: self._schedule())
@@ -195,6 +199,13 @@ class ByteSnoop(tk.Toplevel):
                               bg=t.get("editor_bg", "#1a1a24"),
                               fg=t.get("text", "#e8e8f0"),
                               relief=tk.FLAT, padx=8, pady=6)
+        _osb = make_scrollbar(right, t, "vertical", command=self.output.yview)
+        self.output.configure(yscrollcommand=_osb.set)
+        _osb.pack(side=tk.RIGHT, fill=tk.Y, pady=(4, 0))
+        _ohb = make_scrollbar(right, t, "horizontal",
+                              command=self.output.xview)
+        self.output.configure(xscrollcommand=_ohb.set)
+        _ohb.pack(side=tk.BOTTOM, fill=tk.X)
         self.output.pack(fill=tk.BOTH, expand=True, pady=(4, 0))
         self.output.configure(state=tk.DISABLED)
         try:

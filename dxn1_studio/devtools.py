@@ -632,6 +632,11 @@ class DevTools(tk.Toplevel):
         sb = ttk.Scrollbar(rw, command=self.rx_tree.yview,
                            style="Dev.Vertical.TScrollbar")
         self.rx_tree.configure(yscrollcommand=sb.set)
+        hsb = ttk.Scrollbar(rw, orient="horizontal",
+                            command=self.rx_tree.xview,
+                            style="Dev.Horizontal.TScrollbar")
+        self.rx_tree.configure(xscrollcommand=hsb.set)
+        hsb.pack(side="bottom", fill="x")
         self.rx_tree.pack(side="left", fill="both", expand=True)
         sb.pack(side="right", fill="y")
         self.rx_status = self._status(page)

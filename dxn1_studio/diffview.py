@@ -334,6 +334,9 @@ class DiffViewer(tk.Toplevel):
                           font=(FONT_MONO, 10), relief=tk.FLAT, bd=0,
                           wrap=tk.NONE, highlightthickness=0,
                           takefocus=0, cursor="arrow")
+            hsb = ttk.Scrollbar(wrap, orient=tk.HORIZONTAL, command=txt.xview)
+            hsb.pack(side=tk.BOTTOM, fill=tk.X)
+            txt.configure(xscrollcommand=hsb.set)
             txt.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
             for tag, opts in (
                     ("add_bg", {"background": tint["add_bg"]}),
@@ -431,6 +434,9 @@ class DiffViewer(tk.Toplevel):
         txt = tk.Text(pane, bg=t["editor"], fg=t["text"],
                       font=(FONT_MONO, 10), relief=tk.FLAT, bd=0,
                       wrap=tk.NONE, highlightthickness=0)
+        hsb = ttk.Scrollbar(pane, orient=tk.HORIZONTAL, command=txt.xview)
+        hsb.pack(side=tk.BOTTOM, fill=tk.X)
+        txt.configure(xscrollcommand=hsb.set)
         txt.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
         sb = ttk.Scrollbar(pane, orient=tk.VERTICAL,
                            command=lambda f, l: (txt.yview_moveto(f),

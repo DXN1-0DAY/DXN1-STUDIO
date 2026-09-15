@@ -266,6 +266,10 @@ class GeneratorWindow(tk.Toplevel):
                            insertbackground=t["text"],
                            font=(FONT_MONO, 11), padx=10, pady=8, bd=0,
                            undo=True)
+        from .theme import make_scrollbar
+        _sb = make_scrollbar(wrap, t, "vertical", command=self.out.yview)
+        self.out.configure(yscrollcommand=_sb.set)
+        _sb.pack(side=tk.RIGHT, fill=tk.Y)
         self.out.pack(fill="both", expand=True)
         self.status = tk.Label(self, text="", bg=t["bg"],
                                fg=t["text_muted"], font=(FONT_UI, 9))

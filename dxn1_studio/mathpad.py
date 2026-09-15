@@ -263,6 +263,11 @@ class MathPad(tk.Toplevel):
                                   bg=t.get("editor_bg", "#1a1a24"),
                                   fg=t.get("text", "#e8e8f0"),
                                   relief=tk.FLAT)
+        from .theme import make_scrollbar
+        _sb = make_scrollbar(body, t, tk.VERTICAL,
+                             command=self.history.yview)
+        self.history.configure(yscrollcommand=_sb.set)
+        _sb.pack(side=tk.RIGHT, fill=tk.Y)
         self.history.pack(fill=tk.BOTH, expand=True, pady=(4, 0))
         self.history.bind("<Button-1>", self._copy_row)
 

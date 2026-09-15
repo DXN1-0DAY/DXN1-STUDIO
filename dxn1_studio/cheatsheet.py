@@ -227,6 +227,11 @@ class CheatSheet(tk.Toplevel):
                                fg=t.get("text", "#e8e8f0"),
                                insertbackground=t.get("text", "#fff"),
                                padx=10, pady=8)
+        from .theme import make_scrollbar
+        _sb = make_scrollbar(self, t, "vertical",
+                             command=self.preview.yview)
+        self.preview.configure(yscrollcommand=_sb.set)
+        _sb.pack(side=tk.RIGHT, fill=tk.Y, pady=(10, 0))
         self.preview.pack(fill=tk.BOTH, expand=True,
                           padx=10, pady=(10, 0))
         self.preview.insert("1.0", render_text(default_sections(

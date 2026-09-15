@@ -154,6 +154,10 @@ class CharacterMap(tk.Toplevel):
                             bg=t.get("editor_bg", "#1a1a24"),
                             fg=t.get("text", "#e8e8f0"), relief=tk.FLAT,
                             padx=10, pady=8, cursor="hand2")
+        from .theme import make_scrollbar
+        _sb = make_scrollbar(self, t, "vertical", command=self.grid.yview)
+        self.grid.configure(yscrollcommand=_sb.set)
+        _sb.pack(side=tk.RIGHT, fill=tk.Y, padx=(0, 10), pady=(10, 4))
         self.grid.pack(fill=tk.BOTH, expand=True, padx=10, pady=(10, 4))
         self.grid.bind("<Button-1>", self._pick)
         self.grid.tag_config("sel", background="")
