@@ -18,6 +18,16 @@ All notable changes to DXN1 STUDIO. Format based on
   terminal's clear now explain themselves (theme-styled hover
   cards via hints.tooltip_attach; the activity dock already does).
 
+## [2.71.2] — 2026-09-15 · beta · "the fleet opens" (UI sprint hour 2: dialog audit)
+
+### Added
+- The fit audit now sweeps EVERY palette command: each of the 121 entries is opened in its own process and its Toplevel audited at open size (`scripts/ui_dialog_sweep.py`)
+
+### Fixed
+- 8 palette commands crashed on open (welcome wizard, git graph, usage dashboard, agent memory, pair mode, task runner, cron/jwt selection pre-fill) — all open or refuse with grace now
+- 25+ panes across the tool fleet gained themed scrollbars (agent memory, tasks, scratchpad, mathpad, cheat sheet, charmap, .env lint, data generator, SQLite lab, hasher, markdown preview, REST bench, chart studio, CSV lab, ByteSnoop, paste diff, markup bench, pair plan, devtools, git graph, diff viewer, terminal verbs, cron explainer, JWT decoder)
+- Canvas overflow is now judged per-axis; the wizard's theme-preview canvases clamp their scrollregion
+
 ## [2.71.1] — 2026-09-15 · beta · "every pane scrolls" (UI sprint hour 1: the fit & scroll sweep)
 
 ### Fixed
