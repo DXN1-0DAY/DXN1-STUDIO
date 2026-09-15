@@ -96,6 +96,17 @@
       "tag": "hazard"
     },
     {
+      "name": "saw",
+      "x": 640,
+      "y": 396,
+      "w": 38,
+      "h": 38,
+      "color": "#fb7185",
+      "tag": "hazard",
+      "rot": 0,
+      "spin": 260
+    },
+    {
       "name": "sign",
       "x": 90,
       "y": 360,

@@ -84,6 +84,7 @@ ok();
 // 5. path entity schema + zoom helpers exist
 const ent = Spark.makeEntity({ name: "t", path: { toX: 9, toY: 9, speed: 100 } });
 assert(ent.path && ent.gravity === null && ent.alive === true, "makeEntity defaults + path");
+assert(ent.rot === 0 && ent.spin === 0, "rotation defaults");
 assert(typeof Spark.Game.prototype.zoomAt === "function", "zoomAt exists");
 assert(typeof Spark.Game.prototype.zoomFit === "function", "zoomFit exists");
 assert(typeof Spark.Game.prototype._movePaths === "function", "moving platforms exist");

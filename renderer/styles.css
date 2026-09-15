@@ -348,6 +348,15 @@ kbd {
 
 /* ---------- editor ---------- */
 #editor-stack { position: relative; flex: 1; min-height: 0; background: var(--bg2); }
+#curline {
+  position: absolute; left: 52px; right: 0; z-index: 1;
+  height: calc(var(--fs-editor) * 1.6);
+  background: color-mix(in srgb, var(--accent) 8%, transparent);
+  border-top: 1px solid color-mix(in srgb, var(--accent) 16%, transparent);
+  border-bottom: 1px solid color-mix(in srgb, var(--accent) 16%, transparent);
+  pointer-events: none; display: none; transition: top .05s ease;
+}
+#curline.on { display: block; }
 #gutter {
   position: absolute; inset: 0 auto 0 0; width: 52px;
   padding: 12px 14px 12px 0; text-align: right;

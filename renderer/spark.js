@@ -26,7 +26,7 @@ const Spark = (() => {
     return Object.assign({
       name: "entity", x: 0, y: 0, w: 36, h: 36,
       shape: "rect", color: "#8b5cf6", color2: "", fill: "solid",
-      rot: 0, text: "", tsize: 22,
+      rot: 0, spin: 0, text: "", tsize: 22,
       vx: 0, vy: 0, solid: false, gravity: null,
       controls: "none", tag: "", bounce: 0, alive: true,
       path: null,
@@ -88,6 +88,8 @@ const Spark = (() => {
         { name: "coin-2", x: 1030, y: 240, w: 22, h: 22, shape: "circle", color: "#fbbf24", tag: "coin" },
         { name: "spike-1", x: 880, y: 402, w: 34, h: 28, shape: "triangle",
           color: "#fb7185", tag: "hazard" },
+        { name: "saw", x: 640, y: 396, w: 38, h: 38, color: "#fb7185",
+          tag: "hazard", rot: 0, spin: 260 },
         { name: "sign", x: 90, y: 360, w: 210, h: 30, text: "ride the movers!",
           tsize: 20, color: "#9aa1b5" },
         { name: "goal", x: 1330, y: 366, w: 30, h: 64, color: "#34d399",
@@ -272,6 +274,7 @@ const Spark = (() => {
       this._movePaths(dt, ents);
 
       for (const e of ents) {
+        if (e.spin) e.rot = ((e.rot || 0) + e.spin * dt) % 360;
         // --- controls -------------------------------------------------
         if (e.controls === "platformer") {
           const SPD = 320;
@@ -499,20 +502,38 @@ const Spark = (() => {
                          e.y + e.h / 4, 2, e.h / 2);
           }
         } else if (e.shape === "triangle") {
-          ctx.beginPath();
-          ctx.moveTo(e.x + e.w / 2, e.y);
-          ctx.lineTo(e.x + e.w, e.y + e.h);
-          ctx.lineTo(e.x, e.y + e.h);
-          ctx.closePath();
-          ctx.fill();
+          const drawTri = (px, py) => {
+            ctx.beginPath();
+            ctx.moveTo(px + e.w / 2, py);
+            ctx.lineTo(px + e.w, py + e.h);
+            ctx.lineTo(px, py + e.h);
+            ctx.closePath();
+            ctx.fill();
+          };
+          if (e.rot) {
+            ctx.save();
+            ctx.translate(e.x + e.w / 2, e.y + e.h / 2);
+            ctx.rotate(e.rot * Math.PI / 180);
+            drawTri(-e.w / 2, -e.h / 2);
+            ctx.restore();
+          } else drawTri(e.x, e.y);
         } else {
-          ctx.beginPath();
-          ctx.roundRect(e.x, e.y, e.w, e.h, 5);
-          ctx.fill();
-          if (e.solid) {           // hairline top light on solids
-            ctx.fillStyle = "rgba(255,255,255,.07)";
-            ctx.fillRect(e.x, e.y, e.w, 3);
-          }
+          const drawRect = (px, py) => {
+            ctx.beginPath();
+            ctx.roundRect(px, py, e.w, e.h, 5);
+            ctx.fill();
+            if (e.solid) {           // hairline top light on solids
+              ctx.fillStyle = "rgba(255,255,255,.07)";
+              ctx.fillRect(px, py, e.w, 3);
+            }
+          };
+          if (e.rot) {
+            ctx.save();
+            ctx.translate(e.x + e.w / 2, e.y + e.h / 2);
+            ctx.rotate(e.rot * Math.PI / 180);
+            drawRect(-e.w / 2, -e.h / 2);
+            ctx.restore();
+          } else drawRect(e.x, e.y);
         }
         if (e.path && !this.running) {   // motion rail — editors deserve it
           ctx.strokeStyle = "rgba(34,211,238,.35)";

@@ -606,6 +606,32 @@ function updatePos() {
   const line = upto.split("\n").length;
   const col = ta.selectionStart - upto.lastIndexOf("\n");
   $("st-pos").textContent = `Ln ${line}, Col ${col}`;
+  updateCurline(line);
+}
+
+/* current-line highlight + gutter scroll sync */
+function updateCurline(line) {
+  const ta = $("editor");
+  const cur = $("curline");
+  if (!ACTIVE || $("editor-view").classList.contains("active") === false) {
+    cur.classList.remove("on");
+    return;
+  }
+  const lh = (parseFloat(getComputedStyle(ta).lineHeight) ||
+              (STORE.get("fs", 13.5) * 1.6));
+  const top = 12 + (line - 1) * lh - ta.scrollTop;
+  const stackH = $("editor-stack").clientHeight || 0;
+  if (top < -lh / 2 || top > stackH - 4) {
+    cur.classList.remove("on");
+  } else {
+    cur.style.top = top + "px";
+    cur.classList.add("on");
+  }
+}
+
+function syncGutter() {
+  const ta = $("editor");
+  $("gutter").scrollTop = ta.scrollTop;
 }
 
 /* ============================================================
@@ -1845,6 +1871,9 @@ function wire() {
   ed.addEventListener("contextmenu", (e) => { e.preventDefault(); editorCtxMenu(e); });
   ed.addEventListener("keyup", updatePos);
   ed.addEventListener("click", updatePos);
+  ed.addEventListener("scroll", () => { syncGutter(); updateCurline(
+    (ed.value.slice(0, ed.selectionStart).split("\n")).length); });
+  window.addEventListener("resize", () => { syncGutter(); });
 
   // scene dock
   $("scene-save").onclick = saveScene;
