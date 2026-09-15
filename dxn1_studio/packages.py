@@ -333,6 +333,10 @@ class PackageManager(tk.Toplevel):
         self.transient(master)
         self.view = PackagesView(self, theme, on_change=on_change)
         self.view.pack(fill=tk.BOTH, expand=True)
+        # DS2 v2.61 — width accounting round three: open no narrower
+        # than what it actually packed
+        from . import geom as _geom
+        _geom.fit_to_content(self, 800, 620)
 
     def install_packages(self, names):
         self.view.install_packages(names)

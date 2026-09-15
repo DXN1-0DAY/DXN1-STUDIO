@@ -4,6 +4,30 @@ All notable changes to DXN1 STUDIO. Format based on
 [Keep a Changelog](https://keepachangelog.com/); versioning is
 `MAJOR.MINOR.PATCH` while in **beta**.
 
+## [2.61.0] — 2026-09-15 · beta · "a safety net for the fix" (the fix gets a way back + the desk fixes itself + one width helper for every window)
+
+### Added
+- **The fix writes a safety net** — before `lang fix` moves
+  anything, the pre-fix copy lands beside the pack as
+  `<code>.json.bak`, and the fix line says so; only the most
+  recent fix is undoable, a clean fix writes no backup, and a
+  failed backup is reported while the fix still applies
+- **`lang unfix <code>`** — the way back: restore the user pack
+  file from the `.bak` byte-for-byte and CONSUME it, so an undo
+  cannot run twice by accident. Missing and unreadable backups
+  answer honestly, the gates match `lang fix`, and an active
+  language re-activates with the restored pack live
+- **The desk fixes itself** — the `Apply safe fixes` button cuts
+  every unknown key from the LIVE working copy at one click, the
+  verdict turns green on its own, and unsafe strings are still not
+  touched (a deletion is not a translation)
+- **`geom.fit_to_content()`** — the v2.55 width pattern becomes one
+  shared helper (floor + real request, optional ratchet), and eight
+  more fixed windows now ride it: TODO/FIXME results, What's New,
+  terminal verbs, usage dashboard (re-centered on the size it
+  actually got), packages, session restore, agent memory, sqlite
+  lab
+
 ## [2.60.0] — 2026-09-15 · beta · "the checkup comes home and learns to heal" (the desk runs its own checkup + the safe repairs apply + width accounting round two)
 
 ### Added

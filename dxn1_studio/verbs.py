@@ -178,6 +178,10 @@ def open_verbs(master, theme, on_insert=None, rows=None):
     # reaching into closures (search_entry pairs with refilter())
     win.search_entry = ent
     win.refilter = _refilter
+    # DS2 v2.61 — width accounting round three: open no narrower
+    # than what it actually packed
+    from . import geom as _geom
+    _geom.fit_to_content(win, 640, 520)
     return win
 
 

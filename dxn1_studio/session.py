@@ -270,6 +270,11 @@ class SessionRestore(tk.Toplevel):
             self.transient(parent)
         except Exception:  # noqa: BLE001
             pass
+        # DS2 v2.61 — width accounting round three: open no narrower
+        # than what it actually packed (long workspace names, full
+        # preview lines)
+        from . import geom as _geom
+        _geom.fit_to_content(self, 620, 380)
 
     # ------------------------------------------------------------- actions
     def _refresh(self):

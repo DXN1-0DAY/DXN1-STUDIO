@@ -7291,3 +7291,272 @@ def test_width_sweep_two(tmp_path):
               encoding="utf-8") as fh:
         asrc = fh.read()
     assert "max(680, self.winfo_reqwidth())" in asrc
+
+
+def test_lang_unfix(tmp_path):
+    """DS2 v2.61 — the way back: fix_pack_file writes the pre-fix
+    copy beside the pack as ``<code>.json.bak`` BEFORE anything
+    moves (a failed backup is reported, the fix still applies), and
+    ``undo_fix_file`` / ``lang unfix <code>`` restore from it and
+    CONSUME it — an undo you cannot run twice by accident. Missing
+    and unreadable backups answer honestly; an active language
+    re-activates with the restored pack live."""
+    import tkinter as tk
+    try:
+        root = tk.Tk(); root.withdraw()
+    except tk.TclError:
+        return
+    import json
+    import os
+    import pytest
+    import dxn1_studio.config as cfgmod
+    from dxn1_studio import i18n as i18nmod
+    from dxn1_studio import langedit as le
+    monkeypatch = pytest.MonkeyPatch()
+    monkeypatch.setattr(cfgmod, "CONFIG_DIR", str(tmp_path / "cfg"))
+    monkeypatch.setattr(cfgmod, "CONFIG_PATH",
+                        str(tmp_path / "cfg" / "config.json"))
+    monkeypatch.setenv("HOME", str(tmp_path / "home"))
+    real_lang = tmp_path / "homelang"
+    monkeypatch.setattr(i18nmod, "LANG_DIR", str(real_lang))
+    from dxn1_studio.app import DXN1Studio
+    app = DXN1Studio(cfgmod.Config(), smoke_test=True, no_splash=True)
+    try:
+        app.root.update()
+        logs = []
+        app.terminal.log = lambda m, *a, **k: logs.append(str(m))
+
+        def run(cmd):
+            logs.clear()
+            app.handle_terminal_command(cmd)
+            return "\n".join(logs)
+
+        # bare / en / junk / unknown — the same gates lang fix has
+        blob = run("lang unfix")
+        assert "usage: lang unfix <code>" in blob, blob
+        assert "consume it" in blob, blob
+        blob = run("lang unfix en")
+        assert "nothing to unfix" in blob, blob
+        blob = run("lang unfix BAD!")
+        assert "is not a pack code" in blob, blob
+        blob = run("lang unfix nosuch")
+        assert "unknown language 'nosuch'" in blob, blob
+        # unfix without any fix: no backup to undo
+        blob = run("lang unfix es")
+        assert "no backup to undo" in blob, blob
+        # the happy path: fix writes the .bak and says so
+        upath = real_lang / "back60.json"
+        upath.parent.mkdir(parents=True, exist_ok=True)
+        pre = {"menu.file": "MiArchivoX", "dead.key": "zzz",
+               "menu.view": "Ver"}
+        upath.write_text(json.dumps(pre), encoding="utf-8")
+        blob = run("lang fix back60")
+        assert "lang unfix back60" in blob and ".bak" in blob, blob
+        bak = real_lang / "back60.json.bak"
+        assert bak.exists()
+        with open(bak, encoding="utf-8") as fh:
+            assert json.load(fh) == pre
+        # unfix restores byte-for-byte and consumes the backup
+        blob = run("lang unfix back60")
+        assert "restored 3 strings" in blob, blob
+        assert "cannot run twice" in blob, blob
+        with open(upath, encoding="utf-8") as fh:
+            assert json.load(fh) == pre
+        assert not bak.exists()
+        # a second unfix is refused honestly
+        blob = run("lang unfix back60")
+        assert "no backup to undo" in blob, blob
+        # an unreadable backup is named, nothing changes
+        bak.write_text("{nope", encoding="utf-8")
+        blob = run("lang unfix back60")
+        assert "backup is unreadable (JSONDecodeError)" in blob, blob
+        # an active language re-activates with the restored pack
+        upath.write_text(json.dumps({"menu.file": "ArchivoX",
+                                     "old.k": "x"}),
+                         encoding="utf-8")
+        run("lang fix back60")
+        i18nmod.set_language("back60")
+        blob = run("lang unfix back60")
+        i18nmod.set_language("en")
+        assert "the restored pack is live at once" in blob, blob
+        with open(upath, encoding="utf-8") as fh:
+            assert json.load(fh) == {"menu.file": "ArchivoX",
+                                     "old.k": "x"}
+        # data layer: undo_fix_file reports both counts
+        upath.write_text(json.dumps(pre), encoding="utf-8")
+        rep = le.fix_pack_file("back60")
+        assert rep["changed"] and rep.get("undo") is True
+        rep2 = le.undo_fix_file("back60")
+        assert rep2["ok"] and rep2["restored"] == 3
+        assert rep2["before"] == 2
+        assert not (real_lang / "back60.json.bak").exists()
+        # a clean fix (changed=False) writes NO backup
+        upath.write_text(json.dumps({"menu.file": "MiArchivoX"}),
+                         encoding="utf-8")
+        rep3 = le.fix_pack_file("back60")
+        assert rep3["ok"] and not rep3["changed"]
+        assert not (real_lang / "back60.json.bak").exists()
+        # source agreement
+        base = os.path.dirname(os.path.dirname(
+            os.path.abspath(__file__)))
+        with open(os.path.join(base, "dxn1_studio", "langedit.py"),
+                  encoding="utf-8") as fh:
+            lesrc = fh.read()
+        assert "def undo_fix_file" in lesrc
+        assert "an undo you cannot run twice by accident" in lesrc
+        with open(os.path.join(base, "dxn1_studio", "app.py"),
+                  encoding="utf-8") as fh:
+            src = fh.read()
+        assert '"lang unfix <code>"' in src
+    finally:
+        try:
+            app.root.destroy()
+        except tk.TclError:
+            pass
+        try:
+            root.destroy()
+        except tk.TclError:
+            pass
+        monkeypatch.undo()
+
+
+def test_desk_fix_button(tmp_path):
+    """DS2 v2.61 — the repair moves into the desk: the Apply safe
+    fixes button cuts every unknown key from the LIVE working copy
+    at one click, the verdict turns green on its own, unsafe
+    strings are not touched (a deletion is not a translation), and
+    a working copy without dead weight answers 'nothing to fix'."""
+    import tkinter as tk
+    try:
+        root = tk.Tk(); root.withdraw()
+    except tk.TclError:
+        return
+    import os
+    import pytest
+    import dxn1_studio.config as cfgmod
+    from dxn1_studio import i18n as i18nmod
+    from dxn1_studio import langedit as le
+    monkeypatch = pytest.MonkeyPatch()
+    monkeypatch.setattr(cfgmod, "CONFIG_DIR", str(tmp_path / "cfg"))
+    monkeypatch.setattr(cfgmod, "CONFIG_PATH",
+                        str(tmp_path / "cfg" / "config.json"))
+    monkeypatch.setenv("HOME", str(tmp_path / "home"))
+    monkeypatch.setattr(i18nmod, "LANG_DIR", str(tmp_path / "homelang"))
+    from dxn1_studio.app import DXN1Studio
+    app = DXN1Studio(cfgmod.Config(), smoke_test=True, no_splash=True)
+    try:
+        app.root.update()
+        logs = []
+        app.terminal.log = lambda m, *a, **k: logs.append(str(m))
+        app.handle_terminal_command("lang edit es")
+        app.root.update()
+        desk = [w for w in app.root.winfo_children()
+                if isinstance(w, le.PackEditor)][0]
+        assert desk.fix_btn.cget("text") == "Apply safe fixes"
+        # plant dead weight, check, then fix in one click
+        desk.work["junk.key"] = "x"
+        desk.work["dead2"] = "y"
+        desk._run_check()
+        assert "2 unknown" in desk.verdict.cget("text")
+        logs.clear()
+        n = desk._apply_safe_fixes()
+        app.root.update()
+        assert n == 2
+        assert "junk.key" not in desk.work and "dead2" not in desk.work
+        assert "✓" in desk.verdict.cget("text")
+        blob = "\n".join(logs)
+        assert "applied safe fixes — cut 2 unknown keys" in blob, blob
+        # nothing to fix: honest status, count 0
+        n = desk._apply_safe_fixes()
+        assert n == 0 and desk.status.cget("text") == "nothing to fix"
+        # unsafe strings are NOT touched
+        desk.work["menu.file"] = "İstanbul"
+        n = desk._apply_safe_fixes()
+        assert n == 0
+        assert desk.work.get("menu.file") == "İstanbul"
+        desk._close()
+        app.root.update()
+    finally:
+        try:
+            app.root.destroy()
+        except tk.TclError:
+            pass
+        try:
+            root.destroy()
+        except tk.TclError:
+            pass
+        monkeypatch.undo()
+
+
+def test_fit_to_content(tmp_path):
+    """DS2 v2.61 — the v2.55 width pattern becomes one helper:
+    geom.fit_to_content opens a window no narrower (or shorter)
+    than what it actually packed, with the designed default as the
+    floor; ratchet=True records the high-water mark in
+    ``win._fit_size`` and never shrinks back; and eight more fixed
+    windows now ride it (todo results, what's new, verbs, usage
+    dashboard, packages, session restore, memory, sqlite lab)."""
+    import tkinter as tk
+    try:
+        root = tk.Tk(); root.withdraw()
+    except tk.TclError:
+        return
+    import os
+    from dxn1_studio import geom
+    # grows past the floor when content asks
+    win = tk.Toplevel(root)
+    tk.Label(win, text="X" * 200).pack(padx=10, pady=10)
+    applied = geom.fit_to_content(win, 400, 300)
+    root.update()
+    assert win.winfo_width() >= win.winfo_reqwidth() - 2
+    assert win.winfo_width() >= 400 and win.winfo_height() >= 300
+    assert applied.endswith("x300")
+    win.destroy()
+    # the floor wins when content is smaller
+    win2 = tk.Toplevel(root)
+    tk.Label(win2, text="tiny").pack(padx=4, pady=4)
+    applied = geom.fit_to_content(win2, 500, 320)
+    root.update()
+    assert win2.winfo_width() == 500 and win2.winfo_height() == 320
+    win2.destroy()
+    # the ratchet holds the high-water mark
+    win3 = tk.Toplevel(root)
+    tk.Label(win3, text="Y" * 200).pack(padx=10, pady=10)
+    geom.fit_to_content(win3, 300, 200, ratchet=True)
+    root.update()
+    wide = win3.winfo_width()
+    tk.Label(win3, text="s").pack(padx=1, pady=1)
+    geom.fit_to_content(win3, 300, 200, ratchet=True)
+    root.update()
+    assert win3.winfo_width() >= wide - 2
+    assert win3._fit_size[0] >= wide - 2
+    win3.destroy()
+    root.update()
+    # junk input never raises
+    assert geom.fit_to_content(None, 100) == ""
+    # source agreement: the eight conversions are written where
+    # they run
+    base = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    for mod, marker in (("app.py", "_geom.fit_to_content(win, 720, 420)"),
+                        ("whatsnew.py",
+                         "_geom.fit_to_content(win, 780, 560)"),
+                        ("verbs.py",
+                         "_geom.fit_to_content(win, 640, 520)"),
+                        ("usagedash.py",
+                         "_geom.fit_to_content(self, 720, 600)"),
+                        ("packages.py",
+                         "_geom.fit_to_content(self, 800, 620)"),
+                        ("session.py",
+                         "_geom.fit_to_content(self, 620, 380)"),
+                        ("memory.py",
+                         "_geom.fit_to_content(self, 640, 540)"),
+                        ("sqlitelab.py",
+                         "_geom.fit_to_content(self, 1000, 640)")):
+        with open(os.path.join(base, "dxn1_studio", mod),
+                  encoding="utf-8") as fh:
+            assert marker in fh.read(), mod
+    with open(os.path.join(base, "dxn1_studio", "geom.py"),
+              encoding="utf-8") as fh:
+        gsrc = fh.read()
+    assert "def fit_to_content" in gsrc
+    assert "ratchet" in gsrc

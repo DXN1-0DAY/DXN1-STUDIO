@@ -197,10 +197,17 @@ class UsageDashboard(tk.Toplevel):
 
     def _center(self):
         try:
+            # DS2 v2.61 — width accounting round three: the dashboard
+            # fits what it packed (the 720x600 default is the floor),
+            # then centers on the size it actually got
+            from . import geom as _geom
+            _geom.fit_to_content(self, 720, 600)
             self.update_idletasks()
-            x = max(0, (self.winfo_screenwidth() - 720) // 2)
-            y = max(0, (self.winfo_screenheight() - 600) // 3)
-            self.geometry(f"720x600+{x}+{y}")
+            w = max(720, self.winfo_width())
+            h = max(600, self.winfo_height())
+            x = max(0, (self.winfo_screenwidth() - w) // 2)
+            y = max(0, (self.winfo_screenheight() - h) // 3)
+            self.geometry(f"+{x}+{y}")
         except tk.TclError:
             pass
 

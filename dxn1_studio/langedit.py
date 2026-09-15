@@ -62,6 +62,7 @@ typing is worse than no desk.
 import json
 import os
 import re
+import shutil
 import tkinter as tk
 
 from . import i18n as _i18n
@@ -340,6 +341,17 @@ def fix_pack_file(code):
         directory = _i18n.LANG_DIR
         if not os.path.isdir(directory):
             os.makedirs(directory, exist_ok=True)
+        # v2.61 — the safety net: the pre-fix copy lands beside the
+        # pack as ``<code>.json.bak`` BEFORE anything moves, so the
+        # fix is one ``lang unfix`` away from undone. Only the most
+        # recent fix is undoable — a new fix overwrites the old net.
+        try:
+            bak = path + ".bak"
+            shutil.copyfile(path, bak)
+            rep["undo"] = True
+        except OSError as exc:
+            rep["undo"] = False
+            rep["undo_error"] = exc.__class__.__name__
         tmp = path + ".tmp"
         with open(tmp, "w", encoding="utf-8") as fh:
             json.dump(keep, fh, ensure_ascii=False, indent=2,
@@ -351,6 +363,56 @@ def fix_pack_file(code):
         rep["error"] = exc.__class__.__name__
         return rep
     rep["changed"] = True
+    return rep
+
+
+def undo_fix_file(code):
+    """DS2 v2.61 — the way back: restore a user pack FILE from the
+    ``.bak`` the last ``fix_pack_file`` wrote beside it, then
+    consume the backup — an undo you cannot run twice by accident.
+    The restore is atomic (tmp + ``os.replace``) and the backup is
+    only trusted if it parses as a JSON object; a missing or
+    unreadable backup answers ``ok: False`` with the reason.
+    Returns a report dict. Never raises."""
+    path = _user_pack_path(code)
+    bak = path + ".bak"
+    rep = {"ok": True, "code": code, "path": path, "restored": 0,
+           "before": 0, "error": None}
+    if not os.path.exists(bak):
+        rep["ok"] = False
+        rep["error"] = "no backup to undo"
+        return rep
+    try:
+        with open(bak, "r", encoding="utf-8") as fh:
+            data = json.load(fh)
+    except (OSError, ValueError, TypeError) as exc:
+        rep["ok"] = False
+        rep["error"] = exc.__class__.__name__
+        return rep
+    if not isinstance(data, dict):
+        rep["ok"] = False
+        rep["error"] = "not a JSON object"
+        return rep
+    try:
+        if os.path.exists(path):
+            with open(path, "r", encoding="utf-8") as fh:
+                cur = json.load(fh)
+            rep["before"] = len(cur) if isinstance(cur, dict) else 0
+        directory = _i18n.LANG_DIR
+        if not os.path.isdir(directory):
+            os.makedirs(directory, exist_ok=True)
+        tmp = path + ".tmp"
+        with open(tmp, "w", encoding="utf-8") as fh:
+            json.dump(data, fh, ensure_ascii=False, indent=2,
+                      sort_keys=True)
+            fh.write("\n")
+        os.replace(tmp, path)
+        os.remove(bak)
+    except OSError as exc:
+        rep["ok"] = False
+        rep["error"] = exc.__class__.__name__
+        return rep
+    rep["restored"] = len(data)
     return rep
 
 
@@ -630,6 +692,12 @@ class PackEditor(tk.Toplevel):
         chk.pack(side=tk.LEFT, padx=(8, 0))
         chk.bind("<Button-1>", lambda e: self._run_check())
         self.check_btn = chk
+        fixb = tk.Label(btns, text="Apply safe fixes",
+                        bg=t["card"], fg=t["text"], cursor="hand2",
+                        font=(FONT_UI, 9), padx=10, pady=4)
+        fixb.pack(side=tk.LEFT, padx=(8, 0))
+        fixb.bind("<Button-1>", lambda e: self._apply_safe_fixes())
+        self.fix_btn = fixb
         self.save_btn = tk.Label(btns, text="Save pack", bg=t.accent,
                                  fg="#ffffff", cursor="hand2",
                                  font=(FONT_UI, 9, "bold"),
@@ -952,6 +1020,46 @@ class PackEditor(tk.Toplevel):
             self._render_verdict()
         except Exception:  # noqa: BLE001 — the desk never raises
             pass
+
+    def _apply_safe_fixes(self):
+        """v2.61 — the repair moves into the desk: cut the dead
+        weight from the LIVE working copy — every unknown key (the
+        source never names it, it only ages into stale) drops at one
+        click, and the verdict turns green on its own. Unsafe
+        strings are NOT touched here either: a deletion is not a
+        translation, and Ctrl+S writes only what you keep. Returns
+        the number of keys cut — never raises."""
+        try:
+            dead = sorted(k for k in self.work if k not in _i18n.EN)
+            if not dead:
+                try:
+                    self.status.config(text="nothing to fix")
+                except Exception:  # noqa: BLE001
+                    pass
+                self._log("apply safe fixes — nothing to fix: the "
+                          "working copy carries no unknown keys")
+                return 0
+            for key in dead:
+                self.work.pop(key, None)
+            self._refresh()
+            unsafe = sum(1 for v in self.work.values() if is_unsafe(v))
+            try:
+                self.status.config(text="cut %d" % len(dead))
+            except Exception:  # noqa: BLE001
+                pass
+            self._log(
+                "applied safe fixes — cut %d unknown key%s (%s) — "
+                "the pack is lighter%s"
+                % (len(dead), "" if len(dead) == 1 else "s",
+                   ", ".join(dead[:8]) + (", …" if len(dead) > 8
+                                          else ""),
+                   "; %d unsafe string%s still need%s a real "
+                   "translation"
+                   % (unsafe, "" if unsafe == 1 else "s", "" if
+                      unsafe == 1 else "") if unsafe else ""))
+            return len(dead)
+        except Exception:  # noqa: BLE001 — the desk never raises
+            return 0
 
     def _save(self, _event=None):
         """Write the working copy as a user pack (atomic). If this

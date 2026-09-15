@@ -323,6 +323,10 @@ class SQLiteLab(tk.Toplevel):
             else:
                 self.set_status("No .db / .sqlite files found in the "
                                 "workspace — use Open…")
+        # DS2 v2.61 — width accounting round three: open no narrower
+        # than what it actually packed
+        from . import geom as _geom
+        _geom.fit_to_content(self, 1000, 640)
 
     # ---------------------------------------------------------- style
     def _build_style(self):

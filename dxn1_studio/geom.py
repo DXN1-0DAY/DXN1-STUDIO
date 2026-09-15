@@ -14,7 +14,7 @@ import re
 
 __all__ = ["parse_geometry", "make_geometry", "screen_signature",
            "clamp_geometry", "remember", "recall",
-           "remember_root", "restore_root"]
+           "remember_root", "restore_root", "fit_to_content"]
 
 GEOMETRY_KEY = "window_geometry_by_screen"
 _GEOM_RE = re.compile(
@@ -121,3 +121,39 @@ def restore_root(root, config, min_w=940, min_h=580):
     except Exception:  # noqa: BLE001 — boot must never die here
         pass
     return ""
+
+
+def fit_to_content(win, min_w, min_h=None, ratchet=False):
+    """DS2 v2.61 — the v2.55 width pattern, one helper for every
+    window: after building, a window opens no narrower (or shorter)
+    than what it actually packed. ``min_w`` / ``min_h`` are the
+    designed defaults (the old fixed geometry becomes the floor);
+    the real request wins when it is bigger, so long rows, long
+    translated headers and full hint bars never clip at the right
+    edge. With ``ratchet=True`` the window also records its
+    high-water mark (``win._fit_size``) and never shrinks back —
+    for windows that re-measure on every refresh, where a manual
+    resize must never be fought. Call it at the END of the build,
+    after every widget is packed. Returns the applied "WxH" string,
+    or "" — never raises."""
+    try:
+        win.update_idletasks()
+        floor_w = int(min_w)
+        floor_h = int(min_h) if min_h is not None else 0
+        if ratchet:
+            prev_w, prev_h = getattr(win, "_fit_size", (0, 0))
+            try:
+                cur_w = win.winfo_width()
+                cur_h = win.winfo_height()
+            except Exception:  # noqa: BLE001 — unmapped yet
+                cur_w = cur_h = 0
+            w = max(floor_w, win.winfo_reqwidth(), prev_w, cur_w)
+            h = max(floor_h, win.winfo_reqheight(), prev_h, cur_h)
+            win._fit_size = (w, h)
+        else:
+            w = max(floor_w, win.winfo_reqwidth())
+            h = max(floor_h, win.winfo_reqheight())
+        win.geometry("%dx%d" % (w, h))
+        return "%dx%d" % (w, h)
+    except Exception:  # noqa: BLE001 — garnish must never bite
+        return ""

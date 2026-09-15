@@ -165,11 +165,16 @@ class MemoryEditor(tk.Toplevel):
 
     def _center(self):
         try:
+            # DS2 v2.61 — width accounting round three: fit what it
+            # packed (the 640x540 default is the floor), then center
+            from . import geom as _geom
+            _geom.fit_to_content(self, 640, 540)
             self.update_idletasks()
-            w, h = 640, 540
+            w = max(640, self.winfo_width())
+            h = max(540, self.winfo_height())
             x = max(0, (self.winfo_screenwidth() - w) // 2)
             y = max(0, (self.winfo_screenheight() - h) // 3)
-            self.geometry(f"{w}x{h}+{x}+{y}")
+            self.geometry(f"+{x}+{y}")
         except tk.TclError:
             pass
 

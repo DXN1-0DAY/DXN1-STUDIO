@@ -238,5 +238,9 @@ def open_whatsnew(master, theme, root_dir=None, highlight=None,
                     "accent": accent},
                    notes=("click a version to read its notes",),
                    before=foot)
+    # DS2 v2.61 — width accounting round three: open no narrower
+    # than what it actually packed
+    from . import geom as _geom
+    _geom.fit_to_content(win, 780, 560)
     log("what's new: %d releases" % len(entries))
     return win

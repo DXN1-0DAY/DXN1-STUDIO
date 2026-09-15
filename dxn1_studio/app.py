@@ -165,6 +165,10 @@ TERMINAL_HELP = (
                         "to the user pack file — junk and empty "
                         "values dropped, unknown keys cut; unsafe "
                         "strings need a real translation"),
+    ("lang unfix <code>", "restore the user pack file from the "
+                          ".bak the last lang fix wrote — and "
+                          "consume it; an undo you cannot run "
+                          "twice by accident"),
     ("update", "check GitHub for a newer release"),
     ("whatsnew", "release notes — what changed between tags"),
     ("deps", "cross-check imports vs requirements*.txt "
@@ -3974,10 +3978,84 @@ class DXN1Studio:
                     "(lang check %s)"
                     % (rest, "; ".join(_fixed), frep["kept"],
                        "" if frep["kept"] == 1 else "s", rest))
+                if frep.get("undo"):
+                    self.terminal.log(
+                        "  the pre-fix copy is saved as %s.bak — "
+                        "second thoughts are one `lang unfix %s` "
+                        "away" % (frep["path"], rest))
+                else:
+                    self.terminal.log(
+                        "  no .bak could be written (%s) — this fix "
+                        "cannot be undone"
+                        % frep.get("undo_error", "unknown"))
                 if _i18n.current() == rest:
                     _i18n.set_language(rest)
                     self.terminal.log(
                         "  %s is the active language — the repaired "
+                        "pack is live at once" % rest)
+                return
+            if arg == "unfix" or arg.startswith("unfix "):
+                # DS2 v2.61 — the way back: restore the user pack
+                # file from the .bak the last lang fix wrote, then
+                # consume it — an undo you cannot run twice by
+                # accident. Second thoughts deserve one honest step.
+                import re as _re4
+                from . import langedit as _le
+                rest = arg[5:].strip().lower()
+                if not rest:
+                    self.terminal.log(
+                        "usage: lang unfix <code> — restore the user "
+                        "pack file from the .bak the last lang fix "
+                        "wrote (and consume it); available: %s"
+                        % ", ".join(c for c in _i18n.available()
+                                    if c != "en"))
+                    return
+                if not _re4.match(r"^[a-z0-9][a-z0-9_-]{0,15}$", rest):
+                    self.terminal.log(
+                        "'%s' is not a pack code — lowercase letters, "
+                        "digits, _ or - (e.g. es, pt_br)" % rest)
+                    return
+                if rest == "en":
+                    self.terminal.log(
+                        "English is the source of truth — it was "
+                        "never fixed, so there is nothing to unfix")
+                    return
+                if rest not in _i18n.available():
+                    self.terminal.log(
+                        "unknown language '%s' — available: %s"
+                        % (rest, ", ".join(_i18n.available())))
+                    return
+                try:
+                    urep = _le.undo_fix_file(rest)
+                except Exception:  # noqa: BLE001 — a verb never raises
+                    urep = None
+                if not urep:
+                    self.terminal.log("lang unfix unavailable here")
+                    return
+                if not urep.get("ok"):
+                    if urep.get("error") == "no backup to undo":
+                        self.terminal.log(
+                            "lang unfix %s — no backup to undo: "
+                            "either %s was never fixed, or the fix "
+                            "was already undone (lang check %s says "
+                            "where it stands)" % (rest, rest, rest))
+                    else:
+                        self.terminal.log(
+                            "lang unfix %s — the backup is unreadable "
+                            "(%s) — nothing changed"
+                            % (rest, urep.get("error")))
+                    return
+                self.terminal.log(
+                    "lang unfix %s — restored %d string%s from the "
+                    "pre-fix copy (the fixed pack had %d) — the "
+                    "backup is consumed, this undo cannot run twice"
+                    % (rest, urep["restored"],
+                       "" if urep["restored"] == 1 else "s",
+                       urep["before"]))
+                if _i18n.current() == rest:
+                    _i18n.set_language(rest)
+                    self.terminal.log(
+                        "  %s is the active language — the restored "
                         "pack is live at once" % rest)
                 return
             if arg == "audit":
@@ -5563,6 +5641,11 @@ class DXN1Studio:
             for w in (head, body):
                 w.bind("<Button-1>", lambda e, p=path, l=lineno:
                        self.open_search_match(p, l, 0))
+        # DS2 v2.61 — width accounting round three: open no narrower
+        # (or shorter) than what it actually packed — 200 rows of
+        # long file paths never clip at the 720px default
+        from . import geom as _geom
+        _geom.fit_to_content(win, 720, 420)
 
     def goto_line_dialog(self):
         if not self.editor.file_path and not self.editor.get_content():
