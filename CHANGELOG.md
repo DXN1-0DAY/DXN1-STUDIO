@@ -4,6 +4,48 @@ All notable changes to DXN1 STUDIO. Format based on
 [Keep a Changelog](https://keepachangelog.com/); versioning is
 `MAJOR.MINOR.PATCH` while in **beta**.
 
+## [2.71.5] — 2026-09-15 · beta · "the web face grows up" (settings, git, and a real editor in the browser)
+
+### Added
+- **Web parity waves 1-3** (the Electron + Web UI path, continuing
+  the user's direction):
+  * **Editor**: dependency-free syntax highlighting for Python/JS/JSON
+    (token layer under a transparent caret-carrying textarea), real
+    Tab indentation, two-axis scroll sync, workspace-relative tab bar
+    with live dirty dots and an active ring that matches the desktop.
+  * **Explorer**: expandable folders, per-row rename/delete hover
+    actions, + file / + dir buttons — file creation works end-to-end
+    from the browser (create → tree refresh → opened in the editor).
+  * **Settings panel** (⚙): theme select, six accent swatches, word
+    wrap / auto-save toggles — POST /api/config with strict
+    validation, and the accent re-colours the web face LIVE.
+  * **Source control panel**: a statusbar git chip (branch + dirty
+    dot) opens a panel with the changed-file list, a commit box
+    (Enter submits), Push and Pull, and the recent log. The action
+    whitelist is commit/push/pull — nothing else crosses the bridge.
+  * **Bridge hardening**: mutations ride a queue drained by a
+    main-loop pump (no cross-thread Tk calls, ever); `.dxn1/` is
+    kept out of git status via local excludes, self-healing when a
+    repo appears later — the bridge token can never ride a commit.
+- `scripts/gates.sh` — the whole release gate sequence as one
+  fail-loud command (compileall · hashes · pytest · boot_qa ·
+  installer syntax).
+- `scripts/verify_pump.py` — mainloop-harness proof of the bridge
+  mutation pump.
+
+### Fixed
+- The rename route honours the engine's `{"from": ...}` contract
+  (was silently resolving to the workspace root).
+- Bridge tests now run against a private temp workspace — the smoke
+  app boots with `project_dir=None` and the engine must never touch
+  the repo tree.
+- Tab-active matching after the app normalised paths to relative.
+
+### Tests
+- Suite grew 163 → **170 green** (bridge suite 16 → 23: config
+  validation, accent re-colour, git whitelist, commit roundtrip,
+  plain-dir errors).
+
 ## [2.71.4] — 2026-09-15 · beta · "the bridge to Electron opens" (web renderer + native shell, per user directive)
 
 ### Added
