@@ -1,3 +1,30 @@
+## v3.0.08 — the campaign: somewhere to go
+
+**The campaign grows: five scenes**
+- Two new levels chain the world together: **playground → level-1 (the gap)
+  → level-2 (the movers) → level-3 (the climb) → level-4 (the gauntlet) →
+  back home.**
+- `level-3 — the climb`: the studio goes vertical. Two lifts, a fanged
+  approach, a springboard shortcut for the greedy, coins on the way up and
+  a gradient summit waiting at the top.
+- `level-4 — the gauntlet`: the exam. Nine fangs on the pit floor, three
+  ferries on staggered heights, a saw-guarded island rest stop, a spinning
+  gate before the last door — the hardest jump timing in the campaign.
+- Both levels ship with real map-framed renders in the README, generated
+  by the binary itself (`--screenshot`), same as the rest.
+
+**The repo fires: quality gates in public**
+- GitHub Actions CI now runs the full gauntlet on every push and pull
+  request: the zero-warning C++23 build under **g++ and clang++** (a
+  compiler matrix), the engine selftest, one real headless frame for
+  every scene, the zero-electron tripwire and VERSION ↔ CHANGELOG
+  consistency.
+- A second CI job probes the one-liner installer end to end — clone,
+  build, selftest, launcher — straight from `origin/master`, so the curl
+  line on the README is exercised by machines, not just by hope.
+- README carries the gates badge; the campaign section, screenshot
+  gallery and history tell the five-scene story.
+
 ## v3.0.07 — the mark: a face for the studio
 
 **The brand**

@@ -2,7 +2,8 @@
 
 ![DXN1 STUDIO 3](assets/banner.png)
 
-![version](https://img.shields.io/badge/version-3.0.07-8b5cf6?style=flat-square)
+![version](https://img.shields.io/badge/version-3.0.08-8b5cf6?style=flat-square)
+![gates](https://github.com/DXN1-termux/DXN1-STUDIO/actions/workflows/ci.yml/badge.svg)
 ![native](https://img.shields.io/badge/native-C%2B%2023-f97316?style=flat-square)
 ![face](https://img.shields.io/badge/face-terminal_truecolor-22d3ee?style=flat-square)
 ![deps](https://img.shields.io/badge/dependencies-zero-34d399?style=flat-square)
@@ -13,11 +14,16 @@
 STUDIO 3 is the Spark 2D engine and a truecolor terminal studio compiled into a
 single native core. It opens on a title card carrying the mark — the STUDIO 2
 circuit spiral with a monolithic **3** carved into it, the way an engine logo
-should be. Scenes are plain JSON. The whole thing builds with `make`. There is
+should be. Scenes are plain JSON — five of them, chained into a campaign.
+The whole thing builds with `make`. There is
 no Electron, no Node and no Python in this repo — the studio is one binary and
 the binary is the product.
 
 ## Install — one line, fully launchable
+
+Every push runs the full gauntlet in CI — a zero-warning C++23 build under
+g++ **and** clang++, the engine selftest, a real headless frame for every
+scene, and a live probe of the one-liner installer.
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/DXN1-termux/DXN1-STUDIO/master/scripts/install.sh | bash
@@ -52,11 +58,17 @@ scenes — the same frames your terminal draws:
 | the playground | the gap (level-1) |
 |---|---|
 | ![playground](docs/img/shot-playground.png) | ![level-1](docs/img/shot-level-1.png) |
+| **the climb (level-3)** | **the gauntlet (level-4)** |
+| ![level-3](docs/img/shot-level-3.png) | ![level-4](docs/img/shot-level-4.png) |
 
-Goals chain the scenes into a campaign: **playground → level-1 → level-2 →
+Goals chain the scenes into a five-scene campaign: **playground → level-1 (the
+gap) → level-2 (the movers) → level-3 (the climb) → level-4 (the gauntlet) →
 back home.** Coins score (+10, magnetized inside the scene's radius), spikes
 respawn you with a camera shake, movers carry you across the gaps — and the
 HUD counts it all: `COINS x/y · SCORE · TIME`, scene name on the right.
+Level-3 goes vertical — two lifts, a springboard shortcut and a gradient
+summit. Level-4 is the exam: nine fangs, three ferries, a saw-guarded island
+and a spinning gate before the last door.
 
 ## Play
 
@@ -158,7 +170,7 @@ native/src/main.cpp         the studio shell: raw-mode input, fixed
                             FILE VIEW / command modes
 native/src/selftest.cpp     engine assertions
 assets/                     the brand: emblem, banner, social card + SVG src
-scenes/*.dxn1.json          the campaign — data only
+scenes/*.dxn1.json          the five-scene campaign — data only
 scripts/install.sh          the curl one-liner
 scripts/gates.sh            the quality gauntlet
 ```
@@ -173,6 +185,9 @@ STUDIO 2 circuit spiral (preserved on the
 [`ds2-archive`](https://github.com/DXN1-termux/DXN1-STUDIO/tree/ds2-archive)
 branch) with a monolithic 3 carved into it, the title card greets every
 launch, the HUD counts your coins, and the command bar whispers usage hints
-while you type.
+while you type. v3.0.08 gave the studio somewhere to go: the campaign grew
+from three scenes to five — the climb and the gauntlet — and the gauntlet
+itself moved into CI, where g++, clang++ and the one-liner installer are
+probed on every push.
 
 MIT — DXN1-termux

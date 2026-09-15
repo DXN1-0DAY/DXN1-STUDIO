@@ -1,0 +1,29 @@
+{
+  "name": "level-3",
+  "bg": "#0a0d18",
+  "gravity": 1500,
+  "magnet": 130,
+  "next": "scenes/level-4.dxn1.json",
+  "camera": { "x": 300, "y": 250, "zoom": 0.8 },
+  "entities": [
+    { "name": "hero", "tag": "player", "x": 80, "y": 330, "w": 34, "h": 44, "color": "#8b5cf6" },
+    { "name": "ground", "x": -200, "y": 430, "w": 1000, "h": 90, "color": "#1f2937" },
+    { "name": "fang", "tag": "spike", "x": 430, "y": 402, "w": 34, "h": 28, "shape": "triangle", "color": "#ef4444" },
+    { "name": "springboard", "tag": "bouncy", "x": 640, "y": 380, "w": 90, "h": 22, "color": "#22d3ee", "bounce": 1.5 },
+    { "name": "ledge-a", "x": 760, "y": 330, "w": 180, "h": 22, "color": "#1f2937" },
+    { "name": "gem-1", "tag": "coin", "x": 810, "y": 280, "w": 22, "h": 22, "shape": "circle", "color": "#facc15" },
+    { "name": "lift-1", "tag": "mover", "x": 990, "y": 330, "w": 130, "h": 20, "color": "#38bdf8",
+      "path": [ { "x": 990, "y": 330 }, { "x": 990, "y": 190 } ], "pspeed": 60 },
+    { "name": "gem-2", "tag": "coin", "x": 1040, "y": 260, "w": 22, "h": 22, "shape": "circle", "color": "#facc15" },
+    { "name": "ledge-b", "x": 1180, "y": 190, "w": 200, "h": 22, "color": "#1f2937" },
+    { "name": "watcher", "tag": "spike", "x": 1290, "y": 162, "w": 34, "h": 28, "shape": "triangle", "color": "#ef4444" },
+    { "name": "lift-2", "tag": "mover", "x": 1430, "y": 190, "w": 120, "h": 20, "color": "#38bdf8",
+      "path": [ { "x": 1430, "y": 190 }, { "x": 1430, "y": 60 } ], "pspeed": 55 },
+    { "name": "gem-3", "tag": "coin", "x": 1470, "y": 120, "w": 22, "h": 22, "shape": "circle", "color": "#facc15" },
+    { "name": "summit", "x": 1600, "y": 60, "w": 240, "h": 30, "color": "#a78bfa", "color2": "#22d3ee", "fill": "gradient" },
+    { "name": "gem-4", "tag": "coin", "x": 1700, "y": 30, "w": 22, "h": 22, "shape": "circle", "color": "#facc15" },
+    { "name": "sign-1", "tag": "sign", "x": 140, "y": 360, "w": 220, "h": 20, "color": "#a78bfa", "text": "the only way is up", "tsize": 18 },
+    { "name": "sign-2", "tag": "sign", "x": 880, "y": 280, "w": 160, "h": 20, "color": "#a78bfa", "text": "ride the lifts", "tsize": 18 },
+    { "name": "out", "tag": "goal", "x": 1750, "y": -4, "w": 40, "h": 64, "color": "#22c55e" }
+  ]
+}

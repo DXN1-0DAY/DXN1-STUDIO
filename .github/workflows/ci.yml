@@ -1,0 +1,40 @@
+# DXN1 STUDIO 3 — the gauntlet runs on every push.
+# Same gates the repo ships with: zero-warning C++23 build, engine
+# selftest, every scene renders a real headless frame, zero electron-era
+# files, VERSION ↔ CHANGELOG. Plus the one-liner installer, probed live.
+name: gates
+
+on:
+  push:
+    branches: [master]
+  pull_request:
+
+jobs:
+  gates:
+    name: ${{ matrix.cxx }} — build + selftest + scenes
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        cxx: [g++, clang++]
+    env:
+      CXX: ${{ matrix.cxx }}   # the Makefile honors CXX (?= g++)
+    steps:
+      - uses: actions/checkout@v4
+      - name: run the gauntlet
+        run: bash scripts/gates.sh
+
+  installer:
+    name: the one-liner installer (from origin/master)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4   # only to have install.sh locally
+      - name: install with --dir into a scratch home
+        run: bash scripts/install.sh --dir "$RUNNER_TEMP/dxn3-ci"
+      - name: the launcher answers from anywhere
+        run: |
+          "$RUNNER_TEMP/dxn3-ci/native/build/dxn3-native" --version
+          "$RUNNER_TEMP/dxn3-ci/native/build/dxn3-native" --list-scenes
+          "$RUNNER_TEMP/dxn3-ci/native/build/dxn3-native" \
+            --scene "$RUNNER_TEMP/dxn3-ci/scenes/playground.dxn1.json" </dev/null \
+            | grep -q "frame rendered" && echo "installer probe: frame rendered"
