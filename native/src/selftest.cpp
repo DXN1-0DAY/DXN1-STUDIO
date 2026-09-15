@@ -6,6 +6,11 @@
 #include <sys/stat.h>
 
 #include "spark.hpp"
+#include "version.hpp"
+#include "fx.hpp"
+#include "png.hpp"
+#include "cmd.hpp"
+#include "shot.hpp"
 
 using namespace dxn3;
 
@@ -188,6 +193,134 @@ int main() {
     float minVy = 0;
     for (int i = 0; i < 180; ++i) { g.update(1.f / 60.f, {}); minVy = std::min(minVy, b.vy); }
     ok(minVy < -300, "ball bounces forever");
+  }
+
+  // 9. the version quad rides in the binary too
+  ok(std::string(dxn3::DXN3_VERSION) == "3.0.07", "native version constant is 3.0.07");
+
+  // 10. png writer: checksum vectors, real structure, byte determinism
+  {
+    ok(dxn3::crc32("123456789") == 0xCBF43926u, "crc32 matches the known vector");
+    ok(dxn3::adler32("Wikipedia") == 0x11E60398u, "adler32 matches the known vector");
+    std::vector<std::uint32_t> px(8 * 4, 0x8B5CF6);
+    px[0] = 0xFF0000;                       // one rebel pixel
+    const std::string e1 = dxn3::writePng("/tmp/dxn3_qa_a.png", 8, 4, px);
+    ok(e1.empty(), "writePng saves without error");
+    auto slurp = [](const char* p) {
+      std::FILE* f = std::fopen(p, "rb");
+      std::string b; char buf[8192]; size_t r;
+      if (f) { while ((r = std::fread(buf, 1, sizeof buf, f)) > 0) b.append(buf, r); std::fclose(f); }
+      return b;
+    };
+    const std::string bytes = slurp("/tmp/dxn3_qa_a.png");
+    ok(bytes.size() > 60 &&
+       bytes[0] == '\x89' && bytes[1] == 'P' && bytes[2] == 'N' && bytes[3] == 'G',
+       "png signature is 89 50 4E 47");
+    ok(bytes.size() >= 57 && bytes[12] == 'I' && bytes[13] == 'H' &&
+       bytes[14] == 'D' && bytes[15] == 'R' && bytes[16] == 0 &&
+       bytes[17] == 0 && bytes[18] == 0 && bytes[19] == 8,
+       "IHDR carries width 8 first");
+    const size_t idat = bytes.find("IDAT");
+    ok(idat != std::string::npos && bytes[idat + 4] == '\x78' &&
+       bytes[idat + 5] == '\x01', "IDAT opens with a zlib 78 01 header");
+    ok(bytes.size() >= 12 && bytes.rfind("IEND") == bytes.size() - 8,
+       "IEND chunk is the last thing in the file");
+    dxn3::writePng("/tmp/dxn3_qa_b.png", 8, 4, px);
+    ok(bytes == slurp("/tmp/dxn3_qa_b.png"),
+       "png encoding is byte-for-byte deterministic");
+    ok(!dxn3::writePng("/tmp/no-such-dir-xyz/a.png", 8, 4, px).empty(),
+       "writePng refuses an unwritable path honestly");
+    ok(!dxn3::writePng("/tmp/dxn3_qa_bad.png", 8, 4, {1, 2, 3}).empty(),
+       "writePng rejects a wrong-size pixel buffer");
+  }
+
+  // 11. the screenshot raster: player-framed, stable, self-contained
+  {
+    Scene s;
+    s.entities.push_back(mk("player", 90, 300, 34, 44));
+    s.entities.push_back(mk("", 0, 400, 640, 40, "#1f2937"));
+    s.entities.push_back(mk("coin", 200, 300, 22, 22, "#facc15"));
+    Scene s2 = s;                         // move will hollow out s — copy first
+    Game g(std::move(s));
+    for (int i = 0; i < 30; ++i) g.update(1.f / 60.f, {});
+    ok(dxn3::shootPNG("/tmp/dxn3_qa_shot.png", g).empty(),
+       "shootPNG renders the scene to a file");
+    auto slurp = [](const char* p) {
+      std::FILE* f = std::fopen(p, "rb");
+      std::string b; char buf[8192]; size_t r;
+      if (f) { while ((r = std::fread(buf, 1, sizeof buf, f)) > 0) b.append(buf, r); std::fclose(f); }
+      return b;
+    };
+    struct stat st{};
+    ok(::stat("/tmp/dxn3_qa_shot.png", &st) == 0 && st.st_size > 100000,
+       "screenshot is a real 960x540 frame (not a stub)");
+    dxn3::shootPNG("/tmp/dxn3_qa_shot_b.png", g);   // same state, again
+    ok(slurp("/tmp/dxn3_qa_shot.png") == slurp("/tmp/dxn3_qa_shot_b.png"),
+       "rendering one state twice is byte-identical (pure function)");
+    Game g2(std::move(s2));               // replay the exact same ticks
+    for (int i = 0; i < 30; ++i) g2.update(1.f / 60.f, {});
+    dxn3::shootPNG("/tmp/dxn3_qa_shot2.png", g2);
+    ok(slurp("/tmp/dxn3_qa_shot.png") == slurp("/tmp/dxn3_qa_shot2.png"),
+       "the same tick sequence renders pixel-identical (fixed step)");
+  }
+
+  // 12. the command bar grammar: kind when right, honest when wrong
+  {
+    auto c = dxn3::parseCommand(":scene scenes/level-2.dxn1.json");
+    ok(c.ok() && c.verb == "scene" && c.arg == "scenes/level-2.dxn1.json",
+       "parseCommand reads :scene with its path");
+    c = dxn3::parseCommand(":zoom 1.75");
+    ok(c.ok() && c.num == 1.75f, "parseCommand reads :zoom with a factor");
+    c = dxn3::parseCommand(":wq");
+    ok(c.ok() && c.verb == "wq", "parseCommand knows :wq");
+    ok(!dxn3::parseCommand("").ok(), "empty command is refused with usage");
+    ok(!dxn3::parseCommand(":frobnicate 3").ok(), "unknown verbs are refused by name");
+    ok(!dxn3::parseCommand(":scene").ok(), ":scene without a path is refused");
+    ok(!dxn3::parseCommand(":zoom banana").ok(), ":zoom with junk is refused");
+    ok(!dxn3::parseCommand(":magnet 9999").ok(), ":magnet out of range is refused");
+    ok(!dxn3::parseCommand(":q now").ok(), ":q with an argument is refused");
+  }
+
+  // 13. saveScene: the .bak safety net + honest failures + round-trip
+  {
+    Scene s;
+    s.name = "save-me";
+    s.entities.push_back(mk("player", 10, 20, 34, 44));
+    ok(Game::saveScene("/tmp/dxn3_qa_scene.json", s).empty(),
+       "saveScene writes a fresh file");
+    Scene t;
+    t.name = "save-me-again";
+    ok(Game::saveScene("/tmp/dxn3_qa_scene.json", t).empty(),
+       "saveScene overwrites with a backup");
+    auto bak = Game::loadScene("/tmp/dxn3_qa_scene.json.bak");
+    ok(bak.has_value() && bak->name == "save-me",
+       "the .bak still holds the previous scene");
+    auto cur = Game::loadScene("/tmp/dxn3_qa_scene.json");
+    ok(cur.has_value() && cur->name == "save-me-again",
+       "the live file holds the new scene");
+    ok(!Game::saveScene("/tmp/no-such-dir-xyz/s.json", s).empty(),
+       "saveScene refuses an unwritable path honestly");
+    if (cur) {
+      Scene back = Game::fromJson(Game::toJson(*cur));
+      ok(back.name == cur->name && back.entities.size() == cur->entities.size(),
+         "toJson -> fromJson round-trips a saved scene");
+    }
+  }
+
+  // 14. the starfield: deterministic sky, seeded per scene
+  {
+    const auto a = dxn3::buildStars(dxn3::hashSeed("playground"), 50);
+    const auto b = dxn3::buildStars(dxn3::hashSeed("playground"), 50);
+    bool same = a.size() == b.size();
+    for (size_t i = 0; same && i < a.size(); ++i)
+      same = a[i].x == b[i].x && a[i].y == b[i].y && a[i].tint == b[i].tint;
+    ok(same && !a.empty(), "the same seed builds the same sky");
+    const auto c = dxn3::buildStars(dxn3::hashSeed("level-2"), 50);
+    bool diff = a.size() == c.size();
+    for (size_t i = 0; diff && i < a.size(); ++i)
+      diff = a[i].x != c[i].x || a[i].y != c[i].y;
+    ok(diff, "a different scene seeds a different sky");
+    ok(dxn3::hashSeed("") != 0, "hashSeed never returns zero (xorshift seed)");
   }
 
   if (fails == 0) {

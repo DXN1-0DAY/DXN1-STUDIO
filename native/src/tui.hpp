@@ -4,6 +4,7 @@
 // giving 2x vertical resolution and buttery 24-bit color. Text overlays
 // (signs, HUD) are stamped as UTF-8 codepoints so arrows and words stay crisp.
 #pragma once
+#include <charconv>
 #include <cstdint>
 #include <string>
 #include <string_view>
@@ -16,8 +17,24 @@ using RGB = std::uint32_t;              // 0xRRGGBB
 constexpr RGB rgb(std::uint8_t r, std::uint8_t g, std::uint8_t b) {
   return (RGB(r) << 16) | (RGB(g) << 8) | RGB(b);
 }
-RGB parseHex(std::string_view hex, RGB fallback);   // "#rrggbb" -> RGB
-RGB lerpColor(RGB a, RGB b, float t);               // gradient fills
+
+// pure color math — header-only so every binary shares one truth
+inline RGB parseHex(std::string_view hex, RGB fallback) {
+  if (hex.size() < 7 || hex[0] != '#') return fallback;
+  unsigned v = 0;
+  auto [p, ec] = std::from_chars(hex.data() + 1, hex.data() + 7, v, 16);
+  if (ec != std::errc{}) return fallback;
+  return v & 0xFFFFFF;
+}
+
+inline RGB lerpColor(RGB a, RGB b, float t) {
+  t = t < 0 ? 0 : t > 1 ? 1 : t;
+  const int ar = a >> 16 & 0xFF, ag = a >> 8 & 0xFF, ab = a & 0xFF;
+  const int br = b >> 16 & 0xFF, bg = b >> 8 & 0xFF, bb = b & 0xFF;
+  return rgb(static_cast<std::uint8_t>(ar + (br - ar) * t),
+             static_cast<std::uint8_t>(ag + (bg - ag) * t),
+             static_cast<std::uint8_t>(ab + (bb - ab) * t));
+}
 
 class Screen {
 public:
@@ -25,6 +42,8 @@ public:
     int col = 0, row = 0;
     std::string text;                   // UTF-8, one codepoint per cell
     RGB fg = rgb(255, 255, 255);
+    RGB bg = 0;                         // when bgOn, text paints its own rail
+    bool bgOn = false;
   };
 
   int cols = 80, rows = 24;             // terminal size in cells
@@ -34,10 +53,13 @@ public:
   void resize(int c, int r);
   void clear(RGB bg);                   // fill the whole grid
   void px(float sx, float sy, RGB c);   // plot world pixel (nearest)
+  RGB at(int gx, int gy) const;         // read a grid pixel (0 outside)
   void rect(float x0, float y0, float x1, float y1, RGB c);
   void rectGradient(float x0, float y0, float x1, float y1, RGB top, RGB bottom);
   void frame(float x0, float y0, float x1, float y1, RGB c);  // 1px outline
   void text(int col, int row, std::string_view utf8, RGB fg);
+  void textBg(int col, int row, std::string_view utf8, RGB fg, RGB bg);  // chip text
+  void railBg(int row, RGB c);          // paint a full text-rail background
   void hud(int score, std::string_view time, std::string_view msg);
   void help(std::string_view line);
   std::string flush();                  // whole frame as one ANSI string

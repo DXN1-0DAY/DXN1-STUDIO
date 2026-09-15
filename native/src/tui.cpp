@@ -1,27 +1,11 @@
 // dxn3 native — truecolor renderer implementation (C++23).
+// The pure color math (parseHex, lerpColor) lives in tui.hpp so the
+// selftest binary shares it without linking the whole Screen.
 #include "tui.hpp"
 
-#include <charconv>
 #include <cstdio>
 
 namespace dxn3 {
-
-RGB parseHex(std::string_view hex, RGB fallback) {
-  if (hex.size() < 7 || hex[0] != '#') return fallback;
-  unsigned v = 0;
-  auto [p, ec] = std::from_chars(hex.data() + 1, hex.data() + 7, v, 16);
-  if (ec != std::errc{}) return fallback;
-  return v & 0xFFFFFF;
-}
-
-RGB lerpColor(RGB a, RGB b, float t) {
-  t = t < 0 ? 0 : t > 1 ? 1 : t;
-  const int ar = a >> 16 & 0xFF, ag = a >> 8 & 0xFF, ab = a & 0xFF;
-  const int br = b >> 16 & 0xFF, bg = b >> 8 & 0xFF, bb = b & 0xFF;
-  return rgb(static_cast<std::uint8_t>(ar + (br - ar) * t),
-             static_cast<std::uint8_t>(ag + (bg - ag) * t),
-             static_cast<std::uint8_t>(ab + (bb - ab) * t));
-}
 
 void Screen::resize(int c, int r) {
   cols = c; rows = r;
@@ -38,6 +22,11 @@ void Screen::px(float sx, float sy, RGB c) {
   const int x = static_cast<int>(sx), y = static_cast<int>(sy);
   if (x < 0 || x >= cols || y < 0 || y >= halfRows()) return;
   grid_[static_cast<size_t>(y) * cols + x] = c;
+}
+
+RGB Screen::at(int gx, int gy) const {
+  if (gx < 0 || gx >= cols || gy < 0 || gy >= halfRows()) return 0;
+  return grid_[static_cast<size_t>(gy) * cols + gx];
 }
 
 void Screen::rect(float x0, float y0, float x1, float y1, RGB c) {
@@ -83,8 +72,27 @@ void Screen::text(int col, int row, std::string_view utf8, RGB fg) {
   if (row < 0 || row >= rows) return;
   int c = col;
   for (size_t i = 0; i < utf8.size() && c < cols;) {
-    spans_.push_back({c, row, codepointAt(utf8, i), fg});
+    spans_.push_back({c, row, codepointAt(utf8, i), fg, 0, false});
     ++c;
+  }
+}
+
+void Screen::textBg(int col, int row, std::string_view utf8, RGB fg, RGB bg) {
+  if (row < 0 || row >= rows) return;
+  int c = col;
+  for (size_t i = 0; i < utf8.size() && c < cols;) {
+    spans_.push_back({c, row, codepointAt(utf8, i), fg, bg, true});
+    ++c;
+  }
+}
+
+void Screen::railBg(int row, RGB c) {
+  if (row < 0 || row >= rows) return;
+  for (int sub = 0; sub < 2; ++sub) {
+    const int gy = row * 2 + sub;
+    if (gy >= halfRows()) break;
+    auto* line = &grid_[static_cast<size_t>(gy) * cols];
+    for (int x = 0; x < cols; ++x) line[x] = c;
   }
 }
 
@@ -107,11 +115,11 @@ void Screen::help(std::string_view line) {
 
 std::string Screen::flush() {
   // overlay lookup per char-cell
-  struct OCell { std::string ch; RGB fg; bool on = false; };
+  struct OCell { std::string ch; RGB fg; RGB bg = 0; bool bgOn = false; bool on = false; };
   std::vector<OCell> over(static_cast<size_t>(cols) * rows);
   for (const auto& s : spans_) {
     if (s.row < 0 || s.row >= rows || s.col < 0 || s.col >= cols) continue;
-    over[static_cast<size_t>(s.row) * cols + s.col] = {s.text, s.fg, true};
+    over[static_cast<size_t>(s.row) * cols + s.col] = {s.text, s.fg, s.bg, s.bgOn, true};
   }
 
   static const char* BLOCK = "\xe2\x96\x80";   // U+2580 upper half block
@@ -128,7 +136,7 @@ std::string Screen::flush() {
       const RGB top = row * 2 < halfRows() ? grid_[gi] : 0;
       const RGB bot = row * 2 + 1 < halfRows() ? grid_[gb] : 0;
       if (o.on) {
-        emitColor(out, o.fg, bot, lastFg, lastBg);
+        emitColor(out, o.fg, o.bgOn ? o.bg : bot, lastFg, lastBg);
         out += o.ch;
         continue;
       }

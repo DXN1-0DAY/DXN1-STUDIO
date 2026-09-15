@@ -1,3 +1,44 @@
+## v3.0.07 — the mark: a face for the studio
+
+**The brand**
+- The studio has its emblem: the STUDIO 2 circuit spiral (preserved on the
+  `ds2-archive` branch) with a monolithic beveled **3** carved into it —
+  Unreal-Engine energy, purple-on-black, one mark everywhere. The brand
+  suite lives in `assets/` with the SVG sources: emblem, README banner and
+  the repo social card.
+- The binary carries the mark too: `native/src/logo32.hpp` renders it as a
+  32×32 truecolor bitmap and the studio opens on a **title card** — the
+  emblem, the wordmark, the version, one key to play.
+
+**The UI**
+- Title card on launch (any key plays, `q` quits) — the studio greets you
+  as a product, not a process, carrying the mark as a 32×32 truecolor
+  bitmap straight from the binary.
+- The HUD counts it all: `COINS x/y · SCORE · TIME` on the left, the scene
+  name on the right — you always know where you are in the campaign.
+- `dxn3 --list-scenes` prints every installed scene with its name and
+  entity count — discoverability without reading files, and `--help`
+  covers the whole CLI.
+- The vim-style **command bar** ships: `:scene :zoom :fit :reset :w :wq :q
+  :screenshot :magnet :gravity :help`, honest errors with usage, the game
+  paused while it's open.
+- **PNG screenshots** ship, zero dependencies: `p` in play saves
+  `exports/<scene>-<n>.png`, and `dxn3-native --screenshot out.png` renders
+  any scene headless (the README's screenshots are made this way).
+- **Scene saving** ships with a git-style safety net: `:w` writes the scene
+  and keeps the previous bytes as `<file>.bak` before the new ones land.
+- The deterministic parallax **starfield** (`fx.hpp`) — every scene seeds
+  its own sky from its name, so the same scene draws the same stars in
+  every session and every screenshot.
+- **`--list-scenes`**: `dxn3 --list-scenes` prints every `.dxn1.json` it
+  can find with its scene name and entity count — unreadable files are
+  reported, never swallowed.
+- The live view reached **poster parity**: the terminal now draws the same
+  sky gradient, coin halos and edge vignette as the PNG raster, and
+  INSPECT / FILE VIEW wear the same rail headers and zebra rows.
+- **Poster framing**: `--screenshot` fits the whole scene like a map —
+  world-centered, edges and all — which is how the README shots are made.
+
 ## v3.0.06 — the Electron farewell: fully C++23
 
 **One binary to rule them all**

@@ -5,9 +5,11 @@
 #include <algorithm>
 #include <atomic>
 #include <chrono>
+#include <cmath>
 #include <csignal>
 #include <cstdio>
 #include <cstring>
+#include <filesystem>
 #include <fstream>
 #include <poll.h>
 #include <print>
@@ -19,6 +21,12 @@
 
 #include "spark.hpp"
 #include "tui.hpp"
+#include "version.hpp"
+#include "fx.hpp"
+#include "png.hpp"
+#include "cmd.hpp"
+#include "shot.hpp"
+#include "logo32.hpp"
 
 using dxn3::RGB;
 
@@ -54,6 +62,9 @@ bool termSize(int& cols, int& rows) {
   return true;
 }
 
+// which key grammar is live this frame
+enum class Mode { Play, File, Cmd };
+
 // drain stdin; return the keys seen this frame
 struct Keys {
   bool left = false, right = false, jump = false;
@@ -61,13 +72,15 @@ struct Keys {
   bool inspect = false, quit = false;
   bool esc = false;                            // bare ESC (mode-dependent)
   bool viewFile = false;                       // e — open the scene source
+  bool cmd = false;                            // : — open the command bar
+  bool shot = false;                           // p — screenshot to exports/
   int scroll = 0;                              // file view: ±1 lines (arrows ±10)
   bool slash = false;                          // / — start a search
   bool enter = false, back = false;
   std::string typed;                           // printable chars this frame
 };
 
-Keys pollKeys(bool inFile) {
+Keys pollKeys(Mode mode) {
   Keys k;
   char buf[256];
   while (true) {
@@ -81,21 +94,21 @@ Keys pollKeys(bool inFile) {
       const char c = buf[i];
       if (c == '\x1b') {
         // arrow keys arrive as ESC [ A/B/C/D in one read, usually
-        if (i + 2 < n && buf[i + 1] == '[') {
+        if (i + 2 < n && buf[i + 1] == '[' && mode != Mode::Cmd) {
           switch (buf[i + 2]) {
-            case 'A': if (inFile) k.scroll -= 1; else k.jump = true; break;
-            case 'B': if (inFile) k.scroll += 1; break;
-            case 'C': if (inFile) k.scroll += 10; else k.right = true; break;
-            case 'D': if (inFile) k.scroll -= 10; else k.left = true; break;
+            case 'A': if (mode == Mode::File) k.scroll -= 1; else k.jump = true; break;
+            case 'B': if (mode == Mode::File) k.scroll += 1; break;
+            case 'C': if (mode == Mode::File) k.scroll += 10; else k.right = true; break;
+            case 'D': if (mode == Mode::File) k.scroll -= 10; else k.left = true; break;
           }
           i += 2;
         } else {
           k.esc = true;                     // bare ESC
-          if (!inFile) k.quit = true;       // …which quits in play/inspect
+          if (mode == Mode::Play) k.quit = true;   // …which quits in play/inspect
         }
         continue;
       }
-      if (inFile) {                          // FILE VIEW: every letter is text
+      if (mode == Mode::File) {              // FILE VIEW: every letter is text
         if (c == '\r' || c == '\n') k.enter = true;
         else if (c == '\t') { /* inert */ }
         else if (c == 0x7f || c == '\b') k.back = true;
@@ -103,6 +116,10 @@ Keys pollKeys(bool inFile) {
         else if (c == 'k' || c == 'K') k.scroll -= 1;
         else if (c == '/') k.slash = true;
         else if (c == 'q' || c == 'Q') k.quit = true;
+        else if (static_cast<unsigned char>(c) >= 0x20) k.typed += c;
+      } else if (mode == Mode::Cmd) {        // command bar: typing is typing
+        if (c == '\r' || c == '\n') k.enter = true;
+        else if (c == 0x7f || c == '\b') k.back = true;
         else if (static_cast<unsigned char>(c) >= 0x20) k.typed += c;
       } else {                               // PLAY / INSPECT keys
         if (c == 'a' || c == 'A') k.left = true;
@@ -114,6 +131,8 @@ Keys pollKeys(bool inFile) {
         else if (c == '-' || c == '_') k.zoomOut = true;
         else if (c == '\t') k.inspect = true;
         else if (c == 'e' || c == 'E') k.viewFile = true;
+        else if (c == ':') k.cmd = true;
+        else if (c == 'p' || c == 'P') k.shot = true;
         else if (c == 'q' || c == 'Q') k.quit = true;
       }
     }
@@ -131,17 +150,25 @@ std::string fmtTime(float t) {
 // ---- FILE VIEW: the loaded scene's source, line numbers, / search
 
 void drawFile(dxn3::Screen& scr, const std::vector<std::string>& lines,
-              int top, int cur, const std::string& query) {
+              int top, const std::string& query, const std::string& path) {
   scr.clear(dxn3::rgb(9, 10, 18));
-  const RGB accent = dxn3::rgb(167, 139, 250);
   const RGB dim = dxn3::rgb(110, 118, 140);
   const RGB txt = dxn3::rgb(220, 222, 232);
   const RGB hit = dxn3::rgb(250, 204, 21);
-  char head[96];
-  std::snprintf(head, sizeof head, " FILE — %d/%d lines — /%s (%s to run)",
-                cur + 1, static_cast<int>(lines.size()), query.c_str(),
-                query.empty() ? "type / first" : "enter");
-  scr.text(0, 0, head, accent);
+  scr.railBg(0, dxn3::rgb(22, 12, 36));
+  scr.railBg(scr.rows - 1, dxn3::rgb(13, 8, 23));
+  scr.textBg(0, 0, " FILE ", dxn3::rgb(233, 213, 255), dxn3::rgb(88, 28, 135));
+  {
+    std::string head = " " + path + " — " +
+                       std::to_string(static_cast<int>(lines.size())) + " lines";
+    if (scr.cols > static_cast<int>(head.size()) + 16)
+      scr.text(7, 0, head, dxn3::rgb(196, 181, 253));
+  }
+  const std::string search = query.empty() ? " / to search"
+                                           : " /" + query + "  (enter to run)";
+  if (scr.cols > 40)
+    scr.text(scr.cols - static_cast<int>(search.size()), 0, search,
+             query.empty() ? dim : hit);
   const int maxRow = scr.rows - 1;
   for (int row = 1; row < maxRow; ++row) {
     const int li = top + row - 1;
@@ -153,6 +180,75 @@ void drawFile(dxn3::Screen& scr, const std::vector<std::string>& lines,
              (!query.empty() && lines[li].find(query) != std::string::npos)
                  ? hit : txt);
   }
+}
+
+
+// ---- SPLASH: the studio emblem, half-block rendered from logo32.hpp
+
+void drawSplash(dxn3::Screen& scr, const dxn3::Game& g) {
+  const RGB bg = dxn3::rgb(8, 6, 14);
+  scr.clear(bg);
+  const int n = dxn3::kLogoN;
+  const int ox = (scr.cols - n) / 2;
+  const int oy = std::max(1, (scr.rows - n / 2 - 5) / 2);
+  for (int y = 0; y < n / 2; ++y)
+    for (int x = 0; x < n; ++x) {
+      const RGB top = dxn3::kLogo32[static_cast<size_t>(2 * y) * n + x];
+      const RGB bot = dxn3::kLogo32[static_cast<size_t>(2 * y + 1) * n + x];
+      if (!top && !bot) continue;           // let the night breathe through
+      scr.px(static_cast<float>(ox + x), static_cast<float>((oy + y) * 2),
+             top ? top : bg);
+      scr.px(static_cast<float>(ox + x), static_cast<float>((oy + y) * 2 + 1),
+             bot ? bot : bg);
+    }
+  const int ty = oy + n / 2 + 1;
+  const std::string word = "DXN1 STUDIO ";
+  const int wcol = (scr.cols - static_cast<int>(word.size()) - 1) / 2;
+  scr.text(wcol, ty, word, dxn3::rgb(240, 238, 250));
+  scr.text(wcol + static_cast<int>(word.size()), ty, "3", dxn3::rgb(168, 85, 247));
+  const std::string sub =
+      std::string("v") + dxn3::DXN3_VERSION + " · native core · c++23 · zero deps";
+  scr.text((scr.cols - static_cast<int>(sub.size())) / 2, ty + 1, sub,
+           dxn3::rgb(124, 58, 237));
+  const std::string meta = "scene '" + g.scene.name + "' — " +
+      std::to_string(g.scene.entities.size()) + " entities";
+  scr.text((scr.cols - static_cast<int>(meta.size())) / 2, ty + 3, meta,
+           dxn3::rgb(110, 118, 140));
+  const std::string hint = "press any key to enter the studio";
+  scr.text((scr.cols - static_cast<int>(hint.size())) / 2, ty + 4, hint,
+           dxn3::rgb(76, 82, 100));
+}
+
+// shared status-rail furniture: brand chip + meter left, scene right
+
+void drawRailChrome(dxn3::Screen& scr, const dxn3::Game& g) {
+  scr.railBg(0, dxn3::rgb(22, 12, 36));
+  scr.railBg(scr.rows - 1, dxn3::rgb(13, 8, 23));
+  scr.textBg(0, 0, " DXN1 STUDIO 3 ", dxn3::rgb(10, 7, 16),
+             dxn3::rgb(147, 51, 234));
+  int coinsGot = 0;
+  for (const auto& e : g.scene.entities)
+    if (e.tag == "coin" && e.alive) ++coinsGot;
+  const int total = g.coinsTotal();
+  char meter[72];
+  std::snprintf(meter, sizeof meter, " COINS %d/%d · SCORE %d · %s ",
+                total - coinsGot, total, g.score, fmtTime(g.time).c_str());
+  scr.text(16, 0, meter, dxn3::rgb(233, 229, 255));
+  const std::string where = g.scene.name + " ";
+  const int wcol = scr.cols - static_cast<int>(where.size());
+  if (wcol > 16 + static_cast<int>(std::strlen(meter)) + 2)
+    scr.text(wcol, 0, where, dxn3::rgb(196, 181, 253));
+  if (g.msgT > 0 && !g.msg.empty()) {
+    const int ccol = std::max(0, (scr.cols - static_cast<int>(g.msg.size())) / 2);
+    const int mend = 16 + static_cast<int>(std::strlen(meter));
+    if (ccol > mend + 1 && ccol < wcol - static_cast<int>(g.msg.size()))
+      scr.text(ccol, 0, g.msg, dxn3::rgb(250, 204, 21));
+  }
+  const std::string tag =
+      std::string(" DXN1 STUDIO 3 v") + dxn3::DXN3_VERSION + " ";
+  if (scr.cols > 106)
+    scr.text(scr.cols - static_cast<int>(tag.size()), scr.rows - 1, tag,
+             dxn3::rgb(70, 60, 100));
 }
 
 void drawWorld(dxn3::Screen& scr, const dxn3::Game& g) {
@@ -171,6 +267,33 @@ void drawWorld(dxn3::Screen& scr, const dxn3::Game& g) {
   auto sx = [&](float wx) { return (wx - sc.camera.x + ox) * z + cols / 2.f; };
   auto sy = [&](float wy) { return (wy - sc.camera.y + oy) * z + hr / 2.f; };
 
+  // the sky, poster-grade: the live view gets the same vertical breath
+  // as the PNG raster — dark up top, a little air at the bottom
+  for (int gy = 0; gy < hr; ++gy) {
+    const float t = static_cast<float>(gy) / std::max(1, hr - 1);
+    const RGB row = dxn3::lerpColor(dxn3::lerpColor(bg, 0x000000, 0.35f),
+                                    dxn3::lerpColor(bg, 0xFFFFFF, 0.10f), t);
+    scr.rect(0, static_cast<float>(gy), static_cast<float>(cols - 1),
+             static_cast<float>(gy), row);
+  }
+
+  // the sky: a deterministic starfield seeded by the scene name — same
+  // scene, same sky, forever. Two parallax depths drift with the camera;
+  // a slow sine twinkle keeps the sky alive without lying about it.
+  const auto stars = dxn3::buildStars(dxn3::hashSeed(sc.name), 220);
+  const float tile = 600.f;
+  for (size_t i = 0; i < stars.size(); ++i) {
+    const auto& st = stars[i];
+    const float depth = (i % 3 == 0) ? 0.5f : 0.22f;
+    float sxp = std::fmod(st.x * tile - sc.camera.x * depth, tile);
+    if (sxp < 0) sxp += tile;
+    if (sxp >= cols) continue;
+    const float syp = st.y * hr;
+    const float twk = 0.30f + 0.45f *
+        (0.5f + 0.5f * std::sin(g.time * st.tw + static_cast<float>(i) * 1.7f));
+    const RGB c = dxn3::lerpColor(bg, st.tint, twk);
+    scr.rect(sxp, syp, sxp + st.size - 1.f, syp, c);
+  }
   for (const auto& e : sc.entities) {
     if (!e.alive) continue;
     const float x0 = sx(e.x), y0 = sy(e.y);
@@ -179,15 +302,26 @@ void drawWorld(dxn3::Screen& scr, const dxn3::Game& g) {
     const bool off = x1 < 0 || x0 > cols || y1 < 0 || y0 > hr;
 
     if (e.tag == "sign") {                                // text plaque
-      if (!off && !e.text.empty()) {
-        const int col = static_cast<int>(x0);
-        const int row = static_cast<int>(y0) / 2;
-        scr.text(col, row, e.text, c1);
+      if (!off) {
+        const int lum0 = (c1 >> 16 & 0xFF) * 299 + (c1 >> 8 & 0xFF) * 587 +
+                         (c1 & 0xFF) * 114;
+        const RGB edge = lum0 < 90000 ? dxn3::lerpColor(c1, 0xFFFFFF, 0.28f)
+                                      : dxn3::lerpColor(c1, 0x000000, 0.45f);
+        scr.rect(x0, y0, x1, y0 + 1, edge);               // plaque rails,
+        scr.rect(x0, y1 - 1, x1, y1, edge);               // like the poster
+        if (!e.text.empty()) {
+          const int col = static_cast<int>(x0);
+          const int row = static_cast<int>(y0) / 2;
+          scr.text(col, row, e.text, c1);
+        }
       }
       continue;
     }
-    if (e.tag == "coin") {                                // gem: inset + shine
+    if (e.tag == "coin") {                                // halo + gem
       if (off) continue;
+      const float glow = 5.f;
+      scr.rect(x0 - glow, y0 - glow, x1 + glow, y1 + glow,
+               dxn3::lerpColor(bg, c1, 0.14f));
       const float inx = e.w * 0.22f, iny = e.h * 0.22f;
       scr.rectGradient(x0 + inx, y0 + iny, x1 - inx, y1 - iny,
                        dxn3::lerpColor(c1, 0xFFFFFF, 0.35f), c1);
@@ -220,20 +354,35 @@ void drawWorld(dxn3::Screen& scr, const dxn3::Game& g) {
       scr.rectGradient(x0, y0, x1, y1, c1, dxn3::parseHex(e.color2, c1));
     else
       scr.rect(x0, y0, x1, y1, c1);
+    // frame against the void: same rule as the PNG raster — dark
+    // entities get a lighter edge so the night sky never eats them
+    {
+      const int lum = (c1 >> 16 & 0xFF) * 299 + (c1 >> 8 & 0xFF) * 587 +
+                      (c1 & 0xFF) * 114;
+      const RGB edge = lum < 90000 ? dxn3::lerpColor(c1, 0xFFFFFF, 0.28f)
+                                   : dxn3::lerpColor(c1, 0x000000, 0.45f);
+      scr.frame(x0, y0, x1, y1, edge);
+    }
     if (e.tag == "player") {                              // visor line
       const RGB dark = dxn3::lerpColor(c1, 0, 0.55f);
       scr.rect(x0 + 1, y0 + (y1 - y0) * 0.25f, x1 - 1, y0 + (y1 - y0) * 0.4f, dark);
     }
   }
+  // vignette — the edges fall asleep, the center sings (poster parity)
+  for (int gy = 0; gy < hr; ++gy) {
+    const float dyn = (gy - hr / 2.f) / (hr / 2.f);
+    for (int gx = 0; gx < cols; ++gx) {
+      const float dxn = (gx - cols / 2.f) / (cols / 2.f);
+      const float d = std::sqrt(dxn * dxn + dyn * dyn) / 1.4142f;
+      scr.px(static_cast<float>(gx), static_cast<float>(gy),
+             dxn3::lerpColor(0x000000, scr.at(gx, gy), 1.f - 0.22f * d * d));
+    }
+  }
   if (g.flash > 0.02f)
     scr.rect(0, 0, cols - 1, hr - 1,
              dxn3::rgb(255, 255, static_cast<std::uint8_t>(255 * g.flash)));
-  // dead-simple overlay: dim the whole playfield by drawing bg-colored
-  // frame when flash just ended is unnecessary — keep it honest instead.
 
-  char tbuf[96];
-  std::snprintf(tbuf, sizeof tbuf, "%s", fmtTime(g.time).c_str());
-  scr.hud(g.score, tbuf, g.msgT > 0 ? g.msg : "");
+  drawRailChrome(scr, g);
 }
 
 void drawInspect(dxn3::Screen& scr, const dxn3::Game& g) {
@@ -242,9 +391,17 @@ void drawInspect(dxn3::Screen& scr, const dxn3::Game& g) {
   const RGB accent = dxn3::rgb(167, 139, 250);
   const RGB dim = dxn3::rgb(110, 118, 140);
   const RGB txt = dxn3::rgb(220, 222, 232);
+  const RGB alt = dxn3::rgb(184, 182, 202);
 
-  scr.text(1, 0, " INSPECT — " + g.scene.name +
-           "  (Tab to resume, game is paused)", accent);
+  scr.railBg(0, dxn3::rgb(22, 12, 36));
+  scr.railBg(scr.rows - 1, dxn3::rgb(13, 8, 23));
+  scr.textBg(1, 0, " INSPECT ", dxn3::rgb(233, 213, 255), dxn3::rgb(88, 28, 135));
+  scr.text(11, 0, g.scene.name + " — paused  (Tab resumes)", dxn3::rgb(196, 181, 253));
+  const std::string vtag =
+      std::string("dxn3 v") + dxn3::DXN3_VERSION + " ";
+  if (scr.cols > 40)
+    scr.text(scr.cols - static_cast<int>(vtag.size()), 0, vtag, dxn3::rgb(96, 84, 128));
+
   scr.text(1, 2, "ENTITY         TAG         X      Y      W    H    COLOR", dim);
   int row = 3;
   char line[96];
@@ -253,7 +410,8 @@ void drawInspect(dxn3::Screen& scr, const dxn3::Game& g) {
     std::snprintf(line, sizeof line, "%-14s %-11s %6.0f %6.0f %4.0f %4.0f  %s%s",
                   e.name.c_str(), e.tag.c_str(), e.x, e.y, e.w, e.h,
                   e.color.c_str(), e.alive ? "" : "  (gone)");
-    scr.text(1, row++, line, e.alive ? txt : dim);
+    scr.text(1, row, line, e.alive ? (row % 2 ? txt : alt) : dim);
+    ++row;
   }
   char meta[96];
   std::snprintf(meta, sizeof meta,
@@ -271,15 +429,61 @@ int main(int argc, char** argv) {
   std::atexit(restoreTerminal);
 
   std::string scenePath = "scenes/playground.dxn1.json";
+  std::string shotPath;
+  bool wantShot = false, wantVersion = false, wantList = false;
   for (int i = 1; i < argc; ++i) {
     const std::string a = argv[i];
     if (a == "--scene" && i + 1 < argc) scenePath = argv[++i];
-    else if (!a.empty() && a[0] != '-') scenePath = a;
+    else if (a == "--screenshot" && i + 1 < argc) { shotPath = argv[++i]; wantShot = true; }
+    else if (a == "--list-scenes") wantList = true;
+    else if (a == "--version" || a == "-v") wantVersion = true;
     else if (a == "--help" || a == "-h") {
-      std::println("usage: dxn3-native [--scene <file.dxn1.json>]\n"
-                   "keys: a/d move · w/space jump · r reset · +/- zoom · f fit · tab inspect · q quit");
+      std::println("dxn3-native {} — DXN1 STUDIO 3, native C++23, zero deps\n"
+                   "usage: dxn3-native [--scene <file.dxn1.json>] [--screenshot out.png]\n"
+                   "       dxn3-native --version\n"
+                   "keys: a/d move · w/space jump · r reset · +/- zoom · f fit\n"
+                   "      tab inspect · e file · : commands · p screenshot · q quit\n"
+                   "the splash greets you first — any key skips it",
+                   dxn3::DXN3_VERSION);
       return 0;
     }
+    else if (!a.empty() && a[0] != '-') scenePath = a;
+  }
+  if (wantVersion) {
+    std::println("dxn3-native {} — DXN1 STUDIO 3 (C++23, zero dependencies)",
+                 dxn3::DXN3_VERSION);
+    return 0;
+  }
+  if (wantList) {
+    // what's installed: every .dxn1.json under scenes/, honestly parsed
+    namespace fs = std::filesystem;
+    std::println("dxn3 {} — scenes on this machine:", dxn3::DXN3_VERSION);
+    std::vector<fs::path> found;
+    std::error_code ec;
+    for (const auto& dir : {fs::path("scenes"), fs::path(".")}) {
+      if (!fs::exists(dir, ec)) continue;
+      for (const auto& de : fs::directory_iterator(dir, ec))
+        if (de.is_regular_file() &&
+            de.path().extension() == ".json" &&
+            de.path().string().find(".dxn1.") != std::string::npos)
+          found.push_back(de.path());
+      if (!found.empty()) break;          // scenes/ wins when it exists
+    }
+    if (found.empty()) {
+      std::println("  (none — run from the repo root, or pass --scene)");
+      return found.empty() ? 1 : 0;
+    }
+    for (const auto& p : found) {
+      auto sc = dxn3::Game::loadScene(p.string());
+      if (!sc) {
+        std::println("  {:32s}  unreadable: {}", p.string(),
+                     sc.error().detail);
+        continue;
+      }
+      std::println("  {:32s}  '{}' — {} entities", p.string(),
+                   sc->name, sc->entities.size());
+    }
+    return 0;
   }
 
   auto loaded = dxn3::Game::loadScene(scenePath);
@@ -289,7 +493,34 @@ int main(int argc, char** argv) {
   }
 
   dxn3::Game game(std::move(*loaded));
+
+  // headless screenshot: render the loaded scene and exit honestly
+  if (wantShot) {
+    const std::string err = dxn3::shootPNG(shotPath, game);
+    if (!err.empty()) {
+      std::println(stderr, "dxn3: {}", err);
+      return 1;
+    }
+    std::println("screenshot → {} (960x540, scene '{}')", shotPath, game.scene.name);
+    return 0;
+  }
+
   bool inspect = false;
+  int shotSeq = 0;
+  bool cmdOpen = false;
+  std::string cmdBuf, cmdErr;
+  float cmdErrT = 0;
+  auto defaultShot = [&]() {
+    std::string base = game.scene.name.empty() ? "scene" : game.scene.name;
+    for (char& ch : base) if (ch == ' ' || ch == '/') ch = '_';
+    return "exports/" + base + "-" + std::to_string(++shotSeq) + ".png";
+  };
+  auto doShot = [&](std::string path) {
+    if (path.empty()) path = defaultShot();
+    const std::string err = dxn3::shootPNG(path, game);
+    if (err.empty()) game.say("saved " + path, 2.2);
+    else { cmdErr = err; cmdErrT = 3.5f; }
+  };
 
   // the scene's own source, for FILE VIEW (e)
   std::vector<std::string> fileLines;
@@ -305,8 +536,8 @@ int main(int argc, char** argv) {
   int fileTop = 0;
   std::string query;
 
-  std::println("dxn3 native (C++23) — scene '{}' — {} entities — magnet {}px",
-               game.scene.name, game.scene.entities.size(),
+  std::println("dxn3 native {} (C++23) — scene '{}' — {} entities — magnet {}px",
+               dxn3::DXN3_VERSION, game.scene.name, game.scene.entities.size(),
                static_cast<int>(game.scene.magnet));
 
   termios raw{};
@@ -325,29 +556,103 @@ int main(int argc, char** argv) {
   double acc = 0;
   int cols = 80, rows = 24;
   dxn3::Screen scr;
+  auto doFit = [&]() {
+    const float ww = std::max(320.f, game.worldRight() + 160);
+    const float wh = std::max(240.f, game.worldBottom() + 160);
+    const float fz = std::min(cols / ww, (rows - 2) * 2.f / wh);
+    game.scene.camera.zoom = std::clamp(fz, 0.3f, 4.f);
+  };
+
+  // the launch moment: the emblem, the version, the scene. Any key —
+  // or ~1.6 seconds — and the studio takes over.
+  termSize(cols, rows);
+  if (g_raw && cols >= 44 && rows >= 18) {
+    scr.resize(cols, rows);
+    drawSplash(scr, game);
+    std::fputs(scr.flush().c_str(), stdout);
+    std::fflush(stdout);
+    for (int i = 0; i < 32 && !g_stop; ++i) {
+      pollfd pfd{STDIN_FILENO, POLLIN, 0};
+      if (::poll(&pfd, 1, 50) > 0 && (pfd.revents & POLLIN)) {
+        char toss[64];
+        const ssize_t rn = ::read(STDIN_FILENO, toss, sizeof toss);
+        (void)rn;
+        break;
+      }
+    }
+  }
 
   while (!g_stop) {
     const auto now = clock::now();
     const double dt = std::chrono::duration<double>(now - last).count();
     last = now;
     acc += dt;
+    if (cmdErrT > 0) cmdErrT -= static_cast<float>(dt);
 
-    const Keys keys = pollKeys(fileView);
-    if (!fileView) {
+    const Keys keys = pollKeys(cmdOpen ? Mode::Cmd
+                              : fileView ? Mode::File : Mode::Play);
+
+    if (cmdOpen) {                       // the command bar owns the keyboard
+      if (keys.esc) cmdOpen = false;
+      else if (keys.back) { if (!cmdBuf.empty()) cmdBuf.pop_back(); }
+      else if (keys.enter) {
+        const dxn3::Cmd cmd = dxn3::parseCommand(cmdBuf);
+        cmdOpen = false;
+        cmdBuf.clear();
+        if (!cmd.ok()) { cmdErr = cmd.error; cmdErrT = 3.5f; }
+        else if (cmd.verb == "scene") {
+          auto next = dxn3::Game::loadScene(cmd.arg);
+          if (next) {
+            game = dxn3::Game(std::move(*next));
+            scenePath = cmd.arg;
+            game.say("scene: " + game.scene.name, 1.6);
+          } else { cmdErr = next.error().detail; cmdErrT = 3.5f; }
+        } else if (cmd.verb == "zoom") {
+          if (cmd.arg == "in") game.scene.camera.zoom = std::clamp(game.scene.camera.zoom * 1.15f, 0.3f, 4.f);
+          else if (cmd.arg == "out") game.scene.camera.zoom = std::clamp(game.scene.camera.zoom / 1.15f, 0.3f, 4.f);
+          else game.scene.camera.zoom = std::clamp(cmd.num, 0.3f, 4.f);
+        } else if (cmd.verb == "fit") {
+          doFit();
+        } else if (cmd.verb == "reset") {
+          game.reset();
+        } else if (cmd.verb == "w") {
+          const std::string path = cmd.arg.empty() ? scenePath : cmd.arg;
+          const std::string err = dxn3::Game::saveScene(path, game.scene);
+          if (err.empty()) game.say("saved " + path + "  (.bak kept)", 2.2);
+          else { cmdErr = err; cmdErrT = 3.5f; }
+        } else if (cmd.verb == "wq") {
+          const std::string err = dxn3::Game::saveScene(scenePath, game.scene);
+          if (err.empty()) break;
+          cmdErr = err; cmdErrT = 3.5f;
+        } else if (cmd.verb == "q") {
+          break;
+        } else if (cmd.verb == "screenshot") {
+          doShot(cmd.arg);
+        } else if (cmd.verb == "magnet") {
+          game.scene.magnet = cmd.num;
+          game.say("magnet " + std::to_string(static_cast<int>(cmd.num)) + "px", 1.2);
+        } else if (cmd.verb == "gravity") {
+          game.scene.gravity = cmd.num;
+          game.say("gravity " + std::to_string(static_cast<int>(cmd.num)), 1.2);
+        } else if (cmd.verb == "help") {
+          game.say(":scene :zoom :fit :reset :w :wq :q :screenshot :magnet :gravity", 4.f);
+        }
+      } else {
+        cmdBuf += keys.typed;
+        if (cmdBuf.size() > 120) cmdBuf.resize(120);
+      }
+    } else if (!fileView) {
       if (keys.quit || keys.esc) break;
+      if (keys.cmd) { cmdOpen = true; cmdBuf.clear(); }
       if (keys.inspect) inspect = !inspect;
       if (keys.viewFile) {
         fileView = true; searching = false; query.clear(); fileTop = 0;
       }
+      if (keys.shot) doShot("");
       if (keys.reset) game.reset();
       if (keys.zoomIn) game.scene.camera.zoom = std::clamp(game.scene.camera.zoom * 1.15f, 0.3f, 4.f);
       if (keys.zoomOut) game.scene.camera.zoom = std::clamp(game.scene.camera.zoom / 1.15f, 0.3f, 4.f);
-      if (keys.fit) {
-        const float ww = std::max(320.f, game.worldRight() + 160);
-        const float wh = std::max(240.f, game.worldBottom() + 160);
-        const float fz = std::min(cols / ww, (rows - 2) * 2.f / wh);
-        game.scene.camera.zoom = std::clamp(fz, 0.3f, 4.f);
-      }
+      if (keys.fit) doFit();
     } else {
       if (keys.quit) break;                    // q still quits the studio
       if (keys.esc) {                          // ESC leaves the view/search
@@ -380,14 +685,15 @@ int main(int argc, char** argv) {
     in.left = keys.left; in.right = keys.right; in.jump = keys.jump;
 
     constexpr double STEP = 1.0 / 60.0;
-    if (!inspect && !fileView) {
+    if (!inspect && !fileView && !cmdOpen) {   // the command bar pauses
       while (acc >= STEP) {
         game.update(static_cast<float>(STEP), in);
         acc -= STEP;
         in = {};                      // hold inputs for one step only
       }
       if (!game.pendingNext.empty()) {
-        auto next = dxn3::Game::loadScene(game.pendingNext);
+        const std::string nextPath = game.pendingNext;
+        auto next = dxn3::Game::loadScene(nextPath);
         game.pendingNext.clear();
         if (next) {
           const int score = game.score;
@@ -395,6 +701,7 @@ int main(int argc, char** argv) {
           const std::string name = next->name;
           game = dxn3::Game(std::move(*next));
           game.score = score; game.time = time;
+          scenePath = nextPath;              // :w knows where home is
           game.say("welcome to " + name, 1.6);
         } else {
           game.say("next scene missing: " + next.error().detail, 2.5);
@@ -408,15 +715,26 @@ int main(int argc, char** argv) {
     if (g_raw) {
       termSize(cols, rows);
       scr.resize(cols, rows);
-      if (fileView) drawFile(scr, fileLines, fileTop, fileTop, query);
+      if (fileView) drawFile(scr, fileLines, fileTop, query, scenePath);
       else if (inspect) drawInspect(scr, game);
       else drawWorld(scr, game);
-      if (fileView)
+      if (cmdOpen) {
+        scr.text(0, rows - 1, ":" + cmdBuf + "_", dxn3::rgb(250, 204, 21));
+        const std::string hint = dxn3::usageHintFor(cmdBuf);
+        if (!hint.empty()) {
+          const int hcol = 2 + static_cast<int>(cmdBuf.size());
+          if (hcol + static_cast<int>(hint.size()) < cols - 1)
+            scr.text(hcol, rows - 1, hint, dxn3::rgb(124, 58, 237));
+        }
+      } else if (cmdErrT > 0) {
+        scr.text(0, rows - 1, " dxn3: " + cmdErr, dxn3::rgb(248, 113, 113));
+      } else if (fileView) {
         scr.help(" j/k scroll · / find · enter run · esc back · q quit");
-      else if (inspect)
-        scr.help(" a/d move · w jump · r reset · +/- zoom · f fit · tab inspect · q quit");
-      else
-        scr.help(" a/d move · w/space jump · r reset · +/- zoom · f fit · tab inspect · e file · q quit");
+      } else if (inspect) {
+        scr.help(" a/d move · w jump · r reset · +/- zoom · f fit · tab resume · q quit");
+      } else {
+        scr.help(" a/d move · w jump · r reset · tab inspect · e file · : cmds · q quit");
+      }
       std::fputs(scr.flush().c_str(), stdout);
       std::fflush(stdout);
     } else {

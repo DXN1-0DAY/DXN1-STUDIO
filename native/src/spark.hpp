@@ -99,6 +99,10 @@ public:
   static Scene normalizeScene(const Scene& in);
   static Scene fromJson(const std::string& text);   // throws-free: clamps junk
   static std::string toJson(const Scene& s);        // .dxn1.json round-trip
+  // atomic-ish save with a git-style safety net: the previous file
+  // becomes <path>.bak before the new bytes land. ""-free on success:
+  // returns the error detail, or "" when saved.
+  static std::string saveScene(const std::string& path, const Scene& s);
 
   int coinsTotal() const {
     int n = 0;

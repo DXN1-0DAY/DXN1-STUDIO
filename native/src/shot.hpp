@@ -1,0 +1,174 @@
+// dxn3 native — the screenshot raster (C++23): the scene rendered into
+// a real 960x540 pixel framebuffer and hand-encoded as a PNG (zero
+// deps). Same starfield, same art rules as the terminal — just more
+// pixels. Header-only so the shell and the selftest share one raster.
+#pragma once
+
+#include <algorithm>
+#include <cmath>
+#include <cstdint>
+#include <filesystem>
+#include <string>
+#include <vector>
+
+#include "spark.hpp"
+#include "tui.hpp"
+#include "fx.hpp"
+#include "png.hpp"
+
+namespace dxn3 {
+
+inline std::string shootPNG(const std::string& path, const Game& g) {
+  namespace fs = std::filesystem;
+  const int W = 960, H = 540;
+  const auto& sc = g.scene;
+  // poster framing: a screenshot is a map — fit the whole scene, not
+  // just the hero's neighborhood
+  const float ww = std::max(320.f, g.worldRight() + 160);
+  const float wh = std::max(240.f, g.worldBottom() + 160);
+  const float z = std::clamp(std::min(W / ww, static_cast<float>(H) / wh),
+                             0.3f, 4.f);
+  const RGB bg = parseHex(sc.bg, rgb(11, 14, 26));
+  // frame on the world: a poster centers the map itself, edges and all
+  float camX = g.worldRight() / 2.f, camY = g.worldBottom() / 2.f;
+  if (g.worldRight() <= 0 || g.worldBottom() <= 0) {
+    camX = sc.camera.x; camY = sc.camera.y;
+  }
+
+  std::vector<std::uint32_t> px(static_cast<size_t>(W) * H);
+  // sky gradient — the top leans into the dark, the bottom breathes
+  for (int y = 0; y < H; ++y) {
+    const float t = static_cast<float>(y) / H;
+    const RGB row = lerpColor(lerpColor(bg, 0x000000, 0.35f),
+                              lerpColor(bg, 0xFFFFFF, 0.10f), t);
+    auto* line = &px[static_cast<size_t>(y) * W];
+    for (int x = 0; x < W; ++x) line[x] = row;
+  }
+
+  // the deterministic starfield — parallax on x, twinkle on time
+  const auto stars = buildStars(hashSeed(sc.name), 220);
+  const float tile = 600.f;
+  for (size_t i = 0; i < stars.size(); ++i) {
+    const auto& st = stars[i];
+    const float depth = (i % 3 == 0) ? 0.5f : 0.22f;
+    float sxp = std::fmod(st.x * tile - camX * depth, tile);
+    if (sxp < 0) sxp += tile;
+    if (sxp >= W) continue;
+    const int x0 = static_cast<int>(sxp);
+    const int y0 = std::min(H - 1, static_cast<int>(st.y * H * 0.9f));
+    const float twk = 0.30f + 0.45f *
+        (0.5f + 0.5f * std::sin(g.time * st.tw + static_cast<float>(i) * 1.7f));
+    const RGB c = lerpColor(px[static_cast<size_t>(y0) * W + x0], st.tint, twk);
+    const int s = static_cast<int>(st.size);
+    for (int dy = 0; dy < s; ++dy)
+      for (int dx = 0; dx < s; ++dx)
+        if (x0 + dx < W && y0 + dy < H)
+          px[static_cast<size_t>(y0 + dy) * W + x0 + dx] = c;
+  }
+
+  auto sx = [&](float wx) { return (wx - camX) * z + W / 2.f; };
+  auto sy = [&](float wy) { return (wy - camY) * z + H / 2.f; };
+  auto fillRect = [&](float x0, float y0, float x1, float y1, RGB c) {
+    const int ax = std::max(0, static_cast<int>(x0));
+    const int ay = std::max(0, static_cast<int>(y0));
+    const int bx = std::min(W, static_cast<int>(x1) + 1);
+    const int by = std::min(H, static_cast<int>(y1) + 1);
+    for (int y = ay; y < by; ++y) {
+      auto* line = &px[static_cast<size_t>(y) * W];
+      for (int x = ax; x < bx; ++x) line[x] = c;
+    }
+  };
+  auto fillGradient = [&](float x0, float y0, float x1, float y1, RGB top, RGB bot) {
+    const int ay = std::max(0, static_cast<int>(y0));
+    const int by = std::min(H, static_cast<int>(y1) + 1);
+    const float hgt = std::max(1.f, y1 - y0);
+    for (int y = ay; y < by; ++y) {
+      const RGB c = lerpColor(top, bot, (y - y0) / hgt);
+      const int ax = std::max(0, static_cast<int>(x0));
+      const int bx = std::min(W, static_cast<int>(x1) + 1);
+      auto* line = &px[static_cast<size_t>(y) * W];
+      for (int x = ax; x < bx; ++x) line[x] = c;
+    }
+  };
+
+  for (const auto& e : sc.entities) {
+    if (!e.alive) continue;
+    const float x0 = sx(e.x), y0 = sy(e.y);
+    const float x1 = x0 + e.w * z - 1, y1 = y0 + e.h * z - 1;
+    const RGB c1 = parseHex(e.color, rgb(139, 92, 246));
+    if (x1 < 0 || x0 > W || y1 < 0 || y0 > H) continue;
+    // frame against the void: dark entities get a lighter edge so the
+    // night sky never swallows the level geometry
+    const int lum = (c1 >> 16 & 0xFF) * 299 + (c1 >> 8 & 0xFF) * 587 + (c1 & 0xFF) * 114;
+    const RGB edge = lum < 90000 ? lerpColor(c1, 0xFFFFFF, 0.28f)
+                                 : lerpColor(c1, 0x000000, 0.45f);
+
+    if (e.tag == "sign") {                                // plaque rails
+      fillRect(x0, y0, x1, y0 + 2, edge);
+      fillRect(x0, y1 - 2, x1, y1, edge);
+      continue;
+    }
+    if (e.tag == "coin") {                                // halo + gem
+      const float glow = 5.f;
+      fillRect(x0 - glow, y0 - glow, x1 + glow, y1 + glow,
+               lerpColor(px[std::max(0, static_cast<int>(y0)) * W +
+                             std::clamp(static_cast<int>(x0), 0, W - 1)], c1, 0.14f));
+      const float inx = e.w * 0.22f, iny = e.h * 0.22f;
+      fillGradient(x0 + inx, y0 + iny, x1 - inx, y1 - iny,
+                   lerpColor(c1, 0xFFFFFF, 0.35f), c1);
+      continue;
+    }
+    if (e.tag == "spike") {                               // triangle profile
+      const int steps = std::max(2, static_cast<int>(y1 - y0) + 1);
+      for (int s = 0; s < steps; ++s) {
+        const float t = steps <= 1 ? 0.f : static_cast<float>(s) / (steps - 1);
+        const float shrink = t * (e.w * z - 1) / 2.f;
+        fillRect(x0 + shrink, y0 + s, x1 - shrink, y0 + s, c1);
+      }
+      continue;
+    }
+    if (e.tag == "goal") {                                // striped flag
+      const RGB stripe = rgb(250, 204, 21);
+      const float band = std::max(1.f, (x1 - x0 + 1) / 4);
+      float x = x0;
+      int i = 0;
+      while (x <= x1) {
+        fillRect(x, y0, std::min(x + band - 1, x1), y1, i % 2 ? stripe : c1);
+        x += band; ++i;
+      }
+      continue;
+    }
+    if (e.fill == "gradient" && !e.color2.empty())
+      fillGradient(x0, y0, x1, y1, c1, parseHex(e.color2, c1));
+    else
+      fillRect(x0, y0, x1, y1, c1);
+    if (e.tag == "player") {                              // visor line
+      const RGB visor = lerpColor(c1, 0x000000, 0.55f);
+      fillRect(x0 + 1, y0 + (y1 - y0) * 0.25f, x1 - 1, y0 + (y1 - y0) * 0.4f, visor);
+    }
+    fillRect(x0, y0, x1, y0, edge);                       // crisp 1px frame
+    fillRect(x0, y1, x1, y1, edge);
+    fillRect(x0, y0, x0, y1, edge);
+    fillRect(x1, y0, x1, y1, edge);
+  }
+
+  // vignette — the edges fall asleep, the center sings
+  for (int y = 0; y < H; ++y) {
+    const float dyn = (y - H / 2.f) / (H / 2.f);
+    auto* line = &px[static_cast<size_t>(y) * W];
+    for (int x = 0; x < W; ++x) {
+      const float dxn = (x - W / 2.f) / (W / 2.f);
+      const float d = std::sqrt(dxn * dxn + dyn * dyn) / 1.4142f;
+      line[x] = lerpColor(0x000000, line[x], 1.f - 0.22f * d * d);
+    }
+  }
+
+  std::error_code fec;
+  const fs::path parent = fs::path(path).parent_path();
+  if (!parent.empty() && !fs::exists(parent) &&
+      !fs::create_directories(parent, fec))
+    return "cannot create " + parent.string() + ": " + fec.message();
+  return writePng(path, W, H, px);
+}
+
+} // namespace dxn3

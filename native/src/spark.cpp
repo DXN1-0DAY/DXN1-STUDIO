@@ -3,6 +3,7 @@
 
 #include <algorithm>
 #include <cmath>
+#include <filesystem>
 #include <fstream>
 #include <ranges>
 #include <sstream>
@@ -127,6 +128,24 @@ std::string Game::toJson(const Scene& s) {
   }
   o << "  ]\n}\n";
   return o.str();
+}
+
+std::string Game::saveScene(const std::string& path, const Scene& s) {
+  namespace fs = std::filesystem;
+  const std::string body = toJson(s);
+  std::error_code ec;
+  if (fs::exists(path, ec)) {
+    fs::rename(path, path + ".bak", ec);          // the old bytes survive
+    if (ec) return "cannot back up " + path + ": " + ec.message();
+  } else if (ec) {
+    return "cannot inspect " + path + ": " + ec.message();
+  }
+  std::ofstream f(path, std::ios::binary | std::ios::trunc);
+  if (!f) return "cannot write " + path;
+  f << body;
+  f.close();
+  if (!f) return "write failed for " + path;
+  return "";
 }
 
 std::expected<Scene, LoadError> Game::loadScene(const std::string& path) {
