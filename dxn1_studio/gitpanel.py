@@ -185,7 +185,8 @@ class GitPanel(tk.Frame):
         # ----------------------------------------------------------- results
         self.canvas = tk.Canvas(self, bg=theme["sidebar"],
                                 highlightthickness=0)
-        sb = ttk.Scrollbar(self, orient=tk.VERTICAL, command=self.canvas.yview)
+        sb = ttk.Scrollbar(self, orient=tk.VERTICAL, command=self.canvas.yview,
+                           style="TS2.Vertical.TScrollbar")
         self.results = tk.Frame(self.canvas, bg=theme["sidebar"])
         self._win = self.canvas.create_window((0, 0), window=self.results,
                                               anchor="nw", width=240)

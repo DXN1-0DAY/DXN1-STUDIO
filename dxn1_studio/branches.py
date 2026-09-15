@@ -246,7 +246,8 @@ class BranchManager(tk.Toplevel):
         wrap = tk.Frame(self, bg=t["bg"])
         wrap.pack(fill=tk.BOTH, expand=True, padx=12, pady=(4, 4))
         canvas = tk.Canvas(wrap, bg=t["bg"], highlightthickness=0)
-        sb = ttk.Scrollbar(wrap, orient=tk.VERTICAL, command=canvas.yview)
+        sb = ttk.Scrollbar(wrap, orient=tk.VERTICAL, command=canvas.yview,
+                           style="TS2.Vertical.TScrollbar")
         self.list_inner = tk.Frame(canvas, bg=t["bg"])
         self._win = canvas.create_window((0, 0),
                                          window=self.list_inner,

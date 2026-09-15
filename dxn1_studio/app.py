@@ -6522,7 +6522,8 @@ class DXN1Studio:
         box = tk.Frame(win, bg=t["bg"])
         box.pack(fill=tk.BOTH, expand=True, padx=10)
         canvas = tk.Canvas(box, bg=t["bg"], highlightthickness=0)
-        sb = ttk.Scrollbar(box, orient=tk.VERTICAL, command=canvas.yview)
+        sb = ttk.Scrollbar(box, orient=tk.VERTICAL, command=canvas.yview,
+                           style="TS2.Vertical.TScrollbar")
         rows = tk.Frame(canvas, bg=t["bg"])
         rows.bind("<Configure>",
                   lambda e: canvas.configure(scrollregion=canvas.bbox("all")))

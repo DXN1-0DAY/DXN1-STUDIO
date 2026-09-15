@@ -29,7 +29,7 @@ from tkinter import messagebox
 from . import APP_NAME
 from . import hints
 from . import projects
-from .theme import FONT_UI, FONT_MONO
+from .theme import FONT_UI, FONT_MONO, make_scrollbar
 
 # ------------------------------------------------------------------ extras
 # kind -> (label, pitch, badge, category, files-factory)
@@ -618,7 +618,7 @@ class TemplateGallery(tk.Toplevel):
         outer.pack(fill=tk.BOTH, expand=True, padx=26, pady=(10, 14))
 
         self.canvas = tk.Canvas(outer, bg=_GAL_C["bg"], highlightthickness=0)
-        scroll = tk.Scrollbar(outer, orient=tk.VERTICAL, command=self.canvas.yview)
+        scroll = make_scrollbar(outer, _GAL_C, tk.VERTICAL, self.canvas.yview)
         self.canvas.configure(yscrollcommand=scroll.set)
         scroll.pack(side=tk.RIGHT, fill=tk.Y)
         self.canvas.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)

@@ -12,6 +12,8 @@ snippet directly.
 
 import tkinter as tk
 
+from .theme import make_scrollbar
+
 __all__ = ["ClipRing", "ClipboardHistory", "open_cliphistory",
            "preview_of"]
 
@@ -135,7 +137,7 @@ class ClipboardHistory(tk.Toplevel):
             selectbackground=t.get("hover", "#2c2c3e"),
             selectforeground=t.get("text", "#e8e8f0"),
             font=("TkFixedFont", 10))
-        ysb = tk.Scrollbar(wrap, orient="vertical", command=self.tv.yview)
+        ysb = make_scrollbar(wrap, t, tk.VERTICAL, self.tv.yview)
         self.tv.configure(yscrollcommand=ysb.set)
         ysb.pack(side=tk.RIGHT, fill=tk.Y)
         self.tv.pack(fill=tk.BOTH, expand=True, padx=(8, 0), pady=6)

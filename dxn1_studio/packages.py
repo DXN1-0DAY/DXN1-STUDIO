@@ -131,7 +131,8 @@ class PackagesView(tk.Frame):
         wrap.pack(fill=tk.BOTH, expand=True, padx=12, pady=(4, 2))
 
         self.canvas = tk.Canvas(wrap, bg=self.t["bg"], highlightthickness=0)
-        sb = ttk.Scrollbar(wrap, orient=tk.VERTICAL, command=self.canvas.yview)
+        sb = ttk.Scrollbar(wrap, orient=tk.VERTICAL, command=self.canvas.yview,
+                           style="TS2.Vertical.TScrollbar")
         self.list_frame = tk.Frame(self.canvas, bg=self.t["bg"])
         self.list_frame.bind("<Configure>", lambda e: self.canvas.configure(
             scrollregion=self.canvas.bbox("all")))

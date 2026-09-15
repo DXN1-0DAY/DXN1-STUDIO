@@ -9347,3 +9347,87 @@ def test_layout_compare(tmp_path):
         except Exception:  # noqa: BLE001
             pass
     monkeypatch.undo()
+
+
+def test_workspace_lifecycle(tmp_path, monkeypatch):
+    """DS2 UI-sprint — the user's explicit contract for a brand-new
+    desk: an EMPTY workspace starts with ZERO visible files (the blank
+    page is the point; the studio's own .dxn1-project marker is a
+    dotfile and stays), making a file from the explorer works end to
+    end (created on disk, opened in the editor, saved back), names may
+    be nested and unicode, and creating NEVER silently overwrites —
+    an occupied name is refused with the fix named, for files and
+    folders alike, and an empty name is a no-op."""
+    import tkinter as tk
+    import tkinter.messagebox as mb
+    try:
+        root = tk.Tk(); root.withdraw()
+    except tk.TclError:
+        return
+    from dxn1_studio import projects as projmod
+    from dxn1_studio.app import DXN1Studio
+    import dxn1_studio.config as cfgmod
+    monkeypatch.setattr(cfgmod, "CONFIG_DIR", str(tmp_path))
+    monkeypatch.setattr(cfgmod, "CONFIG_PATH",
+                        str(tmp_path / "config.json"))
+    app = DXN1Studio(cfgmod.Config(), smoke_test=True, no_splash=True)
+    refused = []
+    monkeypatch.setattr(mb, "showerror",
+                        lambda *a, **k: refused.append(a))
+    ws = str(tmp_path / "fresh desk")
+    os.makedirs(ws, exist_ok=True)
+    try:
+        app.project_dir = ws
+        app.sidebar.load_directory(ws)
+        # 1. the empty scaffold ships zero visible files
+        path, kind = projmod.scaffold("empty", tmp_path, "Blank Desk")
+        visible = [f for f in os.listdir(path) if not f.startswith(".")]
+        assert visible == [], visible
+        assert os.path.isfile(os.path.join(path, ".dxn1-project.json"))
+        assert readback_kind(projmod, path) == "empty"
+        # 2. explorer New File → created + opened
+        app._ask = lambda *a, **k: "notes.md"
+        app._explorer_new(ws, file=True)
+        p = os.path.join(ws, "notes.md")
+        assert os.path.isfile(p)
+        assert os.path.abspath(app.editor.file_path or "") == \
+            os.path.abspath(p)
+        # 3. edit + save round trip
+        app.editor.set_content("# made in studio")
+        app.save_file(silent=True)
+        with open(p, encoding="utf-8") as fh:
+            assert fh.read().startswith("# made in studio")
+        # 4. nested + unicode names
+        app._ask = lambda *a, **k: "src/deep/über.py"
+        app._explorer_new(ws, file=True)
+        assert os.path.isfile(os.path.join(ws, "src/deep/über.py"))
+        # 5. occupied file name is refused, never clobbered
+        with open(os.path.join(ws, "exists.txt"), "w",
+                  encoding="utf-8") as fh:
+            fh.write("keep")
+        app._ask = lambda *a, **k: "exists.txt"
+        app._explorer_new(ws, file=True)
+        with open(os.path.join(ws, "exists.txt"), encoding="utf-8") as fh:
+            assert fh.read() == "keep"
+        assert refused and "already exists" in str(refused[-1])
+        # 6. occupied FOLDER name is refused too (nothing clobbered)
+        n_before = len(refused)
+        app._explorer_new(ws, file=False)
+        assert len(refused) == n_before + 1
+        assert not os.path.isdir(os.path.join(ws, "exists.txt"))
+        # 7. empty name is a quiet no-op
+        n_before = len(refused)
+        app._ask = lambda *a, **k: ""
+        app._explorer_new(ws, file=True)
+        assert len(refused) == n_before
+    finally:
+        try:
+            app.root.destroy()
+        except Exception:  # noqa: BLE001
+            pass
+    monkeypatch.undo()
+
+
+def readback_kind(projmod, path):
+    meta = projmod.read_project_meta(path)
+    return meta.get("kind")

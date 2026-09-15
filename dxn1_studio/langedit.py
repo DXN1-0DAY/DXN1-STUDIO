@@ -67,7 +67,7 @@ import time
 import tkinter as tk
 
 from . import i18n as _i18n
-from .theme import FONT_UI, FONT_MONO
+from .theme import FONT_UI, FONT_MONO, make_scrollbar
 
 # pack codes name a JSON file on disk — keep them filename-honest
 CODE_RE = re.compile(r"^[a-z0-9][a-z0-9_-]{0,15}$")
@@ -713,7 +713,7 @@ class PackEditor(tk.Toplevel):
         wrap = tk.Frame(self, bg=t["card"], highlightthickness=1,
                         highlightbackground=t["card_border"])
         wrap.pack(fill=tk.BOTH, expand=True, padx=14, pady=(8, 6))
-        bar = tk.Scrollbar(wrap, orient=tk.VERTICAL)
+        bar = make_scrollbar(wrap, t, tk.VERTICAL)
         self.listbox = tk.Listbox(
             wrap, yscrollcommand=bar.set, bg=t["editor"], fg=t["text"],
             selectbackground=t.accent, selectforeground="#ffffff",

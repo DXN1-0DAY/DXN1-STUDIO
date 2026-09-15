@@ -126,24 +126,46 @@ SB_WIDTH = 10          # thin, modern — the default 15px reads 1995
 SB_ARROW_SIZE = 11
 
 
+def _tk(theme, key, fallback):
+    """Theme lookup that tolerates plain dicts (some panels pass a
+    hand-rolled palette with only a few keys)."""
+    try:
+        val = theme[key] if hasattr(theme, "__getitem__") else None
+        if val:
+            return val
+    except Exception:  # noqa: BLE001 — missing key falls through
+        pass
+    try:
+        val = theme.get(key)
+        if val:
+            return val
+    except Exception:  # noqa: BLE001
+        pass
+    return fallback
+
+
 def scrollbar_kwargs(theme, trough=None, thumb=None):
     """Keyword args for a themed tk.Scrollbar (the design-system look)."""
     return dict(
         width=SB_WIDTH,
-        troughcolor=trough or theme["editor"],
-        bg=thumb or theme["card"],
-        activebackground=theme.accent,
+        troughcolor=trough or _tk(theme, "editor", "#1b1b24"),
+        bg=thumb or _tk(theme, "card", "#232331"),
+        activebackground=getattr(theme, "accent", None)
+        or _tk(theme, "accent", "#7c5cff"),
         bd=0,
         highlightthickness=0,
         elementborderwidth=0,
     )
 
 
-def make_scrollbar(parent, theme, orient, command, trough=None):
-    """A themed tk.Scrollbar — the ONLY way to build one in DS2."""
+def make_scrollbar(parent, theme, orient, command=None, trough=None):
+    """A themed tk.Scrollbar — the ONLY way to build one in DS2.
+    `command` is optional: some widgets wire yscrollcommand later."""
     import tkinter as _tk
-    return _tk.Scrollbar(parent, orient=orient, command=command,
-                         **scrollbar_kwargs(theme, trough=trough))
+    args = scrollbar_kwargs(theme, trough=trough)
+    if command is not None:
+        args["command"] = command
+    return _tk.Scrollbar(parent, orient=orient, **args)
 
 
 def apply_scroll_theme(style, theme, prefix="TS2"):

@@ -217,7 +217,8 @@ class MemoryEditor(tk.Toplevel):
         wrap = tk.Frame(self, bg=t["bg"])
         wrap.pack(fill=tk.BOTH, expand=True, padx=12, pady=(10, 0))
         self.canvas = tk.Canvas(wrap, bg=t["bg"], highlightthickness=0)
-        sb = ttk.Scrollbar(wrap, orient=tk.VERTICAL, command=self.canvas.yview)
+        sb = ttk.Scrollbar(wrap, orient=tk.VERTICAL, command=self.canvas.yview,
+                           style="TS2.Vertical.TScrollbar")
         self.list = tk.Frame(self.canvas, bg=t["bg"])
         self._win = self.canvas.create_window((0, 0), window=self.list,
                                               anchor="nw", width=600)

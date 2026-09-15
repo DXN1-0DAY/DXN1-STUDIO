@@ -66,7 +66,8 @@ class SearchPanel(tk.Frame):
         self.status.pack(fill=tk.X, padx=12, pady=(0, 4))
 
         self.canvas = tk.Canvas(self, bg=theme["sidebar"], highlightthickness=0)
-        sb = ttk.Scrollbar(self, orient=tk.VERTICAL, command=self.canvas.yview)
+        sb = ttk.Scrollbar(self, orient=tk.VERTICAL, command=self.canvas.yview,
+                           style="TS2.Vertical.TScrollbar")
         self.results = tk.Frame(self.canvas, bg=theme["sidebar"])
         self._win = self.canvas.create_window((0, 0), window=self.results,
                                               anchor="nw", width=240)

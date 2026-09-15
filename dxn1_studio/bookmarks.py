@@ -230,7 +230,8 @@ def open_browser(master, theme, workspace=None, on_jump=None, on_log=None):
     tree.column("#0", width=240, anchor="w")
     tree.column("line", width=60, anchor="e", stretch=False)
     tree.column("snippet", width=380, anchor="w")
-    vsb = ttk.Scrollbar(wrap, orient="vertical", command=tree.yview)
+    vsb = ttk.Scrollbar(wrap, orient="vertical", command=tree.yview,
+                        style="TS2.Vertical.TScrollbar")
     tree.configure(yscrollcommand=vsb.set)
     tree.pack(side=tk.LEFT, fill=tk.BOTH, expand=True, padx=(2, 0), pady=2)
     vsb.pack(side=tk.RIGHT, fill=tk.Y, pady=2)
