@@ -111,8 +111,13 @@
         <button class="seg" data-fs="14">14</button>
         <button class="seg" data-fs="16">16</button>
       </div>
+      <div class="set-label">KEYBINDINGS</div>
+      <div id="kb-table"></div>
     </section>
   </aside>
+
+  <!-- sidebar resize handle -->
+  <div id="side-handle" title="Drag to resize"></div>
 
   <!-- main column -->
   <main id="main">
@@ -152,11 +157,20 @@
 
     <!-- editor -->
     <section id="editor-view" class="view">
-      <div id="editor-stack">
+      <div id="findbar" class="hidden">
+        <span class="fb-ico">⌕</span>
+        <input id="find-inp" type="text" placeholder="Find…" spellcheck="false">
+        <span id="find-count">0/0</span>
+        <button id="find-prev" class="mini" title="Previous (Shift+Enter)">↑</button>
+        <button id="find-next" class="mini" title="Next (Enter)">↓</button>
+        <button id="find-close" class="mini" title="Close (Esc)">✕</button>
+      </div>
+      <div id="editor-stack" class="mm-on">
         <div id="gutter" aria-hidden="true"></div>
         <pre id="highlight" aria-hidden="true"></pre>
         <textarea id="editor" spellcheck="false" autocomplete="off"
           aria-label="Editor"></textarea>
+        <canvas id="minimap" width="86" height="300" aria-hidden="true"></canvas>
       </div>
     </section>
 
@@ -170,6 +184,18 @@
           <span class="panel-actions">
             <button id="scene-save" class="mini" title="Save scene">⤓</button>
           </span>
+        </div>
+        <div class="ent-palette" title="Click to add — then drag on canvas">
+          <button class="ep" data-ent="block">▦ block</button>
+          <button class="ep" data-ent="platform">▬ platform</button>
+          <button class="ep" data-ent="coin">◎ coin</button>
+          <button class="ep" data-ent="spike">▲ spike</button>
+          <button class="ep" data-ent="bouncer">⤒ bouncer</button>
+          <button class="ep" data-ent="text">T text</button>
+          <span class="ep-sep"></span>
+          <button id="btn-grid" class="mini" title="Toggle edit grid">⌗</button>
+          <button id="btn-dup" class="mini" title="Duplicate entity (Ctrl+D)">⧉</button>
+          <button id="btn-del-ent" class="mini danger" title="Delete entity (Del)">✕</button>
         </div>
         <div id="entity-list" class="entity-list"></div>
         <div class="dock-title" style="margin-top:10px">INSPECTOR</div>
@@ -202,7 +228,7 @@
   <span class="spacer"></span>
   <span id="st-pos"></span>
   <span id="st-file"></span>
-  <span id="st-version" class="chip">v3.0.01</span>
+  <span id="st-version" class="chip">v3.0.02</span>
 </footer>
 
 <!-- ============================== overlays -->

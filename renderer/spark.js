@@ -10,15 +10,17 @@
 const Spark = (() => {
 
   // ------------------------------------------------------------ schema
-  // entity: {name, x, y, w, h, shape:"rect"|"circle", color,
+  // entity: {name, x, y, w, h, shape:"rect"|"circle"|"triangle",
+  //          color, text:"", tsize:22,
   //          vx, vy, solid, gravity:boolean(default: scene gravity),
   //          controls:"platformer"|"none", tag, bounce:0..1, alive:true}
+  //          tag:"coin" pickup · tag:"hazard" respawn on touch
   // scene:  {name, bg, gravity, camera:{x,y,zoom}, entities:[...]}
 
   function makeEntity(patch) {
     return Object.assign({
       name: "entity", x: 0, y: 0, w: 36, h: 36,
-      shape: "rect", color: "#8b5cf6",
+      shape: "rect", color: "#8b5cf6", text: "", tsize: 22,
       vx: 0, vy: 0, solid: false, gravity: null,
       controls: "none", tag: "", bounce: 0, alive: true,
     }, patch || {});
@@ -44,6 +46,12 @@ const Spark = (() => {
         { name: "bouncer", x: 1030, y: 380, w: 90, h: 22, color: "#22d3ee", solid: true, bounce: 1.4, tag: "bouncy" },
         { name: "ball", x: 640, y: 120, w: 26, h: 26, shape: "circle", color: "#fb7185",
           solid: true, tag: "ball", bounce: 0.72 },
+        { name: "spike-1", x: 470, y: 402, w: 34, h: 28, shape: "triangle",
+          color: "#fb7185", tag: "hazard" },
+        { name: "spike-2", x: 740, y: 402, w: 34, h: 28, shape: "triangle",
+          color: "#fb7185", tag: "hazard" },
+        { name: "sign", x: 130, y: 360, w: 190, h: 30, text: "→ find the coins",
+          tsize: 20, color: "#9aa1b5" },
       ],
     };
   }
@@ -91,11 +99,18 @@ const Spark = (() => {
       this.input = new Input(canvas);
       this.running = false;
       this.score = 0;
+      this.showGrid = false;          // editor-only overlay
+      this.gridSize = 32;
       this._particles = [];
       this._raf = 0;
       this._last = 0;
       this._acc = 0;
+      const pl = this.scene.entities.find((e) => e.tag === "player");
+      this._spawn = { x: pl ? pl.x : 90, y: pl ? pl.y : 300 };
     }
+
+    /* one static frame — the editor paints through this */
+    repaint() { this._render(); }
 
     static normalizeScene(raw) {
       const s = raw && typeof raw === "object" ? raw : {};
@@ -132,6 +147,9 @@ const Spark = (() => {
     start() {
       if (this.running) return;
       this.running = true;
+      // play from where the editor left the player
+      const pl0 = this.scene.entities.find((e) => e.tag === "player");
+      if (pl0) this._spawn = { x: pl0.x, y: pl0.y };
       this._last = performance.now();
       this.canvas.focus();
       this.canvas.setAttribute("tabindex", "0");
@@ -178,7 +196,7 @@ const Spark = (() => {
           }
           // fell off the world — respawn at the start
           if (e.y > this._worldBottom() + 400) {
-            e.x = 90; e.y = 300; e.vx = e.vy = 0;
+            e.x = this._spawn.x; e.y = this._spawn.y; e.vx = e.vy = 0;
             this._flash("ouch — respawned");
           }
         } else if (e.tag === "ball") {
@@ -212,6 +230,13 @@ const Spark = (() => {
             this.score += 10;
             this._burst(other, other.color, 14);
             if (this.hooks.onScore) this.hooks.onScore(this.score);
+          }
+          if (other.tag === "hazard" && this._aabb(player, other)) {
+            this._burst(player, "#fb7185", 16);
+            player.x = this._spawn.x; player.y = this._spawn.y;
+            player.vx = player.vy = 0;
+            this._flash("ouch — spike!");
+            if (this.hooks.onHit) this.hooks.onHit();
           }
         }
         // camera follows the player, softly
@@ -301,11 +326,32 @@ const Spark = (() => {
       ctx.save();
       ctx.translate(-cam.x, -cam.y);
 
+      // editor grid — only while editing (the game never sees it)
+      if (this.showGrid && !this.running) {
+        const gs = this.gridSize || 32;
+        ctx.strokeStyle = "rgba(139,92,246,.14)";
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+        for (let x = Math.floor(cam.x / gs) * gs;
+             x <= cam.x + canvas.width + gs; x += gs) {
+          ctx.moveTo(x, cam.y); ctx.lineTo(x, cam.y + canvas.height);
+        }
+        for (let y = Math.floor(cam.y / gs) * gs;
+             y <= cam.y + canvas.height + gs; y += gs) {
+          ctx.moveTo(cam.x, y); ctx.lineTo(cam.x + canvas.width, y);
+        }
+        ctx.stroke();
+      }
+
       for (const e of this.scene.entities) {
         if (!e.alive) continue;
         if (e.x + e.w < cam.x - 40 || e.x > cam.x + canvas.width + 40) continue;
-        ctx.fillStyle = e.color;
-        if (e.shape === "circle") {
+        if (e.text) {                 // text entity — drawn as a label
+          ctx.fillStyle = e.color;
+          ctx.font = `600 ${e.tsize || 22}px ui-monospace, monospace`;
+          ctx.textBaseline = "top";
+          ctx.fillText(e.text, e.x, e.y);
+        } else if (e.shape === "circle") {
           ctx.beginPath();
           ctx.arc(e.x + e.w / 2, e.y + e.h / 2, Math.min(e.w, e.h) / 2,
                   0, Math.PI * 2);
@@ -316,6 +362,13 @@ const Spark = (() => {
             ctx.fillRect(e.x + e.w / 2 + Math.cos(t) * e.w / 4,
                          e.y + e.h / 4, 2, e.h / 2);
           }
+        } else if (e.shape === "triangle") {
+          ctx.beginPath();
+          ctx.moveTo(e.x + e.w / 2, e.y);
+          ctx.lineTo(e.x + e.w, e.y + e.h);
+          ctx.lineTo(e.x, e.y + e.h);
+          ctx.closePath();
+          ctx.fill();
         } else {
           ctx.beginPath();
           ctx.roundRect(e.x, e.y, e.w, e.h, 5);
@@ -325,7 +378,7 @@ const Spark = (() => {
             ctx.fillRect(e.x, e.y, e.w, 3);
           }
         }
-        if (this.selected && this.selected.name === e.name) {
+        if (this.selected && this.selected === e) {   // identity, not name
           ctx.strokeStyle = "#22d3ee";
           ctx.lineWidth = 2;
           ctx.strokeRect(e.x - 3, e.y - 3, e.w + 6, e.h + 6);

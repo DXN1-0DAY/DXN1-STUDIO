@@ -26,7 +26,7 @@ let RECENTS = STORE.get("recents", []);
 let SCENE_PATH = null;    // open scene path (game view)
 let GAME = null;          // live Spark.Game
 let SEL_ENT = null;
-const VERSION = "3.0.01";
+const VERSION = "3.0.02";
 
 /* ============================================================
    ENGINE CLIENTS
@@ -229,7 +229,7 @@ async function openPath(path) {
     ACTIVE = path;
     $("editor").value = r.content;
     showView("editor");
-    renderTabs(); renderHighlight(); renderGutter(); updatePos();
+    renderTabs(); renderHighlight(); renderGutter(); updatePos(); paintMinimap();
     addRecent(path);
     say("opened " + path);
   } catch (e) { toast("Open failed: " + e.message, "err"); }
@@ -307,6 +307,7 @@ function renderTabs() {
     const el = document.createElement("div");
     el.className = "tab" + (t.path === ACTIVE ? " active" : "");
     el.setAttribute("role", "tab");
+    el.draggable = true;
     el.innerHTML = `<span>${esc(t.path.split("/").pop())}</span>` +
       (t.dirty ? `<span class="dot">●</span>` : "") +
       `<span class="x" title="Close">✕</span>`;
@@ -315,6 +316,28 @@ function renderTabs() {
       if (t.kind === "scene") openScene(t.path);
       else openPath(t.path);
     };
+    // drag to reorder — the strip is yours
+    el.addEventListener("dragstart", (e) => {
+      e.dataTransfer.setData("text/plain", t.path);
+      e.dataTransfer.effectAllowed = "move";
+      el.classList.add("dragging");
+    });
+    el.addEventListener("dragend", () => el.classList.remove("dragging"));
+    el.addEventListener("dragover", (e) => {
+      e.preventDefault(); el.classList.add("drop-target");
+    });
+    el.addEventListener("dragleave", () => el.classList.remove("drop-target"));
+    el.addEventListener("drop", (e) => {
+      e.preventDefault(); el.classList.remove("drop-target");
+      const from = e.dataTransfer.getData("text/plain");
+      if (!from || from === t.path) return;
+      const fi = OPEN_TABS.findIndex((x) => x.path === from);
+      const ti = OPEN_TABS.findIndex((x) => x.path === t.path);
+      if (fi < 0 || ti < 0) return;
+      const [moved] = OPEN_TABS.splice(fi, 1);
+      OPEN_TABS.splice(ti, 0, moved);
+      renderTabs();
+    });
     bar.appendChild(el);
   }
   $("st-file").textContent = ACTIVE || "";
@@ -343,6 +366,8 @@ function langFor(path) {
   if (["js", "ts", "jsx", "tsx", "mjs"].includes(ext)) return "js";
   if (ext === "json") return "json";
   if (["md", "markdown"].includes(ext)) return "md";
+  if (["html", "htm", "svg", "xml"].includes(ext)) return "html";
+  if (["css", "scss", "less"].includes(ext)) return "css";
   return "txt";
 }
 
@@ -351,9 +376,26 @@ const JS_KW = "function|const|let|var|return|if|else|for|while|do|switch|case|br
 
 function highlight(src, lang) {
   const store = [];
+  // Markers are LETTERS ONLY (bijective base-26): digit markers used to be
+  // eaten by the later number rule, corrupting every stored token.
+  const enc26 = (n) => {
+    let s = "";
+    n += 1;
+    while (n > 0) {
+      const r = (n - 1) % 26;
+      s = String.fromCharCode(97 + r) + s;
+      n = Math.floor((n - 1) / 26);
+    }
+    return s;
+  };
+  const dec26 = (s) => {
+    let n = 0;
+    for (const c of s) n = n * 26 + (c.charCodeAt(0) - 96);
+    return n - 1;
+  };
   const keep = (html) => {
     store.push(html);
-    return `\u0000${store.length - 1}\u0000`;
+    return `\u0000${enc26(store.length - 1)}\u0000`;
   };
   let out = esc(src);
   const sub = (re, cls) => {
@@ -365,6 +407,18 @@ function highlight(src, lang) {
   if (lang === "py") sub(new RegExp(`\\b(?:${PY_KW})\\b`, "g"), "kw");
   if (lang === "js") sub(new RegExp(`\\b(?:${JS_KW})\\b`, "g"), "kw");
   if (lang === "json") sub(/\b(true|false|null)\b/g, "kw");
+  if (lang === "css") {
+    sub(/\/\*[\s\S]*?\*\//g, "com");
+    sub(/@[\w-]+/g, "dec");
+    sub(/#[0-9a-fA-F]{3,8}\b/g, "num");
+    sub(/[.#][\w-]+/g, "fn");
+    sub(/[\w-]+(?=\s*:)/g, "kw");
+  }
+  if (lang === "html") {
+    sub(/&lt;!--[\s\S]*?--&gt;/g, "com");
+    sub(/&lt;\/?[\w-]+/g, "kw");
+    sub(/[\w-]+(?==)/g, "fn");
+  }
   sub(/\b\d+(\.\d+)?\b/g, "num");
   sub(/@[\w.]+/g, "dec");
   sub(/\b([a-zA-Z_]\w*)\(/g, (m, f) =>
@@ -373,7 +427,12 @@ function highlight(src, lang) {
     sub(/^#{1,6} .*$/gm, "kw");
     sub(/\*\*[^*]+\*\*/g, "fn");
   }
-  out = out.replace(/\u0000(\d+)\u0000/g, (_, i) => store[Number(i)]);
+  // unwrap — nested markers need passes until the string is stable
+  let prev;
+  do {
+    prev = out;
+    out = out.replace(/\u0000([a-z]+)\u0000/g, (_, w) => store[dec26(w)]);
+  } while (out !== prev);
   return out;
 }
 
@@ -395,6 +454,122 @@ function updatePos() {
   const line = upto.split("\n").length;
   const col = ta.selectionStart - upto.lastIndexOf("\n");
   $("st-pos").textContent = `Ln ${line}, Col ${col}`;
+}
+
+/* ============================================================
+   FIND IN FILE — Ctrl+F, wrap-around, live count
+   ============================================================ */
+const FIND = { hits: [], idx: -1 };
+
+function findOpen() {
+  if (!ACTIVE) return toast("Nothing to find — open a file first", "err");
+  $("findbar").classList.remove("hidden");
+  const inp = $("find-inp");
+  inp.focus();
+  inp.select();
+  findCompute();
+}
+
+function findClose() {
+  $("findbar").classList.add("hidden");
+  $("editor").focus();
+}
+
+function findCompute() {
+  const q = $("find-inp").value;
+  FIND.hits = [];
+  FIND.idx = -1;
+  if (!q) { $("find-count").textContent = "0/0"; return; }
+  const src = $("editor").value.toLowerCase();
+  const ql = q.toLowerCase();
+  let at = src.indexOf(ql);
+  while (at >= 0 && FIND.hits.length < 5000) {
+    FIND.hits.push(at);
+    at = src.indexOf(ql, at + ql.length);
+  }
+  findShow(1);                       // land on the first hit
+}
+
+function findShow(dir) {
+  const n = FIND.hits.length;
+  if (!n) { $("find-count").textContent = "0/0"; return; }
+  FIND.idx = ((FIND.idx + dir) % n + n) % n;   // wraps both directions
+  const ta = $("editor");
+  const start = FIND.hits[FIND.idx];
+  const q = $("find-inp").value;
+  ta.focus();
+  ta.setSelectionRange(start, start + q.length);
+  const line = ta.value.slice(0, start).split("\n").length;
+  const lh = parseFloat(getComputedStyle(ta).lineHeight) || 21;
+  ta.scrollTop = Math.max(0, (line - 4) * lh);
+  $("find-count").textContent = `${FIND.idx + 1}/${n}`;
+}
+
+/* ============================================================
+   MINIMAP — DS3 style: one bar per line + viewport lens
+   ============================================================ */
+let MM_PENDING = false;
+
+function paintMinimap() {
+  if (MM_PENDING) return;
+  MM_PENDING = true;
+  requestAnimationFrame(() => {
+    MM_PENDING = false;
+    const cv = $("minimap");
+    const ta = $("editor");
+    const stack = $("editor-stack");
+    if (!stack.classList.contains("mm-on") ||
+        !$("editor-view").classList.contains("active") || !ACTIVE) return;
+    const dpr = window.devicePixelRatio || 1;
+    const w = 86;
+    const h = cv.clientHeight || stack.clientHeight || 300;
+    if (cv.width !== Math.floor(w * dpr) || cv.height !== Math.floor(h * dpr)) {
+      cv.width = Math.floor(w * dpr);
+      cv.height = Math.floor(h * dpr);
+    }
+    const ctx = cv.getContext("2d");
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    ctx.clearRect(0, 0, w, h);
+    const lines = ta.value.split("\n");
+    const total = lines.length || 1;
+    const lh = 3;                                   // px per line in the map
+    const docH = total * lh;
+    const scale = Math.min(1, h / docH);            // squeeze tall files
+    const cs = getComputedStyle(document.documentElement);
+    ctx.globalAlpha = 0.55;
+    ctx.fillStyle = cs.getPropertyValue("--text3").trim() || "#5c6478";
+    for (let i = 0; i < total; i++) {
+      const y = i * lh * scale;
+      if (y > h) break;
+      const len = Math.min(lines[i].trim().length, 64);
+      if (!len) continue;
+      const indent = Math.min(lines[i].length - lines[i].trimStart().length, 24);
+      ctx.fillRect(7 + indent * 0.7, y, Math.max(2, len * 0.9), 2);
+    }
+    // viewport lens
+    const lensH = Math.max(24, ta.clientHeight * scale);
+    const lensY = Math.min(h - lensH,
+      (ta.scrollTop / (ta.scrollHeight || 1)) * (docH * scale));
+    ctx.globalAlpha = 0.12;
+    ctx.fillStyle = cs.getPropertyValue("--accent").trim() || "#8b5cf6";
+    ctx.fillRect(0, Math.max(0, lensY), w, lensH);
+    ctx.globalAlpha = 1;
+  });
+}
+
+function mmJump(e) {
+  const ta = $("editor");
+  const r = $("minimap").getBoundingClientRect();
+  const ratio = Math.min(1, Math.max(0, (e.clientY - r.top) / r.height));
+  ta.scrollTop = ratio * (ta.scrollHeight - ta.clientHeight);
+  paintMinimap();
+}
+
+function toggleMinimap() {
+  const on = !$("editor-stack").classList.contains("mm-on");
+  $("editor-stack").classList.toggle("mm-on", on);
+  STORE.set("minimap", on);
+  paintMinimap();
 }
 
 function showView(name) {
@@ -427,15 +602,100 @@ function buildGame(scene) {
   if (GAME) GAME.stop();
   GAME = new Spark.Game($("game-canvas"), scene, {
     onScore: (s) => say("score " + s),
+    onHit: () => say("ouch!"),
     onStop: () => {
       $("btn-play").classList.remove("running");
       $("btn-play").textContent = "▶";
+      GAME.repaint();            // back to the edit view instantly
     },
   });
+  GAME.showGrid = GRID_ON;
   GAME.selected = SEL_ENT;
+  GAME.repaint();                // the scene is visible the moment it opens
   wireSceneEditing();
   renderEntityList();
 }
+
+/* ============================================================
+   ENTITY PALETTE — add · duplicate · delete · edit grid
+   ============================================================ */
+const ENT_PRESETS = {
+  block:    () => ({ name: "block", w: 120, h: 36, color: "#1c2136", solid: true }),
+  platform: () => ({ name: "platform", w: 170, h: 22, color: "#1c2136", solid: true }),
+  coin:     () => ({ name: "coin", w: 22, h: 22, shape: "circle", color: "#fbbf24", tag: "coin" }),
+  spike:    () => ({ name: "spike", w: 34, h: 28, shape: "triangle", color: "#fb7185", tag: "hazard" }),
+  bouncer:  () => ({ name: "bouncer", w: 90, h: 22, color: "#22d3ee", solid: true, bounce: 1.4, tag: "bouncy" }),
+  text:     () => ({ name: "label", w: 170, h: 30, text: "hello!", tsize: 22, color: "#9aa1b5" }),
+};
+
+let GRID_ON = STORE.get("grid", true);
+
+function setGrid(on) {
+  GRID_ON = !!on;
+  STORE.set("grid", GRID_ON);
+  const b = $("btn-grid");
+  if (b) b.classList.toggle("active", GRID_ON);
+  if (GAME) { GAME.showGrid = GRID_ON; GAME.repaint(); }
+}
+
+function snap(v) {
+  const g = ((GAME ? GAME.gridSize : 32) || 32) / 4;   // quarter-grid = 8px
+  return Math.round(v / g) * g;
+}
+
+function uniqueName(base) {
+  const names = new Set(GAME.scene.entities.map((e) => e.name));
+  if (!names.has(base)) return base;
+  for (let i = 2; ; i++) if (!names.has(`${base}-${i}`)) return `${base}-${i}`;
+}
+
+function addEntity(kind) {
+  if (!GAME) return toast("Open a scene first", "err");
+  const preset = ENT_PRESETS[kind];
+  if (!preset) return;
+  const e = Spark.makeEntity(preset());
+  e.x = snap(GAME.scene.camera.x + GAME.canvas.width / 2 - e.w / 2);
+  e.y = snap(GAME.scene.camera.y + GAME.canvas.height / 2 - e.h / 2);
+  e.name = uniqueName(e.name);
+  GAME.scene.entities.push(e);
+  SEL_ENT = e;
+  GAME.selected = e;
+  markSceneDirty();
+  renderEntityList();
+  renderInspector();
+  GAME.repaint();
+  say("added " + e.name);
+}
+
+function dupEntity() {
+  if (!GAME || !SEL_ENT) return toast("No entity selected", "err");
+  const c = Spark.makeEntity(JSON.parse(JSON.stringify(SEL_ENT)));
+  c.name = uniqueName(SEL_ENT.name);
+  c.x += 24; c.y -= 24;
+  GAME.scene.entities.push(c);
+  SEL_ENT = c;
+  GAME.selected = c;
+  markSceneDirty();
+  renderEntityList();
+  renderInspector();
+  GAME.repaint();
+  toast("Duplicated → " + c.name, "ok", 1400);
+}
+
+function delEntity() {
+  if (!GAME || !SEL_ENT) return toast("No entity selected", "err");
+  const gone = SEL_ENT;
+  GAME.scene.entities = GAME.scene.entities.filter((e) => e !== gone);
+  SEL_ENT = null;
+  GAME.selected = null;
+  markSceneDirty();
+  renderEntityList();
+  renderInspector();
+  GAME.repaint();
+  toast("Deleted " + gone.name, "ok", 1400);
+}
+
+function gameView() { return $("game-view").classList.contains("active"); }
 
 let SCENE_EDIT_WIRED = false;
 function wireSceneEditing() {
@@ -451,7 +711,7 @@ function wireSceneEditing() {
     GAME.selected = ent;
     if (ent) {
       dragging = { ent, dx: w.x - ent.x, dy: w.y - ent.y };
-      cv.setPointerCapture(e.pointerId);
+      try { cv.setPointerCapture(e.pointerId); } catch {}   // synthetic events have no live pointer
     }
     renderEntityList(); renderInspector();
   });
@@ -460,7 +720,12 @@ function wireSceneEditing() {
     const w = GAME.screenToWorld(e.clientX, e.clientY);
     dragging.ent.x = Math.round(w.x - dragging.dx);
     dragging.ent.y = Math.round(w.y - dragging.dy);
+    if (GRID_ON && !e.altKey) {          // snap — Alt drags free
+      dragging.ent.x = snap(dragging.ent.x);
+      dragging.ent.y = snap(dragging.ent.y);
+    }
     markSceneDirty();
+    GAME.repaint();                       // live feedback while dragging
     renderInspector();                    // live numbers while dragging
   });
   cv.addEventListener("mouseup", () => { dragging = null; });
@@ -485,7 +750,16 @@ function renderEntityList() {
       `<span>${esc(e.name)}</span>` +
       (e.tag ? `<span style="margin-left:auto;font-size:10px;color:var(--text3)">${esc(e.tag)}</span>` : "");
     el.onclick = () => { SEL_ENT = e; GAME.selected = e;
-      renderEntityList(); renderInspector(); };
+      renderEntityList(); renderInspector(); GAME.repaint(); };
+    el.oncontextmenu = (ev) => {          // right-click: quick actions
+      ev.preventDefault();
+      SEL_ENT = e; GAME.selected = e;
+      renderEntityList(); renderInspector();
+      ctxMenu(ev.clientX, ev.clientY, [
+        { label: "Duplicate", run: () => dupEntity() },
+        { label: "Delete", danger: true, run: () => delEntity() },
+      ]);
+    };
     host.appendChild(el);
   }
 }
@@ -493,7 +767,7 @@ function renderEntityList() {
 function renderInspector() {
   const host = $("inspector");
   host.innerHTML = "";
-  if (!SEL_ENT) { host.innerHTML = `<div class="panel-note">click an entity on the canvas — drag to move</div>`; return; }
+  if (!SEL_ENT) { host.innerHTML = `<div class="panel-note">click an entity on the canvas — drag to move · right-click list for actions</div>`; return; }
   const e = SEL_ENT;
   const row = (label, input) => {
     const r = document.createElement("div");
@@ -503,10 +777,11 @@ function renderInspector() {
     host.appendChild(r);
     return input;
   };
+  const live = () => { markSceneDirty(); if (GAME && !GAME.running) GAME.repaint(); };
   const text = (val, on, type = "text") => {
     const i = document.createElement("input");
     i.type = type; i.value = val; i.spellcheck = false;
-    i.oninput = () => { on(i.value); markSceneDirty(); };
+    i.oninput = () => { on(i.value); live(); };
     return i;
   };
   const num = (val, on) => text(String(val), (v) => on(Number(v) || 0), "number");
@@ -518,29 +793,41 @@ function renderInspector() {
   const color = document.createElement("input");
   color.type = "color"; color.value = e.color.startsWith("#") ? e.color : "#8b5cf6";
   color.className = "insp-color";
-  color.oninput = () => { e.color = color.value; renderEntityList(); markSceneDirty(); };
+  color.oninput = () => { e.color = color.value; renderEntityList(); live(); };
   row("color", color);
   const sel = document.createElement("select");
-  for (const s of ["rect", "circle"]) {
+  for (const s of ["rect", "circle", "triangle"]) {
     const o = document.createElement("option");
     o.value = o.textContent = s; if (e.shape === s) o.selected = true;
     sel.appendChild(o);
   }
-  sel.onchange = () => { e.shape = sel.value; markSceneDirty(); };
+  sel.onchange = () => { e.shape = sel.value; live(); };
   row("shape", sel);
+  row("text", text(e.text || "", (v) => { e.text = v; }));
+  if (e.text) row("tsize", num(e.tsize || 22, (v) => e.tsize = v));
   const ctl = document.createElement("select");
   for (const s of ["none", "platformer"]) {
     const o = document.createElement("option");
     o.value = o.textContent = s; if (e.controls === s) o.selected = true;
     ctl.appendChild(o);
   }
-  ctl.onchange = () => { e.controls = ctl.value; markSceneDirty(); };
+  ctl.onchange = () => { e.controls = ctl.value; live(); };
   row("controls", ctl);
   const solid = document.createElement("input");
   solid.type = "checkbox"; solid.checked = !!e.solid; solid.className = "insp-check";
-  solid.onchange = () => { e.solid = solid.checked; markSceneDirty(); };
+  solid.onchange = () => { e.solid = solid.checked; live(); };
   row("solid", solid);
-  row("tag", text(e.tag || "", (v) => e.tag = v));
+  row("tag", text(e.tag || "", (v) => { e.tag = v; renderEntityList(); }));
+  const acts = document.createElement("div");
+  acts.className = "insp-actions";
+  const bd = document.createElement("button");
+  bd.textContent = "⧉ Duplicate";
+  bd.onclick = () => dupEntity();
+  const bx = document.createElement("button");
+  bx.textContent = "✕ Delete"; bx.className = "danger";
+  bx.onclick = () => delEntity();
+  acts.appendChild(bd); acts.appendChild(bx);
+  host.appendChild(acts);
 }
 
 function markSceneDirty() {
@@ -678,6 +965,11 @@ const COMMANDS = [
       $("editor-stack").classList.toggle("wrap-on", on);
       STORE.set("wrap", on); $("set-wrap").checked = on; } },
   { ico: "✕", label: "Close tab", key: "Ctrl+W", run: () => ACTIVE && closeTab(ACTIVE) },
+  { ico: "⌕", label: "Find in file", key: "Ctrl+F", run: () => findOpen() },
+  { ico: "▦", label: "Toggle minimap", run: () => toggleMinimap() },
+  { ico: "⌗", label: "Toggle edit grid", run: () => setGrid(!GRID_ON) },
+  { ico: "⧉", label: "Duplicate entity", key: "Ctrl+D", run: () => dupEntity() },
+  { ico: "✕", label: "Delete entity", key: "Del", run: () => delEntity() },
   { ico: "⌗", label: "About DXN1 STUDIO 3", run: () =>
       toast(`DXN1 STUDIO 3 — v${VERSION} · Electron face · Python brain · Spark 2D inside`, "info", 5000) },
 ];
@@ -749,7 +1041,8 @@ function termPrint(text) {
 const TERM_VERBS = {
   help: () => termPrint(
     "verbs: help · clear · ls · cat <file> · new <file> · rm <file>\n" +
-    "       play [scene] · theme · accent <name> · about · date · echo <text>"),
+    "       play [scene] · theme · accent <name> · grid · ent · find <text>\n" +
+    "       mm · about · date · echo <text>"),
   clear: () => { $("term-out").textContent = ""; },
   ls: () => termPrint(TREE.filter((t) => !t.dir).map((t) => t.path).join("\n") || "(empty)"),
   cat: (a) => api("read", { path: a[0] }).then((r) => termPrint(r.content)).catch((e) => termPrint("cat: " + e.message)),
@@ -764,6 +1057,13 @@ const TERM_VERBS = {
     setTheme(t); termPrint("theme: " + t); },
   accent: (a) => { if (["violet", "cyan", "emerald", "amber", "rose"].includes(a[0])) {
     setAccent(a[0]); termPrint("accent: " + a[0]); } else termPrint("accents: violet cyan emerald amber rose"); },
+  grid: () => { setGrid(!GRID_ON); termPrint("edit grid: " + (GRID_ON ? "on" : "off")); },
+  ent: () => termPrint(GAME ? GAME.scene.entities.map((e) =>
+    `${e.name} @ ${Math.round(e.x)},${Math.round(e.y)}${e.tag ? " · " + e.tag : ""}`).join("\n")
+    : "(no scene open)"),
+  find: (a) => { if (!a.length) return termPrint("usage: find <text>");
+    findOpen(); $("find-inp").value = a.join(" "); findCompute(); },
+  mm: () => toggleMinimap(),
   about: () => termPrint(`DXN1 STUDIO 3 v${VERSION} — Electron face · Python brain · Spark 2D engine`),
   date: () => termPrint(new Date().toString()),
   echo: (a) => termPrint(a.join(" ")),
@@ -782,8 +1082,29 @@ async function termSubmit() {
 }
 
 /* ============================================================
-   SETTINGS (theme / accent / editor)
+   SETTINGS (theme / accent / editor / keybindings)
    ============================================================ */
+const KEYBINDS = [
+  ["Ctrl K", "Command palette"], ["Ctrl P", "Quick open file"],
+  ["Ctrl S", "Save"], ["Ctrl F", "Find in file"],
+  ["Ctrl `", "Terminal"], ["Ctrl ,", "Settings"],
+  ["Ctrl ⇧ F", "Search in project"], ["Ctrl ⇧ E", "Explorer"],
+  ["Ctrl D", "Duplicate entity"], ["Del", "Delete entity"],
+  ["F5", "Play / stop scene"], ["Esc", "Close overlays"],
+];
+
+function renderKeybinds() {
+  const host = $("kb-table");
+  if (!host) return;
+  host.innerHTML = "";
+  for (const [k, d] of KEYBINDS) {
+    const r = document.createElement("div");
+    r.className = "kb-row";
+    r.innerHTML = `<span>${d}</span><kbd>${k}</kbd>`;
+    host.appendChild(r);
+  }
+}
+
 function setTheme(t) {
   document.documentElement.dataset.theme = t;
   STORE.set("theme", t);
@@ -804,6 +1125,7 @@ function setFontSize(px) {
   document.querySelectorAll("[data-fs]")
     .forEach((b) => b.classList.toggle("active", b.dataset.fs === String(px)));
   renderGutter();
+  paintMinimap();
 }
 
 /* ============================================================
@@ -887,7 +1209,7 @@ function wire() {
   // editor
   const ed = $("editor");
   ed.addEventListener("input", () => {
-    renderHighlight(); renderGutter(); updatePos();
+    renderHighlight(); renderGutter(); updatePos(); paintMinimap();
     const tab = OPEN_TABS.find((t) => t.path === ACTIVE);
     if (tab && !tab.dirty) { tab.dirty = true; renderTabs(); }
   });
@@ -904,6 +1226,49 @@ function wire() {
 
   // scene dock
   $("scene-save").onclick = saveScene;
+
+  // entity palette + scene editing buttons
+  document.querySelectorAll(".ep").forEach((b) =>
+    b.onclick = () => addEntity(b.dataset.ent));
+  $("btn-grid").onclick = () => setGrid(!GRID_ON);
+  $("btn-dup").onclick = () => dupEntity();
+  $("btn-del-ent").onclick = () => delEntity();
+
+  // find in file
+  $("find-inp").addEventListener("input", () => { FIND.idx = -1; findCompute(); });
+  $("find-inp").addEventListener("keydown", (e) => {
+    if (e.key === "Enter") { e.preventDefault(); findShow(e.shiftKey ? -1 : 1); }
+    else if (e.key === "Escape") findClose();
+  });
+  $("find-next").onclick = () => findShow(1);
+  $("find-prev").onclick = () => findShow(-1);
+  $("find-close").onclick = findClose;
+
+  // minimap: click + drag to jump
+  const mm = $("minimap");
+  let mmDrag = false;
+  mm.addEventListener("mousedown", (e) => { mmDrag = true; mmJump(e); });
+  window.addEventListener("mousemove", (e) => { if (mmDrag) mmJump(e); });
+  window.addEventListener("mouseup", () => { mmDrag = false; });
+
+  // sidebar resize
+  const sh = $("side-handle");
+  sh.addEventListener("mousedown", (e) => {
+    e.preventDefault();
+    sh.classList.add("dragging");
+    const move = (ev) => {
+      const w = Math.min(480, Math.max(180, ev.clientX));
+      document.documentElement.style.setProperty("--side-w", w + "px");
+      STORE.set("side-w", w);
+    };
+    const up = () => {
+      sh.classList.remove("dragging");
+      window.removeEventListener("mousemove", move);
+      window.removeEventListener("mouseup", up);
+    };
+    window.addEventListener("mousemove", move);
+    window.addEventListener("mouseup", up);
+  });
 
   // search
   let searchT = 0;
@@ -962,15 +1327,22 @@ function wire() {
   // global keys
   window.addEventListener("keydown", (e) => {
     const mod = e.ctrlKey || e.metaKey;
+    const inField = e.target.closest?.("input,textarea,select");
     if (mod && e.key.toLowerCase() === "k") { e.preventDefault(); palOpen("cmd"); }
     else if (mod && e.key.toLowerCase() === "p") { e.preventDefault(); palOpen("file"); }
     else if (mod && e.key.toLowerCase() === "s") { e.preventDefault(); saveActive(); }
+    else if (mod && e.key.toLowerCase() === "f" && !e.shiftKey) { e.preventDefault(); findOpen(); }
     else if (mod && e.key === "`") { e.preventDefault(); $("dock").classList.toggle("collapsed"); }
     else if (mod && e.key === ",") { e.preventDefault(); switchPanel("settings"); }
     else if (mod && e.shiftKey && e.key.toLowerCase() === "f") { e.preventDefault(); switchPanel("search"); $("search-input").focus(); }
     else if (mod && e.shiftKey && e.key.toLowerCase() === "e") { e.preventDefault(); switchPanel("explorer"); }
+    else if (e.key === "Delete" && !inField && gameView()) { delEntity(); }
+    else if (mod && e.key.toLowerCase() === "d" && !inField && gameView()) { e.preventDefault(); dupEntity(); }
     else if (e.key === "F5") { e.preventDefault(); playScene(); }
-    else if (e.key === "Escape" && !$("overlay").classList.contains("hidden")) palClose();
+    else if (e.key === "Escape") {
+      if (!$("findbar").classList.contains("hidden")) findClose();
+      else if (!$("overlay").classList.contains("hidden")) palClose();
+    }
   });
 
   // hide ctx menu on any click elsewhere
@@ -1000,6 +1372,11 @@ async function boot() {
     $("editor-stack").classList.add("wrap-on");
     $("set-wrap").checked = true;
   }
+  if (!STORE.get("minimap", true)) $("editor-stack").classList.remove("mm-on");
+  const sw = STORE.get("side-w", 0);
+  if (sw) document.documentElement.style.setProperty("--side-w", sw + "px");
+  renderKeybinds();
+  window.addEventListener("resize", paintMinimap);
   FS = window.dxn1?.electron ? new ElectronFS() : new DemoFS();
   wire();
   renderRecents();
@@ -1018,6 +1395,7 @@ async function boot() {
   await loadTree();
   await openSceneList();
   switchPanel(STORE.get("panel", "explorer"));
+  setGrid(GRID_ON);          // paint the grid button state
   say("STUDIO 3 ready — Ctrl K for commands, F5 to play");
 }
 

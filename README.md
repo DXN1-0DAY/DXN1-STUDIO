@@ -1,6 +1,6 @@
 # DXN1 STUDIO 3
 
-![version](https://img.shields.io/badge/version-3.0.01-8b5cf6?style=flat-square)
+![version](https://img.shields.io/badge/version-3.0.02-8b5cf6?style=flat-square)
 ![face](https://img.shields.io/badge/face-electron-22d3ee?style=flat-square)
 ![brain](https://img.shields.io/badge/brain-python-34d399?style=flat-square)
 ![engine](https://img.shields.io/badge/spark_2d-built_in-fbbf24?style=flat-square)
