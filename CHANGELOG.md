@@ -30,6 +30,11 @@ All notable changes to DXN1 STUDIO. Format based on
   case-insensitive, with an honest `N of M open` header and every
   marker riding the narrowed lines; a needle nothing carries is
   answered with the miss and the full list pointed at
+- **`tools layout rename <old> <new>`** — the book edits
+  itself without touching the desk: the snapshot, its windows and
+  its layers move to the new name untouched, and renaming never
+  silently overwrites (an occupied new name is refused with the
+  fix named)
 - **The live chip tooltip** — `_chip_tip_fn()`: the open-windows
   chip's hover help is computed at hover, not frozen at startup —
   `Open tool windows — 3 open · 1 ghosted · 1 pinned — …` speaks

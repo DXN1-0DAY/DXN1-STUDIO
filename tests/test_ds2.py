@@ -8882,6 +8882,22 @@ def test_layout_layers(tmp_path):
                 assert bool(w.attributes("-topmost"))
             except Exception:  # noqa: BLE001 — gone between reads
                 pass
+
+        # the book relabels itself: rename moves the snapshot,
+        # refuses to overwrite an existing name, and the desk
+        # never notices
+        blob = _dispatch("tools layout rename ancient fave")
+        assert "is now 'fave'" in blob, blob
+        store = app.config.get("tool_window_layouts") or {}
+        assert "ancient" not in store and "fave" in store
+        assert "back in place" in _dispatch("tools layout restore fave")
+        _dispatch("tools layout save temp")
+        assert "already holds a layout" in _dispatch(
+            "tools layout rename temp fave")
+        assert "not a remembered layout" in _dispatch(
+            "tools layout rename nope fave2")
+        assert "usage:" in _dispatch("tools layout rename fave")
+
         _dispatch("tools layout forget all")
     finally:
         app.terminal.log = _old_log

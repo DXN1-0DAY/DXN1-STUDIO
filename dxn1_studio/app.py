@@ -81,8 +81,8 @@ TERMINAL_HELP = (
      "into a screen-filling grid"),
     ("tools layout <name>", "the window manager's memory — save "
      "every open tool window's place AND layering under a name, "
-     "recall it later (save <name> · <name> · show <name> · list "
-     "· forget <name|all>)"),
+     "recall it later (save <name> · <name> · show <name> · list · "
+     "rename <old> <new> · forget <name|all>)"),
     ("cron <expr>", "decode a cron schedule + next runs"),
     ("readability", "reading level of the current file"),
     ("jwt <token>", "decode a JWT — header, payload, exp"),
@@ -3950,6 +3950,42 @@ class DXN1Studio:
                         "remembered layout (see: tools layout list)"
                         % rest)
                     return
+                if verb == "rename":
+                    # DS2 v2.68 — the book edits itself without
+                    # touching the desk: `rename <old> <new>` moves
+                    # a layout to a new name — the snapshot, its
+                    # windows and its layers ride along untouched.
+                    # Renaming never silently overwrites: a new
+                    # name that already holds a layout is refused.
+                    old, _, new = rest.partition(" ")
+                    old, new = old.strip(), new.strip()
+                    if not old or not new:
+                        self.terminal.log(
+                            "usage: tools layout rename <old> "
+                            "<new> — the book relabels, the desk "
+                            "never notices")
+                        return
+                    store = dict(self.config.get(LAYOUTS_KEY) or {})
+                    if old not in store:
+                        self.terminal.log(
+                            "tools layout rename — '%s' is not a "
+                            "remembered layout (see: tools layout "
+                            "list)" % old)
+                        return
+                    if new in store:
+                        self.terminal.log(
+                            "tools layout rename — '%s' already "
+                            "holds a layout (renaming never "
+                            "overwrites; forget it first)" % new)
+                        return
+                    store[new] = store.pop(old)
+                    self.config.set(LAYOUTS_KEY, store)
+                    self.terminal.log(
+                        "tools layout rename — '%s' is now '%s' "
+                        "(%d window%s, untouched)"
+                        % (old, new, len(store[new]),
+                           "" if len(store[new]) == 1 else "s"))
+                    return
                 # anything else is a layout NAME to restore — bare
                 # `tools layout <name>`, `restore <name>`, names with
                 # spaces included
@@ -3959,6 +3995,7 @@ class DXN1Studio:
                         "usage: tools layout save <name> · "
                         "tools layout <name> · tools layout show "
                         "<name> · tools layout list · "
+                        "tools layout rename <old> <new> · "
                         "tools layout forget <name|all>")
                     return
                 store = dict(self.config.get(LAYOUTS_KEY) or {})
