@@ -1852,7 +1852,7 @@ async function gitBranchMenu(x, y) {
           } catch (e) { toast("Delete failed: " + e.message, "err"); }
         },
       },
-    });
+    );
     ctxMenu(x, y, items);
   } catch (e) { toast("Branches: " + e.message, "err"); }
 }
@@ -2478,7 +2478,9 @@ async function boot() {
    Workspace paths open as-is; foreign files land as dirty imports/<name>
    buffers — Ctrl S writes them into the workspace, honestly. */
 function wireDnD() {
+  if (typeof document === "undefined" || typeof window === "undefined") return;
   const stack = $("editor-stack");
+  if (!stack) return;                    // stubbed DOM / tests
   window.addEventListener("dragover", (e) => e.preventDefault());
   window.addEventListener("drop", (e) => e.preventDefault());
   stack.addEventListener("dragover", (e) => {
