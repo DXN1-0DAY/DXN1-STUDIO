@@ -937,6 +937,7 @@ function buildGame(scene) {
     onScore: (s) => say("score " + s),
     onHit: () => say("ouch!"),
     onTransition: (nextPath) => transitionScene(nextPath),
+    volume: SFX_ON ? 0.5 : 0,
     onStop: () => {
       $("btn-play").classList.remove("running");
       $("btn-play").textContent = "▶";
@@ -998,6 +999,16 @@ function setGrid(on) {
   const b = $("btn-grid");
   if (b) b.classList.toggle("active", GRID_ON);
   if (GAME) { GAME.showGrid = GRID_ON; GAME.repaint(); }
+}
+
+let SFX_ON = STORE.get("sfx", true);
+function setSfx(on) {
+  SFX_ON = !!on;
+  STORE.set("sfx", SFX_ON);
+  const cb = $("set-sfx");
+  if (cb) cb.checked = SFX_ON;
+  if (GAME) GAME.sfx.vol = SFX_ON ? 0.5 : 0;
+  say("sound effects " + (SFX_ON ? "on" : "off"));
 }
 
 function snap(v) {
@@ -1713,6 +1724,7 @@ const COMMANDS = [
   { ico: "⊕", label: "Zoom fit (scene)", run: () => GAME && GAME.zoomFit() },
   { ico: "⑂", label: "Refresh source control", run: () => { switchPanel("git"); renderGit(); } },
   { ico: "⬒", label: "Export scene as playable HTML", run: () => exportScene() },
+  { ico: "♪", label: "Toggle sound effects", run: () => setSfx(!SFX_ON) },
   { ico: "⧉", label: "Duplicate entity", key: "Ctrl+D", run: () => dupEntity() },
   { ico: "✕", label: "Delete entity", key: "Del", run: () => delEntity() },
   { ico: "⌗", label: "About DXN1 STUDIO 3", run: () =>
@@ -2100,6 +2112,7 @@ function wire() {
     $("editor-stack").classList.toggle("wrap-on", e.target.checked);
     STORE.set("wrap", e.target.checked);
   };
+  $("set-sfx").onchange = (e) => setSfx(e.target.checked);
   document.querySelectorAll("[data-fs]").forEach((b) =>
     b.onclick = () => setFontSize(Number(b.dataset.fs)));
 
@@ -2166,6 +2179,7 @@ async function boot() {
     $("editor-stack").classList.add("wrap-on");
     $("set-wrap").checked = true;
   }
+  if (!STORE.get("sfx", true)) { $("set-sfx").checked = false; SFX_ON = false; }
   if (!STORE.get("minimap", true)) $("editor-stack").classList.remove("mm-on");
   const sw = STORE.get("side-w", 0);
   if (sw) document.documentElement.style.setProperty("--side-w", sw + "px");

@@ -88,6 +88,8 @@ assert(ent.rot === 0 && ent.spin === 0, "rotation defaults");
 assert(typeof Spark.Game.prototype.zoomAt === "function", "zoomAt exists");
 assert(typeof Spark.Game.prototype.zoomFit === "function", "zoomFit exists");
 assert(typeof Spark.Game.prototype._movePaths === "function", "moving platforms exist");
+assert(typeof Spark.Sfx === "function", "Sfx synth exists");
+const sfx = new Spark.Sfx(0); assert(sfx.ensure() === null, "Sfx volume 0 stays silent");
 const cam0 = { x: 0, y: 0, zoom: 1 };
 const zoomScene = Spark.Game.normalizeScene({ entities: [], camera: cam0 });
 zoomScene.camera.zoom = 2;

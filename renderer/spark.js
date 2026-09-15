@@ -132,12 +132,53 @@ const Spark = (() => {
     dispose() { this._detach(); }
   }
 
+  // ------------------------------------------------------------ audio
+  // tiny synth — no assets, no network, just honest bleeps
+  class Sfx {
+    constructor(volume = 0.5) { this.vol = volume; this.ctx = null; }
+    ensure() {
+      if (this.vol <= 0) return null;
+      if (!this.ctx) {
+        const AC = window.AudioContext || window.webkitAudioContext;
+        if (!AC) return null;
+        this.ctx = new AC();
+      }
+      if (this.ctx.state === "suspended") this.ctx.resume();
+      return this.ctx;
+    }
+    tone(freq, dur, type = "square", vol = 1, slide = 0) {
+      const ac = this.ensure();
+      if (!ac) return;
+      const t = ac.currentTime;
+      const o = ac.createOscillator(), g = ac.createGain();
+      o.type = type;
+      o.frequency.setValueAtTime(freq, t);
+      if (slide) {
+        o.frequency.exponentialRampToValueAtTime(
+          Math.max(40, freq + slide), t + dur);
+      }
+      g.gain.setValueAtTime(0.0001, t);
+      g.gain.exponentialRampToValueAtTime(0.22 * this.vol * vol, t + 0.01);
+      g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+      o.connect(g); g.connect(ac.destination);
+      o.start(t); o.stop(t + dur + 0.02);
+    }
+    jump()   { this.tone(240, 0.14, "square", 0.8, 260); }
+    coin()   { this.tone(880, 0.09, "square", 0.7);
+               setTimeout(() => this.tone(1320, 0.12, "square", 0.7), 70); }
+    hit()    { this.tone(220, 0.22, "sawtooth", 0.9, -140); }
+    bounce() { this.tone(140, 0.08, "triangle", 0.6, 60); }
+    goal()   { [523, 659, 784, 1047].forEach((f, i) =>
+               setTimeout(() => this.tone(f, 0.16, "triangle", 0.8), i * 110)); }
+  }
+
   // ------------------------------------------------------------- game
   class Game {
     constructor(canvas, scene, hooks = {}) {
       this.canvas = canvas;
       this.ctx = canvas.getContext("2d");
-      this.hooks = hooks;           // {onScore, onHit, onStop}
+      this.hooks = hooks;           // {onScore, onHit, onTransition, onStop}
+      this.sfx = new Sfx(hooks.volume ?? 0.5);
       this.scene = Game.normalizeScene(scene);
       this.input = new Input(canvas);
       this.running = false;
@@ -284,6 +325,7 @@ const Spark = (() => {
           if (this.input.hit(" ", "arrowup") && grounded) {
             e.vy = -640;
             this._burst(e, "#8b5cf6", 8);
+            this.sfx.jump();
           }
           // fell off the world — respawn at the start
           if (e.y > this._worldBottom() + 400) {
@@ -320,6 +362,7 @@ const Spark = (() => {
             other.alive = false;
             this.score += 10;
             this._burst(other, other.color, 14);
+            this.sfx.coin();
             if (this.hooks.onScore) this.hooks.onScore(this.score);
           }
           if (other.tag === "hazard" && this._aabb(player, other)) {
@@ -327,6 +370,7 @@ const Spark = (() => {
             player.x = this._spawn.x; player.y = this._spawn.y;
             player.vx = player.vy = 0;
             this._flash("ouch — spike!");
+            this.sfx.hit();
             if (this.hooks.onHit) this.hooks.onHit();
           }
           if (other.tag === "goal" && !this._transLock &&
@@ -334,6 +378,7 @@ const Spark = (() => {
             this._transLock = true;
             this._burst(player, "#34d399", 24);
             this._flash(this.scene.next ? "LEVEL CLEAR!" : "GOAL! — you win");
+            this.sfx.goal();
             if (this.hooks.onTransition) {
               this.hooks.onTransition(this.scene.next, this);
             }
@@ -372,9 +417,13 @@ const Spark = (() => {
         } else {
           if (e.vy > 0) {
             e.y = s.y - e.h;
-            if (s.bounce) e.vy = -e.vy * s.bounce;
-            else if (e.tag === "ball") e.vy = -Math.abs(e.vy) * 0.72;
-            else e.vy = 0;
+            if (s.bounce) {
+              e.vy = -e.vy * s.bounce;
+              if (e.vy > 120) this.sfx.bounce();   // no machine-gun thuds
+            } else if (e.tag === "ball") {
+              e.vy = -Math.abs(e.vy) * 0.72;
+              if (e.vy > 120) this.sfx.bounce();
+            } else e.vy = 0;
           } else if (e.vy < 0) {
             e.y = s.y + s.h;
             e.vy = 0;
@@ -584,5 +633,5 @@ const Spark = (() => {
     }
   }
 
-  return { Game, makeEntity, demoScene, demoScene2 };
+  return { Game, makeEntity, demoScene, demoScene2, Sfx };
 })();
