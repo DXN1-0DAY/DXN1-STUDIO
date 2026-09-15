@@ -2,6 +2,41 @@
 
 Giant hourly updates. Every version is worth installing.
 
+## v3.0.04 — the git suite completes; the editor sees the line you're on
+
+**Source control — the full loop**
+- Diff viewer: click ± on any changed file to see exactly what
+  changed vs HEAD — unified hunks, +/− coloring, line numbers, add and
+  delete counts. Untracked files show as all-additions; no-HEAD repos
+  handled honestly.
+- Branch switcher: click the branch chip to switch or create branches
+  (duplicate and ghost names refused, hostile names rejected). Demo
+  mode simulates per-branch snapshots and histories, checkout and all.
+- Rail badge: the source control icon counts your live changes.
+
+**Editor**
+- Current-line highlight follows the caret (and scrolls with it).
+- Gutter now scroll-syncs with the editor — line numbers finally
+  follow long files (a latent bug since v3.0.01).
+- Editor context menu: undo, redo, cut, copy, paste, select all,
+  find, replace, go to line — right where you are.
+
+**Spark engine**
+- Entities rotate: `rot` (degrees, visual-only — physics stays an
+  honest AABB) and `spin` (degrees/sec) — level-2 gained a spinning
+  saw hazard. Inspector rows for rot / color2 / gradient fill.
+- 2-line-context LCS diffs power the demo diff viewer.
+
+**Under the hood**
+- Engine cmd_git_diff / git_branches / git_checkout with honest errors
+  (path required · no such branch · branch already exists · invalid
+  branch name). Branch parse fixed for "No commits yet on master".
+- Tests 20/20 · gates 6/6 · browser QA 46/46.
+
+# Changelog — DXN1 STUDIO 3
+
+Giant hourly updates. Every version is worth installing.
+
 ## v3.0.03 — the scene comes alive, and source control is real
 
 **Spark engine**

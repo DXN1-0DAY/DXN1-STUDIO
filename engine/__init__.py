@@ -8,4 +8,4 @@ here, so the same brain can later serve any face we invent.
 Run:  python3 -m engine [workspace]
 """
 
-__version__ = "3.0.03"
+__version__ = "3.0.04"
