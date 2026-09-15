@@ -1,0 +1,28 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>DXN1 STUDIO — connect the bridge</title>
+<style>
+  body { background:#0d1117; color:#e6edf3; font:14px/1.6 -apple-system,"Segoe UI",sans-serif;
+         display:flex; align-items:center; justify-content:center; min-height:100vh; margin:0; }
+  .card { max-width:560px; background:#131a22; border:1px solid #232c3d; border-radius:16px; padding:34px 40px; }
+  h1 { font-size:20px; margin:0 0 6px; } .dot { color:#8b5cf6; }
+  code { background:#0d1117; border:1px solid #232c3d; border-radius:8px; padding:2px 8px; font-size:12.5px; }
+  ol { margin:14px 0 0 18px; } li { margin:8px 0; color:#9aa7b8; } b { color:#e6edf3; }
+</style>
+</head>
+<body>
+  <div class="card">
+    <h1><span class="dot">◆</span> DXN1 STUDIO — Electron shell ready</h1>
+    <p style="color:#9aa7b8">The window is live but no bridge URL was given yet.</p>
+    <ol>
+      <li>Open the Tkinter studio and run the palette command<br>
+          <b>"Web UI / Electron — start the bridge server…"</b></li>
+      <li>Relaunch this shell with the printed URL:<br>
+          <code>npm start -- --url "http://127.0.0.1:PORT/?token=TOKEN"</code></li>
+    </ol>
+    <p style="color:#6e7a8a;margin-top:16px">The Python core stays the brain — this window is just the face.</p>
+  </div>
+</body>
+</html>

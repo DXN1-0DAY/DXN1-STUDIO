@@ -1,8 +1,8 @@
 {
-  "name": "dxn1-studio-electron",
+  "name": "dxn1-studio-shell",
   "productName": "DXN1 STUDIO",
   "version": "2.71.3",
-  "description": "DXN1 STUDIO — the Electron shell over the Python engine",
+  "description": "Electron shell for DXN1 STUDIO — the window around the Python brain.",
   "main": "main.js",
   "private": true,
   "scripts": {
@@ -10,6 +10,5 @@
   },
   "devDependencies": {
     "electron": "^33.0.0"
-  },
-  "license": "MIT"
+  }
 }

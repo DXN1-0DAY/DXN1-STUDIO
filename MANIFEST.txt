@@ -6,6 +6,7 @@ app.py
 backup.py
 bookmarks.py
 branches.py
+bridge.py
 charmap.py
 charts.py
 cheatsheet.py
