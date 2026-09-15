@@ -4,6 +4,20 @@ All notable changes to DXN1 STUDIO. Format based on
 [Keep a Changelog](https://keepachangelog.com/); versioning is
 `MAJOR.MINOR.PATCH` while in **beta**.
 
+## [2.71.2] — 2026-09-15 · beta · "the buttons answer the cursor" (hover feedback + tooltips + real file creation)
+
+### Fixed
+- **The scribe's Cancel hover wired after the label exists** —
+  definition-before-use restored (caught by test_hint_wave2).
+
+### Added
+- **hints.hover(widget, enter, leave)** — instant cursor feedback
+  for label-buttons; wired into the hub's Create, the agents'
+  Save, the app's OK rows and the scribe's Cancel.
+- **Tooltips on the header controls** — sidebar reload ↻ and the
+  terminal's clear now explain themselves (theme-styled hover
+  cards via hints.tooltip_attach; the activity dock already does).
+
 ## [2.71.1] — 2026-09-15 · beta · "every pane scrolls" (UI sprint hour 1: the fit & scroll sweep)
 
 ### Fixed
