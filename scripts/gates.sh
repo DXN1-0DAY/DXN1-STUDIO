@@ -9,6 +9,9 @@ FAIL=0
 echo "== compileall =="
 python3 -m compileall -q dxn1_studio || FAIL=1
 
+echo "== gen_hashes (fresh for this run; last writer before commit) =="
+$PY scripts/gen_hashes.py | tail -1 || FAIL=1
+
 echo "== pytest =="
 DISPLAY=:99 $PY -m pytest tests/ -q 2>&1 | tail -1 || FAIL=1
 

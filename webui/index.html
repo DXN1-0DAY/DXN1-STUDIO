@@ -44,6 +44,7 @@
   </div>
 
   <footer id="statusbar">
+    <button id="git-chip" class="chip" title="Source control">⎇ —</button>
     <span id="st-status">ready</span>
     <span class="spacer"></span>
     <span id="st-file"></span>
@@ -57,6 +58,25 @@
            autocomplete="off" spellcheck="false">
     <div id="palette-list"></div>
     <div class="palette-hint">↑/↓ select · Enter run · Esc close</div>
+  </div>
+</div>
+
+<div id="git-overlay" class="hidden">
+  <div id="gitpanel">
+    <div class="set-title">SOURCE CONTROL</div>
+    <div id="git-branch" class="git-branch">—</div>
+    <div id="git-files" class="git-files"></div>
+    <div class="git-commit">
+      <input id="git-msg" type="text" placeholder="Commit message…"
+             spellcheck="false">
+      <button id="git-commit" class="btn accent sm">Commit</button>
+    </div>
+    <div class="git-actions">
+      <button id="git-push" class="btn sm">↑ Push</button>
+      <button id="git-pull" class="btn sm">↓ Pull</button>
+    </div>
+    <div class="set-title" style="margin-top:12px">RECENT COMMITS</div>
+    <div id="git-log" class="git-log"></div>
   </div>
 </div>
 

@@ -367,6 +367,68 @@ window.addEventListener("keydown", (e) => {
   }
 });
 
+/* ---------- git panel ---------- */
+async function loadGit() {
+  try {
+    const r = await (await api("/api/git")).json();
+    if (!r.ok) {
+      $("git-branch").textContent = "not a git repo";
+      $("git-files").innerHTML = "";
+      $("git-log").innerHTML = "";
+      return;
+    }
+    $("git-branch").innerHTML = `⎇ <b>${esc(r.branch)}</b>` +
+      (r.dirty ? ` <span class="dot">● ${r.dirty} changed</span>` :
+                 ` <span class="git-empty" style="display:inline">clean</span>`);
+    const files = $("git-files");
+    files.innerHTML = r.files.length
+      ? r.files.map(f => `<div class="git-file">✎ ${esc(f)}</div>`).join("")
+      : `<div class="git-empty">Nothing to commit — working tree clean.</div>`;
+    const log = $("git-log");
+    log.innerHTML = (r.commits || [])
+      .map(c => `<div>${esc(c)}</div>`).join("") ||
+      `<div class="git-empty">No commits yet.</div>`;
+  } catch (e) { /* bridge offline */ }
+}
+
+async function gitAction(action, extra = {}) {
+  const r = await (await api("/api/git", {
+    method: "POST",
+    body: JSON.stringify({ action, ...extra }) })).json();
+  if (r.ok) {
+    toast(`${action} ✓ ${r.detail || ""}`.trim());
+    loadGit();
+    poll();
+  } else toast(`${action} failed: ${r.error || "?"}`);
+  return r.ok;
+}
+
+$("git-chip").onclick = () => {
+  $("git-overlay").classList.remove("hidden");
+  loadGit();
+};
+$("git-overlay").addEventListener("mousedown", (e) => {
+  if (e.target.id === "git-overlay")
+    $("git-overlay").classList.add("hidden");
+});
+$("git-commit").onclick = async () => {
+  const msg = $("git-msg").value.trim();
+  if (!msg) return toast("Type a commit message first");
+  $("git-msg").value = "";
+  await gitAction("commit", { message: msg });
+};
+$("git-msg").addEventListener("keydown", (e) => {
+  if (e.key === "Enter") $("git-commit").click();
+});
+$("git-push").onclick = () => gitAction("push");
+$("git-pull").onclick = () => gitAction("pull");
+window.addEventListener("keydown", (e) => {
+  if (e.key === "Escape") {
+    $("git-overlay").classList.add("hidden");
+    $("settings-overlay").classList.add("hidden");
+  }
+});
+
 /* ---------- settings ---------- */
 let ACCENT_HEX = {};
 
@@ -439,10 +501,19 @@ window.addEventListener("keydown", (e) => {
 });
 
 /* ---------- boot ---------- */
+async function gitChipUpdate() {
+  try {
+    const r = await (await api("/api/git")).json();
+    $("git-chip").textContent = r.ok
+      ? `⎇ ${r.branch}${r.dirty ? " ●" + r.dirty : ""}` : "⎇ —";
+  } catch (e) { /* bridge offline */ }
+}
 poll();
 renderTree();
 renderHighlight();
 loadCommands();
 loadConfig();
+gitChipUpdate();
 setInterval(poll, 1200);
 setInterval(renderTree, 8000);
+setInterval(gitChipUpdate, 6000);

@@ -322,6 +322,83 @@ class BridgeState:
                     pass
         return {"applied": applied, "config": self.config_get()}, None
 
+    # ---- git surface (wave 3: status + the chip-menu verbs) -----------
+    def _git(self, *args):
+        """Run a read-only git command in the workspace."""
+        import subprocess
+        try:
+            proc = subprocess.run(
+                ["git", "-C", getattr(self.app, "project_dir", None)
+                 or os.getcwd(), *args],
+                capture_output=True, text=True, timeout=10)
+        except (OSError, subprocess.TimeoutExpired) as exc:
+            return None, str(exc)
+        if proc.returncode != 0:
+            return None, proc.stderr.strip() or "git failed"
+        return proc.stdout, None
+
+    @staticmethod
+    def _exclude_dxn1(ws):
+        """Add .dxn1/ to the repo's local excludes (idempotent)."""
+        git_info = os.path.join(ws, ".git", "info")
+        if not os.path.isdir(git_info):
+            return
+        excl = os.path.join(git_info, "exclude")
+        try:
+            existing = ""
+            if os.path.isfile(excl):
+                with open(excl, encoding="utf-8") as fh:
+                    existing = fh.read()
+            if ".dxn1/" not in existing:
+                with open(excl, "a", encoding="utf-8") as fh:
+                    if existing and not existing.endswith("\n"):
+                        fh.write("\n")
+                    fh.write(".dxn1/\n")
+        except OSError:  # noqa: BLE001
+            pass
+
+    def git_status(self):
+        # keep internal state OUT of git status/commits (.dxn1 holds
+        # the bridge token — a secret — plus cache files): local-only
+        # via .git/info/exclude, self-healing when a repo appears later
+        self._exclude_dxn1(getattr(self.app, "project_dir", None)
+                           or os.getcwd())
+        out, err = self._git("status", "--porcelain", "-b")
+        if err is not None:
+            return None, err
+        lines = out.splitlines()
+        branch = lines[0][3:] if lines and lines[0].startswith("## ") \
+            else "?"
+        # unborn HEAD: "## No commits yet on master" → clean name
+        if branch.startswith("No commits yet on "):
+            branch = branch.split("No commits yet on ", 1)[1].strip() \
+                + " (fresh)"
+        files = [ln[3:] for ln in lines[1:] if ln.strip()]
+        log, err = self._git("log", "--oneline", "-8")
+        commits = log.splitlines() if log else []
+        return {"branch": branch, "dirty": len(files),
+                "files": files[:40], "commits": commits}, None
+
+    def git_action(self, body):
+        action = str(body.get("action") or "")
+        if action == "commit":
+            msg = str(body.get("message") or "").strip()
+            if not msg:
+                return None, "commit needs a message"
+            self._git("add", "-A")
+            out, err = self._git("commit", "-m", msg)
+            if err is not None:
+                return None, err.splitlines()[-1] if err else "commit failed"
+            return {"done": "commit", "detail": out.strip()
+                    .splitlines()[-1] if out.strip() else msg}, None
+        if action in ("push", "pull"):
+            out, err = self._git(action)
+            if err is not None:
+                return None, err.splitlines()[-1] if err else \
+                    f"{action} failed"
+            return {"done": action, "detail": out.strip()[:400]}, None
+        return None, f"action not allowed: {action}"
+
     # ---- helpers ------------------------------------------------------
     def _sandbox(self, path):
         """Resolve `path` and demand it stays inside the workspace."""
@@ -408,6 +485,12 @@ class _Handler(BaseHTTPRequestHandler):
             self._send_json({"ok": True, "tree": self.state.tree()})
         elif route == "/api/config":
             self._send_json({"ok": True, "config": self.state.config_get()})
+        elif route == "/api/git":
+            payload, err = self.state.git_status()
+            self._send_json(
+                {"ok": err is None, **(payload or {}),
+                 **({"error": err} if err else {})},
+                200 if err is None else 400)
         elif route == "/api/file":
             payload, err = self.state.file_read(
                 (q.get("path") or [""])[0])
@@ -450,6 +533,8 @@ class _Handler(BaseHTTPRequestHandler):
                 str(body.get("path") or ""))
         elif u.path == "/api/config":
             payload, err = self.state.config_set(body)
+        elif u.path == "/api/git":
+            payload, err = self.state.git_action(body)
         elif u.path == "/api/run":
             payload, err = self.state.run_project()
         else:
@@ -487,6 +572,9 @@ def start_bridge(app, host="127.0.0.1", port=0):
             os.chmod(tok_path, 0o600)
         except OSError:  # noqa: BLE001
             pass
+        # keep the token OUT of git status/commits (it is a secret and
+        # pure noise): .git/info/exclude is local-only by design
+        BridgeState._exclude_dxn1(ws)
     except OSError:  # noqa: BLE001
         tok_path = None
     thread = threading.Thread(target=server.serve_forever,

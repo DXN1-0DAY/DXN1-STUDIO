@@ -297,6 +297,54 @@ class TestWebBridge(unittest.TestCase):
                                  {"editor_font_size": "not-an-int"})
         self.assertEqual(status, 400)
 
+    # ---- git surface (wave 3) -----------------------------------------
+    def test_git_status_on_plain_dir(self):
+        # a fresh dir with no git init → a human error, not a crash
+        # (own temp dir — unittest order is alphabetical, so a sibling
+        # test may already have turned self.ws into a repo)
+        import tempfile
+        old = self.app.project_dir
+        plain = tempfile.mkdtemp(prefix="dxn1-nogit-")
+        self.app.project_dir = plain
+        try:
+            status, body = self.get("/api/git")
+            self.assertEqual(status, 400)
+            self.assertFalse(body["ok"])
+        finally:
+            self.app.project_dir = old
+
+    def test_git_status_and_commit_in_a_repo(self):
+        import subprocess
+        subprocess.run(["git", "init", "-q"], cwd=self.ws, timeout=10)
+        subprocess.run(["git", "config", "user.email", "t@dxn1.dev"],
+                       cwd=self.ws, timeout=10)
+        subprocess.run(["git", "config", "user.name", "DXN1 Test"],
+                       cwd=self.ws, timeout=10)
+        status, body = self.get("/api/git")
+        self.assertEqual(status, 200)
+        self.assertTrue(body["branch"])  # master or main
+        self.assertEqual(body["dirty"], 0)
+        self.assertEqual(body["files"], [])
+        # commit flow
+        with open(os.path.join(self.ws, "repo_file.txt"), "w") as fh:
+            fh.write("git wave")
+        status, body = self.post(
+            "/api/git", {"action": "commit", "message": "wave three"})
+        self.assertEqual(status, 200)
+        self.assertEqual(body["done"], "commit")
+        status, body = self.get("/api/git")
+        self.assertEqual(status, 200)
+        self.assertEqual(body["dirty"], 0)
+        self.assertTrue(any("wave three" in c for c in body["commits"]))
+
+    def test_git_action_whitelist(self):
+        status, body = self.post("/api/git", {"action": "rebase"})
+        self.assertEqual(status, 400)
+        self.assertIn("not allowed", body["error"])
+        status, body = self.post("/api/git", {"action": "commit",
+                                              "message": ""})
+        self.assertEqual(status, 400)
+
 
 if __name__ == "__main__":
     unittest.main()
