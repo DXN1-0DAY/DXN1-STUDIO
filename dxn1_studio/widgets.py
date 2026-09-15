@@ -319,6 +319,10 @@ class FileTree(tk.Frame):
         self.canvas = tk.Canvas(self, bg=theme["sidebar"], highlightthickness=0)
         self.scrollbar = ttk.Scrollbar(self, orient=tk.VERTICAL,
                                        command=self.canvas.yview)
+        # DS2 UI-sprint: horizontal scrollbar for long filenames —
+        # at narrow widths names clipped with no way to reach them.
+        self.xscroll = ttk.Scrollbar(self, orient=tk.HORIZONTAL,
+                                     command=self.canvas.xview)
         self.tree_frame = tk.Frame(self.canvas, bg=theme["sidebar"])
 
         self.tree_frame.bind(
@@ -327,16 +331,29 @@ class FileTree(tk.Frame):
         )
         self._win = self.canvas.create_window((0, 0), window=self.tree_frame,
                                               anchor="nw", width=230)
-        self.canvas.configure(yscrollcommand=self.scrollbar.set)
+        self.canvas.configure(yscrollcommand=self.scrollbar.set,
+                              xscrollcommand=self.xscroll.set)
 
         self.canvas.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
         self.scrollbar.pack(side=tk.RIGHT, fill=tk.Y)
-        self.canvas.bind("<Configure>",
-                         lambda e: self.canvas.itemconfigure(self._win, width=e.width))
+        self.canvas.bind("<Configure>", self._on_canvas_resize)
         self.canvas.bind("<Enter>", lambda e: self._bind_wheel())
         self.canvas.bind("<Leave>", lambda e: self._unbind_wheel())
 
         self.load_directory(self.current_dir)
+
+    def _on_canvas_resize(self, event):
+        """Inner window follows the canvas width but NEVER squishes the
+        rows — overflow goes to the horizontal scrollbar instead."""
+        need = max(event.width, self.tree_frame.winfo_reqwidth())
+        self.canvas.itemconfigure(self._win, width=need)
+        if need > event.width + 2:
+            if not self.xscroll.winfo_ismapped():
+                self.xscroll.pack(side=tk.BOTTOM, fill=tk.X,
+                                  before=self.canvas)
+        else:
+            if self.xscroll.winfo_ismapped():
+                self.xscroll.pack_forget()
 
     # ------------------------------------------------------------- wheel
     def _bind_wheel(self):
@@ -474,11 +491,22 @@ class CodeEditor(tk.Frame):
                             font=(FONT_MONO, 11), padx=14, pady=6,
                             relief=tk.FLAT, bd=0, undo=True,
                             highlightthickness=0, wrap=tk.NONE)
-        self.text.pack(side=tk.TOP, fill=tk.BOTH, expand=True)
-
+        # DS2 UI-sprint: the editor finally has a vertical scrollbar —
+        # wheel-only scrolling hid the position and broke long files.
+        self.yscroll = tk.Scrollbar(body, orient=tk.VERTICAL,
+                                    command=self.text.yview,
+                                    width=10, troughcolor=theme["editor"],
+                                    bg=theme["card"], activebackground=
+                                    theme.accent)
         self.xscroll = tk.Scrollbar(body, orient=tk.HORIZONTAL,
-                                    command=self.text.xview)
-        self.text.configure(xscrollcommand=self.xscroll.set)
+                                    command=self.text.xview,
+                                    width=10, troughcolor=theme["editor"],
+                                    bg=theme["card"], activebackground=
+                                    theme.accent)
+        self.text.configure(yscrollcommand=self.yscroll.set,
+                            xscrollcommand=self.xscroll.set)
+        self.text.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
+        self.yscroll.pack(side=tk.RIGHT, fill=tk.Y)
 
         # find / decoration tags
         self.text.tag_configure("find_all",
@@ -1366,7 +1394,16 @@ class Terminal(tk.Frame):
                               relief=tk.FLAT, padx=10, pady=6, bd=0,
                               highlightthickness=0,
                               insertbackground=theme["text"])
-        self.output.pack(fill=tk.BOTH, expand=True)
+        # DS2 UI-sprint: the terminal gets a real vertical scrollbar —
+        # long output was wheel-only and lost past the fold.
+        self.yscroll = tk.Scrollbar(self, orient=tk.VERTICAL,
+                                    command=self.output.yview,
+                                    width=10, troughcolor=theme["terminal"],
+                                    bg=theme["card"], activebackground=
+                                    theme.accent)
+        self.output.configure(yscrollcommand=self.yscroll.set)
+        self.output.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
+        self.yscroll.pack(side=tk.RIGHT, fill=tk.Y)
 
         # command input row
         row = tk.Frame(self, bg=theme["terminal"])
