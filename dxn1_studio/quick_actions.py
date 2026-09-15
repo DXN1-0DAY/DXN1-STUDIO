@@ -178,6 +178,12 @@ class ResultWindow(tk.Toplevel):
         self.title(title)
         self.configure(bg=self.t["bg"])
         self.geometry("760x560")
+        # DS2 v2.62 — width accounting round four: once the build
+        # settles, open no narrower (or shorter) than what it
+        # actually packed (the 760x560 default is the floor)
+        from . import geom as _geom
+        self.after_idle(lambda: _geom.fit_to_content(
+            self, 760, 560))
         self.minsize(480, 340)
         self.transient(parent.winfo_toplevel()
                        if parent is not None else parent)

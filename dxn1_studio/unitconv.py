@@ -161,6 +161,12 @@ class UnitConverter(tk.Toplevel):
         self.title("Unit Converter — DXN1 STUDIO")
         self.configure(bg=t.get("bg", "#16161e"))
         self.geometry("560x460")
+        # DS2 v2.62 — width accounting round four: once the build
+        # settles, open no narrower (or shorter) than what it
+        # actually packed (the 560x460 default is the floor)
+        from . import geom as _geom
+        self.after_idle(lambda: _geom.fit_to_content(
+            self, 560, 460))
         self.minsize(460, 380)
         try:
             self.transient(parent)

@@ -112,6 +112,12 @@ class PassForge(tk.Toplevel):
         self.title("PassForge — DXN1 STUDIO")
         self.configure(bg=t.get("bg", "#16161e"))
         self.geometry("520x360")
+        # DS2 v2.62 — width accounting round four: once the build
+        # settles, open no narrower (or shorter) than what it
+        # actually packed (the 520x360 default is the floor)
+        from . import geom as _geom
+        self.after_idle(lambda: _geom.fit_to_content(
+            self, 520, 360))
         self.minsize(440, 300)
         try:
             self.transient(parent)

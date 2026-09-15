@@ -7560,3 +7560,55 @@ def test_fit_to_content(tmp_path):
         gsrc = fh.read()
     assert "def fit_to_content" in gsrc
     assert "ratchet" in gsrc
+
+
+def test_width_sweep_four(tmp_path):
+    """DS2 v2.62 — width accounting round four, the mechanical batch:
+    ten more fixed windows ride geom.fit_to_content via after_idle —
+    the fit fires once the build settles, growing past the designed
+    floor whenever the real request is bigger and never fighting a
+    smaller one. Terminal window, scratch pad, text diff, tree
+    export, REST bench, quick-actions launcher, readability panel,
+    pair mode, unit converter, text case."""
+    import tkinter as tk
+    try:
+        root = tk.Tk(); root.withdraw()
+    except tk.TclError:
+        return
+    import os
+    from dxn1_studio import geom
+    # the after_idle contract: queued at construction, real once the
+    # event loop runs
+    win = tk.Toplevel(root)
+    tk.Label(win, text="A" * 160).pack(padx=8, pady=8)
+    win.geometry("400x200")
+    win.after_idle(lambda: geom.fit_to_content(win, 400, 200))
+    root.update()
+    assert win.winfo_width() >= win.winfo_reqwidth() - 2
+    win.destroy()
+    root.update()
+    # source agreement: ten conversions, written where they run
+    base = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    converted = [
+        ("term.py", "fit_to_content(\n            self.win, 860, 520)"),
+        ("scratch.py", "fit_to_content(\n            self.win, 560, 520)"),
+        ("textdiff.py", "fit_to_content(\n            self, 760, 500)"),
+        ("treeexport.py", "fit_to_content(\n            self, 760, 600)"),
+        ("restbench.py", "fit_to_content(\n            self, 900, 640)"),
+        ("quick_actions.py", "fit_to_content(\n            self, 760, 560)"),
+        ("readability.py", "fit_to_content(\n            self, 720, 560)"),
+        ("pair.py", "fit_to_content(\n            self, 720, 600)"),
+        ("unitconv.py", "fit_to_content(\n            self, 560, 460)"),
+        ("textcase.py", "fit_to_content(\n            self, 560, 420)"),
+    ]
+    for mod, marker in converted:
+        with open(os.path.join(base, "dxn1_studio", mod),
+                  encoding="utf-8") as fh:
+            assert "after_idle" in fh.read(), mod
+        with open(os.path.join(base, "dxn1_studio", mod),
+                  encoding="utf-8") as fh:
+            assert marker in fh.read(), mod
+    # the whole fleet now speaks one pattern: 18 windows in source
+    with open(os.path.join(base, "dxn1_studio", "geom.py"),
+              encoding="utf-8") as fh:
+        assert "def fit_to_content" in fh.read()

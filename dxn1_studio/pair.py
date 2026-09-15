@@ -52,6 +52,12 @@ class PairSession(tk.Toplevel):
         self.title("Pair mode — plan & act")
         self.configure(bg=self.t["bg"])
         self.geometry("720x600")
+        # DS2 v2.62 — width accounting round four: once the build
+        # settles, open no narrower (or shorter) than what it
+        # actually packed (the 720x600 default is the floor)
+        from . import geom as _geom
+        self.after_idle(lambda: _geom.fit_to_content(
+            self, 720, 600))
         self.minsize(520, 420)
         self.transient(parent.winfo_toplevel()
                        if parent is not None else parent)

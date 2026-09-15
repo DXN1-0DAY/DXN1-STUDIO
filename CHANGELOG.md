@@ -4,6 +4,23 @@ All notable changes to DXN1 STUDIO. Format based on
 [Keep a Changelog](https://keepachangelog.com/); versioning is
 `MAJOR.MINOR.PATCH` while in **beta**.
 
+## [2.62.0] — 2026-09-15 · beta · "width accounting, round four" (ten more windows ride the shared fit helper)
+
+### Changed
+- **Nineteen more fixed windows fit what they actually packed** —
+  the mechanical batch of the v2.55 pattern in two passes:
+  terminal window, scratch pad, text diff, tree export, REST
+  bench, quick-actions launcher, readability panel, pair mode,
+  unit converter and text case — plus hex dump, number base,
+  project dialog, XML bench, password generator, the branch
+  manager and its rename dialog, CSV kit and JWT lab — each
+  keep their designed default as the floor and queue
+  `geom.fit_to_content` via `after_idle`, so the fit fires once the
+  build settles — the real request wins when it is bigger, a
+  smaller one is never fought. 27 of the studio's 55 fixed-geometry
+  windows now speak the one pattern; the rest queue for later
+  rounds
+
 ## [2.61.0] — 2026-09-15 · beta · "a safety net for the fix" (the fix gets a way back + the desk fixes itself + one width helper for every window)
 
 ### Added

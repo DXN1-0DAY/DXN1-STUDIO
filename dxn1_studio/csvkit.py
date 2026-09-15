@@ -99,6 +99,12 @@ class CsvLab(tk.Toplevel):
         self.title("CSV Lab — DXN1 STUDIO")
         self.configure(bg=t.get("bg", "#16161e"))
         self.geometry("680x480")
+        # DS2 v2.62 — width accounting round four: once the build
+        # settles, open no narrower (or shorter) than what it
+        # actually packed (the 680x480 default is the floor)
+        from . import geom as _geom
+        self.after_idle(lambda: _geom.fit_to_content(
+            self, 680, 480))
         self.minsize(520, 380)
         try:
             self.transient(parent)

@@ -255,6 +255,12 @@ class TaskRunnerWindow:
         self.win.transient(master)
         self.win.resizable(True, True)
         self.win.geometry("860x520")
+        # DS2 v2.62 — width accounting round four: once the build
+        # settles, open no narrower (or shorter) than what it
+        # actually packed (the 860x520 default is the floor)
+        from . import geom as _geom
+        self.win.after_idle(lambda: _geom.fit_to_content(
+            self.win, 860, 520))
         self.win.bind("<Escape>", lambda e: self.win.destroy())
 
         head = tk.Frame(self.win, bg=_TR_C["bg"])
