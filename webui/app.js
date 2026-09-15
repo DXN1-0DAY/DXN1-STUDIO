@@ -297,6 +297,7 @@ async function openFile(path, quiet = false) {
   $("editor").value = r.file.content;
   dirtyLocal = false;
   SNIP_SESS = null;   // a new file ends any hop session
+  snipHint(false);
   $("st-file").textContent = currentFile;
   renderGutter();
   renderHighlight();
@@ -494,6 +495,10 @@ const WEB_CMDS = [
    zero-latency and works even if the bridge blinks mid-keystroke. */
 let SNIPS = null, SNIPS_LANG = null, SNIP_CMDS = [];
 let SNIP_SESS = null;   // active Tab-hop session (stops are absolute)
+
+function snipHint(on) {   // statusbar hint: visible only while hopping
+  $("st-snip").classList.toggle("hidden", !on);
+}
 let BASE_CMDS = WEB_CMDS;
 
 async function loadSnippets() {
@@ -570,6 +575,7 @@ function insertSnippet(ta, prefix, body) {
   SNIP_SESS = abs.length > 1
     ? { stops: abs, idx: 0, drift: 0, len: ta.value.length }
     : null;
+  snipHint(!!SNIP_SESS);
   dirtyLocal = true; renderHighlight(); renderGutter(); updatePos();
   renderMinimap();
   toast("✂ " + (prefix || "snippet"));
@@ -602,6 +608,7 @@ function snipSessionTab(ta, back) {
                + (last.w !== undefined ? last.w : last.e - last.s);
     ta.selectionStart = ta.selectionEnd = end;
     SNIP_SESS = null;
+    snipHint(false);
     return true;
   }
   // EXACT drift: whatever the user did since the last hop shifted
@@ -735,6 +742,7 @@ $("editor").addEventListener("keydown", (e) => {
   }
   if (e.key === "Escape") {   // end hop session, collapse leftover
     SNIP_SESS = null;         // selection so Tab cannot eat it
+    snipHint(false);
     ta.selectionStart = ta.selectionEnd;
   }
 });

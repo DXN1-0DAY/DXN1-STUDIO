@@ -390,3 +390,7 @@ body.zen #tabbar:hover { opacity: 1; }
 ::-webkit-scrollbar-thumb { background: var(--cardb); border-radius: 8px; }
 ::-webkit-scrollbar-thumb:hover { background: var(--accent); }
 ::-webkit-scrollbar-track { background: transparent; }
+
+/* wave 10 — active snippet-session hint (only while hopping) */
+#st-snip { color: var(--accent, #7c3aed); font-size: 11px;
+           letter-spacing: .02em; }
