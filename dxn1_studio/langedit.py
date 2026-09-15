@@ -63,6 +63,7 @@ import json
 import os
 import re
 import shutil
+import time
 import tkinter as tk
 
 from . import i18n as _i18n
@@ -472,6 +473,98 @@ def pack_diff(code):
                          if total else 100)}
 
 
+def build_report():
+    """DS2 v2.63 — the honest ledger for EVERY installed pack at
+    once. One row per pack (English excluded — the source of truth
+    is not graded against itself), sorted worst-first by ``real_pct``
+    so a seeded pack cannot hide in alphabetical order, plus a small
+    verdict: the fully-real packs and the ones still wearing English
+    seeds. Pure data — the verb formats, the tests assert; nothing
+    here touches a window or a file, so it runs headless. Never
+    raises (pack_diff and pack_stats already answer, not raise)."""
+    rows = []
+    for s in _i18n.pack_stats():
+        if s["code"] == "en":
+            continue
+        row = {"code": s["code"], "name": s["name"],
+               "kind": "user" if s["user"] else "built-in",
+               "error": s["error"], "pct": s["pct"],
+               "real_pct": None, "real": 0, "seeds": 0,
+               "missing": s["missing"], "stale": s["stale"],
+               "unsafe": 0}
+        if not s["error"]:
+            try:
+                d = pack_diff(s["code"])
+                row.update({"name": d["name"], "real_pct": d["real_pct"],
+                            "real": len(d["real"]),
+                            "seeds": len(d["seeds"]),
+                            "stale": len(d["stale"]),
+                            "unsafe": len(d["unsafe"])})
+            except Exception:  # noqa: BLE001 — the row still shows
+                row["error"] = row["error"] or "diff failed"
+        rows.append(row)
+    rows.sort(key=lambda r: (r["real_pct"] if r["real_pct"] is not None
+                             else -1, r["code"]))
+    full = [r["code"] for r in rows if r["real_pct"] == 100]
+    seeded = [r["code"] for r in rows if r["seeds"] > 0]
+    return {"en_keys": len(_i18n.EN), "rows": rows,
+            "total_real": sum(r["real"] for r in rows),
+            "full": full, "seeded": seeded}
+
+
+def format_report(rep, when=None):
+    """DS2 v2.63 — the shareable text form of ``build_report``: one
+    honest table, worst pack first, then the verdict that names the
+    fully-real packs and the seeded ones. Deterministic given the
+    ledger (``when`` pins the timestamp for tests). Never raises."""
+    try:
+        stamp = when or time.strftime("%Y-%m-%d %H:%M UTC",
+                                      time.gmtime())
+        lines = ["DXN1 STUDIO — language report",
+                 "generated %s · English source: %d keys"
+                 % (stamp, rep.get("en_keys", 0)),
+                 ""]
+        header = ("%-10s %-9s %-14s %6s %5s %6s %5s %6s %7s"
+                  % ("code", "kind", "name", "cover", "real",
+                     "seeds", "miss", "stale", "unsafe"))
+        lines.append(header)
+        lines.append("-" * len(header))
+        for r in rep.get("rows", []):
+            name = r.get("name") or r["code"]
+            if r.get("error"):
+                lines.append("%-10s %-9s %-14s %5s %5s %6s %5s %6s %7s"
+                             % (r["code"], r["kind"], name[:14],
+                                r["pct"], "-", "-", r["missing"],
+                                r["stale"], "-")
+                             + "  · unreadable (%s)" % r["error"])
+            else:
+                lines.append("%-10s %-9s %-14s %5s %5s %6s %5s %6s %7s"
+                             % (r["code"], r["kind"], name[:14],
+                                "%d%%" % r["pct"], r["real"],
+                                r["seeds"], r["missing"], r["stale"],
+                                r["unsafe"]))
+        lines.append("")
+        lines.append("packs: %d · real translations: %d string%s"
+                     % (len(rep.get("rows", [])),
+                        rep.get("total_real", 0),
+                        "" if rep.get("total_real") == 1 else "s"))
+        if rep.get("full"):
+            lines.append("fully real (every string speaks the pack): "
+                         + ", ".join(rep["full"]))
+        if rep.get("seeded"):
+            lines.append("still seeded (strings that read English): "
+                         + ", ".join(rep["seeded"]))
+        lines.append("the coverage meter can flatter — real% cannot: "
+                     "a seeded pack is 100% covered and still reads "
+                     "English")
+        lines.append("lang diff <code> names every string · "
+                     "lang check <code> is the dry-run · "
+                     "lang fix <code> applies the safe repairs")
+        return "\n".join(lines)
+    except Exception:  # noqa: BLE001 — a report never bites
+        return ""
+
+
 # ---------------------------------------------------------------- desk
 class PackEditor(tk.Toplevel):
     """The desk itself: every English key beside its translation,
@@ -543,16 +636,13 @@ class PackEditor(tk.Toplevel):
 
     # ---------------------------------------------------------- build
     def _fit_once(self):
-        """DS2 v2.59 — the desk opens no narrower than what it
-        actually packed: the requested width wins over the 680px
-        default when the content asks for more. One-time, at open;
-        after that the window is the user's to resize."""
-        try:
-            self.update_idletasks()
-            w = max(680, self.winfo_reqwidth())
-            self.geometry("%dx560" % w)
-        except Exception:  # noqa: BLE001 — garnish must not bite
-            pass
+        """DS2 v2.59 — the desk opens no narrower (or shorter) than
+        what it actually packed: the requested size wins over the
+        680x560 default when the content asks for more. One-time, at
+        open; after that the window is the user's to resize.
+        DS2 v2.63 — the body is the one shared helper now."""
+        from . import geom as _geom
+        _geom.fit_to_content(self, 680, 560)
 
     def _build_header(self):
         t = self.theme
@@ -1329,18 +1419,10 @@ class PackPreview(tk.Toplevel):
         the window opened at, and a clipped preview would lie about
         the pack. The window ratchets OUT to fit whatever it
         actually packed — and never shrinks back, so a manual
-        resize is never fought."""
-        try:
-            self.update_idletasks()
-            self._fit_w = max(440, self.winfo_reqwidth(),
-                              getattr(self, "_fit_w", 0),
-                              self.winfo_width())
-            self._fit_h = max(380, self.winfo_reqheight(),
-                              getattr(self, "_fit_h", 0),
-                              self.winfo_height())
-            self.geometry("%dx%d" % (self._fit_w, self._fit_h))
-        except Exception:  # noqa: BLE001 — garnish must not bite
-            pass
+        resize is never fought. DS2 v2.63 — the body is the one
+        shared helper now (ratchet mode)."""
+        from . import geom as _geom
+        _geom.fit_to_content(self, 440, 380, ratchet=True)
 
     def _close(self):
         try:

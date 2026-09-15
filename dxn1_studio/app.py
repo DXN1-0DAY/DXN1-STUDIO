@@ -169,6 +169,9 @@ TERMINAL_HELP = (
                           ".bak the last lang fix wrote — and "
                           "consume it; an undo you cannot run "
                           "twice by accident"),
+    ("lang report [dest]", "the honest ledger for every pack at "
+                           "once — one table, worst pack first, "
+                           "shareable as a file"),
     ("update", "check GitHub for a newer release"),
     ("whatsnew", "release notes — what changed between tags"),
     ("deps", "cross-check imports vs requirements*.txt "
@@ -4057,6 +4060,56 @@ class DXN1Studio:
                     self.terminal.log(
                         "  %s is the active language — the restored "
                         "pack is live at once" % rest)
+                return
+            if arg == "report" or arg.startswith("report "):
+                # DS2 v2.63 — the whole ledger at once: one honest
+                # table for every installed pack, worst-first by
+                # real_pct, shareable as a file (never overwrites —
+                # a report should not destroy either).
+                from . import langedit as _ler
+                rest = arg[6:].strip()
+                dest = ""
+                if rest:
+                    if len(rest) >= 2 and rest[0] == rest[-1] \
+                            and rest[0] in "\"'":
+                        rest = rest[1:-1]
+                    dest = os.path.expanduser(rest.strip())
+                    if os.path.isdir(dest):
+                        dest = os.path.join(dest, "lang-report.txt")
+                try:
+                    rep = _ler.build_report()
+                except Exception:  # noqa: BLE001 — a verb never raises
+                    rep = None
+                if not rep:
+                    self.terminal.log("lang report unavailable here")
+                    return
+                text = _ler.format_report(rep)
+                if not dest:
+                    for ln in text.splitlines():
+                        self.terminal.log(ln)
+                    self.terminal.log(
+                        "(lang report <dest> writes this table to a "
+                        "file — it never overwrites)")
+                    return
+                if os.path.exists(dest):
+                    self.terminal.log(
+                        "%s already exists — not overwriting (name "
+                        "another path: lang report <dest>)" % dest)
+                    return
+                try:
+                    with open(dest, "w", encoding="utf-8") as fh:
+                        fh.write(text + "\n")
+                except OSError as exc:
+                    self.terminal.log(
+                        "could not write %s (%s) — nothing written"
+                        % (dest, exc.__class__.__name__))
+                    return
+                self.terminal.log(
+                    "lang report — wrote %d pack row%s to %s — worst "
+                    "pack first, the way the audit and the chooser "
+                    "already speak"
+                    % (len(rep["rows"]),
+                       "" if len(rep["rows"]) == 1 else "s", dest))
                 return
             if arg == "audit":
                 # DS2 v2.54 — every pack answers for itself: coverage,

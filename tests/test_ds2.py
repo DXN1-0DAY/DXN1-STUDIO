@@ -6922,7 +6922,9 @@ def test_desk_fit(tmp_path):
         app.root.update()
         assert pv.winfo_width() >= grown - 2, (grown,
                                                pv.winfo_width())
-        assert pv._fit_w >= grown - 2          # the ratchet holds
+        # the ratchet holds — the high-water mark lives in the
+        # shared helper's _fit_size now (DS2 v2.63)
+        assert pv._fit_size[0] >= grown - 2
         desk._close()
         app.root.update()
         # the audit names the whole verb family
@@ -7290,7 +7292,10 @@ def test_width_sweep_two(tmp_path):
     with open(os.path.join(base, "dxn1_studio", "agent.py"),
               encoding="utf-8") as fh:
         asrc = fh.read()
-    assert "max(680, self.winfo_reqwidth())" in asrc
+    # DS2 v2.63 — the v2.60 inline heal retired: agent's preview
+    # rides the one shared helper now
+    assert "fit_to_content(\n            self, 680, 520)" in asrc
+    assert "max(680, self.winfo_reqwidth())" not in asrc
 
 
 def test_lang_unfix(tmp_path):
@@ -7612,3 +7617,243 @@ def test_width_sweep_four(tmp_path):
     with open(os.path.join(base, "dxn1_studio", "geom.py"),
               encoding="utf-8") as fh:
         assert "def fit_to_content" in fh.read()
+
+
+def test_width_sweep_five(tmp_path):
+    """DS2 v2.63 — width accounting round five, the sweep COMPLETES:
+    the last twenty-four fixed windows join geom.fit_to_content, the
+    two v2.59 custom ratchets (desk, live preview) ride the helper
+    too, and agent.py's inline v2.60 heal is retired. One pattern,
+    every window — audited by the fleet check in this test forever:
+    any future fixed-geometry window without a fit fails here."""
+    import tkinter as tk
+    try:
+        root = tk.Tk(); root.withdraw()
+    except tk.TclError:
+        return
+    import os
+    import re
+    from dxn1_studio import geom
+    # ratchet mode holds the high-water mark (the preview's old
+    # semantics, kept exactly): grow, then shrink the content — the
+    # window never follows it back
+    win = tk.Toplevel(root)
+    tk.Label(win, text="A" * 120).pack(padx=8, pady=8)
+    win.geometry("440x380")
+    root.update()
+    geom.fit_to_content(win, 440, 380, ratchet=True)
+    root.update()
+    grown = win.winfo_width()
+    assert grown >= win.winfo_reqwidth() - 2
+    for w in win.winfo_children():
+        w.destroy()
+    tk.Label(win, text="B").pack(padx=8, pady=8)
+    geom.fit_to_content(win, 440, 380, ratchet=True)
+    root.update()
+    assert win.winfo_width() >= grown - 2          # never shrinks back
+    win.destroy()
+    root.update()
+    # source agreement: the 24 round-five conversions, written where
+    # they run (20 class windows + 3 function windows + agent's
+    # retired inline heal)
+    base = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    converted = [
+        ("devtools.py", "fit_to_content(\n            self, 880, 620)"),
+        ("envcheck.py", "fit_to_content(\n            self, 840, 600)"),
+        ("charts.py", "fit_to_content(\n            self, 760, 560)"),
+        ("gitgraph.py", "fit_to_content(\n            self, 860, 640)"),
+        ("clipboard.py", "fit_to_content(\n            self, 640, 420)"),
+        ("diffview.py", "fit_to_content(\n            self, 980, 640)"),
+        ("hasher.py", "fit_to_content(\n            self, 860, 560)"),
+        ("contrast.py", "fit_to_content(\n            self, 860, 520)"),
+        ("colorkit.py", "fit_to_content(\n            self, 560, 560)"),
+        ("cronexp.py", "fit_to_content(\n            self, 760, 520)"),
+        ("ai_lint.py", "fit_to_content(\n            self, 680, 520)"),
+        ("gen.py", "fit_to_content(\n            self, 760, 560)"),
+        ("focus.py", "fit_to_content(\n            self, 360, 300)"),
+        ("charmap.py", "fit_to_content(\n            self, 640, 480)"),
+        ("mathpad.py", "fit_to_content(\n            self, 560, 470)"),
+        ("community_themes.py",
+         "fit_to_content(\n            self, 760, 600)"),
+        ("macros.py", "fit_to_content(\n            self, 520, 460)"),
+        ("markprev.py", "fit_to_content(\n            self, 980, 640)"),
+        ("cvdlab.py", "fit_to_content(\n            self, 760, 540)"),
+        ("cheatsheet.py", "fit_to_content(\n            self, 720, 520)"),
+        ("activity.py", "fit_to_content(\n        win, 620, 480)"),
+        ("bookmarks.py", "fit_to_content(\n        win, 720, 520)"),
+        ("filestats.py", "fit_to_content(\n        win, 760, 640)"),
+        ("agent.py", "fit_to_content(\n            self, 680, 520)"),
+    ]
+    for mod, marker in converted:
+        with open(os.path.join(base, "dxn1_studio", mod),
+                  encoding="utf-8") as fh:
+            assert marker in fh.read(), mod
+    # the desk and the preview speak the helper now — the custom
+    # ratchets are retired, the semantics kept
+    with open(os.path.join(base, "dxn1_studio", "langedit.py"),
+              encoding="utf-8") as fh:
+        le_src = fh.read()
+    assert "_geom.fit_to_content(self, 680, 560)" in le_src
+    assert "ratchet=True" in le_src
+    assert "self._fit_w = max(440" not in le_src
+    # agent.py: the v2.60 inline heal is gone for good
+    with open(os.path.join(base, "dxn1_studio", "agent.py"),
+              encoding="utf-8") as fh:
+        agent_src = fh.read()
+    assert '"%dx520" % max(680' not in agent_src
+    # THE FLEET AUDIT: every fixed-geometry call in the package is
+    # fit-covered within its build, or is one of the known shapes
+    # (the root window, a generated-code string literal, a
+    # position-only geometry)
+    pkg = os.path.join(base, "dxn1_studio")
+    pat = re.compile(r'(?:self|win|root)?\.?geometry\("(\d+)x(\d+)"\)')
+    naked = []
+    for name in sorted(os.listdir(pkg)):
+        if not name.endswith(".py"):
+            continue
+        lines = open(os.path.join(pkg, name),
+                     encoding="utf-8").read().splitlines()
+        for i, ln in enumerate(lines):
+            if not pat.search(ln):
+                continue
+            window = "\n".join(lines[i:i + 120])
+            if ("fit_to_content" in window or "_fit_w" in window
+                    or "restore_root" in window):
+                continue
+            if name == "app.py" and i < 800:
+                continue                       # the root window
+            if name == "gallery.py":
+                continue                       # generated-code literal
+            if 'geometry("+' in ln or 'geometry(f"+' in ln:
+                continue                       # position-only
+            naked.append("%s:%d %s" % (name, i + 1, ln.strip()))
+    assert not naked, naked
+
+
+def test_lang_report(tmp_path):
+    """DS2 v2.63 — the whole ledger at once: build_report() grades
+    every installed pack (English excluded) and sorts worst-first by
+    real_pct so a seeded pack cannot hide in alphabetical order;
+    format_report() renders the shareable table with the verdict that
+    names the fully-real packs and the seeded ones; and
+    `lang report [dest]` prints the table in the terminal or writes
+    it to a file — never overwriting, the way lang pack behaves."""
+    import tkinter as tk
+    try:
+        root = tk.Tk(); root.withdraw()
+    except tk.TclError:
+        return
+    import os
+    import pytest
+    import dxn1_studio.config as cfgmod
+    from dxn1_studio import i18n as i18nmod
+    from dxn1_studio import langedit as le
+
+    # --- data layer: one row per pack, worst first, honest numbers
+    monkeypatch = pytest.MonkeyPatch()
+    lang_dir = tmp_path / "lang"
+    lang_dir.mkdir()
+    monkeypatch.setattr(i18nmod, "LANG_DIR", str(lang_dir))
+    rep = le.build_report()
+    non_en = [c for c in i18nmod.available() if c != "en"]
+    assert len(rep["rows"]) == len(non_en)
+    assert all(r["code"] != "en" for r in rep["rows"])
+    # the es row matches what pack_diff says about es
+    es = next(r for r in rep["rows"] if r["code"] == "es")
+    d_es = le.pack_diff("es")
+    assert es["real_pct"] == d_es["real_pct"] == 100
+    assert es["real"] == len(d_es["real"]) and es["seeds"] == 0
+    assert es["kind"] == "built-in"
+    # a pure-seed user pack sorts to the very top (worst first)
+    le.save_user_pack("seedpack", dict(i18nmod.EN))
+    rep2 = le.build_report()
+    assert rep2["rows"][0]["code"] == "seedpack"
+    assert rep2["rows"][0]["real_pct"] == 0
+    assert rep2["rows"][0]["seeds"] == len(i18nmod.EN)
+    assert "seedpack" in rep2["seeded"] and "es" in rep2["full"]
+    pcts = [r["real_pct"] if r["real_pct"] is not None else -1
+            for r in rep2["rows"]]
+    assert pcts == sorted(pcts)                # worst-first, honest
+    assert rep2["total_real"] == sum(r["real"] for r in rep2["rows"])
+    # unreadable packs still show — the report never hides a row
+    le.save_user_pack("broken", {"menu.file": "ok"})
+    (lang_dir / "broken.json").write_text("{not json", encoding="utf-8")
+    rep3 = le.build_report()
+    broken = next(r for r in rep3["rows"] if r["code"] == "broken")
+    assert broken["error"] and broken["real_pct"] is None
+    # the text form: table + verdict, deterministic given `when`
+    text = le.format_report(rep2, when="2026-09-15 01:10 UTC")
+    assert text.startswith("DXN1 STUDIO — language report")
+    assert "generated 2026-09-15 01:10 UTC" in text
+    assert "English source: %d keys" % len(i18nmod.EN) in text
+    assert "seedpack" in text and "still seeded" in text
+    assert "es" in text and "fully real" in text
+    assert "real% cannot" in text
+    assert le.format_report(rep2, when="x") == le.format_report(
+        rep2, when="x")
+    monkeypatch.undo()
+
+    # --- through the real app: bare prints, dest writes, no clobber
+    monkeypatch = pytest.MonkeyPatch()
+    monkeypatch.setattr(cfgmod, "CONFIG_DIR", str(tmp_path / "cfg"))
+    monkeypatch.setattr(cfgmod, "CONFIG_PATH",
+                        str(tmp_path / "cfg" / "config.json"))
+    monkeypatch.setenv("HOME", str(tmp_path / "home"))
+    real_lang = tmp_path / "homelang"
+    monkeypatch.setattr(i18nmod, "LANG_DIR", str(real_lang))
+    from dxn1_studio.app import DXN1Studio, TERMINAL_HELP
+    app = DXN1Studio(cfgmod.Config(), smoke_test=True, no_splash=True)
+    try:
+        app.root.update()
+        verbs_list = [r[0] for r in TERMINAL_HELP]
+        assert "lang report [dest]" in verbs_list, verbs_list
+        logs = []
+        _old_log = app.terminal.log
+
+        def _rec(m, *a, **k):
+            logs.append(str(m))
+        app.terminal.log = _rec
+        try:
+            # bare: the whole table prints inline
+            app.handle_terminal_command("lang report")
+            blob = "\n".join(logs)
+            assert "DXN1 STUDIO — language report" in blob, blob
+            assert "code" in blob and "seeds" in blob
+            assert "lang report <dest> writes this table" in blob
+            # dest: the file lands, the summary names the rows
+            dest = tmp_path / "rep.txt"
+            logs.clear()
+            app.handle_terminal_command("lang report %s" % dest)
+            blob = "\n".join(logs)
+            assert "wrote %d pack rows" % len(
+                [c for c in i18nmod.available() if c != "en"]) in blob, blob
+            body = dest.read_text(encoding="utf-8")
+            assert "DXN1 STUDIO — language report" in body
+            assert "still seeded" in body or "fully real" in body
+            # never overwrites — sharing should not destroy either
+            logs.clear()
+            app.handle_terminal_command("lang report %s" % dest)
+            assert any("already exists — not overwriting" in m
+                       for m in logs), logs
+            # a quoted dest is unquoted, a directory gets the default
+            dest2 = tmp_path / "quoted.txt"
+            app.handle_terminal_command('lang report "%s"' % dest2)
+            assert dest2.exists()
+            dest3 = tmp_path / "adir"
+            dest3.mkdir()
+            app.handle_terminal_command("lang report %s" % dest3)
+            assert (dest3 / "lang-report.txt").exists()
+            # an unwritable dest answers honestly, nothing written
+            logs.clear()
+            app.handle_terminal_command(
+                "lang report %s" % (dest3 / "no" / "such" / "dir"
+                                    / "x.txt"))
+            assert any("could not write" in m for m in logs), logs
+        finally:
+            app.terminal.log = _old_log
+    finally:
+        try:
+            app.root.destroy()
+        except Exception:  # noqa: BLE001
+            pass
+    monkeypatch.undo()

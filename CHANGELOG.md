@@ -4,6 +4,38 @@ All notable changes to DXN1 STUDIO. Format based on
 [Keep a Changelog](https://keepachangelog.com/); versioning is
 `MAJOR.MINOR.PATCH` while in **beta**.
 
+## [2.63.0] — 2026-09-15 · beta · "the sweep completes, the ledger goes public" (every window fits, every pack answers in one table)
+
+### Added
+- **`lang report [dest]`** — the honest ledger for EVERY installed
+  pack at once: one table, one row per pack (English excluded),
+  each carrying covered %, real %, real/seeds/missing/stale/unsafe
+  counts, sorted worst-first by `real_pct` so a seeded pack cannot
+  hide in alphabetical order; the verdict names the fully-real
+  packs and the still-seeded ones; bare verb prints the table
+  inline, `lang report <dest>` writes a shareable text file that
+  never overwrites (quoted paths unquoted, a directory dest lands
+  `lang-report.txt`, an unwritable path answered honestly) —
+  `langedit.build_report()` / `format_report()` are pure and
+  headless, so the ledger can be graded without a display
+- **The fleet audit** — `test_width_sweep_five` walks every
+  `geometry("WxH")` call in the package and fails CI for any fixed
+  window without a fit nearby, so the one-pattern rule outlives the
+  sprint
+
+### Changed
+- **Width accounting, round five — the sweep completes**: the last
+  twenty-four fixed windows join `geom.fit_to_content` (devtools,
+  envcheck, charts, gitgraph, clipboard, diffview, hasher,
+  contrast, colorkit, cronexp, ai_lint, gen, focus, charmap,
+  mathpad, community_themes, macros, markprev, cvdlab, cheatsheet,
+  activity, bookmarks, filestats, and agent's system-prompt
+  preview), and the two v2.59 custom ratchets (translation desk,
+  live preview) now ride the shared helper with `ratchet=True` —
+  same semantics, one body; agent's v2.60 inline heal is retired.
+  All 55 fixed-geometry windows in the studio speak one pattern,
+  audited forever by the fleet check
+
 ## [2.62.0] — 2026-09-15 · beta · "width accounting, round four" (ten more windows ride the shared fit helper)
 
 ### Changed

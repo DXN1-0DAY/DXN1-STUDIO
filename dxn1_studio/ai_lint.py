@@ -90,6 +90,13 @@ class AIReviewWindow(tk.Toplevel):
         self.title(f"AI Review — {self.filename}")
         self.configure(bg=self.t["bg"])
         self.geometry("680x520")
+        # DS2 v2.63 — width accounting round five: once the
+        # build settles, open no narrower (or shorter) than
+        # what it actually packed (the 680x520 default is the
+        # floor)
+        from . import geom as _geom
+        self.after_idle(lambda: _geom.fit_to_content(
+            self, 680, 520))
         self.minsize(460, 320)
         self.transient(parent.winfo_toplevel()
                        if parent is not None else parent)

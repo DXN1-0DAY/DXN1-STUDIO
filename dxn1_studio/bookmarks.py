@@ -192,6 +192,13 @@ def open_browser(master, theme, workspace=None, on_jump=None, on_log=None):
     win.configure(bg=_C["bg"])
     win.transient(master)
     win.geometry("720x520")
+    # DS2 v2.63 — width accounting round five: once the
+    # build settles, open no narrower (or shorter) than
+    # what it actually packed (the 720x520 default is the
+    # floor)
+    from . import geom as _geom
+    win.after_idle(lambda: _geom.fit_to_content(
+        win, 720, 520))
 
     head = tk.Frame(win, bg=_C["header"])
     head.pack(fill=tk.X)

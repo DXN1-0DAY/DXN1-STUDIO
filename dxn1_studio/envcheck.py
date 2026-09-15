@@ -160,6 +160,13 @@ class EnvLintWindow(tk.Toplevel):
         self.title(".env lint & mask — DXN1 STUDIO")
         self.configure(bg=theme["bg"])
         self.geometry("840x600")
+        # DS2 v2.63 — width accounting round five: once the
+        # build settles, open no narrower (or shorter) than
+        # what it actually packed (the 840x600 default is the
+        # floor)
+        from . import geom as _geom
+        self.after_idle(lambda: _geom.fit_to_content(
+            self, 840, 600))
         self.minsize(680, 460)
         try:
             self.transient(parent.winfo_toplevel()

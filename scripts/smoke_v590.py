@@ -100,13 +100,13 @@ _grown = _pv.winfo_width()
 check("preview: a long string ratchets the window out",
       _grown > 440 and _pv.winfo_width() >= _pv.winfo_reqwidth() - 2)
 check("preview: the ratchet recorded its high-water mark",
-      getattr(_pv, "_fit_w", 0) >= _grown - 2)
+      getattr(_pv, "_fit_size", (0, 0))[0] >= _grown - 2)
 _desk.work["menu.file"] = "Sí"
 _pv.refresh()
 root.update()
 check("preview: a short string never shrinks it back",
       _pv.winfo_width() >= _grown - 2
-      and _pv._fit_w >= _grown - 2)
+      and _pv._fit_size[0] >= _grown - 2)
 _desk._close()
 root.update()
 

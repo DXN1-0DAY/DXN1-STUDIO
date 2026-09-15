@@ -353,6 +353,13 @@ def open_activity(master, theme, log, on_copy=None, on_change=None,
     win.configure(bg=theme["card"])
     win.transient(master)
     win.geometry("620x480")
+    # DS2 v2.63 — width accounting round five: once the
+    # build settles, open no narrower (or shorter) than
+    # what it actually packed (the 620x480 default is the
+    # floor)
+    from . import geom as _geom
+    win.after_idle(lambda: _geom.fit_to_content(
+        win, 620, 480))
     win.minsize(440, 320)
 
     wrap = tk.Frame(win, bg=theme["card"], highlightthickness=1,

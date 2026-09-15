@@ -200,6 +200,13 @@ class CheatSheet(tk.Toplevel):
         self.title("Cheat Sheet — DXN1 STUDIO")
         self.configure(bg=t.get("bg", "#16161e"))
         self.geometry("720x520")
+        # DS2 v2.63 — width accounting round five: once the
+        # build settles, open no narrower (or shorter) than
+        # what it actually packed (the 720x520 default is the
+        # floor)
+        from . import geom as _geom
+        self.after_idle(lambda: _geom.fit_to_content(
+            self, 720, 520))
         self.minsize(560, 400)
         try:
             self.transient(parent)

@@ -2251,14 +2251,13 @@ class PromptPreviewDialog(tk.Toplevel):
         box.pack(fill=tk.BOTH, expand=True, padx=14, pady=(0, 12))
         box.insert("1.0", text)
         box.config(state="disabled")
-        # DS2 v2.60 — width accounting round two (the v2.55 pattern):
-        # the preview opens no narrower than what it actually packed,
-        # so a long header line never clips at the 680px default
-        try:
-            self.update_idletasks()
-            self.geometry("%dx520" % max(680, self.winfo_reqwidth()))
-        except tk.TclError:
-            pass
+        # DS2 v2.63 — width accounting round five: the v2.60 inline
+        # heal joins the one shared pattern — once the build settles,
+        # open no narrower (or shorter) than what it actually packed
+        # (the 680x520 default is the floor)
+        from . import geom as _geom
+        self.after_idle(lambda: _geom.fit_to_content(
+            self, 680, 520))
         self.bind("<Escape>", lambda e: self.destroy())
 
 

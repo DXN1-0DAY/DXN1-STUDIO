@@ -308,6 +308,13 @@ class MarkdownPreview(tk.Toplevel):
         self.title("Markdown Preview — DXN1 STUDIO")
         self.configure(bg=t.get("bg", "#16161e"))
         self.geometry("980x640")
+        # DS2 v2.63 — width accounting round five: once the
+        # build settles, open no narrower (or shorter) than
+        # what it actually packed (the 980x640 default is the
+        # floor)
+        from . import geom as _geom
+        self.after_idle(lambda: _geom.fit_to_content(
+            self, 980, 640))
         self.minsize(640, 420)
         try:
             self.transient(parent)

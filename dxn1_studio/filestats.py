@@ -343,6 +343,13 @@ def open_stats(master, theme, workspace=None, on_log=None):
     win.configure(bg=_C["bg"])
     win.transient(master)
     win.geometry("760x640")
+    # DS2 v2.63 — width accounting round five: once the
+    # build settles, open no narrower (or shorter) than
+    # what it actually packed (the 760x640 default is the
+    # floor)
+    from . import geom as _geom
+    win.after_idle(lambda: _geom.fit_to_content(
+        win, 760, 640))
 
     # ---- header -----------------------------------------------------
     head = tk.Frame(win, bg=_C["header"])

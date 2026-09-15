@@ -79,6 +79,13 @@ class ClipboardHistory(tk.Toplevel):
         self.title("Clipboard History — DXN1 STUDIO")
         self.configure(bg=t.get("bg", "#16161e"))
         self.geometry("640x420")
+        # DS2 v2.63 — width accounting round five: once the
+        # build settles, open no narrower (or shorter) than
+        # what it actually packed (the 640x420 default is the
+        # floor)
+        from . import geom as _geom
+        self.after_idle(lambda: _geom.fit_to_content(
+            self, 640, 420))
         self.minsize(420, 300)
         try:
             self.transient(parent)
