@@ -1334,6 +1334,115 @@ async function saveScene() {
   } catch (e) { toast("Save failed: " + e.message, "err"); }
 }
 
+/* ============================================================
+   EXPORT — one scene becomes a standalone playable HTML file
+   (Spark Lite runtime embedded; no studio, no dependencies)
+   ============================================================ */
+function sparkLiteHTML(scene) {
+  const sceneJSON = JSON.stringify(scene, null, 2);
+  return "<!doctype html>\n" +
+'<html lang="en"><head><meta charset="utf-8">\n' +
+'<meta name="viewport" content="width=device-width, initial-scale=1">\n' +
+"<title>" + esc(scene.name || "scene") + " — Spark Lite</title>\n" +
+"<style>\n" +
+"  html,body{margin:0;height:100%;background:#07080d;display:flex;" +
+"align-items:center;justify-content:center;font-family:ui-monospace,monospace}\n" +
+"  canvas{max-width:96vw;max-height:90vh;border-radius:10px}\n" +
+"  #hint{position:fixed;bottom:12px;left:0;right:0;text-align:center;" +
+"color:#5c6478;font-size:12px}\n" +
+"</style></head><body>\n" +
+'<canvas id="c" width="960" height="540" tabindex="0"></canvas>\n' +
+'<div id="hint">arrows / WASD + space &middot; exported from DXN1 STUDIO 3 (Spark Lite)</div>\n' +
+"<script>\n" +
+"const SCENE = " + sceneJSON + ";\n" +
+"const cv = document.getElementById('c'), ctx = cv.getContext('2d');\n" +
+"const E = SCENE.entities || [];\n" +
+"const cam = Object.assign({x:0,y:0}, SCENE.camera || {});\n" +
+"const keys = new Set();\n" +
+"addEventListener('keydown', e => { const k = norm(e); if (k) { keys.add(k);" +
+" if ([' ','arrowup','arrowdown','arrowleft','arrowright'].includes(k)) e.preventDefault(); } });\n" +
+"addEventListener('keyup', e => { const k = norm(e); if (k) keys.delete(k); });\n" +
+"function norm(e){ const k=e.key.toLowerCase();" +
+" return {w:'arrowup',a:'arrowleft',s:'arrowdown',d:'arrowright'}[k] || k; }\n" +
+"function aabb(a,b){ return a.x<b.x+b.w && a.x+a.w>b.x && a.y<b.y+b.h && a.y+a.h>b.y; }\n" +
+"let score=0, time=0, spawn={x:90,y:300};\n" +
+"const P = E.find(e=>e.tag==='player'); if(P) spawn={x:P.x,y:P.y};\n" +
+"E.forEach(e=>{ e.vx=e.vx||0; e.vy=e.vy||0; });\n" +
+"let last=0, flash='';\n" +
+"function loop(ts){\n" +
+"  const dt=Math.min((ts-last)/1000,1/20)||0; last=ts; time+=dt;\n" +
+"  const solids=E.filter(e=>e.solid);\n" +
+"  for(const e of E){\n" +
+"    if(e.spin) e.rot=((e.rot||0)+e.spin*dt)%360;\n" +
+"    if(e.controls==='platformer'){\n" +
+"      const SPD=320; e.vx=keys.has('arrowleft')?-SPD:keys.has('arrowright')?SPD:0;\n" +
+"      let grounded=false; const pr={x:e.x+2,y:e.y+2,w:e.w-4,h:e.h+3};\n" +
+"      for(const s of solids){ if(s!==e&&aabb(pr,s)&&s.y>=e.y) grounded=true; }\n" +
+"      if(keys.has(' ')&&grounded) e.vy=-640;\n" +
+"      if(e.y>2000){ e.x=spawn.x;e.y=spawn.y;e.vx=e.vy=0; flash='ouch — respawned'; }\n" +
+"    }\n" +
+"    const dyn=e.gravity!==null&&e.gravity!==undefined?e.gravity:" +
+ "(e.controls==='platformer');\n" +
+"    if(dyn) e.vy+=(SCENE.gravity||1500)*dt;\n" +
+"    e.x+=e.vx*dt;\n" +
+"    for(const s of solids){ if(s!==e&&aabb(e,s)){ if(e.vx>0)e.x=s.x-e.w;" +
+"else if(e.vx<0)e.x=s.x+s.w; e.vx=0; } }\n" +
+"    e.y+=e.vy*dt;\n" +
+"    for(const s of solids){ if(s!==e&&aabb(e,s)){\n" +
+"      if(e.vy>0){ e.y=s.y-e.h; e.vy=s.bounce?-e.vy*s.bounce:0; }\n" +
+"      else if(e.vy<0){ e.y=s.y+s.h; e.vy=0; } } }\n" +
+"  }\n" +
+"  if(P){\n" +
+"    for(const o of E){ if(o===P||!o.tag) continue;\n" +
+"      if(o.tag==='coin'&&aabb(P,o)){ o.dead=true; score+=10; flash='coin!'; }\n" +
+"      if(o.tag==='hazard'&&aabb(P,o)){ P.x=spawn.x;P.y=spawn.y;P.vx=P.vy=0; flash='ouch!'; }\n" +
+"      if(o.tag==='goal'&&aabb(P,o)) flash='GOAL! — you win'; }\n" +
+"    cam.x+=((P.x+P.w/2)-(cam.x+cv.width/2))*Math.min(1,dt*6);\n" +
+"    cam.y+=((P.y+P.h/2)-(cam.y+cv.height/2))*Math.min(1,dt*3);\n" +
+"  }\n" +
+"  ctx.setTransform(1,0,0,1,0,0);\n" +
+"  ctx.fillStyle=SCENE.bg||'#0b0e1a'; ctx.fillRect(0,0,cv.width,cv.height);\n" +
+"  ctx.save(); ctx.translate(-cam.x,-cam.y);\n" +
+"  for(const e of E){ if(e.dead) continue;\n" +
+"    ctx.fillStyle=e.color||'#888';\n" +
+"    if(e.text){ ctx.font='600 '+(e.tsize||22)+'px ui-monospace,monospace';" +
+" ctx.textBaseline='top'; ctx.fillText(e.text,e.x,e.y); }\n" +
+"    else if(e.shape==='circle'){ ctx.beginPath();" +
+" ctx.arc(e.x+e.w/2,e.y+e.h/2,Math.min(e.w,e.h)/2,0,7); ctx.fill(); }\n" +
+"    else if(e.shape==='triangle'){ ctx.beginPath();" +
+" ctx.moveTo(e.x+e.w/2,e.y); ctx.lineTo(e.x+e.w,e.y+e.h);" +
+" ctx.lineTo(e.x,e.y+e.h); ctx.closePath(); ctx.fill(); }\n" +
+"    else if(e.rot){ ctx.save(); ctx.translate(e.x+e.w/2,e.y+e.h/2);" +
+" ctx.rotate(e.rot*Math.PI/180); ctx.beginPath();" +
+" ctx.roundRect(-e.w/2,-e.h/2,e.w,e.h,5); ctx.fill(); ctx.restore(); }\n" +
+"    else { ctx.beginPath(); ctx.roundRect(e.x,e.y,e.w,e.h,5); ctx.fill(); }\n" +
+"  }\n" +
+"  ctx.restore();\n" +
+"  ctx.setTransform(1,0,0,1,0,0);\n" +
+"  ctx.fillStyle='rgba(255,255,255,.92)'; ctx.font='600 16px ui-monospace,monospace';" +
+" ctx.textBaseline='top';\n" +
+"  const mm=Math.floor(time/60), ss=(time%60).toFixed(1).padStart(4,'0');\n" +
+"  ctx.fillText('SCORE '+score+'   TIME '+mm+':'+ss,16,14);\n" +
+"  if(flash){ ctx.fillStyle='#34d399'; ctx.font='800 22px ui-monospace,monospace';" +
+" ctx.fillText(flash,16,44); flash=''; }\n" +
+"  requestAnimationFrame(loop);\n" +
+"}\n" +
+"requestAnimationFrame(loop);\n" +
+"<\/script></body></html>\n";
+}
+
+async function exportScene() {
+  if (!GAME) return toast("Open a scene first", "err");
+  const name = (GAME.scene.name || "scene").replace(/[^\w.-]+/g, "-");
+  const path = `exports/${name}.html`;
+  try {
+    await api("write", { path, content: sparkLiteHTML(GAME.scene) });
+    await loadTree();
+    toast(`Exported ${path} — open it in any browser`, "ok", 3600);
+    say("exported " + path);
+  } catch (e) { toast("Export failed: " + e.message, "err"); }
+}
+
 function playScene() {
   if (!GAME) {
     // nothing open — play the demo scene directly (never a dead button)
@@ -1603,6 +1712,7 @@ const COMMANDS = [
   { ico: "⌗", label: "Toggle edit grid", run: () => setGrid(!GRID_ON) },
   { ico: "⊕", label: "Zoom fit (scene)", run: () => GAME && GAME.zoomFit() },
   { ico: "⑂", label: "Refresh source control", run: () => { switchPanel("git"); renderGit(); } },
+  { ico: "⬒", label: "Export scene as playable HTML", run: () => exportScene() },
   { ico: "⧉", label: "Duplicate entity", key: "Ctrl+D", run: () => dupEntity() },
   { ico: "✕", label: "Delete entity", key: "Del", run: () => delEntity() },
   { ico: "⌗", label: "About DXN1 STUDIO 3", run: () =>
@@ -1877,6 +1987,7 @@ function wire() {
 
   // scene dock
   $("scene-save").onclick = saveScene;
+  $("scene-export").onclick = exportScene;
 
   // entity palette + scene editing buttons
   document.querySelectorAll(".ep").forEach((b) =>
