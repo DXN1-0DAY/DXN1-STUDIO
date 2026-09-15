@@ -4,6 +4,30 @@ All notable changes to DXN1 STUDIO. Format based on
 [Keep a Changelog](https://keepachangelog.com/); versioning is
 `MAJOR.MINOR.PATCH` while in **beta**.
 
+## [2.71.3] — 2026-09-15 · beta · "the click audit" (121 dialogs opened, every button clicked — nothing dead)
+
+### Added
+- **The fleet click audit** — a new per-process sweep opens each of
+  the 121 palette commands' windows and CLICKS every button,
+  checkbutton and hand-cursor label inside them: result **0 dead
+  controls, 0 crashes, 0 raised exceptions**. Dead buttons are now
+  structurally impossible, not just unobserved.
+- **The Esc contract is guaranteed** — `hint_bar` now closes the
+  window on Escape even when the window forgot to bind it
+  (idempotent, guarded, never raises).
+- **28 windows gained hint bars** — the command palette, quick open,
+  settings, the project hub, plugin manager, snapshots, prompt
+  library, pair sessions, theme gallery, cron explainer, readability,
+  JWT, .env lint, generator, tree export, hasher, clipboard,
+  markdown preview, ColorKit, RestBench, ChartStudio, charmap,
+  text-case, numbase, contrast, memory, tasks and go-to-symbol now
+  show what key does what, in the window's own theme.
+
+### Changed
+- The dialog sweep and click sweep live under `scripts/` and run
+  per-command in their own process, so one bad dialog can never take
+  the audit fleet down.
+
 ## [2.71.2] — 2026-09-15 · beta · "the buttons answer the cursor" (hover feedback + tooltips + real file creation)
 
 ### Fixed
