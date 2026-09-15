@@ -13,6 +13,7 @@
     <div id="ws-name" class="ws">no workspace</div>
     <div class="spacer"></div>
     <button id="btn-run" class="btn accent" title="Run project (F5)">▶ Run</button>
+    <button id="btn-agents" class="btn" title="DXN1 Agents">◆ Agents</button>
     <button id="btn-palette" class="btn" title="Command palette (Ctrl+K)">⌘ Commands</button>
     <button id="btn-settings" class="btn" title="Settings">⚙</button>
   </header>
@@ -50,6 +51,16 @@
     <span id="st-file"></span>
     <span id="st-version">DXN1</span>
   </footer>
+</div>
+
+<div id="agent-drawer" class="hidden">
+  <div class="set-title">DXN1 AGENTS <span id="agent-busy" class="hidden">· working…</span></div>
+  <div id="agent-transcript"></div>
+  <div class="git-commit">
+    <input id="agent-input" type="text" placeholder="Ask the agents…"
+           autocomplete="off" spellcheck="false">
+    <button id="agent-send" class="btn accent sm">Send</button>
+  </div>
 </div>
 
 <div id="quickopen-overlay" class="hidden">

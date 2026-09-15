@@ -267,6 +267,7 @@ $("btn-newdir").onclick = async () => {
 function renderState() {
   applyTheme(STATE.theme);
   renderTabs();
+  renderAgent();
   $("ws-name").textContent = STATE.workspace
     ? STATE.workspace.split("/").pop() : "no workspace";
   $("st-status").textContent = STATE.status || "ready";
@@ -570,6 +571,51 @@ window.addEventListener("keydown", (e) => {
   if (e.key === "Escape") {
     $("settings-overlay").classList.add("hidden");
   }
+});
+
+/* ---------- agents drawer ---------- */
+let lastTranscriptLen = -1;
+
+function renderAgent() {
+  const a = STATE.agent || { busy: false, transcript: [] };
+  $("agent-busy").classList.toggle("hidden", !a.busy);
+  const t = a.transcript || [];
+  if (t.length === lastTranscriptLen) return;
+  lastTranscriptLen = t.length;
+  const box = $("agent-transcript");
+  box.innerHTML = t.map(m => {
+    const cls = m.role === "user" ? "user" :
+      (m.role === "system" ? "system" : "assistant");
+    return `<div class="bubble ${cls}">${esc(m.text)}</div>`;
+  }).join("") ||
+    `<div class="bubble system">Ask anything — the agents share this
+     workspace with the desktop app.</div>`;
+  box.scrollTop = box.scrollHeight;
+}
+
+async function agentSend() {
+  const inp = $("agent-input");
+  const msg = inp.value.trim();
+  if (!msg) return;
+  inp.value = "";
+  const r = await (await api("/api/agent", {
+    method: "POST", body: JSON.stringify({ message: msg }) })).json();
+  if (r.ok) { toast("◆ Agents: message sent"); poll(); }
+  else toast("Agent failed: " + (r.error || "?"));
+}
+
+$("btn-agents").onclick = () => {
+  const d = $("agent-drawer");
+  d.classList.toggle("hidden");
+  if (!d.classList.contains("hidden")) {
+    lastTranscriptLen = -1;  // force re-render
+    renderAgent();
+    setTimeout(() => $("agent-input").focus(), 40);
+  }
+};
+$("agent-send").onclick = agentSend;
+$("agent-input").addEventListener("keydown", (e) => {
+  if (e.key === "Enter") agentSend();
 });
 
 /* ---------- boot ---------- */

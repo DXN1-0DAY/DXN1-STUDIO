@@ -113,6 +113,18 @@ class BridgeState:
             log = app.terminal.log_text.get("1.0", "end-1c")[-8000:]
         except Exception:  # noqa: BLE001
             pass
+        agent = {"busy": False, "transcript": [], "model": ""}
+        try:
+            panel = getattr(app, "agent_panel", None)
+            if panel is not None:
+                agent = {"busy": bool(getattr(panel, "_busy", False)),
+                         "transcript": list(
+                             getattr(panel, "transcript", []))[-40:],
+                         "model": getattr(
+                             getattr(panel, "engine", None),
+                             "name", "") or ""}
+        except Exception:  # noqa: BLE001
+            pass
         status = ""
         try:
             status = app.status_file.cget("text")
@@ -125,6 +137,7 @@ class BridgeState:
                 "tabs": tabs,
                 "theme": tokens,
                 "terminal_tail": log,
+                "agent": agent,
                 "status": status}
 
     def commands(self):
@@ -295,6 +308,26 @@ class BridgeState:
                 pass
         self.post(_run)
         return {"ran": True}, None
+
+    def agent_send(self, message):
+        """Route a user message into the agents panel (the same
+        single entry point the desktop input uses)."""
+        text = str(message or "").strip()
+        if not text:
+            return None, "message required"
+        if len(text) > 8000:
+            return None, "message too long (8000 char max)"
+        panel = getattr(self.app, "agent_panel", None)
+        if panel is None:
+            return None, "agents panel unavailable"
+
+        def _send():
+            try:
+                panel.route(text)
+            except Exception:  # noqa: BLE001
+                pass
+        self.post(_send)
+        return {"queued": True}, None
 
     # ---- settings (wave 2: the web face can drive config) -------------
     _CONFIG_KEYS = ("theme", "accent", "word_wrap", "auto_save",
@@ -564,6 +597,9 @@ class _Handler(BaseHTTPRequestHandler):
             payload, err = self.state.git_action(body)
         elif u.path == "/api/run":
             payload, err = self.state.run_project()
+        elif u.path == "/api/agent":
+            payload, err = self.state.agent_send(
+                str(body.get("message") or ""))
         else:
             payload, err = None, "unknown route"
         self._send_json(

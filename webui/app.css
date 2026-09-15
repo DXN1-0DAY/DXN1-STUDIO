@@ -244,6 +244,39 @@ body {
 .git-log div { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .git-log div:first-child { color: var(--text); }
 
+/* ---- agent drawer ---- */
+#agent-drawer {
+  position: fixed; top: 46px; right: 0; bottom: 26px; width: 380px;
+  background: var(--sidebar); border-left: 1px solid var(--border);
+  display: flex; flex-direction: column; z-index: 40;
+  box-shadow: -18px 0 40px rgba(0, 0, 0, .35);
+}
+#agent-drawer .set-title { padding: 12px 16px 8px; }
+#agent-busy { color: var(--accent); letter-spacing: 0; }
+#agent-transcript {
+  flex: 1; overflow: auto; padding: 4px 14px 12px;
+  display: flex; flex-direction: column; gap: 8px;
+}
+.bubble {
+  max-width: 86%; padding: 8px 12px; border-radius: 12px;
+  font-size: 12.5px; line-height: 1.5; white-space: pre-wrap;
+  word-break: break-word;
+}
+.bubble.user {
+  align-self: flex-end; background: var(--accent); color: #fff;
+  border-bottom-right-radius: 4px;
+}
+.bubble.assistant {
+  align-self: flex-start; background: var(--card);
+  border: 1px solid var(--cardb); color: var(--text);
+  border-bottom-left-radius: 4px;
+}
+.bubble.system {
+  align-self: center; background: transparent; color: var(--muted);
+  font-size: 11.5px;
+}
+#agent-drawer .git-commit { padding: 10px 14px 12px; }
+
 /* ---- toast ---- */
 #toast {
   position: fixed; bottom: 40px; left: 50%; transform: translateX(-50%);

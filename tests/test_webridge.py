@@ -369,6 +369,24 @@ class TestWebBridge(unittest.TestCase):
             except OSError:
                 pass
 
+    # ---- agents surface (wave 5) ---------------------------------------
+    def test_state_has_agent_block(self):
+        status, body = self.get("/api/state")
+        self.assertEqual(status, 200)
+        self.assertIn("agent", body)
+        self.assertIn("transcript", body["agent"])
+        self.assertIn("busy", body["agent"])
+
+    def test_agent_send_queues_and_routes(self):
+        status, body = self.post("/api/agent",
+                                 {"message": "hello agents"})
+        self.assertEqual(status, 200)
+        self.assertTrue(body["queued"])
+        status, body = self.post("/api/agent", {"message": "  "})
+        self.assertEqual(status, 400)
+        status, body = self.post("/api/agent", {"message": "x" * 9000})
+        self.assertEqual(status, 400)
+
 
 if __name__ == "__main__":
     unittest.main()
