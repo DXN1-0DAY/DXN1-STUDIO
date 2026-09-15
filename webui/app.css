@@ -55,8 +55,16 @@ body {
 }
 .side-title {
   padding: 10px 14px 6px; font-size: 10.5px; letter-spacing: .14em;
-  color: var(--muted); font-weight: 700;
+  color: var(--muted); font-weight: 700; display: flex; align-items: center;
 }
+.side-actions { margin-left: auto; display: flex; gap: 4px; }
+.mini {
+  background: transparent; color: var(--muted);
+  border: 1px solid var(--cardb); border-radius: 6px;
+  font-size: 10px; padding: 1.5px 7px; cursor: pointer;
+  letter-spacing: 0; transition: color .15s, border-color .15s;
+}
+.mini:hover { color: var(--text); border-color: var(--accent); }
 .tree { overflow: auto; padding: 2px 8px 12px; }
 .tree-item {
   display: flex; align-items: center; gap: 7px; padding: 4.5px 8px;
@@ -67,6 +75,17 @@ body {
 .tree-item.dir { color: var(--text); font-weight: 600; }
 .tree-item .kids { margin-left: 14px; }
 .tree-item .ico { width: 14px; text-align: center; color: var(--muted); flex: none; }
+.tree-item .nm { flex: 1; overflow: hidden; text-overflow: ellipsis; }
+.tree-item .act {
+  display: none; gap: 2px; flex: none;
+}
+.tree-item:hover .act { display: flex; }
+.tree-item .act button {
+  background: transparent; border: none; color: var(--muted);
+  cursor: pointer; font-size: 11px; padding: 0 3px; border-radius: 4px;
+}
+.tree-item .act button:hover { color: var(--accent); }
+.tree-item .act button.danger:hover { color: #f85149; }
 
 #main { flex: 1; display: flex; flex-direction: column; min-width: 0; }
 
@@ -90,21 +109,43 @@ body {
 }
 .tab .dot { color: var(--accent); font-size: 15px; line-height: 1; }
 
-/* ---- editor ---- */
+/* ---- editor + highlight layer ---- */
 #editor-wrap { flex: 1; display: flex; min-height: 0; position: relative; }
 #gutter {
   padding: 12px 8px; background: var(--sidebar); color: var(--muted);
   font: 12px/1.55 var(--mono); text-align: right; user-select: none;
   overflow: hidden; white-space: pre; min-width: 46px;
-  border-right: 1px solid var(--border);
+  border-right: 1px solid var(--border); flex: none;
 }
+#highlight, #editor {
+  font: 13px/1.55 var(--mono);
+  padding: 12px 16px; tab-size: 4; white-space: pre; overflow: auto;
+}
+/* the pre sits under a text-transparent textarea — classic overlay */
+#highlight {
+  position: absolute; inset: 0; left: 46px; margin: 0;
+  color: var(--text); pointer-events: none; z-index: 0;
+  background: var(--editor);
+}
+#highlight code { display: block; }
 #editor {
-  flex: 1; background: var(--editor); color: var(--text);
-  border: none; outline: none; resize: none; padding: 12px 16px;
-  font: 13px/1.55 var(--mono); tab-size: 4; caret-color: var(--accent);
+  position: relative; z-index: 1; flex: 1;
+  background: transparent; color: transparent;
+  -webkit-text-fill-color: transparent;
+  border: none; outline: none; resize: none;
+  caret-color: var(--accent);
 }
-#editor::placeholder { color: var(--muted); }
+#editor::placeholder {
+  color: var(--muted); -webkit-text-fill-color: var(--muted);
+}
 #editor:focus { box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--accent) 45%, transparent); }
+/* token colours */
+.tk-kw { color: var(--accent); font-weight: 600; }
+.tk-str { color: #7ee787; }
+.tk-cmt { color: var(--muted); font-style: italic; }
+.tk-num { color: #ffa657; }
+.tk-dec { color: #79c0ff; }
+.tk-fn  { color: #d2a8ff; }
 
 /* ---- terminal ---- */
 #terminal {

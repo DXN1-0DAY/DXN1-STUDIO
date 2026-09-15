@@ -18,7 +18,12 @@
 
   <div id="body">
     <aside id="sidebar">
-      <div class="side-title">EXPLORER</div>
+      <div class="side-title">EXPLORER
+        <span class="side-actions">
+          <button id="btn-newfile" class="mini" title="New file">+ file</button>
+          <button id="btn-newdir" class="mini" title="New folder">+ dir</button>
+        </span>
+      </div>
       <div id="tree" class="tree"></div>
     </aside>
 
@@ -26,7 +31,8 @@
       <div id="tabbar"></div>
       <div id="editor-wrap">
         <div id="gutter"></div>
-        <textarea id="editor" spellcheck="false"
+        <pre id="highlight" aria-hidden="true"></pre>
+        <textarea id="editor" spellcheck="false" autocomplete="off"
           placeholder="Open a file from the explorer, or press Ctrl+K for commands…"></textarea>
       </div>
       <div id="terminal">
@@ -39,6 +45,7 @@
   <footer id="statusbar">
     <span id="st-status">ready</span>
     <span class="spacer"></span>
+    <span id="st-file"></span>
     <span id="st-version">DXN1</span>
   </footer>
 </div>

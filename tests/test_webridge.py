@@ -27,6 +27,7 @@ def _make_app():
 class TestWebBridge(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
+        import tempfile
         import tkinter as tk
         try:
             cls.root = tk.Tk()
@@ -34,11 +35,16 @@ class TestWebBridge(unittest.TestCase):
             raise unittest.SkipTest("no display available")
         cls.root.withdraw()
         cls.app = _make_app()
+        # a private temp workspace — file-op tests must never touch
+        # the repo working tree (smoke apps boot with project_dir=None)
+        cls.ws = tempfile.mkdtemp(prefix="dxn1-webridge-")
+        cls.app.project_dir = cls.ws
         cls.server, cls.url, cls.token = wb.start_bridge(cls.app)
         cls.base = cls.url
 
     @classmethod
     def tearDownClass(cls):
+        import shutil
         try:
             cls.server.shutdown()
         except Exception:
@@ -51,6 +57,21 @@ class TestWebBridge(unittest.TestCase):
             cls.root.destroy()
         except Exception:
             pass
+        shutil.rmtree(getattr(cls, "ws", ""), ignore_errors=True)
+
+    def setUp(self):
+        # idempotence: earlier failures must never poison later runs
+        import shutil
+        for junk in ("wb_dir", "webridge_probe.txt", "webridge_write.txt",
+                     "webridge_new.txt"):
+            p = os.path.join(self.ws, junk)
+            if os.path.isdir(p):
+                shutil.rmtree(p, ignore_errors=True)
+            elif os.path.exists(p):
+                try:
+                    os.remove(p)
+                except OSError:
+                    pass
 
     # ---- helpers -----------------------------------------------------
     def get(self, path, token=True, raw=False):
@@ -186,6 +207,56 @@ class TestWebBridge(unittest.TestCase):
                 os.remove(os.path.join(ws, rel))
             except OSError:
                 pass
+
+    # ---- file ops (Phase-2 parity; reuse of bridge.Bridge engine) ----
+    def test_new_file_creates_and_opens(self):
+        rel = "webridge_new.txt"
+        try:
+            status, body = self.post("/api/new_file", {"path": rel})
+            self.assertEqual(status, 200)
+            self.assertEqual(body["opened"], rel)
+            ws = getattr(self.app, "project_dir", "") or os.getcwd()
+            self.assertTrue(os.path.isfile(os.path.join(ws, rel)))
+        finally:
+            try:
+                os.remove(os.path.join(
+                    getattr(self.app, "project_dir", "") or ".",
+                    rel))
+            except OSError:
+                pass
+
+    def test_new_file_refuses_workspace_escape(self):
+        status, body = self.post(
+            "/api/new_file", {"path": "../escape.txt"})
+        self.assertEqual(status, 400)
+        self.assertFalse(body["ok"])
+
+    def test_mkdir_rename_delete_roundtrip(self):
+        status, body = self.post("/api/mkdir", {"path": "wb_dir"})
+        self.assertEqual(status, 200)
+        status, body = self.post(
+            "/api/new_file", {"path": "wb_dir/inner.txt"})
+        self.assertEqual(status, 200)
+        status, body = self.post("/api/rename", {
+            "path": "wb_dir/inner.txt", "to": "wb_dir/moved.txt"})
+        self.assertEqual(status, 200)
+        ws = getattr(self.app, "project_dir", "") or os.getcwd()
+        self.assertTrue(os.path.isfile(
+            os.path.join(ws, "wb_dir", "moved.txt")))
+        # the engine refuses NON-EMPTY dirs on purpose (tested contract
+        # in test_bridge.py) — empty it, then remove the dir
+        status, body = self.post("/api/delete", {"path": "wb_dir"})
+        self.assertEqual(status, 400)
+        status, body = self.post("/api/delete", {"path": "wb_dir/moved.txt"})
+        self.assertEqual(status, 200)
+        status, body = self.post("/api/delete", {"path": "wb_dir"})
+        self.assertEqual(status, 200)
+        self.assertFalse(os.path.isdir(os.path.join(ws, "wb_dir")))
+
+    def test_delete_root_refused(self):
+        status, body = self.post("/api/delete", {"path": "."})
+        self.assertEqual(status, 400)
+        self.assertFalse(body["ok"])
 
 
 if __name__ == "__main__":

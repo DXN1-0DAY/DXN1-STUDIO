@@ -196,6 +196,43 @@ class BridgeState:
             pass
         return {"opened": path}, None
 
+    # ---- file ops (reuse the TESTED stdio engine: bridge.Bridge) ------
+    def _engine(self):
+        from .bridge import Bridge
+        if not hasattr(self, "_engine_obj"):
+            self._engine_obj = Bridge(
+                getattr(self.app, "project_dir", None) or os.getcwd())
+        return self._engine_obj
+
+    def new_file(self, path, content=""):
+        try:
+            self._engine().cmd_write_file({"path": path,
+                                           "content": content})
+        except Exception as exc:  # noqa: BLE001 — BridgeError or OSError
+            return None, str(exc)
+        return self.open_path(path)
+
+    def delete_path(self, path):
+        try:
+            self._engine().cmd_delete_path({"path": path})
+        except Exception as exc:  # noqa: BLE001 — BridgeError or OSError
+            return None, str(exc)
+        return {"deleted": path}, None
+
+    def rename_path(self, path, to):
+        try:
+            self._engine().cmd_rename_path({"from": path, "to": to})
+        except Exception as exc:  # noqa: BLE001 — BridgeError or OSError
+            return None, str(exc)
+        return {"renamed": path, "to": to}, None
+
+    def make_dir(self, path):
+        try:
+            self._engine().cmd_make_dir({"path": path})
+        except Exception as exc:  # noqa: BLE001 — BridgeError or OSError
+            return None, str(exc)
+        return {"made": path}, None
+
     def run_project(self):
         def _run():
             try:
@@ -318,6 +355,19 @@ class _Handler(BaseHTTPRequestHandler):
                 str(body.get("path") or ""), str(body.get("content") or ""))
         elif u.path == "/api/open":
             payload, err = self.state.open_path(
+                str(body.get("path") or ""))
+        elif u.path == "/api/new_file":
+            payload, err = self.state.new_file(
+                str(body.get("path") or ""),
+                str(body.get("content") or ""))
+        elif u.path == "/api/delete":
+            payload, err = self.state.delete_path(
+                str(body.get("path") or ""))
+        elif u.path == "/api/rename":
+            payload, err = self.state.rename_path(
+                str(body.get("path") or ""), str(body.get("to") or ""))
+        elif u.path == "/api/mkdir":
+            payload, err = self.state.make_dir(
                 str(body.get("path") or ""))
         elif u.path == "/api/run":
             payload, err = self.state.run_project()
