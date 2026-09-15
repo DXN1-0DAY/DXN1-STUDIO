@@ -584,7 +584,10 @@ def template_files(kind, name):
             "README.md": _README_MD.format(name=name),
         }
     if kind == "empty":
-        return {"README.md": _README_MD.format(name=name)}
+        # DS2 UI-sprint: an EMPTY workspace starts with ZERO files —
+        # the blank page is the point; the studio's own .dxn1-project
+        # marker is a dotfile and stays (hidden by every tree).
+        return {}
     return {}
 
 

@@ -6320,6 +6320,19 @@ class DXN1Studio:
         if not name:
             return
         target = os.path.join(parent, name)
+        # DS2 UI-sprint: creating never silently overwrites — an
+        # occupied name is refused with the fix named, matching the
+        # layout rename verb's honesty
+        if os.path.exists(target):
+            if file:
+                messagebox.showerror(
+                    "New File", f"{name} already exists.\n"
+                    "Pick another name — nothing was overwritten.")
+            else:
+                messagebox.showerror(
+                    "New Folder", f"{name} already exists.\n"
+                    "Pick another name — nothing was overwritten.")
+            return
         try:
             if file:
                 os.makedirs(os.path.dirname(target) or parent, exist_ok=True)

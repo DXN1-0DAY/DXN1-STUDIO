@@ -14,7 +14,7 @@ import tkinter as tk
 from tkinter import ttk
 
 from . import APP_NAME, APP_VERSION, APP_CHANNEL
-from .theme import FONT_UI, FONT_MONO
+from .theme import FONT_UI, FONT_MONO, make_scrollbar, apply_scroll_theme
 
 # directories the explorer never renders (huge / irrelevant)
 TREE_SKIP = {".git", "__pycache__", ".venv", "venv", "node_modules",
@@ -493,16 +493,10 @@ class CodeEditor(tk.Frame):
                             highlightthickness=0, wrap=tk.NONE)
         # DS2 UI-sprint: the editor finally has a vertical scrollbar —
         # wheel-only scrolling hid the position and broke long files.
-        self.yscroll = tk.Scrollbar(body, orient=tk.VERTICAL,
-                                    command=self.text.yview,
-                                    width=10, troughcolor=theme["editor"],
-                                    bg=theme["card"], activebackground=
-                                    theme.accent)
-        self.xscroll = tk.Scrollbar(body, orient=tk.HORIZONTAL,
-                                    command=self.text.xview,
-                                    width=10, troughcolor=theme["editor"],
-                                    bg=theme["card"], activebackground=
-                                    theme.accent)
+        self.yscroll = make_scrollbar(body, theme, tk.VERTICAL,
+                                      self.text.yview)
+        self.xscroll = make_scrollbar(body, theme, tk.HORIZONTAL,
+                                      self.text.xview)
         self.text.configure(yscrollcommand=self.yscroll.set,
                             xscrollcommand=self.xscroll.set)
         self.text.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
@@ -1396,11 +1390,9 @@ class Terminal(tk.Frame):
                               insertbackground=theme["text"])
         # DS2 UI-sprint: the terminal gets a real vertical scrollbar —
         # long output was wheel-only and lost past the fold.
-        self.yscroll = tk.Scrollbar(self, orient=tk.VERTICAL,
-                                    command=self.output.yview,
-                                    width=10, troughcolor=theme["terminal"],
-                                    bg=theme["card"], activebackground=
-                                    theme.accent)
+        self.yscroll = make_scrollbar(self, theme, tk.VERTICAL,
+                                      self.output.yview,
+                                      trough=theme["terminal"])
         self.output.configure(yscrollcommand=self.yscroll.set)
         self.output.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
         self.yscroll.pack(side=tk.RIGHT, fill=tk.Y)

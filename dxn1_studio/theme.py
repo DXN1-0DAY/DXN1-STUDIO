@@ -116,6 +116,56 @@ class Theme:
         return f"Theme(mode={self.mode!r}, accent={self.accent_name!r})"
 
 
+# ---------------------------------------------------------------------------
+# DS2 UI-sprint design system — scrollbars, one recipe everywhere.
+# The fleet used to build scrollbars ad hoc (default grey, chunky,
+# theme-blind). Every scrollbar in the studio comes from here now.
+# ---------------------------------------------------------------------------
+
+SB_WIDTH = 10          # thin, modern — the default 15px reads 1995
+SB_ARROW_SIZE = 11
+
+
+def scrollbar_kwargs(theme, trough=None, thumb=None):
+    """Keyword args for a themed tk.Scrollbar (the design-system look)."""
+    return dict(
+        width=SB_WIDTH,
+        troughcolor=trough or theme["editor"],
+        bg=thumb or theme["card"],
+        activebackground=theme.accent,
+        bd=0,
+        highlightthickness=0,
+        elementborderwidth=0,
+    )
+
+
+def make_scrollbar(parent, theme, orient, command, trough=None):
+    """A themed tk.Scrollbar — the ONLY way to build one in DS2."""
+    import tkinter as _tk
+    return _tk.Scrollbar(parent, orient=orient, command=command,
+                         **scrollbar_kwargs(theme, trough=trough))
+
+
+def apply_scroll_theme(style, theme, prefix="TS2"):
+    """Register the ttk scrollbar styles (Vertical/Horizontal) under
+    `prefix` — modules using ttk.Scrollbar pass
+    ``style=prefix + ".Vertical.TScrollbar"`` to inherit the look."""
+    style.configure(f"{prefix}.Vertical.TScrollbar",
+                    troughcolor=theme["editor"], background=theme["card"],
+                    activebackground=theme.accent, borderwidth=0,
+                    arrowsize=SB_ARROW_SIZE, gripcount=0)
+    style.configure(f"{prefix}.Horizontal.TScrollbar",
+                    troughcolor=theme["editor"], background=theme["card"],
+                    activebackground=theme.accent, borderwidth=0,
+                    arrowsize=SB_ARROW_SIZE, gripcount=0)
+    style.map(f"{prefix}.Vertical.TScrollbar",
+              background=[("active", theme.accent),
+                          ("pressed", theme.accent)])
+    style.map(f"{prefix}.Horizontal.TScrollbar",
+              background=[("active", theme.accent),
+                          ("pressed", theme.accent)])
+
+
 def from_config(config):
     theme = Theme(config.get("theme", "dark"), config.get("accent", "violet"))
     # DS2: community/custom theme support — a stored palette override
