@@ -143,6 +143,10 @@
             <span class="hc-ico">▶</span><b>Play the demo</b>
             <small>Spark runs in your browser</small>
           </button>
+          <button class="hero-card" id="hero-play2">
+            <span class="hc-ico">⇉</span><b>Play level 2</b>
+            <small>movers, magnet &amp; a goal</small>
+          </button>
           <button class="hero-card" id="hero-open">
             <span class="hc-ico">⌂</span><b>Open Folder</b>
             <small>start from any project</small>
@@ -190,7 +194,9 @@
         <span class="fb-hint">Enter to jump · Esc to close</span>
         <button id="goto-close" class="mini" title="Close (Esc)">✕</button>
       </div>
+      <div id="crumbs" class="hidden" aria-label="Breadcrumb"></div>
       <div id="editor-stack" class="mm-on">
+        <div id="ac-pop" class="hidden" aria-label="Completions"></div>
         <div id="curline" aria-hidden="true"></div>
         <div id="gutter" aria-hidden="true"></div>
         <pre id="highlight" aria-hidden="true"></pre>

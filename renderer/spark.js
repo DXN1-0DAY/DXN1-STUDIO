@@ -38,6 +38,7 @@ const Spark = (() => {
       name: "playground",
       bg: "#0b0e1a",
       gravity: 1500,
+      magnet: 110,          // coins drift toward the player inside this radius
       camera: { x: 0, y: 0, zoom: 1 },
       entities: [
         { name: "player", x: 90, y: 300, w: 34, h: 44, color: "#8b5cf6",
@@ -74,6 +75,7 @@ const Spark = (() => {
       name: "level-2",
       bg: "#0d0b1c",
       gravity: 1500,
+      magnet: 140,          // bigger magnet — the movers make you earn it
       camera: { x: 0, y: 0, zoom: 1 },
       entities: [
         { name: "player", x: 80, y: 330, w: 34, h: 44, color: "#8b5cf6",
@@ -191,8 +193,9 @@ const Spark = (() => {
       this._raf = 0;
       this._last = 0;
       this._acc = 0;
-      this._shakeT = 0;            // camera shake
-      this._shakeP = 0;
+      this._shakeT = 0;            // camera shake — seconds left
+      this._shakeP = 0;            // …and its power (px)
+      this._shakeD = 1;            // …and the duration it decays over
       this._sounds = [];           // sound events this frame (QA-able)
       const pl = this.scene.entities.find((e) => e.tag === "player");
       this._spawn = { x: pl ? pl.x : 90, y: pl ? pl.y : 300 };
@@ -208,6 +211,7 @@ const Spark = (() => {
         name: String(s.name || "scene"),
         bg: String(s.bg || "#0b0e1a"),
         gravity: Number(s.gravity ?? 1500),
+        magnet: Math.max(0, Number(s.magnet) || 0),  // coin magnet radius, px
         camera: { x: Number(cam.x) || 0, y: Number(cam.y) || 0,
                   zoom: Math.min(4, Math.max(0.3, Number(cam.zoom) || 1)) },
         entities: (Array.isArray(s.entities) ? s.entities : [])
@@ -231,6 +235,13 @@ const Spark = (() => {
     }
 
     // -------------------------------------------------- editor helpers
+    // camera shake — cosmetic only, never touches the camera itself
+    shake(power = 8, dur = 0.35) {
+      this._shakeP = Math.max(0, Math.min(40, Number(power) || 0));
+      this._shakeD = Math.max(0.05, Number(dur) || 0.05);
+      this._shakeT = this._shakeD;
+    }
+
     screenToWorld(sx, sy) {
       const cam = this.scene.camera;
       const r = this.canvas.getBoundingClientRect();
@@ -331,6 +342,7 @@ const Spark = (() => {
           if (e.y > this._worldBottom() + 400) {
             e.x = this._spawn.x; e.y = this._spawn.y; e.vx = e.vy = 0;
             this._flash("ouch — respawned");
+            this.shake(6, 0.3);
           }
         } else if (e.tag === "ball") {
           // demo ball keeps itself company: perpetual gentle bounce
@@ -354,8 +366,27 @@ const Spark = (() => {
       }
 
       // --- tag events (player -> coin etc.) ---------------------------
+      // camera shake decays with time, not frames
+      if (this._shakeT > 0) this._shakeT = Math.max(0, this._shakeT - dt);
+
       const player = ents.find((e) => e.tag === "player");
       if (player) {
+        // coin magnetism — scene.magnet radius; pull grows as coins close in
+        const mag = this.scene.magnet || 0;
+        if (mag > 0) {
+          const pcx = player.x + player.w / 2, pcy = player.y + player.h / 2;
+          for (const c of ents) {
+            if (c.tag !== "coin" || !c.alive) continue;
+            const dx = pcx - (c.x + c.w / 2), dy = pcy - (c.y + c.h / 2);
+            const d = Math.hypot(dx, dy);
+            if (d < mag && d > 1) {
+              const pull = (1 - d / mag) * 360 * dt;   // stronger when closer
+              c.x += (dx / d) * pull;
+              c.y += (dy / d) * pull;
+              c._mag = true;
+            } else c._mag = false;
+          }
+        }
         for (const other of ents) {
           if (other === player || !other.alive || !other.tag) continue;
           if (other.tag === "coin" && this._aabb(player, other)) {
@@ -371,6 +402,7 @@ const Spark = (() => {
             player.vx = player.vy = 0;
             this._flash("ouch — spike!");
             this.sfx.hit();
+            this.shake(10, 0.4);
             if (this.hooks.onHit) this.hooks.onHit();
           }
           if (other.tag === "goal" && !this._transLock &&
@@ -379,6 +411,7 @@ const Spark = (() => {
             this._burst(player, "#34d399", 24);
             this._flash(this.scene.next ? "LEVEL CLEAR!" : "GOAL! — you win");
             this.sfx.goal();
+            this.shake(4, 0.25);
             if (this.hooks.onTransition) {
               this.hooks.onTransition(this.scene.next, this);
             }
@@ -511,7 +544,14 @@ const Spark = (() => {
 
       ctx.save();
       ctx.scale(z, z);
-      ctx.translate(-cam.x, -cam.y);
+      // shake offset — random jitter scaled by remaining fraction of duration
+      let shx = 0, shy = 0;
+      if (this._shakeT > 0 && this.running) {
+        const k = this._shakeP * (this._shakeT / this._shakeD);
+        shx = (Math.random() * 2 - 1) * k;
+        shy = (Math.random() * 2 - 1) * k;
+      }
+      ctx.translate(-cam.x + shx, -cam.y + shy);
       const viewW = canvas.width / z, viewH = canvas.height / z;
 
       // editor grid — only while editing (the game never sees it)
@@ -549,6 +589,14 @@ const Spark = (() => {
             ctx.fillStyle = "rgba(255,255,255,.35)";
             ctx.fillRect(e.x + e.w / 2 + Math.cos(t) * e.w / 4,
                          e.y + e.h / 4, 2, e.h / 2);
+            if (e._mag) {            // magnetized — ring tell
+              ctx.strokeStyle = "rgba(251,191,36,.8)";
+              ctx.lineWidth = 1.5 / z;
+              ctx.beginPath();
+              ctx.arc(e.x + e.w / 2, e.y + e.h / 2,
+                      Math.min(e.w, e.h) / 2 + 4 / z, 0, Math.PI * 2);
+              ctx.stroke();
+            }
           }
         } else if (e.shape === "triangle") {
           const drawTri = (px, py) => {

@@ -493,6 +493,22 @@ function renderTabs() {
     bar.appendChild(el);
   }
   $("st-file").textContent = ACTIVE || "";
+  renderCrumbs();
+}
+
+/* breadcrumbs — where am I, one click per segment */
+function renderCrumbs() {
+  const bar = $("crumbs");
+  if (!bar) return;
+  if (!ACTIVE) { bar.classList.add("hidden"); bar.innerHTML = ""; return; }
+  bar.classList.remove("hidden");
+  const parts = ACTIVE.split("/");
+  bar.innerHTML = parts.map((p, i) =>
+    `<span class="crumb${i === parts.length - 1 ? " leaf" : ""}"` +
+    ` data-pth="${esc(parts.slice(0, i + 1).join("/"))}"` +
+    ` title="${esc(parts.slice(0, i + 1).join("/"))}">${esc(p)}</span>` +
+    (i < parts.length - 1 ? `<span class="crumb-sep">›</span>` : "")
+  ).join("");
 }
 
 async function closeTab(path) {
@@ -764,12 +780,129 @@ function editorChanged() {
   if (tab && !tab.dirty) { tab.dirty = true; renderTabs(); }
 }
 
+/* ============================================================
+   WORD AUTOCOMPLETE — Ctrl+Space, current-file words only
+   ============================================================ */
+let AC = { open: false, items: [], sel: 0, start: 0, end: 0 };
+
+function acWords(text) {                     // word -> frequency
+  const counts = new Map();
+  const re = /[A-Za-z_][A-Za-z0-9_]{2,}/g;
+  let m;
+  while ((m = re.exec(text))) counts.set(m[0], (counts.get(m[0]) || 0) + 1);
+  return counts;
+}
+
+function acCurrentWord(ta) {
+  const pos = ta.selectionStart;
+  const m = ta.value.slice(0, pos).match(/[A-Za-z0-9_]*$/);
+  return { word: m[0], start: pos - m[0].length, end: pos };
+}
+
+function acCompute() {
+  const ta = $("editor");
+  const { word, start, end } = acCurrentWord(ta);
+  const prefix = word.toLowerCase();
+  const items = [...acWords(ta.value).entries()]
+    .filter(([w]) => w.toLowerCase() !== prefix &&
+                     w.toLowerCase().startsWith(prefix))
+    .sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]))
+    .slice(0, 8).map(([w]) => w);
+  return { items, start, end };
+}
+
+function acOpen() {
+  const ta = $("editor");
+  if (!ACTIVE || document.activeElement !== ta) return;
+  const { items, start, end } = acCompute();
+  if (!items.length) { acClose(); return say("no completions here"); }
+  AC = { open: true, items, sel: 0, start, end };
+  acRender();
+  acPlace(ta, start);
+  say(items.length + " completions — ↑↓ pick, Enter accept");
+}
+
+function acRefresh() {                       // still relevant after typing?
+  if (!AC.open) return;
+  const { items, start, end } = acCompute();
+  if (!items.length) return acClose();
+  AC.items = items; AC.sel = 0; AC.start = start; AC.end = end;
+  acRender();
+  acPlace($("editor"), start);
+}
+
+function acClose() {
+  AC.open = false;
+  const pop = $("ac-pop");
+  if (pop) pop.classList.add("hidden");
+}
+
+function acRender() {
+  const pop = $("ac-pop");
+  pop.innerHTML = AC.items.map((w, i) =>
+    `<div class="ac-item${i === AC.sel ? " sel" : ""}" data-i="${i}">` +
+    `${esc(w)}</div>`).join("");
+  pop.classList.remove("hidden");
+}
+
+function acAccept() {
+  const ta = $("editor");
+  const w = AC.items[AC.sel];
+  if (!w) return acClose();
+  ta.setRangeText(w, AC.start, AC.end, "end");
+  acClose();
+  editorChanged();
+  ta.focus();
+}
+
+// place the popup under the caret — mirror div measures the exact spot
+function acPlace(ta, charIndex) {
+  const st = getComputedStyle(ta);
+  const mir = document.createElement("div");
+  for (const p of ["fontFamily", "fontSize", "fontWeight", "lineHeight",
+    "letterSpacing", "wordSpacing", "tabSize", "whiteSpace", "wordBreak",
+    "padding", "borderWidth", "boxSizing"]) mir.style[p] = st[p];
+  mir.style.position = "absolute";
+  mir.style.visibility = "hidden";
+  mir.style.width = ta.clientWidth + "px";
+  mir.textContent = ta.value.slice(0, charIndex);
+  const mark = document.createElement("span");
+  mark.textContent = "\u200b";
+  mir.appendChild(mark);
+  $("editor-stack").appendChild(mir);
+  const x = mark.offsetLeft - ta.scrollLeft;
+  const y = mark.offsetTop + (parseFloat(st.lineHeight) || 22) - ta.scrollTop;
+  mir.remove();
+  const pop = $("ac-pop");
+  const stack = $("editor-stack");
+  pop.style.left = Math.max(6, Math.min(x, stack.clientWidth - 190)) + "px";
+  pop.style.top = Math.min(y + 2, stack.clientHeight - 36) + "px";
+}
+
 // bracket/quote auto-close + selection wrap — small, honest, fast
 const PAIRS = { "(": ")", "[": "]", "{": "}", '"': '"', "'": "'", "`": "`" };
 const CLOSERS = new Set(Object.values(PAIRS));
 
 function editorKeydown(e) {
   const ta = $("editor");
+  // autocomplete owns keys while it is open
+  if (AC.open) {
+    if (e.key === "ArrowDown") {
+      e.preventDefault(); AC.sel = (AC.sel + 1) % AC.items.length; acRender(); return;
+    }
+    if (e.key === "ArrowUp") {
+      e.preventDefault();
+      AC.sel = (AC.sel - 1 + AC.items.length) % AC.items.length;
+      acRender(); return;
+    }
+    if (e.key === "Enter" || e.key === "Tab") {
+      e.preventDefault(); acAccept(); return;
+    }
+    if (e.key === "Escape") { e.preventDefault(); acClose(); return; }
+  }
+  if (e.ctrlKey && !e.shiftKey && !e.altKey && e.code === "Space") {
+    e.preventDefault(); acOpen(); return;      // Ctrl+Space — complete word
+  }
   if (e.key === "Tab") {                    // 2-space indent, always ours
     e.preventDefault();
     const s = ta.selectionStart, epos = ta.selectionEnd;
@@ -1536,16 +1669,31 @@ async function runSearch(q) {
         }
       } catch {}
     }
+    // group by file — a wall of interleaved paths helps nobody
+    const byFile = new Map();
     for (const h of hits) {
-      const el = document.createElement("div");
-      el.className = "sr-item";
-      const marked = esc(h.text.trim().slice(0, 120))
-        .replace(new RegExp(esc(q).replace(/[.*+?^${}()|[\]\\]/g, "\\$&"), "gi"),
-                 (m) => `<b>${m}</b>`);
-      el.innerHTML = `<div class="p">${esc(h.path)}:${h.line}</div>` +
-                     `<div class="l">${marked}</div>`;
-      el.onclick = () => openPath(h.path);
-      host.appendChild(el);
+      if (!byFile.has(h.path)) byFile.set(h.path, []);
+      byFile.get(h.path).push(h);
+    }
+    for (const [path, group] of byFile) {
+      const head = document.createElement("div");
+      head.className = "sr-file";
+      head.title = "open " + path;
+      head.innerHTML = `<span class="fp">${esc(path)}</span>` +
+                       `<span class="sr-count">${group.length}</span>`;
+      head.onclick = () => openPath(path);
+      host.appendChild(head);
+      for (const h of group) {
+        const el = document.createElement("div");
+        el.className = "sr-item";
+        const marked = esc(h.text.trim().slice(0, 120))
+          .replace(new RegExp(esc(q).replace(/[.*+?^${}()|[\]\\]/g, "\\$&"), "gi"),
+                   (m) => `<b>${m}</b>`);
+        el.innerHTML = `<div class="p">line ${h.line}</div>` +
+                       `<div class="l">${marked}</div>`;
+        el.onclick = () => openPath(h.path);
+        host.appendChild(el);
+      }
     }
     say(`${hits.length} result${hits.length === 1 ? "" : "s"} for “${q}”`);
   } catch (e) { say("search failed: " + e.message); }
@@ -1831,6 +1979,22 @@ const TERM_VERBS = {
       }
     } catch (e) { termPrint("git: " + e.message); }
   },
+  log: async () => {                 // full history, one line per commit
+    try {
+      const lg = await api("git_log", {});
+      const cs = lg.commits || [];
+      if (!cs.length) return termPrint("no commits yet on this branch");
+      for (const c of cs) termPrint(`${c.hash} ${c.subject} (${c.when})`);
+    } catch (e) { termPrint("log: " + e.message); }
+  },
+  status: async () => {              // just the branch + what changed
+    try {
+      const st = await api("git_status", {});
+      termPrint(`⑂ ${st.branch}${st.ahead ? " ↑" + st.ahead : ""} — ` +
+        (st.clean ? "working tree clean"
+                  : st.files.map((f) => f.x + " " + f.path).join("\n       ")));
+    } catch (e) { termPrint("status: " + e.message); }
+  },
   zoom: (a) => {
     if (!GAME) return termPrint("(no scene open)");
     const cam = GAME.scene.camera;
@@ -1989,6 +2153,8 @@ function wire() {
   // editor
   const ed = $("editor");
   ed.addEventListener("input", editorChanged);
+  ed.addEventListener("input", () => acRefresh());   // keep list in step
+  ed.addEventListener("blur", () => setTimeout(acClose, 120)); // click-away
   ed.addEventListener("keydown", editorKeydown);
   ed.addEventListener("contextmenu", (e) => { e.preventDefault(); editorCtxMenu(e); });
   ed.addEventListener("keyup", updatePos);
@@ -2120,6 +2286,16 @@ function wire() {
   $("hero-play").onclick = async () => {
     await openScene("scenes/playground.dxn1.json");
     if (!GAME.running) playScene();
+  };
+  $("hero-play2").onclick = async () => {
+    await openScene("scenes/level-2.dxn1.json");
+    if (!GAME.running) playScene();
+  };
+  $("crumbs").onclick = (e) => {
+    const seg = e.target.closest(".crumb");
+    if (!seg) return;
+    say(seg.dataset.pth);
+    if (!seg.classList.contains("leaf")) switchPanel("explorer");
   };
   $("hero-open").onclick = openFolder;
   $("hero-scene").onclick = newScene;

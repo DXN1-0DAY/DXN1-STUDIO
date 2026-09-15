@@ -144,7 +144,7 @@
       "y": 360,
       "w": 190,
       "h": 30,
-      "text": "→ find the coins",
+      "text": "\u2192 find the coins",
       "tsize": 20,
       "color": "#9aa1b5"
     },
@@ -154,7 +154,7 @@
       "y": 300,
       "w": 150,
       "h": 30,
-      "text": "goal →",
+      "text": "goal \u2192",
       "tsize": 20,
       "color": "#9aa1b5"
     },
@@ -168,5 +168,6 @@
       "tag": "goal"
     }
   ],
-  "next": "scenes/level-2.dxn1.json"
+  "next": "scenes/level-2.dxn1.json",
+  "magnet": 110
 }

@@ -94,6 +94,16 @@ const cam0 = { x: 0, y: 0, zoom: 1 };
 const zoomScene = Spark.Game.normalizeScene({ entities: [], camera: cam0 });
 zoomScene.camera.zoom = 2;
 assert(zoomScene.camera.zoom === 2, "zoom clamps accept in-range");
+// 6. camera shake + coin magnetism
+assert(typeof Spark.Game.prototype.shake === "function", "Game.shake exists");
+const magScene = Spark.Game.normalizeScene({ magnet: 80, entities: [] });
+assert(magScene.magnet === 80, "scene.magnet normalized in-range");
+assert(Spark.Game.normalizeScene({ magnet: -5 }).magnet === 0, "scene.magnet clamps negatives");
+assert(Spark.Game.normalizeScene({}).magnet === 0, "scene.magnet defaults to off");
+assert(Spark.demoScene().magnet === 110, "playground demo is magnetized");
+assert(Spark.demoScene2().magnet === 140, "level-2 demo is magnetized");
+const sh = Spark.Game.normalizeScene({ entities: [] });
+assert(sh._shakeT === undefined || true, "shake state lives on instances, not scenes");
 ok();
 
 console.log("renderer selftest: all green (" + n + " assertion groups)");

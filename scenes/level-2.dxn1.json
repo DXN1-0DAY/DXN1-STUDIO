@@ -126,5 +126,6 @@
       "tag": "goal"
     }
   ],
-  "next": "scenes/playground.dxn1.json"
+  "next": "scenes/playground.dxn1.json",
+  "magnet": 140
 }
