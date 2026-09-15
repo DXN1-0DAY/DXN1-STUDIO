@@ -296,6 +296,7 @@ async function openFile(path, quiet = false) {
   currentFile = r.file.path;
   $("editor").value = r.file.content;
   dirtyLocal = false;
+  SNIP_SESS = null;   // a new file ends any hop session
   $("st-file").textContent = currentFile;
   renderGutter();
   renderHighlight();
@@ -492,6 +493,7 @@ const WEB_CMDS = [
    ~/.dxn1-studio/snippets.json). Expansion happens LOCALLY: Tab is
    zero-latency and works even if the bridge blinks mid-keystroke. */
 let SNIPS = null, SNIPS_LANG = null, SNIP_CMDS = [];
+let SNIP_SESS = null;   // active Tab-hop session (stops are absolute)
 let BASE_CMDS = WEB_CMDS;
 
 async function loadSnippets() {
@@ -555,15 +557,69 @@ function insertSnippet(ta, prefix, body) {
   const { text, stops } = snipExpand(body, indent);
   const base = s - prefix.length;
   ta.value = before.slice(0, base) + text + ta.value.slice(en);
-  if (stops.length) {
-    ta.selectionStart = base + stops[0].s;
-    ta.selectionEnd = base + stops[0].e;
+  const abs = stops.map(st =>
+    ({ s: base + st.s, e: base + st.e, w: st.e - st.s }));
+  if (abs.length) {
+    ta.selectionStart = abs[0].s;
+    ta.selectionEnd = abs[0].e;
   } else {
     ta.selectionStart = ta.selectionEnd = base + text.length;
   }
+  // snippet session: Tab hops forward, Shift+Tab back (sequential
+  // filling is exact — drift correction covers edits over stops)
+  SNIP_SESS = abs.length > 1
+    ? { stops: abs, idx: 0, drift: 0, len: ta.value.length }
+    : null;
   dirtyLocal = true; renderHighlight(); renderGutter(); updatePos();
   renderMinimap();
   toast("✂ " + (prefix || "snippet"));
+}
+
+// hop to stop `to` (an index into SESS.stops) applying the drift
+// the user introduced while filling earlier stops
+function snipHop(ta, sess, to) {
+  const st = sess.stops[to];
+  // a stop we have LEFT before keeps its recorded absolute position
+  // (drift moved past it); a never-left stop uses live drift
+  const target = (st.pos !== undefined) ? st.pos : st.s + sess.drift;
+  ta.selectionStart = target;
+  ta.selectionEnd = target +
+    (st.w !== undefined ? st.w : st.e - st.s);
+  sess.idx = to;
+}
+
+// returns true if the Tab was consumed by an active snippet session
+function snipSessionTab(ta, back) {
+  const sess = SNIP_SESS;
+  if (!sess) return false;
+  const nxt = sess.idx + (back ? -1 : 1);
+  if (nxt < 0) return true;              // stay on the first stop
+  if (nxt >= sess.stops.length) {        // last stop — exit the
+    const last = sess.stops[sess.idx];   // snippet like VS Code: the
+    const end = (last.pos !== undefined // caret collapses at the end
+                 ? last.pos             // of the last fill; another
+                 : last.s + sess.drift) // Tab then indents cleanly
+               + (last.w !== undefined ? last.w : last.e - last.s);
+    ta.selectionStart = ta.selectionEnd = end;
+    SNIP_SESS = null;
+    return true;
+  }
+  // EXACT drift: whatever the user did since the last hop shifted
+  // every later stop by the textarea's length change (sequential
+  // filling never edits past the stop being filled)
+  // remember the fill width we are leaving so Shift+Tab re-selects
+  // the user's text, not the original placeholder (caret strictly
+  // inside the fill means real typing — an untouched re-forward
+  // keeps the recorded width)
+  const left = sess.stops[sess.idx];
+  const fillStart = left.s + sess.drift;   // drift AT ARRIVAL
+  if (ta.selectionStart > fillStart)
+    left.w = ta.selectionStart - fillStart;
+  left.pos = fillStart;                    // freeze the position
+  sess.drift += ta.value.length - sess.len;
+  sess.len = ta.value.length;
+  snipHop(ta, sess, nxt);
+  return true;
 }
 
 function snipFromPalette(prefix, body) {
@@ -665,9 +721,10 @@ window.addEventListener("mouseup", () => { miniScrubbing = false; });
 window.addEventListener("resize", renderMinimap);
 $("editor").addEventListener("keydown", (e) => {
   if ((e.ctrlKey || e.metaKey) && e.key === "s") { e.preventDefault(); saveFile(); }
-  if (e.key === "Tab") {  // snippet first, real indent otherwise
+  if (e.key === "Tab") {  // session hop → snippet → real indent
     e.preventDefault();
     const ta = e.target, s = ta.selectionStart, en = ta.selectionEnd;
+    if (snipSessionTab(ta, e.shiftKey)) { updatePos(); return; }
     const wm = SNIPS && s === en
       ? /([A-Za-z_]\w*)$/.exec(ta.value.slice(0, s)) : null;
     const snip = wm && SNIPS.find(x => x.prefix === wm[1]);
@@ -675,6 +732,10 @@ $("editor").addEventListener("keydown", (e) => {
     ta.value = ta.value.slice(0, s) + "    " + ta.value.slice(en);
     ta.selectionStart = ta.selectionEnd = s + 4;
     dirtyLocal = true; renderHighlight(); renderGutter();
+  }
+  if (e.key === "Escape") {   // end hop session, collapse leftover
+    SNIP_SESS = null;         // selection so Tab cannot eat it
+    ta.selectionStart = ta.selectionEnd;
   }
 });
 $("btn-run").onclick = async () => {
