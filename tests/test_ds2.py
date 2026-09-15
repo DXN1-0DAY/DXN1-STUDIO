@@ -6859,3 +6859,92 @@ def test_lang_check(tmp_path):
         except tk.TclError:
             pass
         monkeypatch.undo()
+
+
+def test_desk_fit(tmp_path):
+    """DS2 v2.59 — the desk grows to fit: the v2.55 ActionsMenu
+    pattern applied across the pack windows — the desk opens no
+    narrower than what it actually packed (a long meter or hint
+    bar must not clip at 680px), the live preview ratchets OUT to
+    fit a translated string longer than the 440px it opened at and
+    never shrinks back (a manual resize is never fought), and the
+    chooser prints every number — the honest ledger's real_pct
+    riding along on each row, the way the audit prints them. The
+    audit's closing lines name the whole verb family."""
+    import tkinter as tk
+    try:
+        root = tk.Tk(); root.withdraw()
+    except tk.TclError:
+        return
+    import os
+    import pytest
+    import dxn1_studio.config as cfgmod
+    from dxn1_studio import i18n as i18nmod
+    from dxn1_studio import langedit as le
+    monkeypatch = pytest.MonkeyPatch()
+    monkeypatch.setattr(cfgmod, "CONFIG_DIR", str(tmp_path / "cfg"))
+    monkeypatch.setattr(cfgmod, "CONFIG_PATH",
+                        str(tmp_path / "cfg" / "config.json"))
+    monkeypatch.setenv("HOME", str(tmp_path / "home"))
+    monkeypatch.setattr(i18nmod, "LANG_DIR", str(tmp_path / "homelang"))
+    from dxn1_studio.app import DXN1Studio
+    app = DXN1Studio(cfgmod.Config(), smoke_test=True, no_splash=True)
+    try:
+        app.root.update()
+        # the chooser prints every number
+        app.handle_terminal_command("lang edit")
+        app.root.update()
+        chooser = [w for w in app.root.winfo_children()
+                   if isinstance(w, le.PackChooser)][0]
+        labels = [w.cget("text") for w in
+                  chooser._rows_frame.winfo_children()]
+        es_row = [t for t in labels if t.startswith("es ")][0]
+        assert "100% real" in es_row, es_row
+        chooser._close()
+        app.root.update()
+        # the desk opens no narrower than what it packed
+        app.handle_terminal_command("lang edit es")
+        app.root.update()
+        desk = [w for w in app.root.winfo_children()
+                if isinstance(w, le.PackEditor)][0]
+        app.root.update()
+        assert desk.winfo_width() >= 680
+        assert desk.winfo_width() >= desk.winfo_reqwidth() - 2
+        # the preview ratchets out and never shrinks back
+        desk.work["menu.file"] = "X" * 120
+        pv = desk._open_preview()
+        app.root.update()
+        grown = pv.winfo_width()
+        assert grown > 440, (grown, pv.winfo_reqwidth())
+        assert pv.winfo_width() >= pv.winfo_reqwidth() - 2
+        desk.work["menu.file"] = "Sí"
+        pv.refresh()
+        app.root.update()
+        assert pv.winfo_width() >= grown - 2, (grown,
+                                               pv.winfo_width())
+        assert pv._fit_w >= grown - 2          # the ratchet holds
+        desk._close()
+        app.root.update()
+        # the audit names the whole verb family
+        logs = []
+        app.terminal.log = lambda m, *a, **k: logs.append(str(m))
+        app.handle_terminal_command("lang audit")
+        blob = "\n".join(logs)
+        assert "lang check <file>" in blob and "lang pack <code>" in blob
+        # source agreement
+        base = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+        with open(os.path.join(base, "dxn1_studio", "langedit.py"),
+                  encoding="utf-8") as fh:
+            lesrc = fh.read()
+        assert "def _fit_once" in lesrc and "def _fit(" in lesrc
+        assert "%d%% real" in lesrc
+    finally:
+        try:
+            app.root.destroy()
+        except tk.TclError:
+            pass
+        try:
+            root.destroy()
+        except tk.TclError:
+            pass
+        monkeypatch.undo()

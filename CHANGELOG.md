@@ -4,6 +4,32 @@ All notable changes to DXN1 STUDIO. Format based on
 [Keep a Changelog](https://keepachangelog.com/); versioning is
 `MAJOR.MINOR.PATCH` while in **beta**.
 
+## [2.59.0] — 2026-09-15 · beta · "the desk grows to fit" (width accounting across the pack windows + the chooser prints every number)
+
+### Added
+- **The chooser prints every number** — the desk's door now speaks
+  the honest ledger: every pack row reads `code · name · kind ·
+  coverage · N% real`, the same numbers the audit prints, so a
+  seeded pack cannot look finished at the door. Unreadable packs
+  keep their `· unreadable` note instead.
+
+### Changed
+- **The desk grows to fit** — the v2.55 ActionsMenu pattern, desk
+  edition: the desk opens no narrower than what it actually packed
+  (`_fit_once()`), so a long meter, hint bar or translated header
+  wins over the 680px default instead of clipping at the right
+  edge. One-time at open; after that the window is the user's to
+  resize.
+- **The preview ratchets out** — the live preview re-measures
+  itself on every refresh (`_fit()`): a translated string longer
+  than the 440px it opened at pushes the window out to fit, and
+  the ratchet never shrinks back — a manual resize is never
+  fought, and a clipped preview can no longer lie about the pack.
+- **The audit names the whole verb family** — the closing lines
+  now point at `lang check <file>` and `lang pack <code>` beside
+  `lang diff <code>`: check before importing, export without
+  opening the desk.
+
 ## [2.58.0] — 2026-09-15 · beta · "the pack gets a checkup" (validate before sharing + the terminal export verb)
 
 ### Added

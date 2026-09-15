@@ -383,6 +383,11 @@ class PackEditor(tk.Toplevel):
         except Exception:  # noqa: BLE001 — garnish
             self._hintbar = None
 
+        # DS2 v2.59 — open no narrower than what it actually packed
+        # (the v2.55 ActionsMenu pattern, desk edition): a long
+        # meter or hint bar must not clip at a fixed width
+        self._fit_once()
+
         self._refresh()
         self._log("translation desk open for '%s' — %s"
                   % (self.code, self._meter_text()))
@@ -392,6 +397,18 @@ class PackEditor(tk.Toplevel):
             pass
 
     # ---------------------------------------------------------- build
+    def _fit_once(self):
+        """DS2 v2.59 — the desk opens no narrower than what it
+        actually packed: the requested width wins over the 680px
+        default when the content asks for more. One-time, at open;
+        after that the window is the user's to resize."""
+        try:
+            self.update_idletasks()
+            w = max(680, self.winfo_reqwidth())
+            self.geometry("%dx560" % w)
+        except Exception:  # noqa: BLE001 — garnish must not bite
+            pass
+
     def _build_header(self):
         t = self.theme
         head = tk.Frame(self, bg=t["bg"])
@@ -950,6 +967,7 @@ class PackPreview(tk.Toplevel):
             self._hintbar = hints.hint_bar(self, t)
         except Exception:  # noqa: BLE001 — garnish
             self._hintbar = None
+        self._fit()
 
     def _build(self):
         t = self.theme
@@ -1011,7 +1029,27 @@ class PackPreview(tk.Toplevel):
                                    else t["text_secondary"],
                                    font=(FONT_UI, 9), padx=8, pady=3)
                     lab.pack(side=tk.LEFT)
+            self._fit()
         except Exception:  # noqa: BLE001 — a preview never bites
+            pass
+
+    def _fit(self):
+        """DS2 v2.59 — the v2.55 ActionsMenu pattern, preview
+        edition: a translated string can run longer than the 440px
+        the window opened at, and a clipped preview would lie about
+        the pack. The window ratchets OUT to fit whatever it
+        actually packed — and never shrinks back, so a manual
+        resize is never fought."""
+        try:
+            self.update_idletasks()
+            self._fit_w = max(440, self.winfo_reqwidth(),
+                              getattr(self, "_fit_w", 0),
+                              self.winfo_width())
+            self._fit_h = max(380, self.winfo_reqheight(),
+                              getattr(self, "_fit_h", 0),
+                              self.winfo_height())
+            self.geometry("%dx%d" % (self._fit_w, self._fit_h))
+        except Exception:  # noqa: BLE001 — garnish must not bite
             pass
 
     def _close(self):
@@ -1115,6 +1153,16 @@ class PackChooser(tk.Toplevel):
                          % (s["code"], s["name"], kind, s["pct"]))
                 if s["error"]:
                     label += " · unreadable"
+                else:
+                    # DS2 v2.59 — the honest ledger rides along in
+                    # the door: one row, every number, the way the
+                    # audit prints them (coverage can flatter a
+                    # seeded pack; real_pct cannot)
+                    try:
+                        label += (" · %d%% real"
+                                  % pack_diff(s["code"])["real_pct"])
+                    except Exception:  # noqa: BLE001 — garnish
+                        pass
                 row = tk.Label(self._rows_frame, text=label,
                                bg=t["card"], fg=t["text"],
                                cursor="hand2", font=(FONT_UI, 9),

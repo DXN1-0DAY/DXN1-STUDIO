@@ -3924,6 +3924,10 @@ class DXN1Studio:
                     "real = strings that differ from the English "
                     "source — coverage can flatter a seeded pack "
                     "(lang diff <code> names the seeds)")
+                self.terminal.log(
+                    "a pack file answers before it is imported "
+                    "(lang check <file>) and leaves as one "
+                    "(lang pack <code>)")
                 return
             codes = _i18n.available()
             if not arg:
