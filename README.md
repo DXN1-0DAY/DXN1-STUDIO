@@ -68,7 +68,8 @@ respawn you with a camera shake, movers carry you across the gaps — and the
 HUD counts it all: `COINS x/y · SCORE · TIME`, scene name on the right.
 Level-3 goes vertical — two lifts, a springboard shortcut and a gradient
 summit. Level-4 is the exam: nine fangs, three ferries, a saw-guarded island
-and a spinning gate before the last door.
+and a spinning gate before the last door. The full walkthrough lives in the
+[campaign field guide](docs/CAMPAIGN.md).
 
 ## Play
 
@@ -145,9 +146,10 @@ scripts/gates.sh         # the full gauntlet
 ```
 
 The gates are: a zero-warning `-std=c++23` build, the selftest, **every scene
-must render one real headless frame**, zero electron-era files tracked, and
-VERSION ↔ CHANGELOG consistency. No Node, no Python — the QA lane eats its
-own dog food.
+must render one real headless frame**, **every `next` in the campaign chain
+must resolve to a real scene file** (no ghost doors), zero electron-era files
+tracked, and VERSION ↔ CHANGELOG consistency. No Node, no Python — the QA
+lane eats its own dog food.
 
 ## Layout
 

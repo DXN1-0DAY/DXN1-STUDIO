@@ -36,6 +36,19 @@ for s in scenes/*.dxn1.json; do
   fi
 done
 
+echo "── gate 3b: the campaign chain resolves (every next is a real scene)"
+for s in scenes/*.dxn1.json; do
+  NXT=$(grep -o '"next": "[^"]*"' "$s" | head -1 | cut -d'"' -f4)
+  if [ -z "$NXT" ]; then
+    echo "   ok  $s  (no next — standalone)"
+  elif [ -f "$NXT" ]; then
+    echo "   ok  $s  → $NXT"
+  else
+    echo "   FAIL $s chains a ghost: $NXT (file does not exist)"
+    FAIL=1
+  fi
+done
+
 echo "── gate 4: the Electron farewell is complete (zero remnants)"
 LE=$(git ls-files | grep -icE 'electron|renderer/|webserve|server\.py|selftest\.js|package\.json' || true)
 if [ "$LE" -eq 0 ]; then
