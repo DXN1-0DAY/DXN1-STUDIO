@@ -6569,39 +6569,50 @@ class DXN1Studio:
                           "url": data.get("html_url") or REPO_URL}
             except Exception:
                 pass
+            # DS2 UI-sprint: the thread touches NOTHING Tk — the result
+            # crosses over through a queue and the main thread applies
+            # it (same contract as the run-project pump).
+            _updater_q.put(result)
 
-            def finish():
-                self._updater_shown = False
-                if result["state"] != "ok":
-                    if manual:
-                        self.toast("Couldn't reach GitHub — try later",
-                                   "error")
-                    return
-                try:
-                    newer = updater.is_newer(result["latest"], APP_VERSION)
-                except ValueError:
-                    newer = False
-                if newer:
-                    if self._update_should_nag(result["latest"], manual):
-                        # the full-screen Update Portal — no sneaky toasts
-                        updater.UpdatePortal(self, result["latest"],
-                                             result["url"], result["notes"])
-                        self.terminal.log(f"Update available: v{APP_VERSION} → "
-                                          f"v{result['latest']} — {result['url']}")
-                    else:
-                        # DS2 v2.35: the polite updater — you declined this
-                        # exact version, so the boot check stays quiet.
-                        self.terminal.log(
-                            f"Update v{result['latest']} is out — you asked "
-                            "to skip it. Run `update` any time to reconsider.")
-                elif manual:
-                    self.toast(f"You're on the latest "
-                               f"(v{APP_VERSION})", "success")
-
-            self.root.after(0, finish)
-
+        _updater_q = queue.Queue()
         self._updater_shown = True
         threading.Thread(target=worker, daemon=True).start()
+        self._updater_poll(_updater_q, manual)
+
+    def _updater_poll(self, q, manual):
+        """Main-thread half of the updater: apply the fetched result
+        (or keep waiting) — every Tk call lives on this side."""
+        try:
+            result = q.get_nowait()
+        except queue.Empty:
+            self.root.after(80, lambda: self._updater_poll(q, manual))
+            return
+        self._updater_shown = False
+        if result["state"] != "ok":
+            if manual:
+                self.toast("Couldn't reach GitHub — try later",
+                           "error")
+            return
+        try:
+            newer = updater.is_newer(result["latest"], APP_VERSION)
+        except ValueError:
+            newer = False
+        if newer:
+            if self._update_should_nag(result["latest"], manual):
+                # the full-screen Update Portal — no sneaky toasts
+                updater.UpdatePortal(self, result["latest"],
+                                     result["url"], result["notes"])
+                self.terminal.log(f"Update available: v{APP_VERSION} → "
+                                  f"v{result['latest']} — {result['url']}")
+            else:
+                # DS2 v2.35: the polite updater — you declined this
+                # exact version, so the boot check stays quiet.
+                self.terminal.log(
+                    f"Update v{result['latest']} is out — you asked "
+                    "to skip it. Run `update` any time to reconsider.")
+        elif manual:
+            self.toast(f"You're on the latest "
+                       f"(v{APP_VERSION})", "success")
 
     @staticmethod
     def _ver_tuple(version):

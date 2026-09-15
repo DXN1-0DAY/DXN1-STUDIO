@@ -4,6 +4,38 @@ All notable changes to DXN1 STUDIO. Format based on
 [Keep a Changelog](https://keepachangelog.com/); versioning is
 `MAJOR.MINOR.PATCH` while in **beta**.
 
+## [2.71.1] — 2026-09-15 · beta · "every pane scrolls" (UI sprint hour 1: the fit & scroll sweep)
+
+### Fixed
+- **The code editor has a vertical scrollbar** — until now the
+  editor scrolled by mouse wheel alone: no indicator, no drag, no
+  position. `CodeEditor` wires a themed vertical scrollbar
+  (`yscrollcommand` ↔ `yview`) beside the text, styled to the
+  theme (card thumb, editor trough, accent when active).
+- **The terminal has a vertical scrollbar** — long output was lost
+  past the fold with no way back; the output pane now scrolls with
+  a matching themed scrollbar.
+- **The file tree admits width** — at narrow sidebar widths long
+  filenames clipped with no way to reach them; the explorer now
+  grows the inner row width to the content's honest requirement
+  and shows a horizontal scrollbar exactly when it is needed
+  (`FileTree._on_canvas_resize` — never squishes, never shows a
+  dead scrollbar).
+- **The updater is thread-safe** — the update-check worker touched
+  Tk from a background thread (widget construction + `after`),
+  which segfaults modern Tcl builds; the worker now ships the
+  result through a queue and `_updater_poll` applies it on the
+  main thread — the same contract the run-project pump already
+  kept.
+
+### Added
+- **`scripts/ui_fit_audit.py`** — boots the real studio at default
+  (1280x820) and minimum (940x580) sizes and hunts visible
+  clipping (A), parent overflow (B) and scrollable widgets with no
+  scrollbar nearby (C); exits 1 with a report. This is the UI
+  sprint's regression gate: every pane must scroll, nothing may
+  clip.
+
 ## [2.71.0] — 2026-09-15 · beta · "book to book" (tools layout diff <a> <b>: two saved layouts compared, geometry and layer deltas named)
 
 ### Added

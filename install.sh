@@ -8,7 +8,7 @@ set -e
 
 # Bumped with releases; the app's real version always comes from the
 # downloaded dxn1_studio/__init__.py (never stamped over it).
-INSTALLER_VERSION="2.71.0"
+INSTALLER_VERSION="2.71.1"
 
 INSTALL_DIR="$HOME/.local/share/dxn1-studio"
 BIN_DIR="$HOME/.local/bin"
