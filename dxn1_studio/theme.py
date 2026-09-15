@@ -204,3 +204,66 @@ def from_config(config):
     except Exception:
         pass
     return theme
+
+
+# ---------------------------------------------------------------------------
+# DS2 UI-sprint design system — the focus ring.
+# Keyboard traversal must be VISIBLE: anything that accepts keyboard
+# focus answers with a 2px accent ring while focused and a quiet
+# border when it isn't. Installed once at boot; every tk.Entry,
+# Listbox and Spinbox in the fleet inherits it with zero per-widget
+# code. ttk widgets get the same promise through style focus maps.
+# The theme object is read live from ``root._focus_ring_theme`` so a
+# mid-session theme switch re-colours the ring without a rebind.
+# ---------------------------------------------------------------------------
+
+FOCUS_RING_CLASSES = ("Entry", "Listbox", "Spinbox")
+
+
+def apply_focus_styles(style, theme):
+    """ttk half of the focus ring: focus lights the widget border."""
+    for name in ("TEntry", "TCombobox", "TSpinbox"):
+        try:
+            style.map(name,
+                      bordercolor=[("focus", theme.accent)],
+                      lightcolor=[("focus", theme.accent)])
+        except Exception:  # noqa: BLE001 — style garnish never fatal
+            pass
+
+
+def install_focus_ring(root, theme):
+    """Bind the fleet-wide keyboard-focus affordance (idempotent)."""
+    import tkinter as tk
+
+    root._focus_ring_theme = theme
+
+    def _paint(w, focused):
+        try:
+            if w.winfo_class() not in FOCUS_RING_CLASSES:
+                return
+            t = getattr(root, "_focus_ring_theme", theme)
+            if focused:
+                w.config(highlightthickness=2,
+                         highlightcolor=t.accent,
+                         highlightbackground=t["border"])
+            else:
+                w.config(highlightthickness=1,
+                         highlightcolor=t["border"],
+                         highlightbackground=t["border"])
+        except Exception:  # noqa: BLE001 — garnish must never raise
+            pass
+
+    def _on_focus_in(event):
+        _paint(event.widget, True)
+
+    def _on_focus_out(event):
+        _paint(event.widget, False)
+
+    root.bind_all("<FocusIn>", _on_focus_in, add="+")
+    root.bind_all("<FocusOut>", _on_focus_out, add="+")
+    # a widget may already hold focus when this installs
+    try:
+        _paint(root.focus_get(), True)
+    except Exception:  # noqa: BLE001
+        pass
+    return root

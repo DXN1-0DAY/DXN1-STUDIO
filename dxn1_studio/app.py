@@ -26,7 +26,7 @@ from tkinter import ttk, filedialog, messagebox, simpledialog
 
 from . import APP_NAME, APP_VERSION, APP_CHANNEL, APP_TAGLINE
 from .theme import from_config, FONT_UI, FONT_MONO, ACCENTS, \
-    apply_scroll_theme
+    apply_scroll_theme, install_focus_ring, apply_focus_styles
 from .widgets import FileTree, CodeEditor, Terminal, TREE_SKIP
 from .onboarding import WelcomeWizard
 from .tour import InteractiveTour
@@ -745,6 +745,18 @@ class DXN1Studio:
             from tkinter import ttk as _ttk
             apply_scroll_theme(_ttk.Style(), self.theme)
         except Exception:  # noqa: BLE001 — style is garnish, never fatal
+            pass
+        # DS2 UI-sprint: the focus ring — keyboard focus is always
+        # visible fleet-wide (tk widgets via bind_all, ttk via style
+        # maps). Garnish rules apply: never fatal.
+        try:
+            install_focus_ring(self.root, self.theme)
+        except Exception:  # noqa: BLE001
+            pass
+        try:
+            from tkinter import ttk as _ttk
+            apply_focus_styles(_ttk.Style(), self.theme)
+        except Exception:  # noqa: BLE001
             pass
         # DS2: restore remembered per-screen geometry (defensive)
         try:
