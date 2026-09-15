@@ -1087,6 +1087,11 @@ class DXN1Studio:
         canvas.bind("<Enter>", lambda e: self._paint_activity_item(
             key, hover=True))
         canvas.bind("<Leave>", lambda e: self._paint_activity_item(key))
+        try:    # DS2 UI-sprint: every control tells you what it does
+            from . import hints as _hints
+            _hints.tooltip_attach(canvas, tip, t)
+        except Exception:  # noqa: BLE001 — tooltips are garnish
+            pass
         item = {"key": key, "canvas": canvas, "tip": tip}
         self._draw_activity_icon(canvas, key)
         return item

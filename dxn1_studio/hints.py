@@ -24,6 +24,8 @@ is finished by then), and can be re-run any time via ``refresh()``.
 
 import tkinter as tk
 
+from .theme import FONT_UI
+
 FONT_FALLBACK = ("sans-serif", 8)
 
 # fallback colours — used only when the theme cannot supply a key
@@ -102,6 +104,67 @@ def tree_bound(win, pattern):
 def esc_bound(win):
     """Does this window (or a child) really answer to Escape?"""
     return tree_bound(win, "<Escape>")
+
+
+def tooltip_attach(widget, text, theme=None, delay=500):
+    """DS2 UI-sprint — a quiet themed tooltip for any widget: after
+    `delay` ms of hover a small card shows `text`; Leave, click or
+    widget destruction hides it. Never raises, never steals focus."""
+    state = {"win": None, "job": None}
+
+    def _hide(_event=None):
+        if state["job"] is not None:
+            try:
+                widget.after_cancel(state["job"])
+            except Exception:  # noqa: BLE001
+                pass
+            state["job"] = None
+        if state["win"] is not None:
+            try:
+                state["win"].destroy()
+            except Exception:  # noqa: BLE001
+                pass
+            state["win"] = None
+
+    def _show():
+        if state["win"] is not None:
+            return
+        try:
+            win = tk.Toplevel(widget)
+            win.wm_overrideredirect(True)
+            try:
+                win.attributes("-topmost", True)
+            except Exception:  # noqa: BLE001
+                pass
+            lbl = tk.Label(win, text=text,
+                           bg=_color(theme, "card", _FB_HEADER),
+                           fg=_color(theme, "text", "#e8e8f0"),
+                           font=(FONT_UI, 8), padx=9, pady=4,
+                           justify="left", relief="flat")
+            lbl.pack()
+            x = widget.winfo_rootx() + widget.winfo_width() + 8
+            y = widget.winfo_rooty() + max(0,
+                (widget.winfo_height() - 24) // 2)
+            win.wm_geometry(f"+{max(0, x)}+{max(0, y)}")
+            state["win"] = win
+        except Exception:  # noqa: BLE001 — a tooltip is garnish
+            state["win"] = None
+
+    def _enter(_event=None):
+        _hide()
+        try:
+            state["job"] = widget.after(delay, _show)
+        except Exception:  # noqa: BLE001
+            pass
+
+    widget.bind("<Enter>", _enter, add="+")
+    widget.bind("<Leave>", _hide, add="+")
+    widget.bind("<Button-1>", _hide, add="+")
+    try:
+        widget.bind("<Destroy>", _hide, add="+")
+    except Exception:  # noqa: BLE001
+        pass
+    return _hide
 
 
 def hint_bar(win, theme=None, pairs=(), notes=(), esc=True, before=None):
