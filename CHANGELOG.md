@@ -4,6 +4,46 @@ All notable changes to DXN1 STUDIO. Format based on
 [Keep a Changelog](https://keepachangelog.com/); versioning is
 `MAJOR.MINOR.PATCH` while in **beta**.
 
+## [2.60.0] — 2026-09-15 · beta · "the checkup comes home and learns to heal" (the desk runs its own checkup + the safe repairs apply + width accounting round two)
+
+### Added
+- **The desk runs its own checkup** — `Check this pack` (or Ctrl+T)
+  runs the v2.58 checkup on the desk's LIVE working copy and the
+  verdict lands under the meter: red `⚠ N findings` for unknown /
+  empty / junk / unsafe, green `✓ checkup clean` with the honest
+  pair count and real_pct when clean. Every Import runs it
+  automatically — the moment you let a file in is the moment you
+  most want to know what it was — and once asked for, the verdict
+  recomputes silently on every keystroke, so it never describes a
+  working copy that is gone. The full findings list still reaches
+  the terminal through the shared renderer
+- **`lang fix <code>`** — the repair verb: applies the SAFE fixes
+  the checkup names to the user pack file (junk pairs dropped,
+  empty values back to English, unknown keys cut), every repair
+  named, nothing written unless something changes, the rewrite
+  atomic, unsafe strings never touched (a deletion is not a
+  translation), and an active language re-activates at once with
+  the repaired pack live. The check is the dry-run; the fix applies
+- **Width accounting round two** — the v2.55 pattern beyond the
+  pack windows: the Project Hub opens no narrower (or shorter) than
+  what it actually packed (the real request measured 972px against
+  the 940 default — the old fixed geometry WAS clipping), and the
+  agent's prompt preview grows past 680px when its content asks
+
+### Fixed
+- **Audit crash on unsafe packs** — a dormant v2.54 bug: the
+  `NOT highlight-safe` suffix re-applied `%`-formatting to the whole
+  audit line, exploding on any literal `%` already in it (e.g.
+  `100%`) the moment a pack carried an unsafe string. The suffix
+  formats itself now; caught by the v2.60 smoke before it could
+  ever reach a user
+
+### Changed
+- `lang check`'s closing hint names the fix as the way out
+  ("apply the safe fixes with lang fix <code>"), and the audit's
+  family line grew: a pack file answers before it is imported,
+  leaves as one, and yields its safe fixes
+
 ## [2.59.0] — 2026-09-15 · beta · "the desk grows to fit" (width accounting across the pack windows + the chooser prints every number)
 
 ### Added

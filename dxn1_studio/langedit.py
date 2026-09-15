@@ -33,6 +33,16 @@ moves, and the terminal verbs ``lang check [code|file]`` and
 ``lang pack <code> [dest]`` open the sharing loop from the
 keyboard: check before you send, export without opening the desk.
 
+v2.60 brought the checkup home and taught it to heal: the desk
+runs the checkup on its own working copy — automatically on every
+Import, on demand by button or Ctrl+T — and the verdict lives
+under the meter, red for findings, green for clean, honest on
+every keystroke; ``fix_pack_file`` and the ``lang fix <code>``
+verb apply the SAFE repairs the checkup names to a user pack file
+(junk dropped, empty values back to English, unknown keys cut) —
+the check is the dry-run, the fix applies, and unsafe strings are
+never touched because a deletion is not a translation.
+
 The model is the audit's (v2.54), restated as editing:
 
 - **translated** — the pack carries its own string for the key;
@@ -275,6 +285,75 @@ def check_pack(code):
     return rep
 
 
+def fix_pack_file(code):
+    """DS2 v2.60 — apply the safe repairs the checkup names to a
+    user pack FILE, in place: junk pairs dropped, empty values
+    dropped (back to English — the import rule), unknown keys cut
+    (dead weight that ages into stale). Nothing is written unless
+    something actually changes; the rewrite is atomic (tmp +
+    ``os.replace``, the ``save_user_pack`` discipline) and keeps
+    every real string byte-for-byte. Unsafe strings are NOT
+    touched — they need a real translation, not a deletion.
+    Returns a report dict; a missing, unreadable or non-dict file
+    answers ``ok: False`` with the reason — the same honesty
+    ``check_pack_file`` owes. Never raises."""
+    path = _user_pack_path(code)
+    rep = {"ok": True, "code": code, "path": path, "changed": False,
+           "dropped_unknown": [], "dropped_empty": [], "junk": 0,
+           "kept": 0, "error": None}
+    if not os.path.exists(path):
+        rep["ok"] = False
+        rep["error"] = "no user pack file"
+        return rep
+    try:
+        with open(path, "r", encoding="utf-8") as fh:
+            data = json.load(fh)
+    except (OSError, ValueError, TypeError) as exc:
+        rep["ok"] = False
+        rep["error"] = exc.__class__.__name__
+        return rep
+    if not isinstance(data, dict):
+        rep["ok"] = False
+        rep["error"] = "not a JSON object"
+        return rep
+    en = _i18n.EN
+    keep = {}
+    for key, val in data.items():
+        if not isinstance(key, str) or not isinstance(val, str):
+            rep["junk"] += 1
+            continue
+        if not val.strip():
+            rep["dropped_empty"].append(key)
+            continue
+        if key not in en:
+            rep["dropped_unknown"].append(key)
+            continue
+        keep[key] = val
+    rep["dropped_empty"].sort()
+    rep["dropped_unknown"].sort()
+    rep["kept"] = len(keep)
+    changed = bool(rep["junk"] or rep["dropped_empty"]
+                   or rep["dropped_unknown"])
+    if not changed:
+        return rep
+    try:
+        directory = _i18n.LANG_DIR
+        if not os.path.isdir(directory):
+            os.makedirs(directory, exist_ok=True)
+        tmp = path + ".tmp"
+        with open(tmp, "w", encoding="utf-8") as fh:
+            json.dump(keep, fh, ensure_ascii=False, indent=2,
+                      sort_keys=True)
+            fh.write("\n")
+        os.replace(tmp, path)
+    except OSError as exc:
+        rep["ok"] = False
+        rep["error"] = exc.__class__.__name__
+        return rep
+    rep["changed"] = True
+    return rep
+
+
 def check_pack_file(path):
     """DS2 v2.58 — check up on a pack FILE before sharing or
     importing it: the desk's own exports, user packs and
@@ -358,6 +437,8 @@ class PackEditor(tk.Toplevel):
         self._filter = "all"
         self._current = None          # key shown in the detail pane
         self._preview = None          # the live PackPreview, if open
+        self._checked = False         # v2.60 — has a checkup run?
+        self._last_check = None       # the checkup's last report
 
         self._build_header()
         self._build_filters()
@@ -369,6 +450,7 @@ class PackEditor(tk.Toplevel):
         self.bind("<Control-p>", lambda e: self._open_preview())
         self.bind("<Control-e>", lambda e: self._export_pack())
         self.bind("<Control-i>", lambda e: self._import_pack())
+        self.bind("<Control-t>", lambda e: self._run_check())
         self.bind("<Destroy>", self._on_destroy, add="+")
         try:
             from . import hints
@@ -377,7 +459,8 @@ class PackEditor(tk.Toplevel):
                 pairs=(("Ctrl+S", "save pack"),
                        ("Ctrl+P", "preview this pack"),
                        ("Ctrl+E", "export pack file"),
-                       ("Ctrl+I", "import a pack file"),),
+                       ("Ctrl+I", "import a pack file"),
+                       ("Ctrl+T", "run the checkup"),),
                 notes=("click a key, type, Ctrl+S writes the pack",
                        "Ctrl+P shows the studio in what you typed",))
         except Exception:  # noqa: BLE001 — garnish
@@ -428,6 +511,13 @@ class PackEditor(tk.Toplevel):
                               fg=t["text_secondary"],
                               font=(FONT_UI, 9))
         self.meter.pack(anchor="w", pady=(2, 4))
+        # v2.60 — the checkup's verdict lives under the meter, from
+        # the first Import or Check until the desk closes
+        self.verdict = tk.Label(head, text="", bg=t["bg"],
+                                fg=t["text_secondary"],
+                                font=(FONT_UI, 9), anchor="w",
+                                justify="left")
+        self.verdict.pack(anchor="w", pady=(0, 2))
 
     def _build_filters(self):
         t = self.theme
@@ -534,6 +624,12 @@ class PackEditor(tk.Toplevel):
         impo.pack(side=tk.LEFT, padx=(8, 0))
         impo.bind("<Button-1>", lambda e: self._import_pack())
         self.import_btn = impo
+        chk = tk.Label(btns, text="Check this pack",
+                       bg=t["card"], fg=t["text"], cursor="hand2",
+                       font=(FONT_UI, 9), padx=10, pady=4)
+        chk.pack(side=tk.LEFT, padx=(8, 0))
+        chk.bind("<Button-1>", lambda e: self._run_check())
+        self.check_btn = chk
         self.save_btn = tk.Label(btns, text="Save pack", bg=t.accent,
                                  fg="#ffffff", cursor="hand2",
                                  font=(FONT_UI, 9, "bold"),
@@ -640,6 +736,7 @@ class PackEditor(tk.Toplevel):
             self.meter.config(text=self._meter_text())
         except Exception:  # noqa: BLE001 — a dying window is fine
             pass
+        self._verdict_tick()
         self._refresh_rows()
         self._refresh_preview()
 
@@ -718,6 +815,7 @@ class PackEditor(tk.Toplevel):
             self._warn_check()
             self._refresh_rows()
             self.meter.config(text=self._meter_text())
+            self._verdict_tick()
             self._refresh_preview()
         except Exception:  # noqa: BLE001 — the desk never raises
             pass
@@ -771,6 +869,87 @@ class PackEditor(tk.Toplevel):
                     text="seeded %d" % seeded)
             except Exception:  # noqa: BLE001
                 pass
+        except Exception:  # noqa: BLE001 — the desk never raises
+            pass
+
+    def _run_check(self, _event=None):
+        """v2.60 — the checkup comes home: run it on the desk's LIVE
+        working copy and put the verdict under the meter. The full
+        findings list goes to the terminal through the app's shared
+        renderer, the way `lang check` prints it. Returns the report
+        or None — never raises."""
+        try:
+            rep = check_mapping(dict(self.work))
+            self._last_check = rep
+            self._checked = True
+            self._render_verdict()
+            findings = (rep["junk"] + len(rep["empty"])
+                        + len(rep["unknown"]) + len(rep["unsafe"]))
+            try:
+                hint = ("apply the safe fixes with lang fix %s, or "
+                        "edit here — nothing is written until Ctrl+S"
+                        % self.code if findings else
+                        "share it with lang pack %s, or keep editing"
+                        % self.code)
+                self.app._emit_checkup(
+                    "lang check %s — the desk's working copy"
+                    % self.code, rep, hint)
+            except Exception:  # noqa: BLE001 — terminal is garnish
+                pass
+            self._log("checkup run on the working copy — %d finding%s"
+                      % (findings, "" if findings == 1 else "s"))
+            return rep
+        except Exception:  # noqa: BLE001 — the desk never raises
+            return None
+
+    def _render_verdict(self):
+        """One line under the meter: green for clean, red for
+        findings — the same verdict `lang check` prints, living
+        where the eyes already are."""
+        rep = self._last_check
+        try:
+            if rep is None:
+                self.verdict.config(text="", fg=self.theme[
+                    "text_secondary"])
+                return
+            findings = (rep["junk"] + len(rep["empty"])
+                        + len(rep["unknown"]) + len(rep["unsafe"]))
+            if findings:
+                parts = []
+                if rep["unknown"]:
+                    parts.append("%d unknown" % len(rep["unknown"]))
+                if rep["empty"]:
+                    parts.append("%d empty" % len(rep["empty"]))
+                if rep["junk"]:
+                    parts.append("%d junk" % rep["junk"])
+                if rep["unsafe"]:
+                    parts.append("%d unsafe" % len(rep["unsafe"]))
+                self.verdict.config(
+                    fg="#f85149",
+                    text="⚠ checkup: %d finding%s — %s · Ctrl+S "
+                         "still writes only what you keep here"
+                         % (findings, "" if findings == 1 else "s",
+                            " · ".join(parts)))
+            else:
+                self.verdict.config(
+                    fg="#3fb950",
+                    text="✓ checkup clean — nothing blocks an import "
+                         "(%d pair%s · %d%% real)"
+                         % (rep["pairs"],
+                            "" if rep["pairs"] == 1 else "s",
+                            rep["real_pct"]))
+        except Exception:  # noqa: BLE001 — a dying window is fine
+            pass
+
+    def _verdict_tick(self):
+        """Keep the verdict honest once it has been asked for: every
+        change after the first check recomputes it silently — the
+        verdict must never describe a working copy that is gone."""
+        if not self._checked:
+            return
+        try:
+            self._last_check = check_mapping(dict(self.work))
+            self._render_verdict()
         except Exception:  # noqa: BLE001 — the desk never raises
             pass
 
@@ -894,6 +1073,9 @@ class PackEditor(tk.Toplevel):
                           "the desk can read" % path)
                 return False
             self._refresh()
+            # v2.60 — the moment you let a file in is the moment you
+            # most want to know what it was: the checkup runs itself
+            self._run_check()
             try:
                 self.status.config(
                     text="imported %d%s" % (applied,

@@ -6948,3 +6948,346 @@ def test_desk_fit(tmp_path):
         except tk.TclError:
             pass
         monkeypatch.undo()
+
+
+def test_lang_fix(tmp_path):
+    """DS2 v2.60 — the checkup learns to heal: fix_pack_file applies
+    the SAFE repairs the checkup names to a user pack file — junk
+    pairs dropped, empty values back to English, unknown keys cut —
+    writing nothing unless something changes (atomic rewrite, every
+    real string kept byte-for-byte), refusing unsafe strings because
+    a deletion is not a translation, and answering honestly for
+    missing and unreadable files; `lang fix <code>` is the verb —
+    the check is the dry-run, the fix applies, an active language
+    re-activates at once, and `lang check`'s hint now names the way
+    out."""
+    import tkinter as tk
+    try:
+        root = tk.Tk(); root.withdraw()
+    except tk.TclError:
+        return
+    import json
+    import os
+    import pytest
+    import dxn1_studio.config as cfgmod
+    from dxn1_studio import i18n as i18nmod
+    from dxn1_studio import langedit as le
+    import unittest.mock as mock
+    # everything redirected BEFORE any file lands: no test may
+    # write into the real user pack directory
+    monkeypatch = pytest.MonkeyPatch()
+    monkeypatch.setattr(cfgmod, "CONFIG_DIR", str(tmp_path / "cfg"))
+    monkeypatch.setattr(cfgmod, "CONFIG_PATH",
+                        str(tmp_path / "cfg" / "config.json"))
+    monkeypatch.setenv("HOME", str(tmp_path / "home"))
+    real_lang = tmp_path / "homelang"
+    monkeypatch.setattr(i18nmod, "LANG_DIR", str(real_lang))
+
+    # --- data layer: the repair, happy path
+    d = tmp_path / "lang"; d.mkdir()
+    p = d / "fixme.json"
+    p.write_text(json.dumps({
+        "menu.file": "MiArchivo",      # real — kept
+        "menu.view": "Ver",            # real — kept
+        "dead.key": "zzz",             # unknown — cut
+        "junk.key": "x",               # unknown — cut
+        "menu.edit": "   ",            # empty — back to English
+        "num": 123,                    # junk value — dropped
+    }), encoding="utf-8")
+    with mock.patch.object(le, "_user_pack_path",
+                           return_value=str(p)):
+        rep = le.fix_pack_file("fixme60")
+    assert rep["ok"] and rep["changed"]
+    assert rep["dropped_unknown"] == ["dead.key", "junk.key"]
+    assert rep["dropped_empty"] == ["menu.edit"]
+    assert rep["junk"] == 1 and rep["kept"] == 2
+    with open(p, encoding="utf-8") as fh:
+        after = json.load(fh)
+    assert after == {"menu.file": "MiArchivo", "menu.view": "Ver"}
+    # already clean: nothing written (content byte-identical)
+    before = p.read_bytes()
+    with mock.patch.object(le, "_user_pack_path",
+                           return_value=str(p)):
+        rep2 = le.fix_pack_file("fixme60")
+    assert rep2["ok"] and not rep2["changed"] and rep2["kept"] == 2
+    assert p.read_bytes() == before
+    # unsafe strings are NOT touched — a deletion is not a translation
+    p2 = d / "unsafe60.json"
+    p2.write_text(json.dumps({"menu.file": "İstanbul"}),
+                  encoding="utf-8")
+    with mock.patch.object(le, "_user_pack_path",
+                           return_value=str(p2)):
+        rep3 = le.fix_pack_file("unsafe60")
+    assert rep3["ok"] and not rep3["changed"]
+    with open(p2, encoding="utf-8") as fh:
+        assert json.load(fh) == {"menu.file": "İstanbul"}
+    # missing, unreadable and non-dict files answer honestly
+    with mock.patch.object(le, "_user_pack_path",
+                           return_value=str(d / "missing.json")):
+        rep4 = le.fix_pack_file("nope")
+    assert not rep4["ok"] and rep4["error"] == "no user pack file"
+    p3 = d / "bad.json"; p3.write_text("{nope", encoding="utf-8")
+    with mock.patch.object(le, "_user_pack_path",
+                           return_value=str(p3)):
+        rep5 = le.fix_pack_file("bad")
+    assert not rep5["ok"] and rep5["error"] == "JSONDecodeError"
+    p4 = d / "arr.json"; p4.write_text("[1]", encoding="utf-8")
+    with mock.patch.object(le, "_user_pack_path",
+                           return_value=str(p4)):
+        rep6 = le.fix_pack_file("arr")
+    assert not rep6["ok"] and rep6["error"] == "not a JSON object"
+
+    # --- through the real app: the verb, the hint, the family
+    from dxn1_studio.app import DXN1Studio
+    app = DXN1Studio(cfgmod.Config(), smoke_test=True, no_splash=True)
+    try:
+        app.root.update()
+        logs = []
+        app.terminal.log = lambda m, *a, **k: logs.append(str(m))
+
+        def run(cmd):
+            logs.clear()
+            app.handle_terminal_command(cmd)
+            return "\n".join(logs)
+
+        # bare: usage names the dry-run
+        blob = run("lang fix")
+        assert "usage: lang fix <code>" in blob, blob
+        assert "lang check <code> is the dry-run" in blob, blob
+        # en refused; junk code named; unknown language named
+        blob = run("lang fix en")
+        assert "nothing to fix" in blob, blob
+        blob = run("lang fix NOT-A-CODE!")
+        assert "is not a pack code" in blob, blob
+        blob = run("lang fix nosuch")
+        assert "unknown language 'nosuch'" in blob, blob
+        # a built-in without a user pack: nothing to fix on disk
+        blob = run("lang fix es")
+        assert "no user pack file to fix" in blob \
+            and "built-ins are read-only here" in blob, blob
+        # the happy path: findings by name, every number
+        upath = real_lang / "dirty60.json"
+        upath.parent.mkdir(parents=True, exist_ok=True)
+        upath.write_text(json.dumps({
+            "menu.file": "MiArchivoX", "dead.key": "zzz",
+            "menu.edit": "", "menu.view": "Ver"}), encoding="utf-8")
+        blob = run("lang fix dirty60")
+        assert "lang fix dirty60" in blob, blob
+        assert "1 unknown key cut (dead.key)" in blob, blob
+        assert "1 empty value back to English (menu.edit)" in blob, blob
+        assert "2 strings kept" in blob, blob
+        assert "need a real translation" in blob, blob
+        with open(upath, encoding="utf-8") as fh:
+            assert json.load(fh) == {"menu.file": "MiArchivoX",
+                                     "menu.view": "Ver"}
+        # second run: already clean
+        blob = run("lang fix dirty60")
+        assert "already clean" in blob and "2 strings kept" in blob, blob
+        # an active language re-activates at once, repaired pack live
+        i18nmod.set_language("dirty60")
+        upath.write_text(json.dumps({"menu.file": "MiArchivo",
+                                     "stale.old": "x"}),
+                         encoding="utf-8")
+        blob = run("lang fix dirty60")
+        i18nmod.set_language("en")
+        assert "the repaired pack is live at once" in blob, blob
+        # lang check's hint names the fix as the way out
+        blob = run("lang check es")
+        assert "apply the safe fixes with lang fix es" in blob, blob
+        # the audit names the whole family, fix included
+        blob = run("lang audit")
+        assert "lang fix <code>" in blob, blob
+        # source agreement
+        base = os.path.dirname(os.path.dirname(
+            os.path.abspath(__file__)))
+        with open(os.path.join(base, "dxn1_studio", "langedit.py"),
+                  encoding="utf-8") as fh:
+            lesrc = fh.read()
+        assert "def fix_pack_file" in lesrc
+        assert "a deletion is not" in lesrc
+        with open(os.path.join(base, "dxn1_studio", "app.py"),
+                  encoding="utf-8") as fh:
+            src = fh.read()
+        assert '"lang fix <code>"' in src
+    finally:
+        try:
+            app.root.destroy()
+        except tk.TclError:
+            pass
+        try:
+            root.destroy()
+        except tk.TclError:
+            pass
+        monkeypatch.undo()
+
+
+def test_desk_check(tmp_path):
+    """DS2 v2.60 — the checkup comes home: the desk runs it on its
+    own working copy — automatically on every Import, on demand by
+    button or Ctrl+T — and the verdict lives under the meter, red
+    for findings, green for clean, recomputed silently on every
+    change once it has been asked for; the full findings list goes
+    to the terminal through the app's shared renderer."""
+    import tkinter as tk
+    try:
+        root = tk.Tk(); root.withdraw()
+    except tk.TclError:
+        return
+    import json
+    import os
+    import pytest
+    import dxn1_studio.config as cfgmod
+    from dxn1_studio import i18n as i18nmod
+    from dxn1_studio import langedit as le
+    monkeypatch = pytest.MonkeyPatch()
+    monkeypatch.setattr(cfgmod, "CONFIG_DIR", str(tmp_path / "cfg"))
+    monkeypatch.setattr(cfgmod, "CONFIG_PATH",
+                        str(tmp_path / "cfg" / "config.json"))
+    monkeypatch.setenv("HOME", str(tmp_path / "home"))
+    real_lang = tmp_path / "homelang"
+    monkeypatch.setattr(i18nmod, "LANG_DIR", str(real_lang))
+    from dxn1_studio.app import DXN1Studio
+    app = DXN1Studio(cfgmod.Config(), smoke_test=True, no_splash=True)
+    try:
+        app.root.update()
+        logs = []
+        app.terminal.log = lambda m, *a, **k: logs.append(str(m))
+        app.handle_terminal_command("lang edit es")
+        app.root.update()
+        desk = [w for w in app.root.winfo_children()
+                if isinstance(w, le.PackEditor)][0]
+        # the verdict starts empty — the checkup is asked for, not
+        # assumed
+        assert desk.verdict.cget("text") == ""
+        assert not desk._checked
+        # the button and the gesture exist
+        assert desk.check_btn.cget("text") == "Check this pack"
+        assert desk.bind("<Control-t>")
+        # a dirty import runs the checkup itself: the import applies
+        # the empty→English rule and skips junk, so what REMAINS is
+        # the unknown key — and the verdict says so, in red
+        dirt = tmp_path / "dirt.json"
+        dirt.write_text(json.dumps({"menu.file": "MiArchivo",
+                                    "junk.key": "x",
+                                    "menu.view": "  "}),
+                        encoding="utf-8")
+        import unittest.mock as mock
+        with mock.patch("tkinter.filedialog.askopenfilename",
+                        return_value=str(dirt)):
+            assert desk._import_pack()
+        app.root.update()
+        assert desk._checked
+        v = desk.verdict.cget("text")
+        assert "checkup" in v and "1 finding" in v \
+            and "1 unknown" in v, v
+        assert desk.verdict.cget("foreground") == "#f85149"
+        blob = "\n".join(logs)
+        assert "the desk's working copy" in blob, blob
+        assert "verdict: 1 finding" in blob, blob
+        assert "apply the safe fixes with lang fix es" in blob, blob
+        # the verdict keeps up as the working copy changes: cut the
+        # unknown key and it turns green — clean
+        desk.work.pop("junk.key", None)
+        desk._verdict_tick()
+        v2 = desk.verdict.cget("text")
+        assert "✓" in v2 and "checkup clean" in v2, v2
+        assert desk.verdict.cget("foreground") == "#3fb950"
+        # 99, not 100: the import legally dropped menu.view back to
+        # English — the ledger counts what the pack really speaks
+        assert "99% real" in v2 and "91 pairs" in v2, v2
+        # an unsafe string turns it red again — the warning rides
+        # along with the findings
+        desk.work["menu.file"] = "İstanbul"
+        desk._verdict_tick()
+        v3 = desk.verdict.cget("text")
+        assert "1 unsafe" in v3 and "⚠" in v3, v3
+        # a fresh desk: verdict empty until asked; Ctrl+T asks
+        app.handle_terminal_command("lang edit fr")
+        app.root.update()
+        desk2 = [w for w in app.root.winfo_children()
+                 if isinstance(w, le.PackEditor)
+                 and w is not desk][0]
+        assert desk2.verdict.cget("text") == ""
+        desk2.event_generate("<Control-t>")
+        app.root.update()
+        assert desk2._checked and "✓" in desk2.verdict.cget("text")
+        desk._close()
+        desk2._close()
+        app.root.update()
+        # source agreement
+        base = os.path.dirname(os.path.dirname(
+            os.path.abspath(__file__)))
+        with open(os.path.join(base, "dxn1_studio", "langedit.py"),
+                  encoding="utf-8") as fh:
+            lesrc = fh.read()
+        assert "def _run_check" in lesrc and "def _verdict_tick" in lesrc
+        assert "the checkup runs itself" in lesrc
+        with open(os.path.join(base, "dxn1_studio", "app.py"),
+                  encoding="utf-8") as fh:
+            src = fh.read()
+        assert '"lang fix <code>"' in src
+    finally:
+        try:
+            app.root.destroy()
+        except tk.TclError:
+            pass
+        try:
+            root.destroy()
+        except tk.TclError:
+            pass
+        monkeypatch.undo()
+
+
+def test_width_sweep_two(tmp_path):
+    """DS2 v2.60 — width accounting round two, beyond the pack
+    windows: the Project Hub opens no narrower (or shorter) than
+    what it actually packed (long workspace names and a full hint
+    bar can ask for MORE than the 940px default — and the real
+    request WAS bigger), and the agent's prompt preview opens no
+    narrower than its content at 680px."""
+    import tkinter as tk
+    try:
+        root = tk.Tk(); root.withdraw()
+    except tk.TclError:
+        return
+    import os
+    from dxn1_studio import hub as hubmod
+
+    class _HubCfg:
+        """The two methods the hub asks of a config."""
+        def __init__(self):
+            self._d = {}
+
+        def get(self, key, default=None):
+            return self._d.get(key, default)
+
+        def set(self, key, val, **kw):
+            self._d[key] = val
+
+    class _HubTheme(dict):
+        """Dict-plus-attribute: the hub reads theme.accent."""
+        accent = "#4c8dff"
+
+    hub = hubmod.ProjectHub(
+        root, _HubCfg(), _HubTheme(),
+        on_open=lambda *a: None, on_explore=lambda *a: None)
+    try:
+        root.update()
+        # real probe: the hub's own request beats the 940 default
+        assert hub.winfo_width() >= hubmod.HUB_W
+        assert hub.winfo_width() >= hub.winfo_reqwidth() - 2
+        assert hub.winfo_height() >= hubmod.HUB_H
+        assert hub.winfo_height() >= hub.winfo_reqheight() - 2
+    finally:
+        hub._teardown()
+        root.update()
+    # source agreement: the pattern is written where it runs
+    base = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    with open(os.path.join(base, "dxn1_studio", "hub.py"),
+              encoding="utf-8") as fh:
+        hsrc = fh.read()
+    assert "max(HUB_W, self.winfo_reqwidth())" in hsrc
+    with open(os.path.join(base, "dxn1_studio", "agent.py"),
+              encoding="utf-8") as fh:
+        asrc = fh.read()
+    assert "max(680, self.winfo_reqwidth())" in asrc

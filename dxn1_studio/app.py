@@ -161,6 +161,10 @@ TERMINAL_HELP = (
     ("lang pack <code> [dest]", "write a pack's own strings as a "
                                 "shareable .json file (default "
                                 "./<code>.json) — never overwrites"),
+    ("lang fix <code>", "apply the safe repairs the checkup names "
+                        "to the user pack file — junk and empty "
+                        "values dropped, unknown keys cut; unsafe "
+                        "strings need a real translation"),
     ("update", "check GitHub for a newer release"),
     ("whatsnew", "release notes — what changed between tags"),
     ("deps", "cross-check imports vs requirements*.txt "
@@ -3775,9 +3779,9 @@ class DXN1Studio:
                     self._emit_checkup(
                         "lang check %s — %s [%s]" % (
                             code, rep["name"], kind), rep,
-                        "share it with lang pack %s, or edit the "
-                        "findings in the desk (lang edit %s)"
-                        % (code, code),
+                        "share it with lang pack %s, apply the safe "
+                        "fixes with lang fix %s, or edit in the desk "
+                        "(lang edit %s)" % (code, code, code),
                         diff_code=code)
                     return
                 path = os.path.expanduser(rest)
@@ -3877,6 +3881,105 @@ class DXN1Studio:
                     "import would meet"
                     % (code, n, "" if n == 1 else "s", dest))
                 return
+            if arg == "fix" or arg.startswith("fix "):
+                # DS2 v2.60 — the repair verb: apply the safe fixes
+                # the checkup names to the user pack file — junk
+                # dropped, empty values back to English, unknown keys
+                # cut. The check is the dry-run; the fix applies.
+                # Unsafe strings are NOT touched: a deletion is not
+                # a translation.
+                import re as _re3
+                from . import langedit as _le
+                rest = arg[3:].strip().lower()
+                if not rest:
+                    self.terminal.log(
+                        "usage: lang fix <code> — apply the safe "
+                        "repairs to the user pack file (junk and "
+                        "empty values dropped, unknown keys cut); "
+                        "lang check <code> is the dry-run; "
+                        "available: %s"
+                        % ", ".join(c for c in _i18n.available()
+                                    if c != "en"))
+                    return
+                if not _re3.match(r"^[a-z0-9][a-z0-9_-]{0,15}$", rest):
+                    self.terminal.log(
+                        "'%s' is not a pack code — lowercase letters, "
+                        "digits, _ or - (e.g. es, pt_br)" % rest)
+                    return
+                if rest == "en":
+                    self.terminal.log(
+                        "English is the source of truth — there is "
+                        "nothing to fix; name a pack (available: %s)"
+                        % ", ".join(c for c in _i18n.available()
+                                    if c != "en"))
+                    return
+                if rest not in _i18n.available():
+                    self.terminal.log(
+                        "unknown language '%s' — available: %s"
+                        % (rest, ", ".join(_i18n.available())))
+                    return
+                try:
+                    frep = _le.fix_pack_file(rest)
+                except Exception:  # noqa: BLE001 — a verb never raises
+                    frep = None
+                if not frep:
+                    self.terminal.log("lang fix unavailable here")
+                    return
+                if not frep.get("ok"):
+                    if frep.get("error") == "no user pack file":
+                        self.terminal.log(
+                            "lang fix %s — no user pack file to fix "
+                            "(built-ins are read-only here); lang edit "
+                            "%s → Ctrl+S makes one" % (rest, rest))
+                    else:
+                        self.terminal.log(
+                            "lang fix %s — %s unreadable (%s) — "
+                            "nothing changed"
+                            % (rest, frep.get("path"),
+                               frep.get("error")))
+                    return
+                if not frep.get("changed"):
+                    self.terminal.log(
+                        "lang fix %s — already clean: no junk, no "
+                        "empty values, no unknown keys (%d string%s "
+                        "kept)"
+                        % (rest, frep["kept"],
+                           "" if frep["kept"] == 1 else "s"))
+                    return
+                _fixed = []
+                if frep["dropped_unknown"]:
+                    _names = ", ".join(frep["dropped_unknown"][:8])
+                    if len(frep["dropped_unknown"]) > 8:
+                        _names += ", …"
+                    _fixed.append("%d unknown key%s cut (%s)"
+                                  % (len(frep["dropped_unknown"]),
+                                     "" if len(frep["dropped_unknown"])
+                                     == 1 else "s", _names))
+                if frep["dropped_empty"]:
+                    _names = ", ".join(frep["dropped_empty"][:8])
+                    if len(frep["dropped_empty"]) > 8:
+                        _names += ", …"
+                    _fixed.append("%d empty value%s back to English "
+                                  "(%s)"
+                                  % (len(frep["dropped_empty"]),
+                                     "" if len(frep["dropped_empty"])
+                                     == 1 else "s", _names))
+                if frep["junk"]:
+                    _fixed.append("%d junk pair%s dropped"
+                                  % (frep["junk"],
+                                     "" if frep["junk"] == 1 else "s"))
+                self.terminal.log(
+                    "lang fix %s — %s · %d string%s kept — unsafe "
+                    "strings, if any, need a real translation "
+                    "(lang check %s)"
+                    % (rest, "; ".join(_fixed), frep["kept"],
+                       "" if frep["kept"] == 1 else "s", rest))
+                if _i18n.current() == rest:
+                    _i18n.set_language(rest)
+                    self.terminal.log(
+                        "  %s is the active language — the repaired "
+                        "pack is live at once" % rest)
+                return
             if arg == "audit":
                 # DS2 v2.54 — every pack answers for itself: coverage,
                 # stale keys, and whether its strings keep the length
@@ -3913,8 +4016,13 @@ class DXN1Studio:
                             except Exception:  # noqa: BLE001
                                 pass
                         if not s["index_safe"]:
-                            line += " · NOT highlight-safe (%s)"
-                            line = line % ", ".join(s["risk_keys"][:3])
+                            # v2.60 fix — the suffix formats ITSELF;
+                            # re-applying % to the whole line exploded
+                            # on any literal '%' already in it
+                            # (e.g. "100%") whenever a pack carried an
+                            # unsafe string — dormant since v2.54
+                            line += (" · NOT highlight-safe (%s)"
+                                     % ", ".join(s["risk_keys"][:3]))
                     self.terminal.log(line)
                 self.terminal.log(
                     "highlight-safe = every string keeps its length "
@@ -3926,8 +4034,9 @@ class DXN1Studio:
                     "(lang diff <code> names the seeds)")
                 self.terminal.log(
                     "a pack file answers before it is imported "
-                    "(lang check <file>) and leaves as one "
-                    "(lang pack <code>)")
+                    "(lang check <file>), leaves as one "
+                    "(lang pack <code>), and yields its safe fixes "
+                    "(lang fix <code>)")
                 return
             codes = _i18n.available()
             if not arg:

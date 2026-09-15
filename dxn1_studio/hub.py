@@ -817,6 +817,11 @@ class ProjectHub(tk.Toplevel):
 
     def _center(self):
         self.update_idletasks()
-        self.geometry(f"{HUB_W}x{HUB_H}")
+        # DS2 v2.60 — width accounting round two (the v2.55 pattern):
+        # the hub opens no narrower than what it actually packed —
+        # long workspace names and a full hint bar can request MORE
+        # than the 940px default, and a fixed geometry clips them
+        w = max(HUB_W, self.winfo_reqwidth())
+        h = max(HUB_H, self.winfo_reqheight())
         sw, sh = self.winfo_screenwidth(), self.winfo_screenheight()
-        self.geometry(f"{HUB_W}x{HUB_H}+{(sw - HUB_W) // 2}+{max(20, (sh - HUB_H) // 2 - 20)}")
+        self.geometry(f"{w}x{h}+{(sw - w) // 2}+{max(20, (sh - h) // 2 - 20)}")
