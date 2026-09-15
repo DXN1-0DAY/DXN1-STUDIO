@@ -22,7 +22,7 @@ import threading
 import tkinter as tk
 import urllib.request
 import webbrowser
-from tkinter import ttk, filedialog, messagebox
+from tkinter import ttk, filedialog, messagebox, simpledialog
 
 from . import APP_NAME, APP_VERSION, APP_CHANNEL, APP_TAGLINE
 from .theme import from_config, FONT_UI, FONT_MONO, ACCENTS, \
@@ -2547,6 +2547,36 @@ class DXN1Studio:
             pass
 
     def new_file(self):
+        """DS2 UI-sprint — Ctrl+N keeps its promise: with a workspace
+        open it creates a real file (asked name, never overwrites,
+        opens immediately, tree refreshes); without one it still
+        hands you a clean untitled buffer."""
+        if self.project_dir:
+            name = simpledialog.askstring(
+                "New File", "File name (e.g. utils.py):",
+                parent=self.root)
+            if not name:
+                return
+            target = os.path.join(self.project_dir, name)
+            if os.path.exists(target):
+                messagebox.showerror(
+                    "New File", f"{name} already exists.\n"
+                    "Pick another name — nothing was overwritten.")
+                return
+            try:
+                os.makedirs(os.path.dirname(target) or self.project_dir,
+                            exist_ok=True)
+                with open(target, "w", encoding="utf-8") as fh:
+                    fh.write("")
+            except OSError as exc:
+                messagebox.showerror("New File",
+                                     f"Could not create {name}:\n{exc}")
+                return
+            self.open_file(target)
+            self.sidebar.load_directory(self.project_dir)
+            self.terminal.log(f"Created {name}")
+            self.status_file.config(text=name)
+            return
         self.editor.set_content("")
         self.editor.file_path = None
         self.editor.highlighter.set_language(None)

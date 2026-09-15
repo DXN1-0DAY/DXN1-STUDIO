@@ -67,8 +67,9 @@ def canvas_overflows(w):
         return False
 
 
-def audit_size(app, label, problems):
-    root = app.root
+def audit_size(app, label, problems, root=None):
+    """Audit ANY toplevel — the main window or an opened dialog."""
+    root = root or app.root
     root.update_idletasks()
     root.update()
 
@@ -159,6 +160,80 @@ def widget_path(w):
     return p.replace(str(w.winfo_toplevel()), "", 1) or p
 
 
+def audit_dialogs(app, problems):
+    """Open EVERY palette command that yields a Toplevel and audit it.
+
+    Blocking dialogs (file/message/simple) are stubbed to no-ops so a
+    headless sweep never waits on a human; commands that mutate state
+    without opening a window simply produce no toplevel and are
+    skipped by the set-difference."""
+    import tkinter as tk
+    from tkinter import filedialog, messagebox, simpledialog
+    import time
+
+    root = app.root
+    # stub every modal — the sweep must never block
+    for mod in (filedialog, simpledialog):
+        for attr in dir(mod):
+            if attr.startswith("ask"):
+                try:
+                    setattr(mod, attr,
+                            lambda *a, **k: "" if "string" in attr or
+                            "integer" in attr or "float" in attr or
+                            "properties" in attr else None)
+                except Exception:  # noqa: BLE001
+                    pass
+    for attr in dir(messagebox):
+        if attr.startswith(("show", "ask")):
+            try:
+                setattr(messagebox, attr, lambda *a, **k: None)
+            except Exception:  # noqa: BLE001
+                pass
+
+    def toplevels():
+        return [w for w in root.winfo_children()
+                if isinstance(w, tk.Toplevel)]
+
+    base = {str(w) for w in toplevels()}
+    cmds = []
+    try:
+        cmds = app.palette_commands()
+    except Exception as e:  # noqa: BLE001
+        problems.append(f"[dialogs] ? palette unavailable: {e}")
+        return
+    for label, _key, fn in cmds:
+        before = {str(w) for w in toplevels()}
+        try:
+            sys.stderr.write(f"[sweep] {label}\n")
+            sys.stderr.flush()
+            fn()
+        except Exception:  # noqa: BLE001 — a command may refuse; fine
+            pass
+        root.update_idletasks(); root.update()
+        time.sleep(0.05)
+        root.update_idletasks(); root.update()
+        new = [w for w in toplevels() if str(w) not in before and
+               str(w) not in base]
+        for w in new:
+            try:
+                title = w.title() or "untitled"
+            except Exception:  # noqa: BLE001
+                title = "untitled"
+            # transient tool windows: audit at their NATURAL size
+            try:
+                w.update_idletasks()
+            except Exception:  # noqa: BLE001
+                continue
+            audit_size(app, f"dialog[{title}]", problems, root=w)
+        # close what this command opened
+        for w in new:
+            try:
+                w.destroy()
+            except Exception:  # noqa: BLE001
+                pass
+        root.update_idletasks()
+
+
 def main():
     import tkinter as tk
     from dxn1_studio.app import DXN1Studio
@@ -175,6 +250,9 @@ def main():
     # minimum size — the hard case
     root.geometry("940x580")
     audit_size(app, "min-940x580", problems)
+
+    # every dialog the palette can open
+    audit_dialogs(app, problems)
 
     app_close = getattr(app, "quit", None)
     if callable(app_close):

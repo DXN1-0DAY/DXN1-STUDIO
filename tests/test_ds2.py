@@ -9431,3 +9431,67 @@ def test_workspace_lifecycle(tmp_path, monkeypatch):
 def readback_kind(projmod, path):
     meta = projmod.read_project_meta(path)
     return meta.get("kind")
+
+
+def test_new_file_menu_creates_real_file(tmp_path, monkeypatch):
+    """DS2 UI-sprint — Ctrl+N keeps its promise: with a workspace open,
+    File → New File asks for a name, creates the real file on disk,
+    opens it in the editor and refreshes the tree; an occupied name is
+    refused with nothing overwritten; an empty answer is a no-op; and
+    with NO workspace the old untitled-buffer behaviour stands."""
+    import tkinter as tk
+    import tkinter.messagebox as mb
+    import tkinter.simpledialog as sd
+    try:
+        root = tk.Tk(); root.withdraw()
+    except tk.TclError:
+        return
+    import dxn1_studio.config as cfgmod
+    from dxn1_studio.app import DXN1Studio
+    monkeypatch.setattr(cfgmod, "CONFIG_DIR", str(tmp_path))
+    monkeypatch.setattr(cfgmod, "CONFIG_PATH",
+                        str(tmp_path / "config.json"))
+    app = DXN1Studio(cfgmod.Config(), smoke_test=True, no_splash=True)
+    refused = []
+    monkeypatch.setattr(mb, "showerror",
+                        lambda *a, **k: refused.append(a))
+    ws = str(tmp_path / "desk")
+    os.makedirs(ws, exist_ok=True)
+    try:
+        app.project_dir = ws
+        app.sidebar.load_directory(ws)
+        app.root.update()
+        # 1. real creation + opens in the editor
+        monkeypatch.setattr(sd, "askstring",
+                            lambda *a, **k: "notes.md")
+        app.new_file()
+        p = os.path.join(ws, "notes.md")
+        assert os.path.isfile(p)
+        assert os.path.abspath(app.editor.file_path or "") == \
+            os.path.abspath(p)
+        # 2. occupied name refused, content intact
+        with open(p, "w", encoding="utf-8") as fh:
+            fh.write("keep me")
+        app.new_file()
+        with open(p, encoding="utf-8") as fh:
+            assert fh.read() == "keep me"
+        assert refused and "already exists" in str(refused[-1])
+        # 3. empty answer = quiet no-op (no new files)
+        before = sorted(os.listdir(ws))
+        monkeypatch.setattr(sd, "askstring", lambda *a, **k: "")
+        app.new_file()
+        assert sorted(os.listdir(ws)) == before
+        # 4. no workspace → untitled buffer, no dialog
+        monkeypatch.setattr(sd, "askstring",
+                            lambda *a, **k: (_ for _ in ()).throw(
+                                AssertionError("dialog shown")))
+        app.project_dir = None
+        app.new_file()
+        assert app.editor.file_path is None
+        assert "Untitled" in app.status_file.cget("text")
+    finally:
+        try:
+            app.root.destroy()
+        except Exception:  # noqa: BLE001
+            pass
+    monkeypatch.undo()

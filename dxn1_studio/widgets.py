@@ -19,6 +19,9 @@ from .theme import FONT_UI, FONT_MONO, make_scrollbar, apply_scroll_theme
 # directories the explorer never renders (huge / irrelevant)
 TREE_SKIP = {".git", "__pycache__", ".venv", "venv", "node_modules",
              ".dxn1-studio", ".pytest_cache", ".mypy_cache", "dist",
+             ".dxn1-project.json",   # DS2 UI-sprint: studio metadata is
+                                     # furniture, not content — a brand-new
+                                     # workspace shows zero files
              "build", ".idea", ".vs"}
 
 # ANSI escape sequences (colours, cursor moves) — stripped in the terminal
