@@ -4,6 +4,54 @@ All notable changes to DXN1 STUDIO. Format based on
 [Keep a Changelog](https://keepachangelog.com/); versioning is
 `MAJOR.MINOR.PATCH` while in **beta**.
 
+## [2.71.9] — 2026-09-15 · beta · "measured, guarded, packaged"
+
+### Added
+- **Ln/Col in the web statusbar** — the editor now reports the caret
+  position live (keydown/click/focus), right next to the file path,
+  like the desktop face.
+- **Unsaved-edit guard** — the web face never loses textarea-only
+  edits to a careless reload or close: `beforeunload` asks, tab
+  close asks, and the bridge refuses dirty buffers.
+- **electron-builder packaging** — `npm run dist` in electron/
+  (AppImage + deb on Linux, nsis + portable on Windows, dmg on
+  macOS) with the config committed; the Python engine stays
+  unbundled so the brain is always whatever studio you point at.
+- **Word wrap proven in both modes** — a headless-browser QA pass
+  verified zero horizontal overflow with wrap ON and free horizontal
+  scrolling with wrap OFF (the highlight layer and textarea move in
+  lockstep).
+
+### Fixed
+- **The close-then-reopen race** — closing the active tab used to
+  re-open it: the bridge answers before the desktop drains its
+  mutation queue, so the "follow the activated tab" logic saw the
+  tab still present and resurrected it. The web face now waits
+  (bounded, ~1.5 s) for the closed tab to REALLY leave the state
+  before following — verified end-to-end in a real browser against
+  the live desktop.
+- **README drift in electron/** — the docs now describe the shipped
+  architecture (bridge-URL shell + ramp page + packaging), not the
+  retired stdio prototype.
+- **Secrets hygiene** — `.dxn1/bridge_token` and
+  `.dxn1/filestats_history.json` were accidentally tracked; the
+  token is a runtime secret that rotates on every bridge start and
+  the stats file is pure churn. Both untracked (they stay on disk,
+  excluded locally).
+
+### Polish
+- Inline SVG favicon (no more 404 noise) + `theme-color` for mobile
+  browsers.
+- Palette verbs that change wrap/theme now re-pull config so the web
+  editor follows instantly.
+- `scripts/webui_preview.py` — one command boots a smoke studio +
+  bridge on a fixed port for visual QA.
+
+### Tests
+- Suite **180 green**, boot_qa 20/20, gates PASS. Visual QA performed
+  in headless chromium: session restore, dirty dots, close-confirm,
+  race fix, and wrap parity all verified against the live bridge.
+
 ## [2.71.8] — 2026-09-15 · beta · "the web face remembers"
 
 ### Added

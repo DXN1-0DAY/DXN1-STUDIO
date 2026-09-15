@@ -1,14 +1,34 @@
 {
   "name": "dxn1-studio-shell",
   "productName": "DXN1 STUDIO",
-  "version": "2.71.7",
+  "version": "2.71.9",
   "description": "Electron shell for DXN1 STUDIO — the window around the Python brain.",
   "main": "main.js",
   "private": true,
   "scripts": {
-    "start": "electron ."
+    "start": "electron .",
+    "dist": "electron-builder"
   },
   "devDependencies": {
-    "electron": "^33.0.0"
+    "electron": "^33.0.0",
+    "electron-builder": "^25.0.0"
+  },
+  "build": {
+    "appId": "com.dxn1termux.studio",
+    "productName": "DXN1 STUDIO",
+    "copyright": "DXN1-termux",
+    "directories": { "output": "dist" },
+    "files": [
+      "main.js",
+      "preload.js",
+      "ramp.html"
+    ],
+    "linux": {
+      "target": ["AppImage", "deb"],
+      "category": "Development",
+      "maintainer": "DXN1-termux"
+    },
+    "win": { "target": ["nsis", "portable"] },
+    "mac": { "target": ["dmg"], "category": "public.app-category.developer-tools" }
   }
 }

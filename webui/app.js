@@ -182,6 +182,17 @@ function renderGutter() {
     (_, i) => i + 1).join("\n");
 }
 
+/* wave 8 — Ln/Col in the statusbar, like the desktop face */
+function updatePos() {
+  const el = $("st-pos");
+  if (!currentFile) { el.textContent = ""; return; }
+  const ta = $("editor");
+  const upto = ta.value.slice(0, ta.selectionStart);
+  const line = upto.split("\n").length;
+  const col = ta.selectionStart - upto.lastIndexOf("\n");
+  el.textContent = `Ln ${line}, Col ${col}`;
+}
+
 async function openFile(path, quiet = false) {
   const r = await (await api("/api/file?path=" + encodeURIComponent(path))).json();
   if (!r.ok) return toast("Open failed: " + (r.error || "?"));
@@ -192,6 +203,7 @@ async function openFile(path, quiet = false) {
   renderGutter();
   renderHighlight();
   renderTabs();
+  updatePos();
   restoreScrollFor(currentFile);   // wave 7 — the scroll comes back
   localStorage.setItem("dxn1_last_file", currentFile);
   // tell the Tk side too — the file joins _buffers, so the tab bar
@@ -213,20 +225,27 @@ async function closeTab(path) {
   toast("Closed " + path.split("/").pop());
   if (path === currentFile) {
     currentFile = null;
+    dirtyLocal = false;
     $("editor").value = "";
     $("st-file").textContent = "";
+    $("st-pos").textContent = "";
     localStorage.removeItem("dxn1_last_file");
     renderGutter(); renderHighlight(); renderTabs();
   }
-  await poll();
-  // follow the desktop's freshly activated tab — the web face never
-  // stares at a blank editor while tabs are still open
+  renderTree();
+  // the desktop drains its mutation queue on its own cadence — wait
+  // until the closed tab is REALLY gone before following the
+  // desktop's activated tab (otherwise we re-open what we closed)
+  for (let i = 0; i < 8; i++) {
+    await poll();
+    if (!(STATE.tabs || []).some(t => t.path === path)) break;
+    await new Promise(res => setTimeout(res, 180));
+  }
   if (!currentFile && (STATE.tabs || []).length) {
     const nxt = STATE.tabs.find(t => t.active)
       || STATE.tabs[STATE.tabs.length - 1];
     if (nxt) await openFile(nxt.path, true);
   }
-  renderTree();
 }
 
 async function saveFile() {
@@ -407,6 +426,13 @@ $("editor").addEventListener("input", () => {
   renderGutter();
   renderHighlight();
   renderTabs();
+  updatePos();
+});
+["keyup", "click", "focus"].forEach(ev =>
+  $("editor").addEventListener(ev, updatePos));
+// wave 8 — never lose textarea-only edits to a careless reload
+window.addEventListener("beforeunload", (e) => {
+  if (dirtyLocal) { e.preventDefault(); e.returnValue = ""; }
 });
 let scrollSaveTimer = null;
 $("editor").addEventListener("scroll", () => {
