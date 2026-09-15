@@ -4,6 +4,19 @@ All notable changes to DXN1 STUDIO. Format based on
 [Keep a Changelog](https://keepachangelog.com/); versioning is
 `MAJOR.MINOR.PATCH` while in **beta**.
 
+## [2.70.0] — 2026-09-15 · beta · "the chip menu admits the drift" (recall rows marked as saved / drifted, read fresh at every post)
+
+### Added
+- **The chip menu admits the drift** — the windows chip menu's
+  recall rows are marked fresh at every post, read through
+  `geom.layout_drift()`: `· as saved` when the live desk still
+  matches the layout exactly, `· drifted` when anything moved, was
+  closed behind the layout's back, or strayed in unbooked — and
+  the row's hint explains the mark. A book that cannot be read
+  makes no claim at all: no well-formed snapshot, no mark, no
+  dishonest window-count — but the row still recalls, because a
+  mark is garnish and a recall is a promise
+
 ## [2.69.0] — 2026-09-15 · beta · "the desk admits its drift" (tools layout diff: the saved layout compared to the live desk, read-only)
 
 ### Added

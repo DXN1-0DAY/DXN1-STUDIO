@@ -7598,16 +7598,38 @@ class DXN1Studio:
         if store:
             for nm, snap in store.items():
                 try:
-                    n = len(snap or [])
+                    n = len(snap) if isinstance(snap, list) else 0
                 except Exception:  # noqa: BLE001 — junk snapshot
                     n = 0
+                # v2.70 — the recall row admits the drift: read
+                # FRESH at every post, the row says whether the live
+                # desk still matches what the layout remembers —
+                # drifted when anything moved, closed or strayed in,
+                # as saved when the desk still matches exactly. A
+                # book that cannot be read makes no claim at all:
+                # no well-formed snapshot, no mark.
+                mark = ""
+                try:
+                    if isinstance(snap, list) and snap and \
+                            all(isinstance(e, dict) for e in snap):
+                        from .geom import layout_drift
+                        _ip, _mv, _mi, _ub = layout_drift(
+                            snap, self._open_tool_windows())
+                        if _mv or _mi or _ub:
+                            mark = " · drifted"
+                        elif _ip:
+                            mark = " · as saved"
+                except Exception:  # noqa: BLE001 — a mark is garnish
+                    mark = ""
                 entries.append(
-                    ("Recall layout '%s' (%d window%s)"
-                     % (nm, n, "" if n == 1 else "s"),
+                    ("Recall layout '%s' (%d window%s)%s"
+                     % (nm, n, "" if n == 1 else "s", mark),
                      lambda nm=nm: self.handle_terminal_command(
                          "tools layout %s" % nm),
                      "", "", "put every window it remembers back "
-                             "where you left it"))
+                             "where you left it — drifted means "
+                             "the desk has moved since it was "
+                             "saved"))
         else:
             entries.append(
                 ("No layouts saved yet",

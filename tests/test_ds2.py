@@ -9151,3 +9151,77 @@ def test_layout_drift(tmp_path):
         except Exception:  # noqa: BLE001
             pass
     monkeypatch.undo()
+
+
+def test_menu_drift_marks(tmp_path):
+    """DS2 v2.70 — the windows chip menu's recall rows admit the
+    drift, read FRESH at every post: a desk that still matches the
+    layout is marked `· as saved`, a desk that has moved (or lost
+    or gained a window) is marked `· drifted`, and a book that
+    cannot be read makes no claim at all — no well-formed snapshot,
+    no mark. The hint explains the mark."""
+    import tkinter as tk
+    try:
+        root = tk.Tk(); root.withdraw()
+    except tk.TclError:
+        return
+    import pytest
+    import dxn1_studio.config as cfgmod
+    from dxn1_studio.app import DXN1Studio
+    monkeypatch = pytest.MonkeyPatch()
+    monkeypatch.setattr(cfgmod, "CONFIG_DIR", str(tmp_path / "cfg"))
+    monkeypatch.setattr(cfgmod, "CONFIG_PATH",
+                        str(tmp_path / "cfg" / "config.json"))
+    monkeypatch.setenv("HOME", str(tmp_path / "home"))
+    app = DXN1Studio(cfgmod.Config(), smoke_test=True, no_splash=True)
+    try:
+        root = app.root
+        root.update()
+
+        def _recall_rows():
+            return [e for e in app._wins_menu_entries()
+                    if e[0].startswith("Recall layout")]
+
+        w = tk.Toplevel(root)
+        w.title("Chart")
+        w.transient(root)
+        w.geometry("300x200+10+10")
+        root.update()
+        app.config.set("tool_window_layouts", {
+            "clean": [{"title": "Chart", "geometry": "300x200+10+10",
+                       "transient": False}]})
+        rows = _recall_rows()
+        assert rows and rows[0][0].endswith("· as saved"), rows
+        assert "drifted means the desk has moved" in rows[0][4], rows
+
+        # the desk wanders: the SAME row now says drifted, fresh
+        # at every post
+        w.geometry("500x300+40+40")
+        root.update()
+        rows = _recall_rows()
+        assert rows[0][0].endswith("· drifted"), rows
+
+        # a window closed behind the layout's back is drift too
+        w.destroy()
+        root.update()
+        rows = _recall_rows()
+        assert rows[0][0].endswith("· drifted"), rows
+
+        # junk books make no claim: no well-formed snapshot, no
+        # mark — but the row still recalls (the verb answers)
+        app.config.set("tool_window_layouts", {
+            "junk": "banana",
+            "mixed": [None, {"title": "Chart",
+                             "geometry": "1x1+0+0",
+                             "transient": True}]})
+        rows = _recall_rows()
+        assert len(rows) == 2, rows
+        assert all("·" not in r[0].split(") ", 1)[-1] for r in rows), \
+            rows
+        assert "junk' (0 window" in " ".join(r[0] for r in rows), rows
+    finally:
+        try:
+            app.root.destroy()
+        except Exception:  # noqa: BLE001
+            pass
+    monkeypatch.undo()
