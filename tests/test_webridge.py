@@ -258,6 +258,45 @@ class TestWebBridge(unittest.TestCase):
         self.assertEqual(status, 400)
         self.assertFalse(body["ok"])
 
+    # ---- settings over the bridge (wave 2) ----------------------------
+    def test_config_get(self):
+        status, body = self.get("/api/config")
+        self.assertEqual(status, 200)
+        self.assertIn(body["config"]["theme"], ("dark", "light"))
+        self.assertIn("violet", body["config"]["accents"])
+
+    def test_config_set_accent_recolours_snapshot(self):
+        cur = self.get("/api/config")[1]["config"]["accent"]
+        other = "cyan" if cur != "cyan" else "rose"
+        status, body = self.post("/api/config", {"accent": other})
+        self.assertEqual(status, 200)
+        self.assertEqual(body["applied"]["accent"], other)
+        # the live theme object re-colours → snapshot follows
+        state = self.get("/api/state")[1]
+        tokens = state["theme"]
+        # cyan/rose dark hexes differ from violet's
+        self.assertNotEqual(tokens["accent"], "#8b5cf6")
+        # restore
+        self.post("/api/config", {"accent": cur})
+
+    def test_config_set_rejects_bad_values(self):
+        status, body = self.post("/api/config", {"accent": "nope"})
+        self.assertEqual(status, 400)
+        status, body = self.post("/api/config", {"theme": "sepia"})
+        self.assertEqual(status, 400)
+        status, body = self.post("/api/config", {"evil_key": 1})
+        self.assertEqual(status, 400)
+
+    def test_config_set_bool_and_int(self):
+        status, body = self.post("/api/config", {"word_wrap": True})
+        self.assertEqual(status, 200)
+        self.assertTrue(body["applied"]["word_wrap"])
+        status, body = self.post("/api/config", {"word_wrap": False})
+        self.assertEqual(status, 200)
+        status, body = self.post("/api/config",
+                                 {"editor_font_size": "not-an-int"})
+        self.assertEqual(status, 400)
+
 
 if __name__ == "__main__":
     unittest.main()

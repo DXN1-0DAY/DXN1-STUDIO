@@ -207,6 +207,46 @@ body {
   box-shadow: 0 10px 34px rgba(0, 0, 0, .5);
 }
 
+/* ---- settings ---- */
+#settings-overlay {
+  position: fixed; inset: 0; background: rgba(2, 4, 8, .45);
+  display: flex; align-items: flex-start; justify-content: flex-end;
+  padding: 64px 18px; z-index: 45;
+}
+#settings {
+  width: 300px; background: var(--card); border: 1px solid var(--cardb);
+  border-radius: 14px; box-shadow: 0 24px 70px rgba(0, 0, 0, .55);
+  padding: 16px 18px 12px;
+}
+.set-title {
+  font-size: 10.5px; letter-spacing: .14em; color: var(--muted);
+  font-weight: 700; margin-bottom: 12px;
+}
+.set-row {
+  display: flex; align-items: center; gap: 10px; padding: 7px 0;
+  color: var(--text); font-size: 13px;
+}
+.set-label { width: 64px; color: var(--text2); }
+#settings select {
+  background: var(--bg); color: var(--text);
+  border: 1px solid var(--cardb); border-radius: 8px;
+  padding: 5px 10px; font-size: 12.5px; outline: none;
+}
+#settings select:focus { border-color: var(--accent); }
+#set-accents { display: flex; gap: 7px; flex-wrap: wrap; }
+.swatch {
+  width: 22px; height: 22px; border-radius: 7px; cursor: pointer;
+  border: 2px solid transparent; transition: transform .12s, border-color .12s;
+}
+.swatch:hover { transform: scale(1.12); }
+.swatch.sel { border-color: var(--text); }
+.set-toggle { cursor: pointer; user-select: none; }
+.set-toggle input { accent-color: var(--accent); width: 15px; height: 15px; }
+.set-note {
+  margin-top: 10px; padding-top: 10px; border-top: 1px solid var(--cardb);
+  font-size: 11px; color: var(--muted); line-height: 1.5;
+}
+
 /* scrollbars — thin and themed */
 ::-webkit-scrollbar { width: 9px; height: 9px; }
 ::-webkit-scrollbar-thumb { background: var(--cardb); border-radius: 8px; }

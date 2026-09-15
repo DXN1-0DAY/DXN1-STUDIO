@@ -367,10 +367,82 @@ window.addEventListener("keydown", (e) => {
   }
 });
 
+/* ---------- settings ---------- */
+let ACCENT_HEX = {};
+
+async function loadConfig() {
+  try {
+    const r = await (await api("/api/config")).json();
+    if (!r.ok) return;
+    const c = r.config;
+    $("set-theme").value = c.theme === "light" ? "light" : "dark";
+    $("set-wrap").checked = !!c.word_wrap;
+    $("set-autosave").checked = !!c.auto_save;
+    ACCENT_HEX = c.accents || {};
+    const box = $("set-accents");
+    box.innerHTML = "";
+    for (const [name] of Object.entries(ACCENT_HEX)) {
+      const sw = document.createElement("button");
+      sw.className = "swatch" + (name === c.accent ? " sel" : "");
+      sw.title = name;
+      sw.dataset.name = name;
+      sw.onclick = () => saveConfig({ accent: name });
+      box.appendChild(sw);
+    }
+    paintSwatches(c.accent);
+  } catch (e) { /* bridge offline */ }
+}
+
+function paintSwatches(selected) {
+  // swatches use the LIVE --accent for the current one; each shows its
+  // own colour via a per-name lookup once we know the hexes — the
+  // bridge sends labels, so we colour them with well-known hexes
+  const HEX = { violet: "#8b5cf6", cyan: "#22d3ee", green: "#4ade80",
+                orange: "#fb923c", rose: "#fb7185", blue: "#60a5fa" };
+  document.querySelectorAll(".swatch").forEach(sw => {
+    sw.style.background = HEX[sw.dataset.name] || "var(--accent)";
+    sw.classList.toggle("sel", sw.dataset.name === selected);
+  });
+}
+
+async function saveConfig(patch) {
+  const r = await (await api("/api/config", {
+    method: "POST", body: JSON.stringify(patch) })).json();
+  if (r.ok) {
+    const applied = r.applied ? Object.keys(r.applied) : [];
+    toast("Saved: " + (applied.join(", ") || "?"));
+    paintSwatches(patch.accent);
+    poll();  // theme tokens re-stream → instant recolour
+  } else {
+    toast("Setting failed: " + (r.error || "?"));
+  }
+}
+
+$("btn-settings").onclick = async () => {
+  $("settings-overlay").classList.remove("hidden");
+  await loadConfig();
+};
+$("settings-overlay").addEventListener("mousedown", (e) => {
+  if (e.target.id === "settings-overlay")
+    $("settings-overlay").classList.add("hidden");
+});
+$("set-theme").addEventListener("change", (e) =>
+  saveConfig({ theme: e.target.value }));
+$("set-wrap").addEventListener("change", (e) =>
+  saveConfig({ word_wrap: e.target.checked }));
+$("set-autosave").addEventListener("change", (e) =>
+  saveConfig({ auto_save: e.target.checked }));
+window.addEventListener("keydown", (e) => {
+  if (e.key === "Escape") {
+    $("settings-overlay").classList.add("hidden");
+  }
+});
+
 /* ---------- boot ---------- */
 poll();
 renderTree();
 renderHighlight();
 loadCommands();
+loadConfig();
 setInterval(poll, 1200);
 setInterval(renderTree, 8000);

@@ -271,6 +271,57 @@ class BridgeState:
         self.post(_run)
         return {"ran": True}, None
 
+    # ---- settings (wave 2: the web face can drive config) -------------
+    _CONFIG_KEYS = ("theme", "accent", "word_wrap", "auto_save",
+                    "editor_font_size", "terminal_font_size")
+
+    def config_get(self):
+        out = {"app": "DXN1 STUDIO", "version": _version()}
+        try:
+            for key in self._CONFIG_KEYS:
+                out[key] = self.app.config.get(key)
+        except Exception:  # noqa: BLE001
+            pass
+        from .theme import ACCENTS
+        out["accents"] = {name: spec["label"]
+                          for name, spec in ACCENTS.items()}
+        return out
+
+    def config_set(self, body):
+        from .theme import ACCENTS
+        applied = {}
+        if not isinstance(body, dict):
+            return None, "body must be an object"
+        for key, val in body.items():
+            if key not in self._CONFIG_KEYS:
+                return None, f"setting not exposed: {key}"
+            if key == "theme" and val not in ("dark", "light"):
+                return None, "theme must be dark or light"
+            if key == "accent" and val not in ACCENTS:
+                return None, f"accent must be one of: " \
+                             f"{', '.join(ACCENTS)}"
+            if key in ("word_wrap", "auto_save"):
+                val = bool(val)
+            if key in ("editor_font_size", "terminal_font_size"):
+                try:
+                    val = int(val)
+                except (TypeError, ValueError):
+                    return None, f"{key} must be an integer"
+            try:
+                self.app.config.set(key, val, save=True)
+            except Exception as exc:  # noqa: BLE001
+                return None, str(exc)
+            applied[key] = val
+            # live accent re-colour: the web face polls theme tokens,
+            # so the renderer follows instantly (the Tk face re-reads
+            # on its normal restart flow)
+            if key == "accent":
+                try:
+                    self.app.theme._a = ACCENTS[val]
+                except Exception:  # noqa: BLE001
+                    pass
+        return {"applied": applied, "config": self.config_get()}, None
+
     # ---- helpers ------------------------------------------------------
     def _sandbox(self, path):
         """Resolve `path` and demand it stays inside the workspace."""
@@ -355,6 +406,8 @@ class _Handler(BaseHTTPRequestHandler):
             self._send_json({"ok": True, "commands": self.state.commands()})
         elif route == "/api/tree":
             self._send_json({"ok": True, "tree": self.state.tree()})
+        elif route == "/api/config":
+            self._send_json({"ok": True, "config": self.state.config_get()})
         elif route == "/api/file":
             payload, err = self.state.file_read(
                 (q.get("path") or [""])[0])
@@ -395,6 +448,8 @@ class _Handler(BaseHTTPRequestHandler):
         elif u.path == "/api/mkdir":
             payload, err = self.state.make_dir(
                 str(body.get("path") or ""))
+        elif u.path == "/api/config":
+            payload, err = self.state.config_set(body)
         elif u.path == "/api/run":
             payload, err = self.state.run_project()
         else:

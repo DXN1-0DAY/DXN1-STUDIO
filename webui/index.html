@@ -14,6 +14,7 @@
     <div class="spacer"></div>
     <button id="btn-run" class="btn accent" title="Run project (F5)">▶ Run</button>
     <button id="btn-palette" class="btn" title="Command palette (Ctrl+K)">⌘ Commands</button>
+    <button id="btn-settings" class="btn" title="Settings">⚙</button>
   </header>
 
   <div id="body">
@@ -56,6 +57,31 @@
            autocomplete="off" spellcheck="false">
     <div id="palette-list"></div>
     <div class="palette-hint">↑/↓ select · Enter run · Esc close</div>
+  </div>
+</div>
+
+<div id="settings-overlay" class="hidden">
+  <div id="settings">
+    <div class="set-title">SETTINGS</div>
+    <div class="set-row">
+      <span class="set-label">Theme</span>
+      <select id="set-theme">
+        <option value="dark">dark</option>
+        <option value="light">light</option>
+      </select>
+    </div>
+    <div class="set-row">
+      <span class="set-label">Accent</span>
+      <div id="set-accents"></div>
+    </div>
+    <label class="set-row set-toggle">
+      <input type="checkbox" id="set-wrap"><span>Word wrap</span>
+    </label>
+    <label class="set-row set-toggle">
+      <input type="checkbox" id="set-autosave"><span>Auto save</span>
+    </label>
+    <div class="set-note">Changes save instantly — the web face
+      re-colours live; the desktop face follows on its restart flow.</div>
   </div>
 </div>
 
