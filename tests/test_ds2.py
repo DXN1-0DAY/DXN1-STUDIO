@@ -7785,6 +7785,9 @@ def test_lang_report(tmp_path):
     text = le.format_report(rep2, when="2026-09-15 01:10 UTC")
     assert text.startswith("DXN1 STUDIO — language report")
     assert "generated 2026-09-15 01:10 UTC" in text
+    # DS2 v2.64 — the shareable file says who wrote it
+    from dxn1_studio import APP_VERSION as _ver
+    assert "DXN1 STUDIO %s" % _ver in text, text.splitlines()[:2]
     assert "English source: %d keys" % len(i18nmod.EN) in text
     assert "seedpack" in text and "still seeded" in text
     assert "es" in text and "fully real" in text
@@ -7851,6 +7854,101 @@ def test_lang_report(tmp_path):
             assert any("could not write" in m for m in logs), logs
         finally:
             app.terminal.log = _old_log
+    finally:
+        try:
+            app.root.destroy()
+        except Exception:  # noqa: BLE001
+            pass
+    monkeypatch.undo()
+
+
+def test_tools_windows(tmp_path):
+    """DS2 v2.64 — the studio's window manager: `tools windows`
+    lists every open Toplevel of the root (numbered, honest
+    geometry, transient marked) or answers that none is open;
+    `tools windows raise <n|title>` deiconifies, lifts and focuses
+    the match; `tools windows close <n|title>` destroys it and says
+    so; a title substring that matches several windows is refused
+    with the candidates named; `tools windows close all` destroys
+    only the TRANSIENT tool windows — the transient flag is the
+    guard, so a plain Toplevel left alone is reported."""
+    import tkinter as tk
+    try:
+        root = tk.Tk(); root.withdraw()
+    except tk.TclError:
+        return
+    import pytest
+    import dxn1_studio.config as cfgmod
+    from dxn1_studio.app import DXN1Studio, TERMINAL_HELP
+    monkeypatch = pytest.MonkeyPatch()
+    monkeypatch.setattr(cfgmod, "CONFIG_DIR", str(tmp_path / "cfg"))
+    monkeypatch.setattr(cfgmod, "CONFIG_PATH",
+                        str(tmp_path / "cfg" / "config.json"))
+    monkeypatch.setenv("HOME", str(tmp_path / "home"))
+    app = DXN1Studio(cfgmod.Config(), smoke_test=True, no_splash=True)
+    try:
+        app.root.update()
+        verbs_list = [r[0] for r in TERMINAL_HELP]
+        assert "tools windows [raise|close <n|title>]" in verbs_list
+        logs = []
+        app.terminal.log = lambda m, *a, **k: logs.append(str(m))
+
+        def _dispatch(cmd):
+            logs.clear()
+            app.handle_terminal_command(cmd)
+            return "\n".join(logs)
+
+        # none open: an honest empty answer
+        blob = _dispatch("tools windows")
+        assert "none open" in blob, blob
+        # two tool windows open: both listed, numbered, transient
+        # marked with honest geometry
+        w1 = tk.Toplevel(app.root)
+        w1.title("Probe one")
+        w1.transient(app.root)
+        w1.geometry("300x200")
+        w2 = tk.Toplevel(app.root)
+        w2.title("Probe two")
+        w2.geometry("400x300")
+        app.root.update()
+        blob = _dispatch("tools windows")
+        assert "tools windows — 2 open" in blob, blob
+        assert "1 · Probe one" in blob and "transient" in blob, blob
+        assert "2 · Probe two" in blob, blob
+        # raise by index: the answer names the window
+        blob = _dispatch("tools windows raise 1")
+        assert "Probe one is front now" in blob, blob
+        # raise by title substring, case-insensitive
+        blob = _dispatch("tools windows raise PROBE")
+        assert "matches 2 windows" in blob, blob      # ambiguous
+        blob = _dispatch("tools windows raise two")
+        assert "Probe two is front now" in blob, blob
+        # a number that does not exist is refused
+        blob = _dispatch("tools windows raise 9")
+        assert "no window matches '9'" in blob, blob
+        # close by substring: the window is really destroyed
+        blob = _dispatch("tools windows close two")
+        assert "Probe two is gone" in blob, blob
+        app.root.update()
+        assert not w2.winfo_exists()
+        # close all: only the transient one dies, the plain one is
+        # reported as left alone
+        w3 = tk.Toplevel(app.root)
+        w3.title("Probe three")
+        w3.geometry("200x100")
+        app.root.update()
+        blob = _dispatch("tools windows close all")
+        assert "closed 1 transient tool window" in blob, blob
+        assert "1 non-transient left alone" in blob, blob
+        app.root.update()
+        assert not w1.winfo_exists()
+        assert w3.winfo_exists()               # not transient: spared
+        w3.destroy()
+        app.root.update()
+        assert w2.__class__ is tk.Toplevel  # sanity: types held
+        # usage line when the action has no target
+        blob = _dispatch("tools windows raise")
+        assert "usage: tools windows raise" in blob, blob
     finally:
         try:
             app.root.destroy()

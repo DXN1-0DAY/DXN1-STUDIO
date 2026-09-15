@@ -4,6 +4,26 @@ All notable changes to DXN1 STUDIO. Format based on
 [Keep a Changelog](https://keepachangelog.com/); versioning is
 `MAJOR.MINOR.PATCH` while in **beta**.
 
+## [2.64.0] — 2026-09-15 · beta · "the studio keeps its windows" (a window manager for a dozen tool windows)
+
+### Added
+- **`tools windows [raise|close <n|title>]`** — the studio's
+  window manager: bare verb lists every open Toplevel (numbered,
+  honest geometry, transient marked) or answers that none is open;
+  `raise` deiconifies, lifts and focuses the match; `close`
+  destroys it and says so; a 1-based index or a case-insensitive
+  title substring both name a window; an ambiguous substring is
+  refused with the candidates named (guessing is not closing);
+  `close all` destroys only the TRANSIENT tool windows — the
+  transient flag is the guard, and the report counts what was
+  spared
+
+### Changed
+- A shareable `lang report <dest>` file carries the studio's own
+  version in its header — best effort, so an exotic embedding
+  without the package attribute still reports, just without the
+  version line
+
 ## [2.63.0] — 2026-09-15 · beta · "the sweep completes, the ledger goes public" (every window fits, every pack answers in one table)
 
 ### Added

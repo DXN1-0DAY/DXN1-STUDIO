@@ -71,6 +71,9 @@ TERMINAL_HELP = (
     ("verbs", "browse every terminal verb in a window"),
     ("todo", "scan the workspace for TODO / FIXME"),
     ("tools", "developer tools: regex, JSON, text, time"),
+    ("tools windows [raise|close <n|title>]", "the studio's open "
+     "tool windows — list them numbered, raise one, close one, or "
+     "close every transient one at once"),
     ("cron <expr>", "decode a cron schedule + next runs"),
     ("readability", "reading level of the current file"),
     ("jwt <token>", "decode a JWT — header, payload, exp"),
@@ -3376,6 +3379,114 @@ class DXN1Studio:
                                   "text, time")
             except Exception as exc:  # noqa: BLE001 — terminal stays alive
                 self.terminal.log(f"tools failed: {exc}")
+            return
+        if low == "tools windows" or low.startswith("tools windows "):
+            # DS2 v2.64 — the studio's window manager: a dozen tool
+            # windows can pile up, and alt-tab is the only way back.
+            # The verb lists what is open (numbered, honest geometry,
+            # transient marked), raises one, closes one, or closes
+            # every TRANSIENT tool window at once — the transient
+            # flag is the guard, so nothing docked or rooted ever
+            # dies by accident. A number or a title substring both
+            # name a window; an ambiguous substring is refused with
+            # the candidates named.
+            sub = low[len("tools windows"):].strip()
+            try:
+                self.root.update_idletasks()
+                wins = [w for w in self.root.winfo_children()
+                        if isinstance(w, tk.Toplevel)
+                        and bool(w.winfo_exists())]
+            except Exception:  # noqa: BLE001 — a verb never raises
+                wins = []
+
+            def _match(text):
+                """Windows matching a 1-based index or a title
+                substring (case-insensitive)."""
+                text = text.strip()
+                if text.isdigit():
+                    i = int(text)
+                    return [wins[i - 1]] if 1 <= i <= len(wins) else []
+                low_t = text.lower()
+                return [w for w in wins
+                        if low_t in w.title().lower()] if text else []
+
+            if sub.startswith("raise") or sub.startswith("close"):
+                action, _, rest = sub.partition(" ")
+                if action == "close" and rest.strip().lower() == "all":
+                    doomed = [w for w in wins
+                              if bool(w.transient())]  # transient flag
+                    for w in doomed:
+                        try:
+                            w.destroy()
+                        except Exception:  # noqa: BLE001
+                            pass
+                    self.root.update()
+                    self.terminal.log(
+                        "tools windows close all — closed %d transient "
+                        "tool window%s (%d non-transient left alone)"
+                        % (len(doomed),
+                           "" if len(doomed) == 1 else "s",
+                           len(wins) - len(doomed)))
+                    return
+                if not rest.strip():
+                    self.terminal.log(
+                        "usage: tools windows raise <n|title> — or "
+                        "close <n|title>, or close all (transient "
+                        "windows only)")
+                    return
+                hits = _match(rest)
+                if not hits:
+                    self.terminal.log(
+                        "tools windows %s — no window matches '%s' "
+                        "(see `tools windows` for the open list)"
+                        % (action, rest))
+                    return
+                if len(hits) > 1:
+                    self.terminal.log(
+                        "tools windows %s — '%s' matches %d windows, "
+                        "name one: %s"
+                        % (action, rest, len(hits),
+                           " | ".join("%s" % w.title() for w in hits[:4])))
+                    return
+                w = hits[0]
+                try:
+                    title = w.title()
+                    if action == "raise":
+                        if w.state() == "iconic":
+                            w.deiconify()
+                        w.lift(self.root)
+                        w.focus_force()
+                        self.terminal.log(
+                            "tools windows raise — %s is front now"
+                            % title)
+                    else:
+                        w.destroy()
+                        self.root.update()
+                        self.terminal.log(
+                            "tools windows close — %s is gone" % title)
+                except Exception as exc:  # noqa: BLE001
+                    self.terminal.log("tools windows %s failed: %s"
+                                      % (action, exc))
+                return
+            if not wins:
+                self.terminal.log(
+                    "tools windows — none open (every tool window is "
+                    "closed; open one and it will answer here)")
+                return
+            self.terminal.log("tools windows — %d open"
+                              % len(wins))
+            for i, w in enumerate(wins, 1):
+                try:
+                    line = ("  %d · %s · %s" % (i, w.title(),
+                                                w.winfo_geometry()))
+                    if w.transient():
+                        line += " · transient"
+                    self.terminal.log(line)
+                except Exception:  # noqa: BLE001 — a dead window
+                    self.terminal.log("  %d · (window went away)" % i)
+            self.terminal.log(
+                "(tools windows raise <n|title> · close <n|title> · "
+                "close all — transient windows only)")
             return
         if low == "cron" or low.startswith("cron "):
             # DS2: decode a cron expression (or open the explainer empty)

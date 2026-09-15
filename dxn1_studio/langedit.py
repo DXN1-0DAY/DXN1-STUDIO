@@ -520,9 +520,18 @@ def format_report(rep, when=None):
     try:
         stamp = when or time.strftime("%Y-%m-%d %H:%M UTC",
                                       time.gmtime())
+        # DS2 v2.64 — a shareable file says who wrote it: the
+        # studio's own version rides the header (best effort — an
+        # exotic embedding without the package attribute still
+        # reports, just without the version)
+        try:
+            from . import APP_VERSION as _ver
+            who = " · DXN1 STUDIO %s" % _ver
+        except Exception:  # noqa: BLE001 — garnish
+            who = ""
         lines = ["DXN1 STUDIO — language report",
-                 "generated %s · English source: %d keys"
-                 % (stamp, rep.get("en_keys", 0)),
+                 "generated %s · English source: %d keys%s"
+                 % (stamp, rep.get("en_keys", 0), who),
                  ""]
         header = ("%-10s %-9s %-14s %6s %5s %6s %5s %6s %7s"
                   % ("code", "kind", "name", "cover", "real",
