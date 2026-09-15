@@ -4,6 +4,37 @@ All notable changes to DXN1 STUDIO. Format based on
 [Keep a Changelog](https://keepachangelog.com/); versioning is
 `MAJOR.MINOR.PATCH` while in **beta**.
 
+## [2.71.10] — 2026-09-15 · beta · "power tools for the web editor"
+
+### Added
+- **Minimap** — a dependency-free canvas overview on the editor's
+  right edge: one dim bar per logical line, the viewport painted in
+  the live accent colour, click to jump and hold-and-drag to scrub.
+  It follows scroll, input, wrap changes and resizes; off by
+  default, toggled from settings, the palette, and remembered.
+- **Zen mode** — Ctrl+Alt+Z (or the palette verb / settings toggle)
+  dissolves the sidebar and terminal so the words are the interface.
+  The tab bar dims until hovered; the preference persists.
+- **Branch switcher (web)** — the git panel now lists branches and
+  switches with a guarded `checkout`: strict name syntax (no option
+  injection, no `..`), a clean-tree requirement (dirty trees get a
+  human refusal, never a force-drop), and git's own honest errors.
+- **Web-local palette verbs** — the palette gained renderer-side
+  commands (toggle minimap, toggle zen) that run with no bridge
+  roundtrip; bridge commands and web verbs now share one list.
+
+### Tests
+- Bridge suite 32 → 33: branch listing + the full checkout contract
+  (switch verified by HEAD, dirty refusal, name-syntax rejections,
+  unknown-branch error) in its own temp repo. Suite **181 green**,
+  boot_qa 20/20, gates PASS.
+
+### QA
+- Headless-browser pass against the live bridge: minimap bars +
+  accent viewport render and track a 2278 px scroll jump; zen mode
+  dissolves both panels (toast + dimmed tabs); the branch switcher
+  shows both branches and the dirty-tree guard refuses from the UI.
+
 ## [2.71.9] — 2026-09-15 · beta · "measured, guarded, packaged"
 
 ### Added

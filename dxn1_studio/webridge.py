@@ -17,6 +17,7 @@ Security model:
 import json
 import os
 import queue
+import re
 import secrets
 import threading
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
@@ -494,10 +495,13 @@ class BridgeState:
             branch = branch.split("No commits yet on ", 1)[1].strip() \
                 + " (fresh)"
         files = [ln[3:] for ln in lines[1:] if ln.strip()]
+        out_b, _err_b = self._git("branch", "--format=%(refname:short)")
+        branches = (out_b.splitlines() if out_b else [])[:40]
         log, err = self._git("log", "--oneline", "-8")
         commits = log.splitlines() if log else []
         return {"branch": branch, "dirty": len(files),
-                "files": files[:40], "commits": commits}, None
+                "files": files[:40], "commits": commits,
+                "branches": branches}, None
 
     def git_action(self, body):
         action = str(body.get("action") or "")
@@ -517,7 +521,33 @@ class BridgeState:
                 return None, err.splitlines()[-1] if err else \
                     f"{action} failed"
             return {"done": action, "detail": out.strip()[:400]}, None
+        if action == "checkout":
+            return self.git_checkout(body)
         return None, f"action not allowed: {action}"
+
+    # ---- branches (wave 9: switch branches from the web face) ---------
+    _BRANCH_RE = re.compile(r"[A-Za-z0-9][A-Za-z0-9._/-]*")
+
+    def git_checkout(self, body):
+        """Switch branches — guarded three ways: strict name syntax
+        (no option injection, no ..), a clean working tree, and an
+        explicit git failure surface. Nothing is force-dropped."""
+        branch = str(body.get("branch") or "").strip()
+        if not branch or not self._BRANCH_RE.fullmatch(branch) \
+                or ".." in branch or branch.endswith("/"):
+            return None, "bad branch name"
+        status, err = self.git_status()
+        if err is not None:
+            return None, err
+        if status.get("dirty"):
+            return None, (f"working tree has {status['dirty']} changed "
+                          "file(s) — commit or stash first")
+        out, err = self._git("checkout", branch)
+        if err is not None:
+            return None, err.splitlines()[-1] if err else \
+                "checkout failed"
+        return {"done": "checkout", "branch": branch,
+                "detail": out.strip()[:200]}, None
 
     # ---- helpers ------------------------------------------------------
     def _sandbox(self, path):

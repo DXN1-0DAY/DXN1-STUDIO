@@ -132,6 +132,18 @@ body {
 #editor-wrap.wrap-on #editor {
   white-space: pre-wrap; word-break: break-word; overflow-x: hidden;
 }
+/* ---- wave 9: minimap (off by default; canvas overview) ---- */
+#minimap {
+  display: none; width: 72px; flex: none; height: 100%;
+  background: var(--sidebar); border-left: 1px solid var(--border);
+  cursor: pointer;
+}
+#editor-wrap.mini-on #minimap { display: block; }
+#editor-wrap.mini-on #highlight { right: 72px; }
+/* ---- wave 9: zen mode — the words are the interface ---- */
+body.zen #sidebar, body.zen #terminal { display: none; }
+body.zen #tabbar { opacity: .45; }
+body.zen #tabbar:hover { opacity: 1; }
 /* the pre sits under a text-transparent textarea — classic overlay */
 #highlight {
   position: absolute; inset: 0; left: 46px; margin: 0;
@@ -277,12 +289,14 @@ body {
 .git-file:hover { background: var(--hover); color: var(--text); }
 .git-empty { color: var(--muted); font-size: 12px; padding: 6px 2px 10px; }
 .git-commit { display: flex; gap: 7px; }
-.git-commit input {
+.git-commit input,
+.git-commit select {
   flex: 1; background: var(--bg); border: 1px solid var(--cardb);
   border-radius: 8px; color: var(--text); padding: 7px 11px;
   font-size: 12.5px; outline: none;
 }
-.git-commit input:focus { border-color: var(--accent); }
+.git-commit input:focus,
+.git-commit select:focus { border-color: var(--accent); }
 .btn.sm { padding: 5px 12px; font-size: 12px; }
 .git-actions { display: flex; gap: 7px; margin-top: 8px; }
 .git-log { font: 11.5px/1.7 var(--mono); color: var(--text2); }

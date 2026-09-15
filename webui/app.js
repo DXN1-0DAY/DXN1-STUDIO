@@ -47,6 +47,103 @@ async function restoreSession() {
   await openFile(tab.path, true);
 }
 
+/* ---------- web-local preferences (wave 9: minimap, zen) ----------
+   These live in localStorage — they are renderer preferences, not
+   workspace config, so they never ride the bridge. */
+function pref(key, val) {
+  if (val === undefined) {
+    return localStorage.getItem("dxn1_" + key) === "1";
+  }
+  localStorage.setItem("dxn1_" + key, val ? "1" : "0");
+  return !!val;
+}
+
+function applyMini(on) {
+  $("editor-wrap").classList.toggle("mini-on", !!on);
+  const box = $("set-mini");
+  if (box) box.checked = !!on;
+  renderMinimap();
+}
+
+function applyZen(on) {
+  document.body.classList.toggle("zen", !!on);
+  const box = $("set-zen");
+  if (box) box.checked = !!on;
+  if (on) toast("Zen mode — Ctrl+Alt+Z to exit");
+}
+
+function applyWebPrefs() {
+  applyMini(pref("minimap"));
+  applyZen(pref("zen"));
+}
+
+/* ---------- minimap (wave 9) ----------
+   A canvas overview: one dim bar per logical line, the viewport
+   painted in the accent, click/drag to jump. Redrawn on rAF. */
+let miniRaf = 0;
+
+function miniWindow(ta, heightPx) {
+  // shared math: which logical lines the minimap is showing
+  const slot = 2;
+  const edLH = parseFloat(getComputedStyle(ta).lineHeight) || 20;
+  const lines = ta.value.split("\n");
+  const totalSlots = lines.length * slot;
+  let start = 0;
+  if (totalSlots > heightPx) {
+    const first = Math.floor(ta.scrollTop / edLH);
+    const span = Math.ceil(heightPx / slot);
+    const vis = Math.ceil(ta.clientHeight / edLH);
+    start = Math.max(0, Math.min(lines.length - span,
+                  first + Math.floor(vis / 2) - Math.floor(span / 2)));
+  }
+  return { slot, edLH, lines, start };
+}
+
+function renderMinimap() {
+  if (!$("editor-wrap").classList.contains("mini-on")) return;
+  cancelAnimationFrame(miniRaf);
+  miniRaf = requestAnimationFrame(() => {
+    const cv = $("minimap"), ta = $("editor");
+    if (!cv.clientWidth || !cv.clientHeight) return;
+    const dpr = window.devicePixelRatio || 1;
+    const W = cv.clientWidth, H = cv.clientHeight;
+    if (cv.width !== Math.round(W * dpr) ||
+        cv.height !== Math.round(H * dpr)) {
+      cv.width = Math.round(W * dpr); cv.height = Math.round(H * dpr);
+    }
+    const ctx = cv.getContext("2d");
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    ctx.clearRect(0, 0, W, H);
+    const { slot, edLH, lines, start } = miniWindow(ta, H);
+    const root = getComputedStyle(document.documentElement);
+    const acc = (root.getPropertyValue("--accent") || "").trim()
+      || "#8b5cf6";
+    ctx.fillStyle = "rgba(154,167,184,.5)";
+    const shown = Math.min(lines.length - start, Math.ceil(H / slot));
+    for (let i = 0; i < shown; i++) {
+      const len = lines[start + i].replace(/\t/g, "    ").length;
+      if (!len) continue;
+      ctx.fillRect(5, i * slot, Math.min(W - 10, 1.5 + len * 1.15), 1.2);
+    }
+    const vTop = Math.max(0, (ta.scrollTop / edLH - start) * slot);
+    const vH = Math.max(6, (ta.clientHeight / edLH) * slot);
+    ctx.fillStyle = acc + "2e";
+    ctx.fillRect(0, vTop, W, vH);
+    ctx.fillStyle = acc;
+    ctx.fillRect(0, vTop, 2, vH);
+  });
+}
+
+function miniJump(e) {
+  const cv = $("minimap"), ta = $("editor");
+  const rect = cv.getBoundingClientRect();
+  const { slot, edLH, lines, start } = miniWindow(ta, rect.height);
+  const line = start + Math.floor((e.clientY - rect.top) / slot);
+  ta.scrollTop = Math.max(0,
+    Math.min(ta.scrollHeight, line * edLH - ta.clientHeight / 2.5));
+  renderMinimap();
+}
+
 /* ---------- theme tokens ---------- */
 function applyTheme(t) {
   if (!t) return;
@@ -204,6 +301,7 @@ async function openFile(path, quiet = false) {
   renderHighlight();
   renderTabs();
   updatePos();
+  renderMinimap();
   restoreScrollFor(currentFile);   // wave 7 — the scroll comes back
   localStorage.setItem("dxn1_last_file", currentFile);
   // tell the Tk side too — the file joins _buffers, so the tab bar
@@ -377,9 +475,20 @@ async function poll() {
 }
 
 /* ---------- command palette ---------- */
+const WEB_CMDS = [
+  { index: -1, label: "Web: toggle minimap", key: "",
+    web: true,
+    run: () => { const v = !pref("minimap");
+                 pref("minimap", v); applyMini(v); } },
+  { index: -2, label: "Web: toggle zen mode", key: "Ctrl+Alt+Z",
+    web: true,
+    run: () => { const v = !pref("zen");
+                 pref("zen", v); applyZen(v); } },
+];
+
 async function loadCommands() {
   const r = await (await api("/api/commands")).json();
-  CMDS = r.ok ? r.commands : [];
+  CMDS = r.ok ? r.commands.concat(WEB_CMDS) : WEB_CMDS;
 }
 
 function palRender(q) {
@@ -402,6 +511,10 @@ function palRender(q) {
 
 async function palRun(cmd) {
   $("palette-overlay").classList.add("hidden");
+  if (cmd.web) {           // renderer-local verbs — no bridge roundtrip
+    cmd.run();
+    return;
+  }
   const r = await (await api("/api/command", {
     method: "POST", body: JSON.stringify({ index: cmd.index }),
   })).json();
@@ -427,6 +540,7 @@ $("editor").addEventListener("input", () => {
   renderHighlight();
   renderTabs();
   updatePos();
+  renderMinimap();
 });
 ["keyup", "click", "focus"].forEach(ev =>
   $("editor").addEventListener(ev, updatePos));
@@ -437,9 +551,20 @@ window.addEventListener("beforeunload", (e) => {
 let scrollSaveTimer = null;
 $("editor").addEventListener("scroll", () => {
   syncScroll();
+  renderMinimap();
   clearTimeout(scrollSaveTimer);          // wave 7 — debounce the save
   scrollSaveTimer = setTimeout(rememberScroll, 200);
 });
+// minimap interaction: click jumps, hold-and-drag scrubs
+let miniScrubbing = false;
+$("minimap").addEventListener("mousedown", (e) => {
+  miniScrubbing = true; miniJump(e); e.preventDefault();
+});
+window.addEventListener("mousemove", (e) => {
+  if (miniScrubbing) miniJump(e);
+});
+window.addEventListener("mouseup", () => { miniScrubbing = false; });
+window.addEventListener("resize", renderMinimap);
 $("editor").addEventListener("keydown", (e) => {
   if ((e.ctrlKey || e.metaKey) && e.key === "s") { e.preventDefault(); saveFile(); }
   if (e.key === "Tab") {  // real tabs in the editor
@@ -475,6 +600,10 @@ window.addEventListener("keydown", (e) => {
   }
   if ((e.ctrlKey || e.metaKey) && e.key === "s") {
     e.preventDefault(); saveFile();
+  }
+  if (e.ctrlKey && e.altKey && e.key.toLowerCase() === "z") {
+    e.preventDefault();
+    const v = !pref("zen"); pref("zen", v); applyZen(v);
   }
 });
 
@@ -548,11 +677,22 @@ $("quickopen-overlay").addEventListener("mousedown", (e) => {
 });
 
 /* ---------- git panel ---------- */
+function populateBranches(r) {
+  const row = $("git-branch-row"), sel = $("git-branch-sel");
+  const branches = r.branches || [];
+  const cur = (r.branch || "").replace(" (fresh)", "");
+  if (branches.length < 2) { row.style.display = "none"; return; }
+  row.style.display = "";
+  sel.innerHTML = branches.map(b =>
+    `<option${b === cur ? " selected" : ""}>${esc(b)}</option>`).join("");
+}
+
 async function loadGit() {
   try {
     const r = await (await api("/api/git")).json();
     if (!r.ok) {
       $("git-branch").textContent = "not a git repo";
+      $("git-branch-row").style.display = "none";
       $("git-files").innerHTML = "";
       $("git-log").innerHTML = "";
       return;
@@ -560,6 +700,7 @@ async function loadGit() {
     $("git-branch").innerHTML = `⎇ <b>${esc(r.branch)}</b>` +
       (r.dirty ? ` <span class="dot">● ${r.dirty} changed</span>` :
                  ` <span class="git-empty" style="display:inline">clean</span>`);
+    populateBranches(r);
     const files = $("git-files");
     files.innerHTML = r.files.length
       ? r.files.map(f => `<div class="git-file">✎ ${esc(f)}</div>`).join("")
@@ -611,6 +752,7 @@ async function gitAction(action, extra = {}) {
     toast(`${action} ✓ ${r.detail || ""}`.trim());
     loadGit();
     poll();
+    renderTree();   // a checkout can change the whole tree
   } else toast(`${action} failed: ${r.error || "?"}`);
   return r.ok;
 }
@@ -634,6 +776,12 @@ $("git-msg").addEventListener("keydown", (e) => {
 });
 $("git-push").onclick = () => gitAction("push");
 $("git-pull").onclick = () => gitAction("pull");
+$("git-branch-go").onclick = async () => {
+  const to = $("git-branch-sel").value;
+  if (!to) return;
+  if (!confirm("Switch to branch “" + to + "”?")) return;
+  await gitAction("checkout", { branch: to });
+};
 window.addEventListener("keydown", (e) => {
   if (e.key === "Escape") {
     ["git-overlay", "settings-overlay", "diff-overlay",
@@ -684,6 +832,7 @@ function applyWrap(on) {
   const ta = $("editor");
   ta.wrap = on ? "soft" : "off";
   $("editor-wrap").classList.toggle("wrap-on", !!on);
+  renderMinimap();   // wrap changes the visual line count
 }
 
 async function loadConfig() {
@@ -738,8 +887,16 @@ async function saveConfig(patch) {
 
 $("btn-settings").onclick = async () => {
   $("settings-overlay").classList.remove("hidden");
+  $("set-mini").checked = pref("minimap");
+  $("set-zen").checked = pref("zen");
   await loadConfig();
 };
+$("set-mini").addEventListener("change", (e) => {
+  pref("minimap", e.target.checked); applyMini(e.target.checked);
+});
+$("set-zen").addEventListener("change", (e) => {
+  pref("zen", e.target.checked); applyZen(e.target.checked);
+});
 $("settings-overlay").addEventListener("mousedown", (e) => {
   if (e.target.id === "settings-overlay")
     $("settings-overlay").classList.add("hidden");
@@ -812,6 +969,7 @@ async function gitChipUpdate() {
 poll();
 renderTree();
 renderHighlight();
+applyWebPrefs();   // wave 9 — minimap / zen come back from localStorage
 loadCommands();
 loadConfig();
 gitChipUpdate();

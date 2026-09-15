@@ -38,6 +38,7 @@
         <pre id="highlight" aria-hidden="true"></pre>
         <textarea id="editor" spellcheck="false" autocomplete="off"
           placeholder="Open a file from the explorer, or press Ctrl+K for commands…"></textarea>
+        <canvas id="minimap" aria-hidden="true" title="Minimap — click to jump"></canvas>
       </div>
       <div id="terminal">
         <div class="side-title">TERMINAL</div>
@@ -100,6 +101,11 @@
   <div id="gitpanel">
     <div class="set-title">SOURCE CONTROL</div>
     <div id="git-branch" class="git-branch">—</div>
+    <div class="git-commit" id="git-branch-row" style="display:none">
+      <select id="git-branch-sel" title="Switch branch"
+              spellcheck="false"></select>
+      <button id="git-branch-go" class="btn sm" title="Switch to the selected branch">⇄ Switch</button>
+    </div>
     <div id="git-files" class="git-files"></div>
     <div class="git-commit">
       <input id="git-msg" type="text" placeholder="Commit message…"
@@ -132,6 +138,12 @@
     </div>
     <label class="set-row set-toggle">
       <input type="checkbox" id="set-wrap"><span>Word wrap</span>
+    </label>
+    <label class="set-row set-toggle">
+      <input type="checkbox" id="set-mini"><span>Minimap</span>
+    </label>
+    <label class="set-row set-toggle">
+      <input type="checkbox" id="set-zen"><span>Zen mode</span>
     </label>
     <label class="set-row set-toggle">
       <input type="checkbox" id="set-autosave"><span>Auto save</span>

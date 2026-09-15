@@ -454,6 +454,66 @@ class TestWebBridge(unittest.TestCase):
         status, body = self.post("/api/agent", {"message": "x" * 9000})
         self.assertEqual(status, 400)
 
+    # ---- branches + checkout (wave 9) ----------------------------------
+    def test_git_branches_and_checkout(self):
+        # own temp repo — the shared workspace's git state is owned by
+        # test_diff_in_a_repo and must not be touched
+        import shutil
+        import subprocess
+        import tempfile
+        old = self.app.project_dir
+        repo = tempfile.mkdtemp(prefix="dxn1-branch-")
+        self.app.project_dir = repo
+        try:
+            def run(*args):
+                return subprocess.run(["git", "-C", repo, *args],
+                                      capture_output=True, text=True,
+                                      timeout=10)
+            run("init", "-q")
+            run("config", "user.email", "t@dxn1.dev")
+            run("config", "user.name", "DXN1 Test")
+            with open(os.path.join(repo, "a.txt"), "w") as fh:
+                fh.write("one\n")
+            run("add", "-A")
+            run("commit", "-qm", "seed")
+            run("branch", "feature/edge")
+            base_branch = run(
+                "rev-parse", "--abbrev-ref", "HEAD").stdout.strip()
+            # the status payload now carries the branch list
+            status, body = self.get("/api/git")
+            self.assertEqual(status, 200)
+            self.assertIn(base_branch, body["branches"])
+            self.assertIn("feature/edge", body["branches"])
+            # switch through the guarded API
+            status, body = self.post("/api/git", {
+                "action": "checkout", "branch": "feature/edge"})
+            self.assertEqual(status, 200)
+            self.assertEqual(body["done"], "checkout")
+            self.assertEqual(run("rev-parse", "--abbrev-ref",
+                                 "HEAD").stdout.strip(), "feature/edge")
+            # dirty trees are refused — nothing is force-dropped
+            with open(os.path.join(repo, "a.txt"), "a") as fh:
+                fh.write("two\n")
+            status, body = self.post("/api/git", {
+                "action": "checkout", "branch": base_branch})
+            self.assertEqual(status, 400)
+            self.assertIn("changed file", body["error"])
+            subprocess.run(["git", "-C", repo, "checkout", "-q",
+                            "--", "."], timeout=10)
+            # bogus names never reach git at all
+            for bad in ("", "-rf", "../escape", "has space"):
+                status, body = self.post("/api/git", {
+                    "action": "checkout", "branch": bad})
+                self.assertEqual(status, 400, bad)
+                self.assertEqual(body["error"], "bad branch name")
+            # unknown branch surfaces git's own honest error
+            status, body = self.post("/api/git", {
+                "action": "checkout", "branch": "no/such/branch"})
+            self.assertEqual(status, 400)
+        finally:
+            self.app.project_dir = old
+            shutil.rmtree(repo, ignore_errors=True)
+
     # ---- diff + terminal input (wave 6) -------------------------------
     def test_diff_in_a_repo(self):
         import subprocess
