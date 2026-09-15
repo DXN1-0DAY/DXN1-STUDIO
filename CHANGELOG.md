@@ -4,6 +4,36 @@ All notable changes to DXN1 STUDIO. Format based on
 [Keep a Changelog](https://keepachangelog.com/); versioning is
 `MAJOR.MINOR.PATCH` while in **beta**.
 
+## [2.71.4] — 2026-09-15 · beta · "the bridge to Electron opens" (web renderer + native shell, per user directive)
+
+### Added
+- **The Electron + Web UI path** — the user's call: the UI goes web
+  tech so it can be the best possible, and the Python core stays the
+  brain (the VS Code pattern, adapted):
+  * `dxn1_studio/webridge.py` — a localhost-only, token-guarded HTTP
+    bridge (pure stdlib) that serves the web renderer and exposes the
+    running studio: live state, workspace tree, file read/write
+    (workspace-sandboxed), the full command palette, and run control.
+  * `webui/` — the web renderer seed: cinematic dark, zero
+    dependencies, zero build step. Explorer, tabs, guttered editor
+    with Ctrl+S, terminal tail, status bar, and a Ctrl+K palette over
+    all 122 commands. Theme tokens stream from the Python theme.
+  * `electron/` — the native desktop shell: a sandboxed
+    BrowserWindow (no Node integration) around the bridge URL, with a
+    ramp page when launched bare. `npm install && npm start`.
+  * Palette command **"Web UI / Electron — start the bridge
+    server…"** — starts the bridge and logs the URL + token.
+- `docs/ELECTRON.md` — the architecture, the three faces, the
+  phases (parity sprint → packaging) and the non-negotiable security
+  rules (localhost only, token on every API call, sandboxed paths).
+
+### Changed
+- The About dialog now says what is true: "Pure Python core ·
+  Tkinter desktop · Electron + Web UI path (best of both)."
+- New tests: `tests/test_webridge.py` (12) — token enforcement,
+  sandbox escape refusal, token-file privacy, command dispatch,
+  write roundtrip. Suite is now **159 tests**.
+
 ## [2.71.3] — 2026-09-15 · beta · "the click audit" (121 dialogs opened, every button clicked — nothing dead)
 
 ### Added
