@@ -49,5 +49,16 @@ EOF
 echo "── gate 6: renderer selftest (highlighter + Spark schema)"
 if node scripts/selftest.js; then echo "   ok  selftest"; else echo "   FAIL selftest"; FAIL=1; fi
 
+echo "── gate 7: native core (C++23)"
+if make -s -C native >/tmp/dxn3_native_build.log 2>&1 \
+   && ./native/build/dxn3-selftest >/tmp/dxn3_native_selftest.log 2>&1; then
+  echo "   ok  build (g++ -std=c++23, zero warnings policy)"
+  echo "   ok  $(tail -1 /tmp/dxn3_native_selftest.log)"
+else
+  echo "   FAIL native — build log:"; tail -15 /tmp/dxn3_native_build.log 2>/dev/null
+  echo "   FAIL native — selftest log:"; tail -5 /tmp/dxn3_native_selftest.log 2>/dev/null
+  FAIL=1
+fi
+
 echo
 if [ $FAIL -eq 0 ]; then echo "ALL GATES GREEN"; else echo "GATES RED"; exit 1; fi

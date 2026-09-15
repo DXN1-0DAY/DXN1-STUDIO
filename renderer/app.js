@@ -26,7 +26,7 @@ let RECENTS = STORE.get("recents", []);
 let SCENE_PATH = null;    // open scene path (game view)
 let GAME = null;          // live Spark.Game
 let SEL_ENT = null;
-const VERSION = "3.0.04";
+const VERSION = "3.0.05";
 
 /* ============================================================
    ENGINE CLIENTS

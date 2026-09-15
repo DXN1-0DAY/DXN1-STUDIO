@@ -4,3 +4,5 @@ __pycache__/
 *.pyc
 .dxn1/
 .DS_Store
+native/build/
+exports/

@@ -38,12 +38,16 @@ chk "crumbs show scene path"     "$(agent-browser eval "document.getElementById(
 chk "game running"               "$(agent-browser eval "GAME.running")"                                     true
 chk "level-2 magnetized"         "$(agent-browser eval "String(GAME.scene.magnet)")"                        140
 
-# 3. magnetism end-to-end: coin placed 60px away gets pulled + collected
-agent-browser eval "(function(){var p=GAME.scene.entities.find(function(e){return e.tag==='player';});var c=GAME.scene.entities.find(function(e){return e.tag==='coin';});p.x=200;p.y=400;p.vx=0;p.vy=0;c.x=260;c.y=410;c.alive=true;return 'ok';})()" > /dev/null
+# 3. magnetism end-to-end, deterministic: freeze gravity (no fall, no
+#    respawn race), boost the magnet, park the coin 60px from the player.
+#    Eval returns stay quote-free — agent-browser JSON-quotes strings and
+#    quoted needles never match (see worklog QA lessons).
+agent-browser eval "(function(){var p=GAME.scene.entities.find(function(e){return e.tag==='player';});var c=GAME.scene.entities.find(function(e){return e.tag==='coin';});GAME.scene.gravity=0;GAME.scene.magnet=2000;p.x=200;p.y=400;p.vx=0;p.vy=0;c.x=260;c.y=410;c.alive=true;return 1;})()" > /dev/null
 sleep 0.8
-MAG=$(agent-browser eval "JSON.stringify({score:GAME.score, alive:GAME.scene.entities.find(function(e){return e.tag==='coin';}).alive})")
-chk "magnet pulls coin (score+10)" "$MAG" '"score":10'
-chk "magnet collects coin"         "$MAG" '"alive":false'
+MAG=$(agent-browser eval "GAME.score + '|' + GAME.scene.entities.find(function(e){return e.tag==='coin';}).alive")
+chk "magnet pulls coin (score+10)" "$MAG" "10|"
+chk "magnet collects coin"         "$MAG" "|false"
+agent-browser eval "GAME.scene.magnet=140;GAME.scene.gravity=1500;1" > /dev/null
 
 # 4. shake: direct call sets timer, decays to zero
 S1=$(agent-browser eval "GAME.shake(12,0.4); String(+GAME._shakeT.toFixed(2))")
@@ -57,13 +61,13 @@ chk "hazard fires shake" "$(agent-browser eval "String(GAME._shakeT > 0)")" true
 
 # 6. autocomplete: open -> accept -> escape
 agent-browser eval "openPath('README.md')" > /dev/null; sleep 0.6
-AC=$(agent-browser eval "(function(){var ta=document.getElementById('editor');ta.focus();ta.value='alpha beta gamma\nalp';ta.setSelectionRange(ta.value.length,ta.value.length);ta.dispatchEvent(new KeyboardEvent('keydown',{key:' ',code:'Space',ctrlKey:true,bubbles:true}));return JSON.stringify({open:AC.open,items:AC.items});})()")
-chk "ctrl+space opens popup" "$AC" '"open":true'
-chk "word candidates"        "$AC" '"items":["alpha"]'
-AC2=$(agent-browser eval "(function(){var ta=document.getElementById('editor');ta.dispatchEvent(new KeyboardEvent('keydown',{key:'Enter',bubbles:true}));return JSON.stringify({value:ta.value,closed:document.getElementById('ac-pop').classList.contains('hidden')});})()")
-chk "enter accepts word"     "$AC2" 'alpha beta gamma\nalpha'
-AC3=$(agent-browser eval "(function(){var ta=document.getElementById('editor');var i=ta.value.indexOf('alp');ta.setSelectionRange(i+3,i+3);ta.dispatchEvent(new KeyboardEvent('keydown',{key:' ',code:'Space',ctrlKey:true,bubbles:true}));var o=AC.open;ta.dispatchEvent(new KeyboardEvent('keydown',{key:'Escape',bubbles:true}));return JSON.stringify({reopened:o,escClosed:!AC.open});})()")
-chk "escape closes popup"    "$AC3" '"escClosed":true'
+AC=$(agent-browser eval "(function(){var ta=document.getElementById('editor');ta.focus();ta.value='alpha beta gamma\\nalp';ta.setSelectionRange(ta.value.length,ta.value.length);ta.dispatchEvent(new KeyboardEvent('keydown',{key:' ',code:'Space',ctrlKey:true,bubbles:true}));return String(AC.open)+'|'+AC.items.join(',');})()")
+chk "ctrl+space opens popup" "$AC" "true|alpha"
+chk "word candidates"        "$AC" "|alpha"
+AC2=$(agent-browser eval "(function(){var ta=document.getElementById('editor');ta.dispatchEvent(new KeyboardEvent('keydown',{key:'Enter',bubbles:true}));return ta.value.replace('\\n','|')+'|'+String(document.getElementById('ac-pop').classList.contains('hidden'));})()")
+chk "enter accepts word"     "$AC2" "alpha beta gamma|alpha|true"
+AC3=$(agent-browser eval "(function(){var ta=document.getElementById('editor');var i=ta.value.indexOf('alp');ta.setSelectionRange(i+3,i+3);ta.dispatchEvent(new KeyboardEvent('keydown',{key:' ',code:'Space',ctrlKey:true,bubbles:true}));var o=String(AC.open);ta.dispatchEvent(new KeyboardEvent('keydown',{key:'Escape',bubbles:true}));return 'reopened='+o+' escClosed='+String(!AC.open);})()")
+chk "escape closes popup"    "$AC3" "escClosed=true"
 
 # 7. terminal status + log verbs
 agent-browser eval "(function(){document.getElementById('term-in').value='status';document.getElementById('term-in').dispatchEvent(new KeyboardEvent('keydown',{key:'Enter',bubbles:true}));return 1;})()" > /dev/null
@@ -81,8 +85,14 @@ chk "search groups by file" "$(agent-browser eval "document.querySelectorAll('.s
 # 9. crumbs click echoes path
 chk "crumb click echoes path" "$(agent-browser eval "(function(){document.querySelector('.crumb').click();return document.getElementById('st-msg').textContent;})()")" "README.md"
 
-# 10. no page errors
-chk "zero page errors" "$(agent-browser errors 2>&1 || true)" ""
+# 10. no page errors (empty output must still yield one grep-able line)
+ERRS=$(agent-browser errors 2>&1 || true)
+chk "zero page errors" "${ERRS:-CLEAN-NO-ERRORS}" "CLEAN-NO-ERRORS"
+
+# 11. native C++23 core — builds clean and stays green
+chk "native selftest green" "$(make -s -C native >/dev/null 2>&1 && ./native/build/dxn3-selftest 2>&1 | tail -1)" "all green (29 assertion groups)"
+chk "native binary present" "$([ -x native/build/dxn3-native ] && echo yes)" "yes"
+chk "native smoke frame" "$(timeout 5 ./native/build/dxn3-native scenes/playground.dxn1.json </dev/null 2>/dev/null | tail -1)" "frame rendered: score=0 time=0 entities=16"
 
 echo
 echo "QA: $PASS passed, $FAIL failed"

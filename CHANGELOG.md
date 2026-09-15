@@ -2,6 +2,45 @@
 
 Giant hourly updates. Every version is worth installing.
 
+## v3.0.05 — the native core: Spark in C++23
+
+**The engine now speaks C++ too**
+- `native/` — a complete, dependency-free **C++23 port of the Spark
+  engine**: same scene JSON, same AABB physics, movers with rider
+  carry, coin magnetism, hazards, goal→next-scene transitions, camera
+  follow + zoom + decay shake. `std::expected` scene loading, a
+  hand-rolled JSON parser (with `\uXXXX`→UTF-8 so signs render their
+  arrows), fixed-timestep loop mirroring the JS runtime 1:1.
+- **Truecolor terminal renderer** — half-block pixels (two world
+  pixels per cell, 24-bit color), gradient fills, striped goal flags,
+  triangle spikes, HUD with score/time, help rails. The studio plays
+  beautifully in any modern terminal.
+- **The studio shell** — PLAY and INSPECT modes (Tab pauses and prints
+  the entity table: name, tag, position, size, color, aliveness),
+  run/jump, zoom in/out/fit, reset, honest quit summary. Runs from any
+  working directory; `--scene` picks the level.
+- **Selftest: 29 engine assertions** — clamps, magnetism (pull + off),
+  pickups, hazard respawn + shake, transition locking, mover
+  ping-pong + rider carry, camera follow, eternal ball. Wired into the
+  quality gates as gate 7 — the repo does not ship unless C++23 builds
+  clean (`-Wall -Wextra -Wpedantic`) and stays green.
+
+**Spark (browser) gains the same powers**
+- **Coin magnetism** — `"magnet": 110` per scene; coins drift toward
+  the player, pull growing as they close in. Both demo scenes ship
+  magnetized.
+- **Camera shake** — time-decayed, cosmetic-only; hazards shake on
+  respawn. `game.shake(power, seconds)` from scene code.
+- **Word autocomplete** — Ctrl+Space pops frequency-ranked completions
+  from the buffer; arrows/click to accept, Esc dismisses, caret-true
+  positioning.
+- **Breadcrumbs** — the path of the open file sits above the editor,
+  clickable per segment.
+- **Search grouped by file** — project grep results now file their
+  matches under per-file headers with counts.
+- **"Play level 2" hero card** — the welcome screen now jumps straight
+  into the movers-and-magnet level.
+
 ## v3.0.04 — the git suite completes; the editor sees the line you're on
 
 **Source control — the full loop**
