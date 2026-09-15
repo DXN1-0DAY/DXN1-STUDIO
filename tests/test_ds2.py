@@ -9498,3 +9498,36 @@ def test_new_file_menu_creates_real_file(tmp_path, monkeypatch):
         except Exception:  # noqa: BLE001
             pass
     monkeypatch.undo()
+
+
+def test_statusbar_declutter_overflow():
+    """DS2 v2.71.7 — the ⋯ chip folds the quiet chips; the state
+    chips (git/deps/scribe/wins) always stay visible."""
+    from dxn1_studio import config as cfgmod
+    from dxn1_studio.app import DXN1Studio
+    app = DXN1Studio(cfgmod.Config(), smoke_test=True, no_splash=True)
+    try:
+        app.root.update()
+        assert app.status_overflow.cget("text") == "⋯"
+        # collapsed: secondaries hidden, state chips mapped
+        assert not app.status_enc.winfo_ismapped()
+        assert not app.status_sesave.winfo_ismapped()
+        assert app.status_git.winfo_ismapped()
+        assert app.status_deps.winfo_ismapped()
+        # expand
+        app._toggle_sb_chips()
+        app.root.update()
+        assert app.status_overflow.cget("text") == "«"
+        assert app.status_enc.winfo_ismapped()
+        assert app.status_sesave.winfo_ismapped()
+        assert app.config.get("statusbar_expanded") is True
+        # fold again
+        app._toggle_sb_chips()
+        app.root.update()
+        assert not app.status_enc.winfo_ismapped()
+        assert app.config.get("statusbar_expanded") is False
+    finally:
+        try:
+            app.root.destroy()
+        except Exception:  # noqa: BLE001
+            pass

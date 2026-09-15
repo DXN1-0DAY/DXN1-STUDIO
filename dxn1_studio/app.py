@@ -921,6 +921,30 @@ class DXN1Studio:
         self._wins_sig_state = None  # last (open, transient) signature
         self._wins_tip_job = None    # the 2s refresh loop's after id
         self._last_chip_menu = None  # DS2 v2.52: the menu now introspects
+        # DS2 v2.71.7 declutter: progressive disclosure — the quiet
+        # chips (session-autosave, encoding, plugins, agents) collapse
+        # behind a single ⋯ chip; click it to expand, « to fold again.
+        # Default is CALM: the bar shows state that changes (git,
+        # deps, scribe, windows) and hides the set-and-forget chips.
+        self._sb_expanded = bool(self.config.get("statusbar_expanded",
+                                                 False))
+        self._sb_secondary = [   # pack order restores the original L→R
+            (self.status_agents, (0, 10)),
+            (self.status_plugins, (0, 10)),
+            (self.status_enc, (0, 12)),
+            (self.status_sesave, (0, 12)),
+        ]
+        self.status_overflow = tk.Label(right, text="⋯",
+                                        bg=t["statusbar"],
+                                        fg=t["text_muted"],
+                                        font=(FONT_UI, 10, "bold"),
+                                        cursor="hand2", padx=6)
+        self.status_overflow.pack(side=tk.RIGHT, padx=(0, 2))
+        self.status_overflow.bind("<Button-1>",
+                                  lambda _e: self._toggle_sb_chips())
+        self._chip_tip(self.status_overflow,
+                       "more status chips — click to show/hide")
+        self._apply_sb_mode()
         self._chip_tip(self.status_git,
                        "Source control — click opens the panel, "
                        "right-click for actions · Ctrl+Alt+G")
@@ -6071,9 +6095,32 @@ class DXN1Studio:
             pass
         return cmds
 
+    def _toggle_sb_chips(self):
+        """DS2 v2.71.7: the ⋯ chip — fold/unfold the quiet statusbar
+        chips. The preference persists across restarts."""
+        self._sb_expanded = not self._sb_expanded
+        self.config.set("statusbar_expanded", self._sb_expanded,
+                        save=True)
+        self._apply_sb_mode()
+
+    def _apply_sb_mode(self):
+        """Show/hide the secondary statusbar chips per _sb_expanded."""
+        label = "«" if self._sb_expanded else "⋯"
+        try:
+            self.status_overflow.config(text=label)
+        except Exception:  # noqa: BLE001 — boot order tolerance
+            return
+        for widget, padx in self._sb_secondary:
+            try:
+                if self._sb_expanded:
+                    widget.pack(side=tk.RIGHT, padx=padx)
+                else:
+                    widget.pack_forget()
+            except Exception:  # noqa: BLE001 — never fatal
+                pass
+
     def open_web_bridge(self):
         """DS2 v2.71.4: the Electron / Web UI path.
-
         Serves webui/ + a token-guarded JSON API on 127.0.0.1 and logs
         the URL. The Tkinter window stays the source of truth; the web
         renderer and the Electron shell both consume this bridge.
