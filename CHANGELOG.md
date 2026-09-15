@@ -4,6 +4,29 @@ All notable changes to DXN1 STUDIO. Format based on
 [Keep a Changelog](https://keepachangelog.com/); versioning is
 `MAJOR.MINOR.PATCH` while in **beta**.
 
+## [2.71.7] — 2026-09-15 · beta · "the diff you can read + a calm statusbar"
+
+### Added
+- **Web diff view** — the git panel's new ◐ Diff button opens
+  WORKING TREE vs HEAD: the unified diff with tinted +/− lines,
+  accent @@ hunks, muted metadata, selectable text. `/api/diff`
+  serves it (64 KB cap with an honest truncation note).
+- **Terminal input over the bridge** — the web terminal panel now
+  has a real input row. Commands typed in the browser run exactly
+  as if typed in the desktop terminal (history, log, dispatch) and
+  stream back through the state poll.
+- **The calm statusbar (Tk)** — the eight-chip ticker is now
+  progressive disclosure: a ⋯ chip folds the set-and-forget chips
+  (session-autosave, encoding, plugins, agents) and expands them on
+  click (« to fold). The state-bearing chips — git, deps, scribe,
+  windows — stay visible because a statusbar should show what
+  CHANGES. Preference persists; calm by default.
+
+### Tests
+- Bridge suite 26 → 28 (diff roundtrip incl. the unborn-HEAD 400,
+  terminal validation). New statusbar fold/unfold/persist test;
+  suite **173 green**, gates PASS.
+
 ## [2.71.6] — 2026-09-15 · beta · "quick-open + the agents drawer" (Ctrl+P and chat in the web face)
 
 ### Added
