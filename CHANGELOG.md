@@ -21,7 +21,8 @@
   covers the whole CLI.
 - The vim-style **command bar** ships: `:scene :zoom :fit :reset :w :wq :q
   :screenshot :magnet :gravity :help`, honest errors with usage, the game
-  paused while it's open.
+  paused while it's open — and it whispers: a live usage hint follows your
+  typing, dim and out of the way.
 - **PNG screenshots** ship, zero dependencies: `p` in play saves
   `exports/<scene>-<n>.png`, and `dxn3-native --screenshot out.png` renders
   any scene headless (the README's screenshots are made this way).
