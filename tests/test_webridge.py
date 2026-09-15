@@ -345,6 +345,30 @@ class TestWebBridge(unittest.TestCase):
                                               "message": ""})
         self.assertEqual(status, 400)
 
+    # ---- quick-open file list (wave 4) ---------------------------------
+    def test_files_flat_list_skips_internal(self):
+        ws = getattr(self.app, "project_dir", "") or os.getcwd()
+        os.makedirs(os.path.join(ws, "pkg"), exist_ok=True)
+        for rel in ("pkg/mod.py", "top.txt"):
+            with open(os.path.join(ws, rel), "w") as fh:
+                fh.write("x")
+        try:
+            status, body = self.get("/api/files")
+            self.assertEqual(status, 200)
+            files = body["files"]
+            self.assertIn("pkg/mod.py", files)
+            self.assertIn("top.txt", files)
+            # internal + hidden dirs never surface
+            self.assertFalse(any(".dxn1" in f for f in files))
+            self.assertFalse(any(f.startswith(".") for f in files))
+        finally:
+            import shutil
+            shutil.rmtree(os.path.join(ws, "pkg"), ignore_errors=True)
+            try:
+                os.remove(os.path.join(ws, "top.txt"))
+            except OSError:
+                pass
+
 
 if __name__ == "__main__":
     unittest.main()

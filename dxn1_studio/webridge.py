@@ -193,6 +193,31 @@ class BridgeState:
             pass
         return out
 
+    _WALK_SKIP = {".git", "__pycache__", "node_modules", ".venv",
+                  "venv", ".dxn1", ".mypy_cache", ".pytest_cache",
+                  ".ruff_cache"}
+
+    def files(self):
+        """Flat relative-path list for Ctrl+P quick-open (capped)."""
+        base = getattr(self.app, "project_dir", None) or os.getcwd()
+        out = []
+        for dirpath, dirnames, filenames in os.walk(base):
+            dirnames[:] = [d for d in sorted(dirnames)
+                           if d not in self._WALK_SKIP and
+                           not d.startswith(".")]
+            for fn in sorted(filenames):
+                if fn.startswith("."):
+                    continue
+                full = os.path.join(dirpath, fn)
+                try:
+                    rel = os.path.relpath(full, base)
+                except ValueError:  # noqa: BLE001
+                    continue
+                out.append(rel)
+                if len(out) >= 2000:
+                    return out
+        return out
+
     # ---- mutations (scheduled on the Tk loop) ------------------------
     def command(self, index):
         try:
@@ -483,6 +508,8 @@ class _Handler(BaseHTTPRequestHandler):
             self._send_json({"ok": True, "commands": self.state.commands()})
         elif route == "/api/tree":
             self._send_json({"ok": True, "tree": self.state.tree()})
+        elif route == "/api/files":
+            self._send_json({"ok": True, "files": self.state.files()})
         elif route == "/api/config":
             self._send_json({"ok": True, "config": self.state.config_get()})
         elif route == "/api/git":

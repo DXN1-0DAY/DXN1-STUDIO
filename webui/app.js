@@ -362,9 +362,81 @@ window.addEventListener("keydown", (e) => {
   if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "k") {
     e.preventDefault(); palOpen();
   }
+  if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "p") {
+    e.preventDefault(); qoOpen();
+  }
   if ((e.ctrlKey || e.metaKey) && e.key === "s") {
     e.preventDefault(); saveFile();
   }
+});
+
+/* ---------- quick open (Ctrl+P) ---------- */
+let QO_ITEMS = [];
+let qoSel = 0;
+
+async function qoOpen() {
+  $("quickopen-overlay").classList.remove("hidden");
+  const inp = $("quickopen-input");
+  inp.value = ""; qoSel = 0; qoRender("");
+  let files = [];
+  try {
+    const r = await (await api("/api/files")).json();
+    if (r.ok) files = r.files;
+  } catch (e) { /* bridge offline */ }
+  // current file first, then alphabetical
+  files = [...files.filter(f => f !== currentFile)].sort();
+  if (currentFile) files.unshift(currentFile);
+  QO_ITEMS = files;
+  qoRender(inp.value);
+  setTimeout(() => inp.focus(), 30);
+}
+
+function qoFuzzy(query, path) {
+  // subsequence match on the basename, else substring on the path
+  const base = path.split("/").pop().toLowerCase();
+  const q = query.toLowerCase();
+  if (!q) return true;
+  let i = 0;
+  for (const ch of base) if (ch === q[i]) i++;
+  return i === q.length || path.toLowerCase().includes(q);
+}
+
+function qoRender(q) {
+  const list = $("quickopen-list");
+  const items = QO_ITEMS.filter(f => qoFuzzy(q, f)).slice(0, 50);
+  if (qoSel >= items.length) qoSel = Math.max(0, items.length - 1);
+  list.innerHTML = items.map((f, i) => {
+    const base = f.split("/").pop();
+    const dir = f.includes("/") ?
+      `<span class="k">${esc(f.slice(0, f.length - base.length - 1))}</span>` : "";
+    return `<div class="pal-item" data-i="${i}">` +
+      `<span>${esc(base)}</span>${dir}</div>`;
+  }).join("") || `<div class="pal-item">No files match.</div>`;
+  list.querySelectorAll("[data-i]").forEach(el => {
+    if (+el.dataset.i === qoSel) el.classList.add("sel");
+    el.onclick = () => qoPick(items[+el.dataset.i]);
+  });
+  return items;
+}
+
+function qoPick(path) {
+  $("quickopen-overlay").classList.add("hidden");
+  openFile(path);
+}
+
+$("quickopen-input").addEventListener("input", (e) => {
+  qoSel = 0; qoRender(e.target.value);
+});
+$("quickopen-input").addEventListener("keydown", (e) => {
+  const items = qoRender(e.target.value);
+  if (e.key === "ArrowDown") { e.preventDefault(); qoSel = Math.min(qoSel + 1, items.length - 1); qoRender(e.target.value); }
+  else if (e.key === "ArrowUp") { e.preventDefault(); qoSel = Math.max(qoSel - 1, 0); qoRender(e.target.value); }
+  else if (e.key === "Enter" && items[qoSel]) { e.preventDefault(); qoPick(items[qoSel]); }
+  else if (e.key === "Escape") $("quickopen-overlay").classList.add("hidden");
+});
+$("quickopen-overlay").addEventListener("mousedown", (e) => {
+  if (e.target.id === "quickopen-overlay")
+    $("quickopen-overlay").classList.add("hidden");
 });
 
 /* ---------- git panel ---------- */

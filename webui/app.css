@@ -173,17 +173,18 @@ body {
   align-items: flex-start; justify-content: center; padding-top: 12vh;
   z-index: 50;
 }
-#palette {
+#palette, #quickopen {
   width: min(620px, 92vw); background: var(--card);
   border: 1px solid var(--cardb); border-radius: 14px;
   box-shadow: 0 24px 70px rgba(0, 0, 0, .55); overflow: hidden;
 }
+#quickopen-input,
 #palette-input {
   width: 100%; padding: 14px 16px; background: transparent;
   border: none; outline: none; color: var(--text); font-size: 14.5px;
   border-bottom: 1px solid var(--cardb);
 }
-#palette-list { max-height: 46vh; overflow: auto; padding: 6px; }
+#palette-list, #quickopen-list { max-height: 46vh; overflow: auto; padding: 6px; }
 .pal-item {
   padding: 8px 12px; border-radius: 8px; cursor: pointer;
   display: flex; gap: 10px; align-items: baseline; color: var(--text2);
