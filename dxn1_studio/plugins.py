@@ -462,6 +462,12 @@ class PluginManager:
         self.status.pack(side="right")
 
         self.refresh()
+        from . import hints
+        # the door sign — _PM_C is a plain dict; hints._color tolerates it
+        self.hintbar = hints.hint_bar(
+            self.win, _PM_C,
+            notes=("click a row to approve or mute a plugin",
+                   "edits re-ask — the fingerprint changes with the code"))
         self._center()
 
     # ---------------------------------------------------------------- ui

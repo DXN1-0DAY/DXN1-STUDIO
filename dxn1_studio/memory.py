@@ -259,6 +259,15 @@ class MemoryEditor(tk.Toplevel):
                                anchor="w", padx=12, pady=5)
         self.status.pack(fill=tk.X, side=tk.BOTTOM)
 
+        # the door sign
+        from . import hints
+        self.hintbar = hints.hint_bar(
+            self, t,
+            pairs=(("Enter", "remember"),),
+            notes=("facts ride along in every agent chat in this "
+                   "workspace", "click ✕ on a fact to forget it"),
+            before=self.status)   # keep the very bottom edge
+
     # ---------------------------------------------------------- helpers
     def _placeholder(self):
         if not self.entry.get():

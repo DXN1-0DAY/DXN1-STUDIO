@@ -282,6 +282,13 @@ class EnvLintWindow(tk.Toplevel):
                                fg=t["text_muted"], font=(FONT_UI, 9))
         self.status.pack(anchor="w", padx=12, pady=(6, 12))
 
+        # the door sign
+        from . import hints
+        self.hintbar = hints.hint_bar(
+            self, t,
+            notes=("paste or load a .env — the lint runs as you type",
+                   "the masked copy hides everything that looks secret"))
+
     def _btn(self, master, text, cmd):
         t = self.t
         return tk.Button(master, text=text, command=cmd, relief="flat",

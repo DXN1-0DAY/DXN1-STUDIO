@@ -135,6 +135,12 @@ class HasherWindow(tk.Toplevel):
         self._build_statusbar()
         self.bind("<Escape>", lambda _e: self.destroy())
         self.bind("<F5>", lambda _e: self.run_hash())
+        from . import hints
+        self.hintbar = hints.hint_bar(
+            self, t,
+            pairs=(("F5", "hash"),),
+            notes=("paste an expected digest to verify rows against it",),
+            before=self.status)   # keep the very bottom edge
 
     # ------------------------------------------------------------ UI
     def _build_toolbar(self):

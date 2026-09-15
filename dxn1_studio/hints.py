@@ -209,6 +209,22 @@ def hint_bar(win, theme=None, pairs=(), notes=(), esc=True, before=None):
         bar = tk.Frame(win, bg=_color(theme, "header", _FB_HEADER))
         bar.dropped_hints = []
         bar.filled = False
+        # DS2 UI-sprint: the Esc contract is the bar's to keep — when
+        # the window forgot to bind Escape, bind it here (close the
+        # window), so every hinted window closes the standard way.
+        # Idempotent: guarded by winfo_exists, a later window-side
+        # bind is additive and double-close is harmless.
+        try:
+            if esc and not esc_bound(win):
+                def _esc_close(_e=None):
+                    try:
+                        if win.winfo_exists():
+                            win.destroy()
+                    except Exception:  # noqa: BLE001
+                        pass
+                win.bind("<Escape>", _esc_close)
+        except Exception:  # noqa: BLE001 — garnish must never raise
+            pass
         try:
             # introspectable honesty: what the bar claims, readable
             bar.pairs = tuple(tuple(e) for e in pairs)

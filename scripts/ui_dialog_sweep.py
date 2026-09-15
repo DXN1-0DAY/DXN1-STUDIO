@@ -61,11 +61,30 @@ def main():
     new = [w for w in toplevels() if str(w) not in before]
     total = 0
     parts = []
+    hint_missing = []
+    esc_missing = []
+
+    def has_bar(w):
+        # a hint bar is any widget carrying the honesty attributes
+        if hasattr(w, "filled"):
+            return bool(w.filled)
+        try:
+            return any(has_bar(c) for c in w.winfo_children())
+        except Exception:  # noqa: BLE001
+            return False
+
     for w in new:
         try:
             title = w.title() or "untitled"
         except Exception:  # noqa: BLE001
             title = "untitled"
+        # hint-bar + Esc coverage (the door-sign contract)
+        if not has_bar(w):
+            hint_missing.append(title)
+        # Tk accepts several spellings (<Escape>, <Key-Escape>) — any
+        # sequence containing Escape means the contract is kept
+        if not any("Escape" in b for b in w.bind()):
+            esc_missing.append(title)
         probs = []
         try:
             w.update_idletasks()
@@ -77,7 +96,9 @@ def main():
         for p in probs:
             print(f"{idx}|{title}|{p}", file=sys.stderr)
     print(f"{idx}|{label}|{len(new)} windows|{total} issues|"
-          f"{'|'.join(parts) if parts else 'no-window'}")
+          f"{'|'.join(parts) if parts else 'no-window'}|"
+          f"hint-missing={';'.join(hint_missing) or '-'}|"
+          f"esc-missing={';'.join(esc_missing) or '-'}")
     for w in new:
         try:
             w.destroy()

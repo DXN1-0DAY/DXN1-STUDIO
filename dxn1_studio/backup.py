@@ -280,6 +280,11 @@ class SnapshotWindow:
         self.status.pack(anchor="w", padx=22, pady=(0, 12))
 
         self.refresh()
+        from . import hints
+        self.hintbar = hints.hint_bar(
+            self.win, _BK_C,
+            notes=("click a row to restore or delete a snapshot",
+                   "snapshots never touch your files until you restore"))
         self._center()
 
     def _close(self):

@@ -176,6 +176,14 @@ class CharacterMap(tk.Toplevel):
                   command=self._copy_all).pack(side=tk.RIGHT, padx=8,
                                                pady=4)
 
+        # the door sign
+        from . import hints
+        self.hintbar = hints.hint_bar(
+            self, t,
+            notes=("click a glyph to copy it",
+                   "search by name, block, or U+ codepoint"),
+            before=bottom)   # keep the very bottom edge
+
         self.refresh()
 
     # ---------------------------------------------------- behaviour

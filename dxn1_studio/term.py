@@ -344,6 +344,11 @@ class TaskRunnerWindow:
         self.out.pack(fill="both", expand=True, pady=(4, 12))
 
         self.refresh_tasks()
+        from . import hints
+        self.hintbar = hints.hint_bar(
+            self.win, _TR_C,
+            notes=("click a task to run it — output streams on the right",
+                   "save your own with a name + command below the list"))
         self.win.protocol("WM_DELETE_WINDOW", self._close)
 
     # ------------------------------------------------------------- tasks

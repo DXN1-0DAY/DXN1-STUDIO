@@ -98,6 +98,13 @@ class ClipboardHistory(tk.Toplevel):
         self._build_list()
         self._build_statusbar()
         self.bind("<Escape>", lambda _e: self._close())
+        from . import hints
+        self.hintbar = hints.hint_bar(
+            self, t,
+            pairs=(("Return", "paste selected"),),
+            notes=("double-click an entry to paste it",
+                   "watches the clipboard while this window is open"),
+            before=self.status)   # keep the very bottom edge
         self.protocol("WM_DELETE_WINDOW", self._close)
         self._job = None
         self._last_clip = ""

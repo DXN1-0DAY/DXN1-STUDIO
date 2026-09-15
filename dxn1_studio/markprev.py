@@ -326,6 +326,12 @@ class MarkdownPreview(tk.Toplevel):
         self._build_statusbar()
         self.bind("<Escape>", lambda _e: self.destroy())
         self.bind("<F5>", lambda _e: self.render_now())
+        from . import hints
+        self.hintbar = hints.hint_bar(
+            self, t,
+            pairs=(("F5", "re-render"),),
+            notes=("type on the left — the preview follows as you type",),
+            before=self.status)   # keep the very bottom edge
 
         self.src.insert("1.0", text or "")
         self.render_now()

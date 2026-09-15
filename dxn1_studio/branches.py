@@ -182,7 +182,7 @@ class BranchManager(tk.Toplevel):
         self._build_status()
         self.bind("<Escape>", lambda e: self.destroy())
         self.bind("<F5>", lambda e: self.refresh())
-        hints.hint_bar(self, self.t,
+        self.hintbar = hints.hint_bar(self, self.t,
                        pairs=[("Return", "new branch"),
                               ("F5", "refresh")],
                        notes=["double-click a branch or tag to switch"],

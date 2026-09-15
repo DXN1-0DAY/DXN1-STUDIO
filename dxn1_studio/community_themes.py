@@ -174,6 +174,13 @@ class ThemeGallery(tk.Toplevel):
         self.grid_frame.pack(fill=tk.BOTH, expand=True, padx=14, pady=14)
         self._render()
 
+        # the door sign
+        from . import hints
+        self.hintbar = hints.hint_bar(
+            self, t,
+            notes=("click Apply on a card to wear that theme",
+                   "applying restarts the studio"))
+
     def _render(self):
         for w in self.grid_frame.winfo_children():
             w.destroy()

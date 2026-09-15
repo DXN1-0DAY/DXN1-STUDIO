@@ -380,6 +380,13 @@ def open_picker(master, theme, workspace=None, on_use=None, context=None,
     entry.bind("<Escape>", lambda e: win.destroy())
     entry.bind("<Delete>", _delete_saved)
     _paint()
+    from . import hints
+    hintbar = hints.hint_bar(
+        win, theme,
+        pairs=(("Up", "previous", "↑"), ("Down", "next", "↓"),
+               ("Enter", "use"), ("Delete", "remove saved", "Del")),
+        notes=("type to filter", "click a row to use it"),
+        before=foot)   # keep the very bottom edge, below the status foot
 
     win.update_idletasks()
     w, h = 620, min(520, max(240, win.winfo_reqheight()))

@@ -291,6 +291,13 @@ class ProjectHub(tk.Toplevel):
         self.protocol("WM_DELETE_WINDOW", self._finish_explore)
 
         self._build()
+        # the door sign — mouse-first hub, so notes only; the C palette
+        # keeps the bar in the hub's cinematic dark look in any theme
+        from . import hints
+        self.hintbar = hints.hint_bar(
+            self, C,
+            notes=("click a card to start",
+                   "type in the filter box to narrow recents"))
         self._center()
         # the main window is hidden while the hub owns the boot flow —
         # explicitly map, or the Toplevel never appears on X11.

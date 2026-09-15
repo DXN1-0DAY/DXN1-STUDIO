@@ -145,6 +145,13 @@ class TextCase(tk.Toplevel):
                                fg=t.get("text_muted", "#8a8a9a"))
         self.status.pack(fill=tk.X, padx=10, pady=(0, 6))
 
+        # the door sign
+        from . import hints
+        self.hintbar = hints.hint_bar(
+            self, t,
+            notes=("type an identifier — all cases update live",
+                   "click a conversion to copy it"))
+
         self.refresh()
 
     # ---------------------------------------------------- behaviour

@@ -237,6 +237,13 @@ class JWTWindow(tk.Toplevel):
         _csb.pack(side="right", fill="y")
         self.claims.pack(fill="both", expand=True)
 
+        # the door sign
+        from . import hints
+        self.hintbar = hints.hint_bar(
+            self, t,
+            notes=("paste a token above — it decodes as you type",
+                   "decode only: signatures are never verified"))
+
     def _update(self):
         token = self.var.get()
         data, err = decode_jwt(token)

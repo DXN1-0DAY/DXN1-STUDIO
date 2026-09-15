@@ -335,6 +335,13 @@ class ReadabilityWindow(tk.Toplevel):
                                fg=t["text_muted"], font=(FONT_UI, 9))
         self.status.pack(side="left", padx=(10, 0))
 
+        # the door sign
+        from . import hints
+        self.hintbar = hints.hint_bar(
+            self, t,
+            notes=("read-only report — computed from the file as it is",
+                   "click Copy report for a markdown copy"))
+
     def _copy(self):
         try:
             data = report_text(self._text, self._name, markdown=True)

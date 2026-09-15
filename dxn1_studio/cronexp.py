@@ -374,6 +374,13 @@ class CronExplainer(tk.Toplevel):
         _rsb.pack(side="right", fill="y", padx=(0, 12), pady=(0, 12))
         self.runs.pack(fill="both", expand=True, padx=12, pady=(0, 12))
 
+        # the door sign
+        from . import hints
+        self.hintbar = hints.hint_bar(
+            self, t,
+            notes=("type a cron expression — it decodes as you type",
+                   "click Decode to refresh"))
+
     def _update(self):
         expr = self.var.get()
         sentence, err = describe(expr)

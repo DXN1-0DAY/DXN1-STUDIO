@@ -147,6 +147,14 @@ class PairSession(tk.Toplevel):
         one.pack(side=tk.RIGHT, padx=8, pady=4)
         one.bind("<Button-1>", lambda e: self.run_selected_step())
 
+        # the door sign — keeps the very bottom edge below the footer
+        from . import hints
+        self.hintbar = hints.hint_bar(
+            self, t,
+            notes=("draft a plan, edit the lines, then send it",
+                   "run one step: click ▷ with the cursor on its line"),
+            before=footer)
+
     def _set_status(self, text):
         try:
             self.status.config(text=text)

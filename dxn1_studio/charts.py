@@ -305,6 +305,12 @@ class ChartStudio(tk.Toplevel):
                   command=self.refresh).pack(side=tk.RIGHT, padx=4)
 
         self._after_id = None
+        from . import hints
+        self.hintbar = hints.hint_bar(
+            self, t,
+            notes=("paste numbers on the left — the chart redraws as "
+                   "you type",),
+            before=bottom)   # keep the very bottom edge
         self.refresh()
 
     # ---------------------------------------------------- behaviour

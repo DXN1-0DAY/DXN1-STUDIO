@@ -403,6 +403,12 @@ class CommandPalette(tk.Toplevel):
         self.rows = tk.Frame(wrap, bg=t["card"])
         self.rows.pack(fill=tk.X, padx=8, pady=(0, 10))
         self._render()
+        from . import hints
+        self.hintbar = hints.hint_bar(
+            self, t,
+            pairs=(("Enter", "run"), ("Up", "previous"),
+                   ("Down", "next")),
+            notes=("type to filter", "prefix @ for symbols in this file"))
         self._center()
         self.entry.focus_set()
         self.bind("<Escape>", lambda e: self.close())
@@ -583,6 +589,12 @@ class QuickOpen(tk.Toplevel):
         self.rows = tk.Frame(wrap, bg=t["card"])
         self.rows.pack(fill=tk.X, padx=8, pady=(2, 10))
         self._render()
+        from . import hints
+        self.hintbar = hints.hint_bar(
+            self, t,
+            pairs=(("Enter", "open"), ("Up", "previous"),
+                   ("Down", "next")),
+            notes=("type to filter",))
         self._center()
         self.entry.focus_set()
         self.bind("<Escape>", lambda e: self.close())
@@ -8258,6 +8270,11 @@ class DXN1Studio:
             tk.Label(row, text=action, bg=t["bg"], fg=t["text_secondary"],
                      font=(FONT_UI, 9)).pack(side=tk.LEFT, padx=12)
         win.bind("<Escape>", lambda e: win.destroy())
+        from . import hints
+        hintbar = hints.hint_bar(
+            win, t,
+            notes=("a reference card — nothing to click",
+                   "these keys work while the editor has focus"))
         win.update_idletasks()
         x = self.root.winfo_rootx() + \
             max(0, (self.root.winfo_width() - win.winfo_reqwidth()) // 2)
@@ -9261,6 +9278,11 @@ class SettingsDialog(tk.Toplevel):
         save.bind("<Button-1>", lambda e: self._save())
 
         self.bind("<Escape>", lambda e: self.destroy())
+        from . import hints
+        self.hintbar = hints.hint_bar(
+            self, t,
+            notes=("type above to filter settings",
+                   "changes apply when you Save"))
         self._center()
 
     def _section(self, parent, title):

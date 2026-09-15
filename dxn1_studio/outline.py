@@ -231,7 +231,7 @@ class SymbolPicker:
         self._reload()
         # v2.48 — the honest door sign (arrows/Enter live on the entry)
         from . import hints
-        hints.hint_bar(self.win,
+        self.hintbar = hints.hint_bar(self.win,
                        {"header": _OL_C.get("card") or _OL_C["bg"],
                         "text_muted": _OL_C["muted"],
                         "accent": self.accent},

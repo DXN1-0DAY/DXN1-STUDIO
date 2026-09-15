@@ -213,6 +213,12 @@ class RestBench(tk.Toplevel):
         self._build_statusbar()
         self.bind("<Escape>", lambda _e: self.destroy())
         self.bind("<Control-Return>", lambda _e: self.send())
+        from . import hints
+        self.hintbar = hints.hint_bar(
+            self, t,
+            pairs=(("Ctrl+Return", "send"),),
+            notes=("JSON responses pretty-print automatically",),
+            before=self.status)   # keep the very bottom edge
 
         self._flash("Ctrl+Enter sends · response pane pretty-prints "
                     "JSON")

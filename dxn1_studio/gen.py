@@ -275,6 +275,13 @@ class GeneratorWindow(tk.Toplevel):
                                fg=t["text_muted"], font=(FONT_UI, 9))
         self.status.pack(anchor="w", padx=12, pady=(0, 12))
 
+        # the door sign
+        from . import hints
+        self.hintbar = hints.hint_bar(
+            self, t,
+            notes=("pick a kind and a count, then Generate",
+                   "everything is made locally — nothing leaves the machine"))
+
     def _run(self):
         try:
             count = int(self.count.get())

@@ -198,6 +198,13 @@ class NumBase(tk.Toplevel):
                                fg=t.get("text_muted", "#8a8a9a"))
         self.status.pack(fill=tk.X, padx=10, pady=(0, 6))
 
+        # the door sign
+        from . import hints
+        self.hintbar = hints.hint_bar(
+            self, t,
+            notes=("type a number — every base converts live",
+                   "click a row to copy it"))
+
         self.refresh()
 
     # ---------------------------------------------------- behaviour

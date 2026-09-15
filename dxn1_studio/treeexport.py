@@ -161,6 +161,12 @@ class TreeExport(tk.Toplevel):
         self._build_statusbar()
         self.bind("<Escape>", lambda _e: self.destroy())
         self.bind("<F5>", lambda _e: self.regenerate())
+        from . import hints
+        self.hintbar = hints.hint_bar(
+            self, t,
+            pairs=(("F5", "regenerate"),),
+            notes=("flip hidden / sizes — the tree redraws instantly",),
+            before=self.status)   # keep the very bottom edge
         self.regenerate()
 
     # ------------------------------------------------------------ UI

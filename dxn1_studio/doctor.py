@@ -410,7 +410,7 @@ class DoctorWindow:
         self.win.bind("<F5>", lambda e: self.refresh())
         self.win.bind("<Control-r>", lambda e: self.refresh())
         self.win.bind("<Control-C>", lambda e: self._copy())
-        hints.hint_bar(self.win,
+        self.hintbar = hints.hint_bar(self.win,
                        {"header": "#10151c", "text_muted": "#6e7a8a",
                         "accent": self.accent},
                        pairs=(("F5", "rerun", "F5"),

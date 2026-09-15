@@ -332,6 +332,14 @@ class ContrastAudit(tk.Toplevel):
                   command=self._copy_report).pack(side=tk.RIGHT,
                                                   padx=8, pady=4)
 
+        # the door sign
+        from . import hints
+        self.hintbar = hints.hint_bar(
+            self, t,
+            notes=("pick a theme — the WCAG audit re-runs instantly",
+                   "read-only: grades and suggested fixes, nothing edited"),
+            before=bottom)   # keep the very bottom edge
+
         self._audit()
 
     # ------------------------------------------------------------- actions

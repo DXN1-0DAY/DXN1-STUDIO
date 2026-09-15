@@ -206,6 +206,12 @@ class ColorKit(tk.Toplevel):
         self.status.pack(fill=tk.X, side=tk.BOTTOM)
 
         self.bind("<Escape>", lambda _e: self.destroy())
+        from . import hints
+        self.hintbar = hints.hint_bar(
+            self, t,
+            notes=("type a hex color — every panel updates as you type",
+                   "click a ramp chip to copy it"),
+            before=self.status)   # keep the very bottom edge
         self.refresh()
 
     # ------------------------------------------------------- actions
