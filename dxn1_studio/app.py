@@ -2099,16 +2099,42 @@ class DXN1Studio:
         self._chip(self.toolbar, "▶ Run", accent=True, cmd=self.run_current)
         self._chip(self.toolbar, "■ Stop", fg=t["text_muted"],
                    cmd=self.stop_run)
-        tk.Frame(self.toolbar, bg=t["border"], width=1).pack(
-            side=tk.LEFT, fill=tk.Y, padx=6, pady=8)
-        self._chip(self.toolbar, "Search", cmd=lambda:
-                   self.show_sidebar_view("search"))
-        self._chip(self.toolbar, "Git", cmd=lambda:
-                   self.show_sidebar_view("git"))
-        self._chip(self.toolbar, "Packages", cmd=lambda:
-                   self.show_sidebar_view("packages"))
-        self._chip(self.toolbar, "Export ZIP", cmd=self.export_project_zip)
-        self._chip(self.toolbar, "Hub", cmd=self.open_hub)
+        # DS2 v2.71.8 declutter: the toolbar follows the statusbar's
+        # lead — the five utility chips (Search/Git/Packages/Export
+        # ZIP/Hub) fold behind a single ⋯ chip; every one of them is
+        # still reachable (sidebar views, palette, menu) so this is
+        # pure calm, zero capability loss.
+        self._tb_expanded = bool(self.config.get("toolbar_expanded",
+                                                 False))
+        if self._tb_expanded:
+            tk.Frame(self.toolbar, bg=t["border"], width=1).pack(
+                side=tk.LEFT, fill=tk.Y, padx=6, pady=8)
+            self._chip(self.toolbar, "Search", cmd=lambda:
+                       self.show_sidebar_view("search"))
+            self._chip(self.toolbar, "Git", cmd=lambda:
+                       self.show_sidebar_view("git"))
+            self._chip(self.toolbar, "Packages", cmd=lambda:
+                       self.show_sidebar_view("packages"))
+            self._chip(self.toolbar, "Export ZIP",
+                       cmd=self.export_project_zip)
+            self._chip(self.toolbar, "Hub", cmd=self.open_hub)
+        self._tb_overflow = tk.Label(
+            self.toolbar,
+            text="«" if self._tb_expanded else "⋯",
+            bg=t["header"], fg=t["text_muted"],
+            font=(FONT_UI, 10, "bold"), cursor="hand2", padx=6)
+        self._tb_overflow.pack(side=tk.LEFT, padx=(0, 6), pady=4)
+        self._tb_overflow.bind("<Button-1>",
+                               lambda _e: self._toggle_tb_chips())
+        self._chip_tip(self._tb_overflow,
+                       "more tools — click to show/hide")
+
+    def _toggle_tb_chips(self):
+        """DS2 v2.71.8: the toolbar's ⋯ chip — fold/unfold the utility
+        chips. The preference persists across restarts."""
+        self._tb_expanded = not self._tb_expanded
+        self.config.set("toolbar_expanded", self._tb_expanded, save=True)
+        self._build_toolbar()
 
     # legacy alias — some callers still say toggle_sidebar
     def toggle_sidebar(self):

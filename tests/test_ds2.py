@@ -9531,3 +9531,47 @@ def test_statusbar_declutter_overflow():
             app.root.destroy()
         except Exception:  # noqa: BLE001
             pass
+
+
+def _toolbar_labels(app):
+    import tkinter as _tk
+    return [w.cget("text") for w in app.toolbar.winfo_children()
+            if isinstance(w, _tk.Label)]
+
+
+def test_toolbar_declutter_overflow():
+    """DS2 v2.71.8 — the toolbar's utility chips (Search/Git/Packages/
+    Export ZIP/Hub) fold behind the ⋯ chip; file ops and Run/Stop
+    always stay visible. Same calm default as the statusbar."""
+    from dxn1_studio import config as cfgmod
+    from dxn1_studio.app import DXN1Studio
+    app = DXN1Studio(cfgmod.Config(), smoke_test=True, no_splash=True)
+    try:
+        app.root.update()
+        assert app._tb_overflow.cget("text") == "⋯"
+        texts = _toolbar_labels(app)
+        assert "Search" not in texts and "Hub" not in texts
+        assert "Packages" not in texts and "Export ZIP" not in texts
+        # the primary chips never fold
+        for must in ("+ New", "Open", "Save", "▶ Run", "■ Stop"):
+            assert must in texts, f"{must} must stay visible"
+        # expand
+        app._toggle_tb_chips()
+        app.root.update()
+        texts = _toolbar_labels(app)
+        assert app._tb_overflow.cget("text") == "«"
+        for back in ("Search", "Git", "Packages", "Export ZIP", "Hub"):
+            assert back in texts, f"{back} must come back"
+        assert app.config.get("toolbar_expanded") is True
+        # fold again
+        app._toggle_tb_chips()
+        app.root.update()
+        texts = _toolbar_labels(app)
+        assert "Search" not in texts
+        assert app._tb_overflow.cget("text") == "⋯"
+        assert app.config.get("toolbar_expanded") is False
+    finally:
+        try:
+            app.root.destroy()
+        except Exception:  # noqa: BLE001
+            pass

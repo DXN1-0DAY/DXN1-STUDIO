@@ -4,6 +4,39 @@ All notable changes to DXN1 STUDIO. Format based on
 [Keep a Changelog](https://keepachangelog.com/); versioning is
 `MAJOR.MINOR.PATCH` while in **beta**.
 
+## [2.71.8] — 2026-09-15 · beta · "the web face remembers"
+
+### Added
+- **Session restore (web)** — reload the browser and the web face
+  picks up where you left: the last file re-opens (or the desktop's
+  active tab), and per-file scroll position comes back too — saved
+  per path in localStorage, restored one frame after the content
+  lands so the textarea is already grown.
+- **Tab close (web)** — every tab now has a ✕ (middle-click works
+  too). Closes go through the new token-guarded `POST /api/close`,
+  which routes into the desktop's `close_tab` — the desktop tab bar
+  stays the single source of truth. The web editor follows the
+  freshly activated tab, so it never stares at a blank page while
+  tabs remain. Unsaved changes are protected twice: the bridge
+  refuses dirty buffers with a human error, and the web face asks
+  before discarding textarea-only edits.
+- **Word wrap that actually wraps (web)** — the settings toggle and
+  palette verb now drive the web editor live (`wrap` attribute +
+  lockstep `pre-wrap` on both editor layers). Wrap/theme palette
+  verbs re-pull config so the change lands without opening settings.
+- **Terminal history (web)** — ↑/↓ walks this session's commands in
+  the web terminal input (desktop parity; last 100 kept).
+- **The calm toolbar (Tk)** — the second declutter lane: the five
+  utility chips (Search / Git / Packages / Export ZIP / Hub) fold
+  behind a single ⋯ chip; file ops and Run/Stop stay visible. Every
+  folded tool remains reachable from the sidebar, palette, and menu —
+  pure calm, zero capability loss. Preference persists.
+
+### Tests
+- Bridge suite 28 → 31 (close roundtrip, dirty-buffer refusal,
+  sandbox/missing honesty — all with real pump drains). New toolbar
+  fold/unfold/persist test; suite **180 green**, gates PASS.
+
 ## [2.71.7] — 2026-09-15 · beta · "the diff you can read + a calm statusbar"
 
 ### Added

@@ -18,6 +18,34 @@ let CMDS = [];
 let currentFile = null;
 let palSel = 0;
 let dirtyLocal = false;
+let bootstrapped = false;   // session restore runs once, after the
+                            // first successful state snapshot
+
+/* ---------- session (wave 7: the web face remembers) ---------- */
+const scrollKey = (p) => "dxn1_scroll_" + p;
+
+function rememberScroll() {
+  if (!currentFile) return;
+  localStorage.setItem(scrollKey(currentFile),
+                       String($("editor").scrollTop));
+}
+
+function restoreScrollFor(path) {
+  const v = parseInt(localStorage.getItem(scrollKey(path)) || "0", 10);
+  if (v > 0) {
+    // wait one frame — the textarea only grows after the value lands
+    requestAnimationFrame(() => { $("editor").scrollTop = v; syncScroll(); });
+  }
+}
+
+async function restoreSession() {
+  if (currentFile || !(STATE.tabs || []).length) return;
+  const saved = localStorage.getItem("dxn1_last_file");
+  const tab = STATE.tabs.find(t => t.path === saved)
+    || STATE.tabs.find(t => t.active) || STATE.tabs[0];
+  if (!tab) return;
+  await openFile(tab.path, true);
+}
 
 /* ---------- theme tokens ---------- */
 function applyTheme(t) {
@@ -135,8 +163,15 @@ function renderTabs() {
       (tb.path === currentFile ? " active" : "");
     el.innerHTML = `<span>${esc(tb.name)}</span>` +
       ((tb.dirty || (tb.path === currentFile && dirtyLocal)) ?
-       `<span class="dot">●</span>` : "");
+       `<span class="dot">●</span>` : "") +
+      `<span class="x" title="Close tab (middle-click works too)">×<\/span>`;
     el.onclick = () => openFile(tb.path);
+    el.onauxclick = (e) => {
+      if (e.button === 1) { e.preventDefault(); closeTab(tb.path); }
+    };
+    el.querySelector(".x").onclick = (e) => {
+      e.stopPropagation(); closeTab(tb.path);
+    };
     bar.appendChild(el);
   }
 }
@@ -147,7 +182,7 @@ function renderGutter() {
     (_, i) => i + 1).join("\n");
 }
 
-async function openFile(path) {
+async function openFile(path, quiet = false) {
   const r = await (await api("/api/file?path=" + encodeURIComponent(path))).json();
   if (!r.ok) return toast("Open failed: " + (r.error || "?"));
   currentFile = r.file.path;
@@ -157,11 +192,41 @@ async function openFile(path) {
   renderGutter();
   renderHighlight();
   renderTabs();
+  restoreScrollFor(currentFile);   // wave 7 — the scroll comes back
+  localStorage.setItem("dxn1_last_file", currentFile);
   // tell the Tk side too — the file joins _buffers, so the tab bar
   // and the desktop app show the same open set (single source of truth)
   api("/api/open", { method: "POST", body: JSON.stringify({ path: r.file.path }) })
     .catch(() => {});
-  toast("Opened " + path.split("/").pop());
+  if (!quiet) toast("Opened " + path.split("/").pop());
+}
+
+async function closeTab(path) {
+  // web-local edits live only in the textarea until Ctrl+S — never
+  // let a close throw them away without asking
+  if (path === currentFile && dirtyLocal &&
+      !confirm("Discard unsaved changes in " + path.split("/").pop() + "?"))
+    return;
+  const r = await (await api("/api/close", {
+    method: "POST", body: JSON.stringify({ path }) })).json();
+  if (!r.ok) return toast("Close failed: " + (r.error || "?"));
+  toast("Closed " + path.split("/").pop());
+  if (path === currentFile) {
+    currentFile = null;
+    $("editor").value = "";
+    $("st-file").textContent = "";
+    localStorage.removeItem("dxn1_last_file");
+    renderGutter(); renderHighlight(); renderTabs();
+  }
+  await poll();
+  // follow the desktop's freshly activated tab — the web face never
+  // stares at a blank editor while tabs are still open
+  if (!currentFile && (STATE.tabs || []).length) {
+    const nxt = STATE.tabs.find(t => t.active)
+      || STATE.tabs[STATE.tabs.length - 1];
+    if (nxt) await openFile(nxt.path, true);
+  }
+  renderTree();
 }
 
 async function saveFile() {
@@ -282,7 +347,13 @@ function renderState() {
 async function poll() {
   try {
     const r = await (await api("/api/state")).json();
-    if (r.ok) { STATE = r; renderState(); }
+    if (r.ok) {
+      STATE = r; renderState();
+      if (!bootstrapped) {
+        bootstrapped = true;
+        restoreSession();   // wave 7 — reload picks up where you left
+      }
+    }
   } catch (e) { /* bridge restarting — keep last frame */ }
 }
 
@@ -315,7 +386,12 @@ async function palRun(cmd) {
   const r = await (await api("/api/command", {
     method: "POST", body: JSON.stringify({ index: cmd.index }),
   })).json();
-  if (r.ok) toast("▶ " + r.ran); else toast("Failed: " + (r.error || "?"));
+  if (r.ok) {
+    toast("▶ " + r.ran);
+    // wrap/theme palette verbs change config on the desktop side —
+    // re-pull it so the web editor follows instantly
+    if (/wrap|theme/i.test(r.ran || "")) loadConfig();
+  } else toast("Failed: " + (r.error || "?"));
 }
 
 function palOpen() {
@@ -332,7 +408,12 @@ $("editor").addEventListener("input", () => {
   renderHighlight();
   renderTabs();
 });
-$("editor").addEventListener("scroll", syncScroll);
+let scrollSaveTimer = null;
+$("editor").addEventListener("scroll", () => {
+  syncScroll();
+  clearTimeout(scrollSaveTimer);          // wave 7 — debounce the save
+  scrollSaveTimer = setTimeout(rememberScroll, 200);
+});
 $("editor").addEventListener("keydown", (e) => {
   if ((e.ctrlKey || e.metaKey) && e.key === "s") { e.preventDefault(); saveFile(); }
   if (e.key === "Tab") {  // real tabs in the editor
@@ -535,11 +616,17 @@ window.addEventListener("keydown", (e) => {
 });
 
 /* ---------- terminal input over the bridge ---------- */
+let termHist = [];      // this session's commands (↑/↓ walks them)
+let termHistPos = null;
+
 async function termSubmit() {
   const inp = $("term-input");
   const cmd = inp.value.trim();
   if (!cmd) return;
   inp.value = "";
+  termHist.push(cmd);
+  if (termHist.length > 100) termHist.shift();
+  termHistPos = null;
   const r = await (await api("/api/term", {
     method: "POST", body: JSON.stringify({ command: cmd }) })).json();
   if (r.ok) poll();
@@ -547,10 +634,31 @@ async function termSubmit() {
 }
 $("term-input").addEventListener("keydown", (e) => {
   if (e.key === "Enter") termSubmit();
+  else if (e.key === "ArrowUp") {
+    e.preventDefault();
+    if (!termHist.length) return;
+    termHistPos = (termHistPos === null) ? termHist.length - 1
+      : Math.max(0, termHistPos - 1);
+    $("term-input").value = termHist[termHistPos];
+  } else if (e.key === "ArrowDown") {
+    e.preventDefault();
+    if (termHistPos === null) return;
+    termHistPos++;
+    if (termHistPos >= termHist.length) {
+      termHistPos = null;
+      $("term-input").value = "";
+    } else $("term-input").value = termHist[termHistPos];
+  }
 });
 
 /* ---------- settings ---------- */
 let ACCENT_HEX = {};
+
+function applyWrap(on) {
+  const ta = $("editor");
+  ta.wrap = on ? "soft" : "off";
+  $("editor-wrap").classList.toggle("wrap-on", !!on);
+}
 
 async function loadConfig() {
   try {
@@ -560,6 +668,7 @@ async function loadConfig() {
     $("set-theme").value = c.theme === "light" ? "light" : "dark";
     $("set-wrap").checked = !!c.word_wrap;
     $("set-autosave").checked = !!c.auto_save;
+    applyWrap(!!c.word_wrap);   // wave 7 — wrap now actually wraps
     ACCENT_HEX = c.accents || {};
     const box = $("set-accents");
     box.innerHTML = "";
@@ -594,6 +703,7 @@ async function saveConfig(patch) {
     const applied = r.applied ? Object.keys(r.applied) : [];
     toast("Saved: " + (applied.join(", ") || "?"));
     paintSwatches(patch.accent);
+    if ("word_wrap" in patch) applyWrap(!!patch.word_wrap);
     poll();  // theme tokens re-stream → instant recolour
   } else {
     toast("Setting failed: " + (r.error || "?"));

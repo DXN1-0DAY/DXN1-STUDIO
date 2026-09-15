@@ -258,6 +258,73 @@ class TestWebBridge(unittest.TestCase):
         self.assertEqual(status, 400)
         self.assertFalse(body["ok"])
 
+    # ---- tab close over the bridge (wave 7) ---------------------------
+    def _flush_pump(self):
+        # the mutation queue drains on the Tk loop (80 ms cadence) —
+        # give it a few beats, then pump the loop once more
+        import time
+        for _ in range(4):
+            time.sleep(0.09)
+            self.app.root.update()
+
+    def _buffer_keys(self):
+        return list(getattr(self.app, "_buffers", {}).keys())
+
+    def test_close_tab_roundtrip(self):
+        rel = "wb_close.txt"
+        try:
+            status, body = self.post("/api/new_file", {"path": rel})
+            self.assertEqual(status, 200)
+            self._flush_pump()
+            self.assertTrue(any(k.endswith(rel)
+                                for k in self._buffer_keys()))
+            status, body = self.post("/api/close", {"path": rel})
+            self.assertEqual(status, 200)
+            self.assertEqual(body["closed"], rel)
+            self._flush_pump()
+            self.assertFalse(any(k.endswith(rel)
+                                 for k in self._buffer_keys()))
+            # closing again is an honest 400, not a silent shrug
+            status, body = self.post("/api/close", {"path": rel})
+            self.assertEqual(status, 400)
+            self.assertIn("not open", body["error"])
+        finally:
+            p = os.path.join(self.ws, rel)
+            if os.path.exists(p):
+                os.remove(p)
+
+    def test_close_refuses_dirty_buffer(self):
+        rel = "wb_dirty.txt"
+        try:
+            status, body = self.post("/api/new_file", {"path": rel})
+            self.assertEqual(status, 200)
+            self._flush_pump()
+            key = next(k for k in self._buffer_keys()
+                       if k.endswith(rel))
+            self.app._buffers[key]["dirty"] = True
+            status, body = self.post("/api/close", {"path": rel})
+            self.assertEqual(status, 400)
+            self.assertIn("unsaved", body["error"])
+            # save first, then the close goes through
+            self.app._buffers[key]["dirty"] = False
+            status, body = self.post("/api/close", {"path": rel})
+            self.assertEqual(status, 200)
+            self._flush_pump()
+            self.assertFalse(any(k.endswith(rel)
+                                 for k in self._buffer_keys()))
+        finally:
+            p = os.path.join(self.ws, rel)
+            if os.path.exists(p):
+                os.remove(p)
+
+    def test_close_sandbox_and_missing(self):
+        status, body = self.post("/api/close", {"path": "../escape.txt"})
+        self.assertEqual(status, 400)
+        self.assertIn("escapes", body["error"])
+        status, body = self.post("/api/close", {"path": "never_open.txt"})
+        self.assertEqual(status, 400)
+        self.assertIn("not open", body["error"])
+
     # ---- settings over the bridge (wave 2) ----------------------------
     def test_config_get(self):
         status, body = self.get("/api/config")

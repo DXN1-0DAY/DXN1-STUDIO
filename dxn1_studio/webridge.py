@@ -263,6 +263,36 @@ class BridgeState:
         self.post(_open)
         return {"opened": path}, None
 
+    def close_path(self, path):
+        """Close a tab in the desktop app (wave 7: the web face can
+        close tabs too — the desktop tab bar stays the single source
+        of truth). Refuses dirty buffers so nothing is ever lost."""
+        real = self._sandbox(path)
+        if real is None:
+            return None, "path escapes the workspace"
+        buffers = getattr(self.app, "_buffers", {})
+        key = real if real in buffers else next(
+            (k for k in buffers if self._same_file(k, real)), None)
+        if key is None:
+            return None, "not open"
+        if buffers[key].get("dirty"):
+            return None, "unsaved changes — save first (Ctrl+S)"
+
+        def _close():
+            try:
+                self.app.close_tab(key)
+            except Exception:  # noqa: BLE001 — a dead tab dies alone
+                pass
+        self.post(_close)
+        return {"closed": path}, None
+
+    @staticmethod
+    def _same_file(a, b):
+        try:
+            return os.path.realpath(a) == os.path.realpath(b)
+        except Exception:  # noqa: BLE001 — fall back to the literal
+            return a == b
+
     # ---- file ops (reuse the TESTED stdio engine: bridge.Bridge) ------
     def _engine(self):
         from .bridge import Bridge
@@ -615,6 +645,9 @@ class _Handler(BaseHTTPRequestHandler):
                 str(body.get("path") or ""), str(body.get("content") or ""))
         elif u.path == "/api/open":
             payload, err = self.state.open_path(
+                str(body.get("path") or ""))
+        elif u.path == "/api/close":
+            payload, err = self.state.close_path(
                 str(body.get("path") or ""))
         elif u.path == "/api/new_file":
             payload, err = self.state.new_file(
