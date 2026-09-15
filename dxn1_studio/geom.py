@@ -437,6 +437,73 @@ def layer_counts(snapshot):
         return 0, 0
 
 
+def layout_drift(snapshot, windows):
+    """DS2 v2.69 — how far the live desk has drifted from a saved
+    layout, pure decision-making: ``(in_place, moved, missing,
+    unbooked)`` where in_place is the saved windows still standing
+    exactly where the layout left them ``[(title, geometry)]``,
+    moved is the windows that wandered ``[(title, saved_geo,
+    live_geo)]``, missing is the saved titles with no live window
+    (a layout arranges what exists — it never conjures), and
+    unbooked is the live windows the snapshot never knew about.
+    The same exact-first, substring-second matching the restore
+    uses, so the diff never disagrees with what a recall would
+    actually move. Junk windows and junk entries are tolerated on
+    both sides. Never raises."""
+    try:
+        in_place, moved, missing, unbooked = [], [], [], []
+        live = []
+        for w in list(windows):
+            try:
+                live.append((str(w.title()).lower(), w))
+            except Exception:  # noqa: BLE001 — dead window
+                pass
+        used = set()
+        for entry in list(snapshot or [])[:LAYOUT_WINDOW_CAP]:
+            try:
+                title = str((entry or {}).get("title") or "").strip()
+                geo = str((entry or {}).get("geometry") or "").strip()
+            except Exception:  # noqa: BLE001 — a junk entry is
+                continue              # skipped, not fatal
+            if not title:
+                continue
+            hit = None
+            for lt, w in live:
+                if lt == title.lower() and id(w) not in used:
+                    hit = w
+                    break
+            if hit is None:
+                for lt, w in live:
+                    if title.lower() in lt and id(w) not in used:
+                        hit = w
+                        break
+            if hit is None:
+                missing.append(title)
+                continue
+            used.add(id(hit))
+            try:
+                live_geo = str(hit.winfo_geometry())
+            except Exception:  # noqa: BLE001 — went away mid-walk
+                live_geo = ""
+            if not geo or not live_geo:
+                missing.append(title)     # nothing honest to compare
+                continue
+            if live_geo == geo:
+                in_place.append((title, geo))
+            else:
+                moved.append((title, geo, live_geo))
+        for lt, w in live:
+            if id(w) not in used:
+                try:
+                    unbooked.append((str(w.title()),
+                                     str(w.winfo_geometry())))
+                except Exception:  # noqa: BLE001 — dead window
+                    pass
+        return in_place, moved, missing, unbooked
+    except Exception:  # noqa: BLE001 — a diff never raises
+        return [], [], [], []
+
+
 # ------------------------------------------------- v2.67.0 window layering
 
 MIN_ALPHA = 0.10         # a window ghosted below this is simply lost

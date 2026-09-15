@@ -9012,3 +9012,142 @@ def test_windows_find_and_live_tip(tmp_path):
         except Exception:  # noqa: BLE001
             pass
     monkeypatch.undo()
+
+
+def test_layout_drift(tmp_path):
+    """DS2 v2.69 — the desk admits its drift: layout_drift compares
+    a snapshot to the live windows with the SAME exact-first,
+    substring-second matching the restore uses — in place means
+    standing exactly where the layout left it, moved names saved
+    and live geometry honestly, missing is named not conjured, and
+    unbooked is what is open that the layout never knew. The verb
+    reads it all without touching a single window; junk on either
+    side is tolerated, never fatal."""
+    import tkinter as tk
+    try:
+        root = tk.Tk(); root.withdraw()
+    except tk.TclError:
+        return
+    import pytest
+    import dxn1_studio.config as cfgmod
+    from dxn1_studio.app import DXN1Studio, TERMINAL_HELP
+    from dxn1_studio.geom import layout_drift
+
+    # ---- pure engine
+    class FakeWin:
+        def __init__(self, title, geo):
+            self._t, self._g = title, geo
+
+        def title(self):
+            if self._t is None:
+                raise RuntimeError("window died")
+            return self._t
+
+        def winfo_geometry(self):
+            if self._g is None:
+                raise RuntimeError("window died")
+            return self._g
+
+    snap = [{"title": "Chart", "geometry": "300x200+10+10",
+             "transient": True},
+            {"title": "Terminal", "geometry": "400x300+0+0",
+             "transient": True}]
+    # everything where it was left
+    ip, mv, mi, ub = layout_drift(snap, [FakeWin("Chart",
+                                                 "300x200+10+10"),
+                                         FakeWin("Terminal",
+                                                 "400x300+0+0")])
+    assert [(t, g) for t, g in ip] == [("Chart", "300x200+10+10"),
+                                       ("Terminal", "400x300+0+0")]
+    assert mv == [] and mi == [] and ub == []
+    # one wandered, one closed, one stray opened
+    ip, mv, mi, ub = layout_drift(snap, [FakeWin("Chart",
+                                                 "500x300+40+40"),
+                                         FakeWin("Stray",
+                                                 "200x100+5+5")])
+    assert ip == []
+    assert [(t, s, l) for t, s, l in mv] == [
+        ("Chart", "300x200+10+10", "500x300+40+40")]
+    assert mi == ["Terminal"]
+    assert [(t, g) for t, g in ub] == [("Stray", "200x100+5+5")]
+    # an empty snapshot knows nothing: every live window is unbooked
+    ip, mv, mi, ub = layout_drift([], [FakeWin("X", "1x1+0+0")])
+    assert ip == [] and mv == [] and mi == []
+    assert [(t, g) for t, g in ub] == [("X", "1x1+0+0")]
+    # junk entries and dead windows never raise
+    assert layout_drift([None, {}], [FakeWin(None, None)]) == \
+        ([], [], [], [])
+    assert layout_drift("banana", [FakeWin("X", "1x1+0+0")]) == \
+        ([], [], [], [("X", "1x1+0+0")])
+    # substring matching agrees with the restore: "chart" inside
+    # "My Chart Studio" still counts as found
+    ip, mv, mi, ub = layout_drift(
+        [{"title": "Chart", "geometry": "9x9+1+1",
+          "transient": True}], [FakeWin("My Chart Studio",
+                                        "9x9+1+1")])
+    assert [(t, g) for t, g in ip] == [("Chart", "9x9+1+1")]
+    assert ub == []
+
+    # ---- the verb, live
+    monkeypatch = pytest.MonkeyPatch()
+    monkeypatch.setattr(cfgmod, "CONFIG_DIR", str(tmp_path / "cfg"))
+    monkeypatch.setattr(cfgmod, "CONFIG_PATH",
+                        str(tmp_path / "cfg" / "config.json"))
+    monkeypatch.setenv("HOME", str(tmp_path / "home"))
+    app = DXN1Studio(cfgmod.Config(), smoke_test=True, no_splash=True)
+    try:
+        root = app.root
+        root.update()
+        logs = []
+        _old_log = app.terminal.log
+        app.terminal.log = lambda s, *a, **k: logs.append(str(s))
+
+        def _dispatch(cmd):
+            logs.clear()
+            app.handle_terminal_command(cmd)
+            root.update()
+            return "\n".join(logs)
+
+        # help teaches diff
+        assert "diff <name>" in dict(TERMINAL_HELP)[
+            "tools layout <name>"]
+        assert "usage:" in _dispatch("tools layout diff")
+        assert "not remembered" in _dispatch("tools layout diff nope")
+
+        w = tk.Toplevel(root)
+        w.title("Chart")
+        w.transient(root)
+        w.geometry("300x200+10+10")
+        root.update()
+        _dispatch("tools layout save desk")
+        blob = _dispatch("tools layout diff desk")
+        assert "1 of 1 window still in place" in blob, blob
+        assert "the desk is exactly as it was saved" in blob, blob
+
+        # the desk drifts: the window wanders, a stray appears
+        w.geometry("500x300+40+40")
+        stray = tk.Toplevel(root)
+        stray.title("Stray")
+        stray.transient(root)
+        stray.geometry("200x100+5+5")
+        root.update()
+        blob = _dispatch("tools layout diff desk")
+        assert "0 of 1 window still in place" in blob, blob
+        assert ("moved: Chart — saved 300x200+10+10, "
+                "now 500x300+40+40") in blob, blob
+        assert "unbooked: Stray (200x100+5+5)" in blob, blob
+
+        # diff is read-only: nothing moved because it was diffed
+        assert w.winfo_geometry() == "500x300+40+40"
+        # and the restore still agrees with what the diff saw
+        blob = _dispatch("tools layout restore desk")
+        assert "1 window back in place" in blob, blob
+        assert w.winfo_geometry() == "300x200+10+10"
+        _dispatch("tools layout forget all")
+    finally:
+        app.terminal.log = _old_log
+        try:
+            app.root.destroy()
+        except Exception:  # noqa: BLE001
+            pass
+    monkeypatch.undo()

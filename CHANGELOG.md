@@ -4,6 +4,21 @@ All notable changes to DXN1 STUDIO. Format based on
 [Keep a Changelog](https://keepachangelog.com/); versioning is
 `MAJOR.MINOR.PATCH` while in **beta**.
 
+## [2.69.0] — 2026-09-15 · beta · "the desk admits its drift" (tools layout diff: the saved layout compared to the live desk, read-only)
+
+### Added
+- **`tools layout diff <name>`** — how far the live desk has
+  drifted from a saved layout: what still stands exactly where the
+  layout left it (`3 of 5 windows still in place`), what wandered
+  (`moved: Chart — saved 300x200+10+10, now 500x300+40+40`, both
+  honest), what is not open (named, never conjured), and what is
+  open that the layout never knew (`unbooked: Stray
+  (200x100+5+5)`). The same exact-first, substring-second matching
+  the restore uses — the diff never disagrees with what a recall
+  would actually move — and it is read-only: not a single window
+  is touched. A desk matching exactly says so; junk on either
+  side is tolerated, never fatal (`geom.layout_drift()`)
+
 ## [2.68.0] — 2026-09-15 · beta · "the layouts remember the layers" (skin-deep layouts: ghost + pin saved and restored, a show-before-recall preview, find for the desk, a tooltip computed at hover)
 
 ### Added

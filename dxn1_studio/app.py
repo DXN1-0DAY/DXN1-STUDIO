@@ -81,8 +81,8 @@ TERMINAL_HELP = (
      "into a screen-filling grid"),
     ("tools layout <name>", "the window manager's memory — save "
      "every open tool window's place AND layering under a name, "
-     "recall it later (save <name> · <name> · show <name> · list · "
-     "rename <old> <new> · forget <name|all>)"),
+     "recall it later (save <name> · <name> · show <name> · diff "
+     "<name> · list · rename <old> <new> · forget <name|all>)"),
     ("cron <expr>", "decode a cron schedule + next runs"),
     ("readability", "reading level of the current file"),
     ("jwt <token>", "decode a JWT — header, payload, exp"),
@@ -3923,6 +3923,58 @@ class DXN1Studio:
                                  else " · not open")
                         self.terminal.log(line)
                     return
+                if verb == "diff":
+                    # DS2 v2.69 — the desk admits its drift: `diff
+                    # <name>` compares the snapshot against the live
+                    # desk — what still stands where the layout left
+                    # it, what wandered (saved vs now, both honest),
+                    # what is not open, and what is open that the
+                    # layout never knew. The same exact-then-
+                    # substring matching the restore uses, so the
+                    # diff never disagrees with what a recall would
+                    # actually move. Read-only: not a single window
+                    # is touched.
+                    if not rest:
+                        self.terminal.log(
+                            "usage: tools layout diff <name> — how "
+                            "far the live desk has drifted from a "
+                            "saved layout")
+                        return
+                    snap = (dict(self.config.get(LAYOUTS_KEY) or {})
+                            .get(rest))
+                    if snap is None:
+                        self.terminal.log(
+                            "tools layout diff — '%s' is not "
+                            "remembered (see: tools layout list)"
+                            % rest)
+                        return
+                    from .geom import layout_drift
+                    in_place, moved, missing, unbooked = \
+                        layout_drift(snap or [],
+                                     self._open_tool_windows())
+                    n = len(snap or [])
+                    self.terminal.log(
+                        "tools layout diff — '%s': %d of %d "
+                        "window%s still in place"
+                        % (rest, len(in_place), n,
+                           "" if n == 1 else "s"))
+                    for title, sgeo, lgeo in moved:
+                        self.terminal.log(
+                            "  moved: %s — saved %s, now %s"
+                            % (title, sgeo, lgeo))
+                    for title in missing:
+                        self.terminal.log(
+                            "  not open: %s" % title)
+                    for title, lgeo in unbooked:
+                        self.terminal.log(
+                            "  unbooked: %s (%s) — open now, but "
+                            "the layout never knew it"
+                            % (title, lgeo))
+                    if (not moved and not missing and not unbooked
+                            and in_place):
+                        self.terminal.log(
+                            "  the desk is exactly as it was saved")
+                    return
                 if verb == "forget":
                     store = dict(self.config.get(LAYOUTS_KEY) or {})
                     if rest == "all":
@@ -3994,7 +4046,8 @@ class DXN1Studio:
                     self.terminal.log(
                         "usage: tools layout save <name> · "
                         "tools layout <name> · tools layout show "
-                        "<name> · tools layout list · "
+                        "<name> · tools layout diff <name> · "
+                        "tools layout list · "
                         "tools layout rename <old> <new> · "
                         "tools layout forget <name|all>")
                     return
