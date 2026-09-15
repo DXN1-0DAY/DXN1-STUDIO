@@ -39,6 +39,11 @@ and offers the desktop app or the zero-install browser demo:
 curl -fsSL https://raw.githubusercontent.com/DXN1-termux/DXN1-STUDIO/master/scripts/install.sh | bash
 ```
 
+One command, three ways in: the Electron desktop app, the zero-install
+browser demo, and — if a C++23 compiler is present — the **native core**
+builds itself and `dxn3 --native` plays Spark scenes right in your
+terminal, truecolor and dependency-free.
+
 Prefer to look before you leap?
 
 ```bash
@@ -174,8 +179,10 @@ electron/    main + preload (spawn the engine, IPC, frameless window)
 renderer/    index.html · styles.css (design system) · app.js · spark.js
 engine/      the Python brain — stdio JSON bridge (python3 -m engine)
              files · scenes · git (status/log/commit), atomic + sandboxed
+native/      the C++23 Spark core — same scenes, terminal studio,
+             zero dependencies; dxn3-native + dxn3-selftest (make test)
 scenes/      Spark scenes (*.dxn1.json) — playground + level-2
-scripts/     install.sh · gates.sh (6 quality gates) · selftest.js
+scripts/     install.sh · gates.sh (7 quality gates) · selftest.js
 tests/       engine tests:  python3 -m unittest discover -s tests
 ```
 
