@@ -192,14 +192,14 @@ def open_goal_dialog(master, theme, current, on_set=None):
                        cursor="hand2", padx=12, pady=5)
     set_btn.pack(side=tk.LEFT)
     set_btn.bind("<Button-1>", _set)
-    from . import hints as _hints
-    _hints.hover(cancel_btn, enter=dict(fg=theme["text"]),
-                 leave=dict(fg=theme["text_secondary"]))
     cancel_btn = tk.Label(btns, text="Cancel", bg=theme["card"],
                           fg=theme["text_secondary"], cursor="hand2",
                           padx=10, pady=5)
     cancel_btn.pack(side=tk.LEFT, padx=(8, 0))
     cancel_btn.bind("<Button-1>", _cancel)
+    from . import hints as _hints
+    _hints.hover(cancel_btn, enter=dict(fg=theme["text"]),
+                 leave=dict(fg=theme["text_secondary"]))
 
     entry.bind("<Return>", _set)
     win.bind("<Escape>", _cancel)
