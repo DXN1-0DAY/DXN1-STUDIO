@@ -453,8 +453,12 @@ function renderState() {
   applyTheme(STATE.theme);
   renderTabs();
   renderAgent();
-  $("ws-name").textContent = STATE.workspace
+  const wsEl = $("ws-name");
+  wsEl.textContent = STATE.workspace
     ? STATE.workspace.split("/").pop() : "no workspace";
+  wsEl.title = STATE.workspace
+    ? STATE.workspace + "  —  switch (Ctrl+Alt+W)"
+    : "switch workspace (Ctrl+Alt+W)";
   $("st-status").textContent = STATE.status || "ready";
   $("st-version").textContent = STATE.version || "DXN1";
   const log = $("term-log");
@@ -1044,6 +1048,8 @@ async function wsSwitch(path) {
   }
   const nxt = (STATE.tabs || []).find(t => t.active);
   if (nxt && nxt.path !== currentFile) await openFile(nxt.path, true);
+  gitChipUpdate();   // after the settle loop — the 6 s cadence would
+                     // otherwise show the OLD workspace's chip
 }
 
 $("ws-name").onclick = wsOpen;
