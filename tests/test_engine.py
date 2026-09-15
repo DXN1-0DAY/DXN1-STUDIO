@@ -224,6 +224,42 @@ class TestGit(EngineBase):
         self.assertFalse(r["ok"])
         self.assertIn("path required", r["error"])
 
+    def test_branches_and_checkout(self):
+        if not self.has_git:
+            self.skipTest("git not installed")
+        self._init_repo()
+        self.req("write", {"path": "a.txt", "content": "one"})
+        self.req("git_commit", {"message": "base"})
+        r = self.req("git_branches")
+        self.assertTrue(r["ok"])
+        self.assertEqual(r["result"]["current"],
+                         r["result"]["branches"][0])
+        base = r["result"]["current"]
+        # create + switch
+        r = self.req("git_checkout", {"name": "feature/x", "create": True})
+        self.assertTrue(r["ok"])
+        self.assertEqual(r["result"]["branch"], "feature/x")
+        r = self.req("git_branches")
+        self.assertEqual(r["result"]["current"], "feature/x")
+        self.assertIn(base, r["result"]["branches"])
+        # duplicate create refused
+        r = self.req("git_checkout", {"name": "feature/x", "create": True})
+        self.assertFalse(r["ok"])
+        self.assertIn("already exists", r["error"])
+        # switch back
+        r = self.req("git_checkout", {"name": base})
+        self.assertTrue(r["ok"])
+        # unknown branch refused
+        r = self.req("git_checkout", {"name": "ghost"})
+        self.assertFalse(r["ok"])
+        self.assertIn("no such branch", r["error"])
+        # hostile names refused
+        r = self.req("git_checkout", {"name": "-evil"})
+        self.assertFalse(r["ok"])
+        self.assertIn("invalid branch name", r["error"])
+        r = self.req("git_checkout", {"name": "", "create": True})
+        self.assertFalse(r["ok"])
+
 
 class TestServeLoop(unittest.TestCase):
     def test_line_per_request(self):

@@ -61,13 +61,21 @@ class DemoFS {
   save() { STORE.set("demo_fs", this.data); }
   _vgit() {
     if (!this.vgit) {
-      this.vgit = STORE.get("demo_vgit", null) || { branch: "main",
-        snap: { ...this.data }, commits: [ { hash: "a1b3c9f",
-        subject: "import playground + level-2", author: "you",
-        when: "at import" } ] };
+      this.vgit = STORE.get("demo_vgit", null);
+    }
+    if (!this.vgit || !this.vgit.branches) {
+      // migrate/seed: one branch, per-branch snapshot + history
+      const b = this.vgit && this.vgit.branch ? this.vgit.branch : "main";
+      const snap = this.vgit && this.vgit.snap ? this.vgit.snap : { ...this.data };
+      const commits = this.vgit && this.vgit.commits ? this.vgit.commits :
+        [{ hash: "a1b3c9f", subject: "import playground + level-2",
+           author: "you", when: "at import" }];
+      this.vgit = { branch: b, branches: { [b]: { snap, commits } } };
+      STORE.set("demo_vgit", this.vgit);
     }
     return this.vgit;
   }
+  _vcur() { return this._vgit().branches[this._vgit().branch]; }
   /* LCS line diff — demo files are small, O(n·m) is fine here.
      Returns unified-style hunks with 2 lines of context. */
   static diffHunks(a, b) {
@@ -123,7 +131,7 @@ class DemoFS {
     return hunks;
   }
   _vdiff() {
-    const g = this._vgit();
+    const g = this._vcur();
     const files = [];
     const seen = new Set();
     for (const [p, c] of Object.entries(this.data)) {
@@ -193,30 +201,57 @@ class DemoFS {
                     clean: files.length === 0 });
       }
       case "git_log":
-        return ok({ commits: this._vgit().commits });
+        return ok({ commits: this._vcur().commits });
       case "git_commit": {
         const msg = String(args.message || "").trim();
         if (!msg) return bad("commit message required");
         const files = this._vdiff();
         if (!files.length) return bad("nothing to commit, working tree clean");
-        const g = this._vgit();
+        const cur = this._vcur();
         const hash = Math.floor(Math.random() * 0xfffffff)
           .toString(16).padStart(7, "0").slice(0, 7);
-        g.commits.unshift({ hash, subject: msg, author: "you",
+        cur.commits.unshift({ hash, subject: msg, author: "you",
           when: "just now", files: files.length });
-        g.snap = { ...this.data };
-        STORE.set("demo_vgit", g);
+        cur.snap = { ...this.data };
+        STORE.set("demo_vgit", this.vgit);
         return ok({ committed: hash, files: files.length });
+      }
+      case "git_branches": {
+        const g3 = this._vgit();
+        return ok({ branches: Object.keys(g3.branches),
+                    current: g3.branch });
+      }
+      case "git_checkout": {
+        const name = String(args.name || "").trim();
+        if (!name || name.startsWith("-")) return bad("invalid branch name");
+        const g4 = this._vgit();
+        if (args.create) {
+          if (g4.branches[name]) return bad(`branch already exists: ${name}`);
+          g4.branches[name] = { snap: { ...this.data }, commits: [
+            { hash: Math.floor(Math.random() * 0xfffffff).toString(16)
+              .padStart(7, "0").slice(0, 7),
+              subject: `branch created from ${g4.branch}`,
+              author: "you", when: "just now", files: 0 } ] };
+          g4.branch = name;
+          STORE.set("demo_vgit", g4);
+          return ok({ branch: name, created: true });
+        }
+        if (!g4.branches[name]) return bad(`no such branch: ${name}`);
+        g4.branch = name;
+        this.data = { ...g4.branches[name].snap };   // git checkout IS a restore
+        this.save();
+        STORE.set("demo_vgit", g4);
+        return ok({ branch: name, created: false });
       }
       case "git_diff": {
         const p = String(args.path || "");
-        const g2 = this._vgit();
-        const had = p in g2.snap, has = p in this.data;
+        const cur2 = this._vcur();
+        const had = p in cur2.snap, has = p in this.data;
         if (!had && !has) return bad("no such file");
-        if (had && this.data[p] === g2.snap[p]) {
+        if (had && this.data[p] === cur2.snap[p]) {
           return ok({ path: p, status: "clean", hunks: [] });
         }
-        const a = had ? g2.snap[p].split("\n") : [];
+        const a = had ? cur2.snap[p].split("\n") : [];
         const b = has ? this.data[p].split("\n") : [];
         return ok({ path: p, status: had ? "modified" : "added",
                     hunks: DemoFS.diffHunks(a, b) });
@@ -1382,6 +1417,8 @@ async function renderGit() {
     $("git-branch").textContent = `⑂ ${st.branch}` +
       (st.ahead ? ` ↑${st.ahead}` : "") +
       (st.clean ? " — clean" : ` — ${st.files.length} change${st.files.length === 1 ? "" : "s"}`);
+    $("git-branch").style.cursor = "pointer";
+    $("git-branch").title = "Click to switch or create a branch";
     $("st-branch").textContent = `⑂ ${st.branch}`;
     filesHost.innerHTML = "";
     if (!st.files.length) {
@@ -1437,6 +1474,37 @@ async function gitCommit() {
     renderGit();
     say("committed " + r.committed);
   } catch (e) { toast("Commit failed: " + e.message, "err"); }
+}
+
+async function gitBranchMenu(x, y) {
+  try {
+    const r = await api("git_branches", {});
+    const items = r.branches.map((b) => ({
+      label: (b === r.current ? "● " : "  ") + b,
+      run: async () => {
+        if (b === r.current) return;
+        try {
+          await api("git_checkout", { name: b });
+          toast("Switched to " + b, "ok", 1800);
+          await loadTree();
+          renderGit();
+        } catch (e) { toast("Checkout failed: " + e.message, "err"); }
+      },
+    }));
+    items.push("-", {
+      label: "＋ Create branch…",
+      run: async () => {
+        const name = prompt("New branch name:", "feature/");
+        if (!name) return;
+        try {
+          await api("git_checkout", { name, create: true });
+          toast("On new branch " + name, "ok", 1800);
+          renderGit();
+        } catch (e) { toast("Branch failed: " + e.message, "err"); }
+      },
+    });
+    ctxMenu(x, y, items);
+  } catch (e) { toast("Branches: " + e.message, "err"); }
 }
 
 /* ============================================================
@@ -1851,6 +1919,7 @@ function wire() {
     if (e.key === "Enter") gitCommit();
   });
   $("git-refresh").onclick = renderGit;
+  $("git-branch").onclick = (e) => gitBranchMenu(e.clientX, e.clientY);
 
   // terminal
   $("term-in").addEventListener("keydown", (e) => {

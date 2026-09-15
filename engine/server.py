@@ -287,6 +287,41 @@ class Engine:
         except EngineError:
             return False
 
+    def cmd_git_branches(self, args):
+        self._git_repo()
+        out = self._git("branch", "--format=%(refname:short)%09%(HEAD)")
+        branches = []
+        current = "unknown"
+        for line in out.splitlines():
+            if not line.strip():
+                continue
+            name, _, mark = line.partition("\t")
+            if mark.strip() == "*":
+                current = name
+            branches.append(name)
+        return {"branches": branches, "current": current}
+
+    def cmd_git_checkout(self, args):
+        self._git_repo()
+        name = str(args.get("name") or "").strip()
+        if not name or not re.fullmatch(r"[\w./-]+", name) or name.startswith("-"):
+            raise EngineError("invalid branch name")
+        if len(name) > 80:
+            raise EngineError("branch name too long")
+        create = bool(args.get("create"))
+        exists = name in self.cmd_git_branches({})["branches"]
+        if create and exists:
+            raise EngineError(f"branch already exists: {name}")
+        if not create and not exists:
+            raise EngineError(f"no such branch: {name}")
+        out = self._git("checkout", "-b", name) if create \
+            else self._git("checkout", name)
+        branch = name
+        m = re.search(r"Switched to (?:a new )?branch '([^']+)'", out)
+        if m:
+            branch = m.group(1)
+        return {"branch": branch, "created": create}
+
     def cmd_git_diff(self, args):
         """Unified diff of one file vs HEAD. Untracked files come back
         as an all-added diff; clean files as zero hunks."""
