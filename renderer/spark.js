@@ -11,19 +11,22 @@ const Spark = (() => {
 
   // ------------------------------------------------------------ schema
   // entity: {name, x, y, w, h, shape:"rect"|"circle"|"triangle",
-  //          color, text:"", tsize:22,
+  //          color, color2, fill:"solid"|"gradient", rot:degrees,
+  //          text:"", tsize:22,
   //          vx, vy, solid, gravity:boolean(default: scene gravity),
   //          controls:"platformer"|"none", tag, bounce:0..1, alive:true,
   //          path:null|{toX,toY,speed} — moving platform, ping-pong}
   //          tag:"coin" pickup · tag:"hazard" respawn on touch
   //          tag:"goal" finish — sends the player to scene.next
+  //          rot is VISUAL — physics stays an honest AABB
   // scene:  {name, bg, gravity, camera:{x,y,zoom}, entities:[...],
   //          next:null|"scenes/level2.dxn1.json", parallax:[{speed,color,size,count}]}
 
   function makeEntity(patch) {
     return Object.assign({
       name: "entity", x: 0, y: 0, w: 36, h: 36,
-      shape: "rect", color: "#8b5cf6", text: "", tsize: 22,
+      shape: "rect", color: "#8b5cf6", color2: "", fill: "solid",
+      rot: 0, text: "", tsize: 22,
       vx: 0, vy: 0, solid: false, gravity: null,
       controls: "none", tag: "", bounce: 0, alive: true,
       path: null,
@@ -145,6 +148,9 @@ const Spark = (() => {
       this._raf = 0;
       this._last = 0;
       this._acc = 0;
+      this._shakeT = 0;            // camera shake
+      this._shakeP = 0;
+      this._sounds = [];           // sound events this frame (QA-able)
       const pl = this.scene.entities.find((e) => e.tag === "player");
       this._spawn = { x: pl ? pl.x : 90, y: pl ? pl.y : 300 };
     }

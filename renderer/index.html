@@ -44,7 +44,7 @@
   <nav id="rail" aria-label="Activity">
     <button class="rail-btn active" data-panel="explorer" title="Explorer (Ctrl+Shift+E)"><span>⌸</span></button>
     <button class="rail-btn" data-panel="search" title="Search (Ctrl+Shift+F)"><span>⌕</span></button>
-    <button class="rail-btn" data-panel="git" title="Source control"><span>⑂</span></button>
+    <button class="rail-btn" data-panel="git" title="Source control"><span>⑂</span><i id="rail-git-count" class="rail-badge hidden"></i></button>
     <button class="rail-btn" data-panel="game" title="Spark — game editor"><span>▶</span></button>
     <button class="rail-btn" data-panel="agents" title="Agents (soon)"><span>◆</span></button>
     <div class="rail-spacer"></div>
@@ -265,6 +265,18 @@
 </div>
 
 <div id="toasts"></div>
+
+<div id="diffview" class="hidden">
+  <div id="diff-card">
+    <div id="diff-head">
+      <span class="dh-ico">⇄</span>
+      <span id="diff-path">—</span>
+      <span id="diff-stat"></span>
+      <button id="diff-close" class="mini" title="Close (Esc)">✕</button>
+    </div>
+    <div id="diff-body"></div>
+  </div>
+</div>
 
 <div id="ctxmenu" class="hidden"></div>
 

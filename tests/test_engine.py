@@ -190,6 +190,40 @@ class TestGit(EngineBase):
         self.assertEqual(commits[0]["subject"], "first words")
         self.assertTrue(commits[0]["hash"])
 
+    def test_diff_modified_untracked_clean(self):
+        if not self.has_git:
+            self.skipTest("git not installed")
+        self._init_repo()
+        # untracked -> all-added diff
+        self.req("write", {"path": "new.txt", "content": "l1\nl2\n"})
+        r = self.req("git_diff", {"path": "new.txt"})
+        self.assertTrue(r["ok"])
+        self.assertEqual(r["result"]["status"], "added")
+        signs = [l["t"] for l in r["result"]["hunks"][0]["lines"]]
+        self.assertEqual(signs, ["+", "+"])
+        # committed then modified -> real git hunks
+        self.req("git_commit", {"message": "base"})
+        r = self.req("git_diff", {"path": "new.txt"})
+        self.assertEqual(r["result"]["status"], "clean")
+        self.assertEqual(r["result"]["hunks"], [])
+        self.req("write", {"path": "new.txt", "content": "l1\nCHANGED\n"})
+        r = self.req("git_diff", {"path": "new.txt"})
+        self.assertTrue(r["ok"])
+        self.assertEqual(r["result"]["status"], "modified")
+        flat = [l for h in r["result"]["hunks"] for l in h["lines"]]
+        self.assertIn("-", [l["t"] for l in flat])
+        self.assertIn("+", [l["t"] for l in flat])
+        changed = [l["s"] for l in flat if l["t"] == "+"]
+        self.assertIn("CHANGED", changed)
+        # clean file -> zero hunks
+        r = self.req("git_diff", {"path": "missing.txt"})
+        self.assertTrue(r["ok"])
+        self.assertEqual(r["result"]["status"], "clean")
+        # path required
+        r = self.req("git_diff", {})
+        self.assertFalse(r["ok"])
+        self.assertIn("path required", r["error"])
+
 
 class TestServeLoop(unittest.TestCase):
     def test_line_per_request(self):

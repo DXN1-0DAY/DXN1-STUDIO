@@ -68,6 +68,60 @@ class DemoFS {
     }
     return this.vgit;
   }
+  /* LCS line diff — demo files are small, O(n·m) is fine here.
+     Returns unified-style hunks with 2 lines of context. */
+  static diffHunks(a, b) {
+    const n = a.length, m = b.length;
+    const ops = [];
+    if (n * m > 400000) {              // too big — honest full-replace
+      for (const s of a) ops.push({ t: "-", s });
+      for (const s of b) ops.push({ t: "+", s });
+    } else {
+      const dp = Array.from({ length: n + 1 }, () => new Uint16Array(m + 1));
+      for (let i = n - 1; i >= 0; i--)
+        for (let j = m - 1; j >= 0; j--)
+          dp[i][j] = a[i] === b[j] ? dp[i + 1][j + 1] + 1
+                                   : Math.max(dp[i + 1][j], dp[i][j + 1]);
+      let i = 0, j = 0;
+      while (i < n && j < m) {
+        if (a[i] === b[j]) { ops.push({ t: " ", s: a[i] }); i++; j++; }
+        else if (dp[i + 1][j] >= dp[i][j + 1]) { ops.push({ t: "-", s: a[i] }); i++; }
+        else { ops.push({ t: "+", s: b[j] }); j++; }
+      }
+      while (i < n) { ops.push({ t: "-", s: a[i++] }); }
+      while (j < m) { ops.push({ t: "+", s: b[j++] }); }
+    }
+    // collapse into hunks with 2 context lines around each change run
+    const hunks = [];
+    const aNo = [], bNo = [];
+    let ai = 1, bi = 1;
+    for (const op of ops) {
+      aNo.push(ai); bNo.push(bi);
+      if (op.t === " ") { ai++; bi++; } else if (op.t === "-") { ai++; } else { bi++; }
+    }
+    const keep = ops.map((op, k) => op.t !== " " ||
+      ops.slice(Math.max(0, k - 2), k + 3).some((o2) => o2.t !== " "));
+    let buf = [];
+    const flush = () => {
+      if (!buf.length) return;
+      const fA = aNo[buf[0].k], lA = aNo[buf[buf.length - 1].k];
+      const fB = bNo[buf[0].k], lB = bNo[buf[buf.length - 1].k];
+      hunks.push({
+        header: `@@ -${fA},${lA - fA + 1} +${fB},${lB - fB + 1} @@`,
+        lines: buf.map((x) => ({ t: x.op.t, s: x.op.s,
+          n: x.op.t === "+" ? bNo[x.k] : aNo[x.k] })),
+      });
+      buf = [];
+    };
+    for (let k = 0; k < ops.length; k++) {
+      if (keep[k]) buf.push({ op: ops[k], k });
+      else if (buf.length && buf[buf.length - 1].op.t !== " ")
+        buf.push({ op: { t: " ", s: "" }, k });   // visual break
+      else if (buf.length) flush();
+    }
+    flush();
+    return hunks;
+  }
   _vdiff() {
     const g = this._vgit();
     const files = [];
@@ -153,6 +207,19 @@ class DemoFS {
         g.snap = { ...this.data };
         STORE.set("demo_vgit", g);
         return ok({ committed: hash, files: files.length });
+      }
+      case "git_diff": {
+        const p = String(args.path || "");
+        const g2 = this._vgit();
+        const had = p in g2.snap, has = p in this.data;
+        if (!had && !has) return bad("no such file");
+        if (had && this.data[p] === g2.snap[p]) {
+          return ok({ path: p, status: "clean", hunks: [] });
+        }
+        const a = had ? g2.snap[p].split("\n") : [];
+        const b = has ? this.data[p].split("\n") : [];
+        return ok({ path: p, status: had ? "modified" : "added",
+                    hunks: DemoFS.diffHunks(a, b) });
       }
       default:
         return bad(`demo engine does not implement ${cmd}`);
@@ -1323,11 +1390,22 @@ async function renderGit() {
     for (const f of st.files) {
       const el = document.createElement("div");
       el.className = "git-file";
-      const badge = { A: "gs-a", M: "gs-m", D: "gs-d", U: "gs-u" }[f.x] || "gs-m";
+      const badge = { A: "gs-a", M: "gs-m", D: "gs-d", U: "gs-u", "?": "gs-u" }[f.x] || "gs-m";
       el.innerHTML = `<span class="gs-badge ${badge}">${esc(f.x)}</span>` +
-        `<span class="gf-path" title="${esc(f.path)}">${esc(f.path)}</span>`;
+        `<span class="gf-path" title="${esc(f.path)}">${esc(f.path)}</span>` +
+        `<button class="mini gf-diff" title="View diff vs HEAD">±</button>`;
       el.onclick = () => f.x !== "D" && openPath(f.path);
+      el.querySelector(".gf-diff").onclick = (ev) => {
+        ev.stopPropagation();
+        openDiff(f.path);
+      };
       filesHost.appendChild(el);
+    }
+    const cntEl = $("rail-git-count");
+    if (cntEl) {
+      const cnt = st.files.length;
+      cntEl.textContent = cnt > 9 ? "9+" : String(cnt);
+      cntEl.classList.toggle("hidden", !cnt);
     }
     const lg = await api("git_log", {});
     logHost.innerHTML = "";
@@ -1344,6 +1422,8 @@ async function renderGit() {
     $("st-branch").textContent = "⑂ —";
     filesHost.innerHTML = `<div class="panel-note">git: ${esc(e.message)}</div>`;
     if (logHost) logHost.innerHTML = "";
+    const cntEl = $("rail-git-count");
+    if (cntEl) cntEl.classList.add("hidden");
   }
 }
 
@@ -1358,6 +1438,47 @@ async function gitCommit() {
     say("committed " + r.committed);
   } catch (e) { toast("Commit failed: " + e.message, "err"); }
 }
+
+/* ============================================================
+   DIFF VIEWER — what changed vs HEAD, one file at a time
+   ============================================================ */
+async function openDiff(path) {
+  try {
+    const r = await api("git_diff", { path });
+    const host = $("diff-body");
+    host.innerHTML = "";
+    $("diff-path").textContent = path;
+    let adds = 0, dels = 0;
+    for (const h of (r.hunks || [])) {
+      const hEl = document.createElement("div");
+      hEl.className = "dh-header";
+      hEl.textContent = h.header;
+      host.appendChild(hEl);
+      for (const ln of h.lines) {
+        const el = document.createElement("div");
+        el.className = "dl" +
+          (ln.t === "+" ? " dl-add" : ln.t === "-" ? " dl-del" : "");
+        const sign = ln.t === "+" ? "+" : ln.t === "-" ? "\u2212" : " ";
+        const no = ln.n ? String(ln.n).padStart(3, " ") : "   ";
+        el.innerHTML = `<span class="dl-no">${no}</span>` +
+          `<span class="dl-sign">${sign}</span>` +
+          `<span class="dl-src">${esc(ln.s) || " "}</span>`;
+        if (ln.t === "+") adds++;
+        if (ln.t === "-") dels++;
+        host.appendChild(el);
+      }
+    }
+    $("diff-stat").textContent = r.status === "clean"
+      ? "no changes" : `+${adds} \u2212${dels}`;
+    if (!(r.hunks || []).length) {
+      host.innerHTML = `<div class="panel-note" style="padding:18px">` +
+        `No differences vs HEAD.</div>`;
+    }
+    $("diffview").classList.remove("hidden");
+  } catch (e) { toast("Diff failed: " + e.message, "err"); }
+}
+
+function closeDiff() { $("diffview").classList.add("hidden"); }
 
 /* ============================================================
    COMMAND PALETTE
@@ -1796,7 +1917,8 @@ function wire() {
     else if (mod && e.key.toLowerCase() === "d" && !inField && gameView()) { e.preventDefault(); dupEntity(); }
     else if (e.key === "F5") { e.preventDefault(); playScene(); }
     else if (e.key === "Escape") {
-      if (!$("findbar").classList.contains("hidden")) findClose();
+      if (!$("diffview").classList.contains("hidden")) closeDiff();
+      else if (!$("findbar").classList.contains("hidden")) findClose();
       else if (!$("gotobar").classList.contains("hidden")) gotoClose();
       else if (!$("overlay").classList.contains("hidden")) palClose();
     }
@@ -1805,6 +1927,12 @@ function wire() {
   // hide ctx menu on any click elsewhere
   window.addEventListener("mousedown", (e) => {
     if (!e.target.closest("#ctxmenu")) $("ctxmenu").classList.add("hidden");
+  });
+
+  // diff viewer
+  $("diff-close").onclick = closeDiff;
+  $("diffview").addEventListener("mousedown", (e) => {
+    if (e.target.id === "diffview") closeDiff();
   });
 
   // engine status

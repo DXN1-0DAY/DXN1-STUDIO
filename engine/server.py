@@ -228,7 +228,11 @@ class Engine:
         for line in out.splitlines():
             if line.startswith("## "):
                 head = line[3:]
-                branch = head.split("...", 1)[0].split(" ", 1)[0] or "unknown"
+                if head.startswith("No commits yet"):
+                    branch = head.rsplit(" ", 1)[-1]   # "... on master"
+                else:
+                    branch = head.split("...", 1)[0].split(" ", 1)[0] \
+                        or "unknown"
                 m = re.search(r"\[ahead (\d+)", head)
                 if m:
                     ahead = int(m.group(1))
@@ -275,6 +279,47 @@ class Engine:
         out = self._git("commit", "-m", message)
         m = re.search(r"\[[^\]]+? ([0-9a-f]+)\]", out)
         return {"committed": m.group(1) if m else "ok", "message": message}
+
+    def _has_head(self):
+        try:
+            self._git("rev-parse", "--verify", "--quiet", "HEAD")
+            return True
+        except EngineError:
+            return False
+
+    def cmd_git_diff(self, args):
+        """Unified diff of one file vs HEAD. Untracked files come back
+        as an all-added diff; clean files as zero hunks."""
+        self._git_repo()
+        path = str(args.get("path") or "")
+        if not path:
+            raise EngineError("path required")
+        st = self.cmd_git_status({})
+        entry = next((f for f in st["files"] if f["path"] == path), None)
+        if entry is None:
+            return {"path": path, "status": "clean", "hunks": []}
+        if entry["x"] == "?" or not self._has_head():
+            # untracked, or no commits yet: everything is an addition
+            try:
+                with open(self.resolve(path), encoding="utf-8",
+                          errors="replace") as fh:
+                    lines = fh.read().splitlines()
+            except OSError as exc:
+                raise EngineError(str(exc))
+            return {"path": path, "status": "added",
+                    "hunks": [{"header": f"@@ -0,0 +1,{len(lines)} @@",
+                               "lines": [{"t": "+", "s": ln}
+                                          for ln in lines]}]}
+        out = self._git("diff", "HEAD", "--no-color", "--unified=3", "--", path)
+        hunks = []
+        for line in out.splitlines():
+            if line.startswith(("diff --git", "index ", "--- ", "+++ ")):
+                continue
+            if line.startswith("@@"):
+                hunks.append({"header": line, "lines": []})
+            elif hunks and line[:1] in ("+", "-", " "):
+                hunks[-1]["lines"].append({"t": line[:1], "s": line[1:]})
+        return {"path": path, "status": "modified", "hunks": hunks}
 
     # ----------------------------------------------------------- serve
     def handle(self, line):
