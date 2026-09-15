@@ -433,7 +433,37 @@ function buildGame(scene) {
     },
   });
   GAME.selected = SEL_ENT;
+  wireSceneEditing();
   renderEntityList();
+}
+
+let SCENE_EDIT_WIRED = false;
+function wireSceneEditing() {
+  if (SCENE_EDIT_WIRED) return;
+  SCENE_EDIT_WIRED = true;
+  const cv = $("game-canvas");
+  let dragging = null;
+  cv.addEventListener("mousedown", (e) => {
+    if (!GAME || GAME.running) return;   // editing is an EDITOR power
+    const w = GAME.screenToWorld(e.clientX, e.clientY);
+    const ent = GAME.entityAt(w.x, w.y);
+    SEL_ENT = ent;
+    GAME.selected = ent;
+    if (ent) {
+      dragging = { ent, dx: w.x - ent.x, dy: w.y - ent.y };
+      cv.setPointerCapture(e.pointerId);
+    }
+    renderEntityList(); renderInspector();
+  });
+  cv.addEventListener("mousemove", (e) => {
+    if (!dragging || !GAME || GAME.running) return;
+    const w = GAME.screenToWorld(e.clientX, e.clientY);
+    dragging.ent.x = Math.round(w.x - dragging.dx);
+    dragging.ent.y = Math.round(w.y - dragging.dy);
+    markSceneDirty();
+    renderInspector();                    // live numbers while dragging
+  });
+  cv.addEventListener("mouseup", () => { dragging = null; });
 }
 
 function renderSceneDock(scene) {
@@ -463,7 +493,7 @@ function renderEntityList() {
 function renderInspector() {
   const host = $("inspector");
   host.innerHTML = "";
-  if (!SEL_ENT) { host.innerHTML = `<div class="panel-note">select an entity</div>`; return; }
+  if (!SEL_ENT) { host.innerHTML = `<div class="panel-note">click an entity on the canvas — drag to move</div>`; return; }
   const e = SEL_ENT;
   const row = (label, input) => {
     const r = document.createElement("div");

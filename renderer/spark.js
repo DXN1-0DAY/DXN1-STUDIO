@@ -109,6 +109,26 @@ const Spark = (() => {
       };
     }
 
+    // -------------------------------------------------- editor helpers
+    screenToWorld(sx, sy) {
+      const cam = this.scene.camera;
+      const r = this.canvas.getBoundingClientRect();
+      const scale = this.canvas.width / r.width;   // CSS → backing pixels
+      return { x: (sx - r.left) * scale + cam.x,
+               y: (sy - r.top) * scale + cam.y };
+    }
+
+    entityAt(wx, wy) {
+      for (let i = this.scene.entities.length - 1; i >= 0; i--) {
+        const e = this.scene.entities[i];
+        if (!e.alive) continue;
+        if (wx >= e.x && wx <= e.x + e.w && wy >= e.y && wy <= e.y + e.h) {
+          return e;
+        }
+      }
+      return null;
+    }
+
     start() {
       if (this.running) return;
       this.running = true;
