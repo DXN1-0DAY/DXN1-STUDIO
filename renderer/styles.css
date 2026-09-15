@@ -326,6 +326,11 @@ kbd {
   display: flex; flex-direction: column; gap: 4px; align-items: flex-start;
   transition: transform .15s, border-color .15s, box-shadow .15s;
 }
+.hero-card.accent {
+  border-color: color-mix(in srgb, var(--accent) 45%, var(--border));
+  background: color-mix(in srgb, var(--accent) 9%, var(--bg1));
+}
+.hero-card.accent .hc-ico { color: var(--accent); }
 .hero-card:hover {
   transform: translateY(-3px); border-color: color-mix(in srgb, var(--accent) 55%, var(--border));
   box-shadow: var(--shadow);

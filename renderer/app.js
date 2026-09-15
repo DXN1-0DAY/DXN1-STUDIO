@@ -2117,6 +2117,10 @@ function wire() {
     b.onclick = () => setFontSize(Number(b.dataset.fs)));
 
   // welcome
+  $("hero-play").onclick = async () => {
+    await openScene("scenes/playground.dxn1.json");
+    if (!GAME.running) playScene();
+  };
   $("hero-open").onclick = openFolder;
   $("hero-scene").onclick = newScene;
   $("hero-newfile").onclick = newFile;
