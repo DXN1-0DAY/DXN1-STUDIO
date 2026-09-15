@@ -1,0 +1,192 @@
+"""Tests for the app-level HTTP bridge (dxn1_studio.webridge).
+
+Headless: boots the studio in smoke mode, starts the bridge on a
+random port, and drives it with urllib — including the security
+contract (token required, workspace sandbox).
+"""
+
+import json
+import os
+import sys
+import unittest
+import urllib.error
+import urllib.request
+
+sys.path.insert(0, os.path.dirname(os.path.dirname(
+    os.path.abspath(__file__))))
+
+from dxn1_studio import webridge as wb  # noqa: E402
+
+
+def _make_app():
+    from dxn1_studio import config as cfgmod
+    from dxn1_studio.app import DXN1Studio
+    return DXN1Studio(cfgmod.Config(), smoke_test=True, no_splash=True)
+
+
+class TestWebBridge(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls):
+        import tkinter as tk
+        try:
+            cls.root = tk.Tk()
+        except Exception:
+            raise unittest.SkipTest("no display available")
+        cls.root.withdraw()
+        cls.app = _make_app()
+        cls.server, cls.url, cls.token = wb.start_bridge(cls.app)
+        cls.base = cls.url
+
+    @classmethod
+    def tearDownClass(cls):
+        try:
+            cls.server.shutdown()
+        except Exception:
+            pass
+        try:
+            cls.app.root.destroy()
+        except Exception:
+            pass
+        try:
+            cls.root.destroy()
+        except Exception:
+            pass
+
+    # ---- helpers -----------------------------------------------------
+    def get(self, path, token=True, raw=False):
+        url = self.base + path
+        req = urllib.request.Request(url)
+        if token:
+            req.add_header("X-DXN1-Token", self.token)
+        try:
+            with urllib.request.urlopen(req, timeout=5) as r:
+                body = r.read().decode("utf-8")
+                return (r.status, body) if raw else \
+                    (r.status, json.loads(body))
+        except urllib.error.HTTPError as exc:
+            body = exc.read().decode("utf-8")
+            return (exc.code, body if raw else json.loads(body))
+
+    def post(self, path, payload):
+        data = json.dumps(payload).encode("utf-8")
+        req = urllib.request.Request(self.base + path, data=data,
+                                     method="POST")
+        req.add_header("X-DXN1-Token", self.token)
+        req.add_header("Content-Type", "application/json")
+        try:
+            with urllib.request.urlopen(req, timeout=5) as r:
+                return r.status, json.loads(r.read().decode("utf-8"))
+        except urllib.error.HTTPError as exc:
+            return exc.code, json.loads(exc.read().decode("utf-8"))
+
+    # ---- static face ---------------------------------------------------
+    def test_index_served_without_token(self):
+        status, body = self.get("/", token=False, raw=True)
+        self.assertEqual(status, 200)
+        self.assertIn("DXN1", body)
+
+    def test_app_css_and_js_served(self):
+        for path, marker in (("/app.css", "--accent"),
+                             ("/app.js", "X-DXN1-Token")):
+            status, body = self.get(path, token=False, raw=True)
+            self.assertEqual(status, 200, path)
+            self.assertIn(marker, body)
+
+    # ---- security ------------------------------------------------------
+    def test_api_requires_token(self):
+        status, body = self.get("/api/state", token=False)
+        self.assertEqual(status, 401)
+        self.assertFalse(body["ok"])
+
+    def test_bad_token_rejected(self):
+        url = self.base + "/api/state"
+        req = urllib.request.Request(url)
+        req.add_header("X-DXN1-Token", "wrong-token")
+        try:
+            with urllib.request.urlopen(req, timeout=5) as r:
+                code = r.status
+        except urllib.error.HTTPError as exc:
+            code = exc.code
+        self.assertEqual(code, 401)
+
+    def test_token_file_written_and_private(self):
+        ws = getattr(self.app, "project_dir", "") or os.getcwd()
+        tok_path = os.path.join(ws, ".dxn1", "bridge_token")
+        self.assertTrue(os.path.isfile(tok_path))
+        with open(tok_path, "r", encoding="utf-8") as fh:
+            self.assertEqual(fh.read().strip(), self.token)
+
+    # ---- app-level API ---------------------------------------------------
+    def test_state_snapshot(self):
+        status, body = self.get("/api/state")
+        self.assertEqual(status, 200)
+        self.assertTrue(body["ok"])
+        self.assertEqual(body["app"], "DXN1 STUDIO")
+        self.assertTrue(body["version"])
+        self.assertIsInstance(body["tabs"], list)
+        self.assertIn("accent", body["theme"])
+
+    def test_commands_listed(self):
+        status, body = self.get("/api/commands")
+        self.assertEqual(status, 200)
+        self.assertGreaterEqual(len(body["commands"]), 100)
+        labels = [c["label"] for c in body["commands"]]
+        self.assertTrue(any("Run project" in lb for lb in labels))
+
+    def test_bad_command_index_is_400(self):
+        status, body = self.post("/api/command", {"index": 99999})
+        self.assertEqual(status, 400)
+        self.assertFalse(body["ok"])
+
+    def test_command_dispatches_to_palette(self):
+        # "Toggle sidebar" (index-safe: find it by label)
+        status, listing = self.get("/api/commands")
+        idx = next(c["index"] for c in listing["commands"]
+                   if c["label"] == "Toggle sidebar")
+        status, body = self.post("/api/command", {"index": idx})
+        self.assertEqual(status, 200)
+        self.assertEqual(body["ran"], "Toggle sidebar")
+
+    def test_tree_lists_workspace(self):
+        status, body = self.get("/api/tree")
+        self.assertEqual(status, 200)
+        self.assertIsInstance(body["tree"], list)
+
+    def test_file_roundtrip_and_sandbox(self):
+        ws = getattr(self.app, "project_dir", "") or os.getcwd()
+        probe = os.path.join(ws, "webridge_probe.txt")
+        with open(probe, "w", encoding="utf-8") as fh:
+            fh.write("hello bridge")
+        try:
+            status, body = self.get("/api/file?path=webridge_probe.txt")
+            self.assertEqual(status, 200)
+            self.assertEqual(body["file"]["content"], "hello bridge")
+            # sandbox: escapes are refused
+            status, body = self.get(
+                "/api/file?path=../../etc/passwd")
+            self.assertEqual(status, 400)
+        finally:
+            try:
+                os.remove(probe)
+            except OSError:
+                pass
+
+    def test_file_write_schedules_reopen(self):
+        ws = getattr(self.app, "project_dir", "") or os.getcwd()
+        rel = "webridge_write.txt"
+        try:
+            status, body = self.post(
+                "/api/file", {"path": rel, "content": "written by test"})
+            self.assertEqual(status, 200)
+            self.assertTrue(body["saved"])
+            with open(os.path.join(ws, rel), "r", encoding="utf-8") as fh:
+                self.assertEqual(fh.read(), "written by test")
+        finally:
+            try:
+                os.remove(os.path.join(ws, rel))
+            except OSError:
+                pass
+
+
+if __name__ == "__main__":
+    unittest.main()

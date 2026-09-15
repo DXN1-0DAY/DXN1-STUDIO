@@ -6063,7 +6063,42 @@ class DXN1Studio:
                          "DS2", _open_focus))
         except Exception:  # pragma: no cover — palette stays alive
             pass
+        # DS2 v2.71.4: the Electron / Web UI path (defensive)
+        try:
+            cmds.append(("Web UI / Electron — start the bridge server…",
+                         "", self.open_web_bridge))
+        except Exception:  # pragma: no cover — palette stays alive
+            pass
         return cmds
+
+    def open_web_bridge(self):
+        """DS2 v2.71.4: the Electron / Web UI path.
+
+        Serves webui/ + a token-guarded JSON API on 127.0.0.1 and logs
+        the URL. The Tkinter window stays the source of truth; the web
+        renderer and the Electron shell both consume this bridge.
+        """
+        if getattr(self, "_bridge_server", None) is not None:
+            self.terminal.log(
+                f"Web UI bridge already running at {self._bridge_url}")
+            self.toast("Bridge already running — URL in the terminal",
+                       "info")
+            return
+        try:
+            from .webridge import start_bridge
+            server, url, token = start_bridge(self)
+        except Exception as exc:  # noqa: BLE001 — never kill the IDE
+            self.terminal.log(f"Web UI bridge failed: {exc}")
+            self.toast(f"Bridge failed: {exc}", "error")
+            return
+        self._bridge_server = server
+        self._bridge_url = f"{url}/?token={token}"
+        self.terminal.log("Web UI / Electron bridge: " + self._bridge_url)
+        self.terminal.log(
+            "Browser: open the URL · Electron: npm start -- --url "
+            "\"<url>\"  (see docs/ELECTRON.md)")
+        self.toast("Web UI bridge started — URL in the terminal",
+                   "success")
 
     def _ds2_restart(self):
         """DS2: restart into a new theme — mirrors switch_theme."""
@@ -6309,8 +6344,8 @@ class DXN1Studio:
                  font=(FONT_UI, 14, "bold")).pack(pady=(10, 0))
         tk.Label(box, text=APP_TAGLINE, bg=t["bg"],
                  fg=t["text_secondary"], font=(FONT_UI, 10)).pack()
-        tk.Label(box, text="Pure Python + Tkinter. No Electron, no "
-                           "frameworks, no bloat.",
+        tk.Label(box, text="Pure Python core · Tkinter desktop · "
+                           "Electron + Web UI path (best of both).",
                  bg=t["bg"], fg=t["text_muted"], font=(FONT_UI, 9)
                  ).pack(pady=(12, 0))
         link = tk.Label(box, text=REPO_URL, bg=t["bg"], fg=t.accent,

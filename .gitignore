@@ -14,3 +14,6 @@ Thumbs.db
 
 # DXN1 STUDIO local config (never commit user prefs)
 .dxn1-studio/
+
+# Electron shell
+electron/node_modules/

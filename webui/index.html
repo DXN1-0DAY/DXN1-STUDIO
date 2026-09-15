@@ -1,0 +1,58 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>DXN1 STUDIO — Web</title>
+<link rel="stylesheet" href="/app.css">
+</head>
+<body>
+<div id="app">
+  <header id="topbar">
+    <div class="brand"><span class="logo-dot"></span>DXN1 <b>STUDIO</b></div>
+    <div id="ws-name" class="ws">no workspace</div>
+    <div class="spacer"></div>
+    <button id="btn-run" class="btn accent" title="Run project (F5)">▶ Run</button>
+    <button id="btn-palette" class="btn" title="Command palette (Ctrl+K)">⌘ Commands</button>
+  </header>
+
+  <div id="body">
+    <aside id="sidebar">
+      <div class="side-title">EXPLORER</div>
+      <div id="tree" class="tree"></div>
+    </aside>
+
+    <main id="main">
+      <div id="tabbar"></div>
+      <div id="editor-wrap">
+        <div id="gutter"></div>
+        <textarea id="editor" spellcheck="false"
+          placeholder="Open a file from the explorer, or press Ctrl+K for commands…"></textarea>
+      </div>
+      <div id="terminal">
+        <div class="side-title">TERMINAL</div>
+        <pre id="term-log"></pre>
+      </div>
+    </main>
+  </div>
+
+  <footer id="statusbar">
+    <span id="st-status">ready</span>
+    <span class="spacer"></span>
+    <span id="st-version">DXN1</span>
+  </footer>
+</div>
+
+<div id="palette-overlay" class="hidden">
+  <div id="palette">
+    <input id="palette-input" type="text" placeholder="Type a command… (Ctrl+K)"
+           autocomplete="off" spellcheck="false">
+    <div id="palette-list"></div>
+    <div class="palette-hint">↑/↓ select · Enter run · Esc close</div>
+  </div>
+</div>
+
+<div id="toast" class="hidden"></div>
+<script src="/app.js"></script>
+</body>
+</html>

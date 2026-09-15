@@ -82,6 +82,7 @@ unitconv.py
 updater.py
 usagedash.py
 verbs.py
+webridge.py
 whatsnew.py
 widgets.py
 workspace_stats.py
