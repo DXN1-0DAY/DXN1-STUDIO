@@ -4,6 +4,26 @@ All notable changes to DXN1 STUDIO. Format based on
 [Keep a Changelog](https://keepachangelog.com/); versioning is
 `MAJOR.MINOR.PATCH` while in **beta**.
 
+## [2.71.6] — 2026-09-15 · beta · "quick-open + the agents drawer" (Ctrl+P and chat in the web face)
+
+### Added
+- **Ctrl+P quick-open** — a go-to-file panel over a new flat
+  `/api/files` listing (internal/hidden dirs never surface, 2000-path
+  cap): subsequence matching on the basename, substring on the path,
+  current file pinned first, directory badges, full keyboard nav.
+- **The agents drawer** — chat with DXN1 Agents from the web face.
+  POST /api/agent routes into the SAME `agent_panel.route()` the
+  desktop input uses, so both faces share one conversation and one
+  busy flag. The drawer shows chat bubbles (user / assistant /
+  system), a "working…" indicator, and the transcript streams in from
+  /api/state polls.
+- `/api/state` now carries the agent block (busy + last 40 transcript
+  entries + model name).
+
+### Tests
+- Bridge suite 23 → 26; full suite **172 green**. Gates PASS
+  (compileall · hashes · pytest · boot_qa 20/20 · installer syntax).
+
 ## [2.71.5] — 2026-09-15 · beta · "the web face grows up" (settings, git, and a real editor in the browser)
 
 ### Added
