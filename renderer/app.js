@@ -243,6 +243,30 @@ class DemoFS {
         STORE.set("demo_vgit", g4);
         return ok({ branch: name, created: false });
       }
+      case "git_branch": {                 // delete / rename, git's own rules
+        const action = String(args.action || "");
+        const nm = String(args.name || "").trim();
+        const g5 = this._vgit();
+        if (action !== "delete" && action !== "rename")
+          return bad("action must be delete or rename");
+        if (!nm || nm.startsWith("-")) return bad("invalid branch name");
+        if (!g5.branches[nm]) return bad(`no such branch: ${nm}`);
+        if (action === "delete") {
+          if (nm === g5.branch) return bad("cannot delete the branch you are on");
+          delete g5.branches[nm];
+          STORE.set("demo_vgit", g5);
+          return ok({ deleted: nm, branch: g5.branch });
+        }
+        const to = String(args.new || "").trim();
+        if (!to || to.startsWith("-")) return bad("invalid new branch name");
+        if (to === nm) return bad("rename to the same name");
+        if (g5.branches[to]) return bad(`branch already exists: ${to}`);
+        g5.branches = Object.fromEntries(Object.entries(g5.branches)
+          .map(([k, v]) => [k === nm ? to : k, v]));
+        if (g5.branch === nm) g5.branch = to;   // renaming current moves HEAD
+        STORE.set("demo_vgit", g5);
+        return ok({ renamed: nm, to, branch: g5.branch });
+      }
       case "git_diff": {
         const p = String(args.path || "");
         const cur2 = this._vcur();
@@ -349,6 +373,13 @@ function treeRow(item, depth) {
     (item.dir ? "" : `<span class="act">` +
       `<button data-a="ren" title="Rename">⋈</button>` +
       `<button class="danger" data-a="del" title="Delete">✕</button></span>`);
+  if (!item.dir) {                       // files drag into the editor
+    el.draggable = true;
+    el.addEventListener("dragstart", (e) => {
+      e.dataTransfer.setData("text/plain", item.path);
+      e.dataTransfer.effectAllowed = "copyMove";
+    });
+  }
   el.onclick = async (e) => {
     if (e.target.dataset.a) return;
     if (item.dir) {
@@ -1796,6 +1827,31 @@ async function gitBranchMenu(x, y) {
           renderGit();
         } catch (e) { toast("Branch failed: " + e.message, "err"); }
       },
+    }, {
+        label: "✏ Rename branch…",
+        run: async () => {
+          const name = prompt("Rename which branch?", r.current);
+          if (!name) return;
+          const to = prompt("New name:", name);
+          if (!to) return;
+          try {
+            const rr = await api("git_branch", { action: "rename", name, new: to });
+            toast(`Renamed ${rr.renamed} → ${rr.to}`, "ok", 1800);
+            renderGit();
+          } catch (e) { toast("Rename failed: " + e.message, "err"); }
+        },
+      }, {
+        label: "✂ Delete branch…",
+        run: async () => {
+          const name = prompt("Delete which branch?", "");
+          if (!name) return;
+          try {
+            const rr = await api("git_branch", { action: "delete", name });
+            toast(`Deleted ${rr.deleted}`, "ok", 1800);
+            renderGit();
+          } catch (e) { toast("Delete failed: " + e.message, "err"); }
+        },
+      },
     });
     ctxMenu(x, y, items);
   } catch (e) { toast("Branches: " + e.message, "err"); }
@@ -1947,7 +2003,7 @@ const TERM_VERBS = {
   help: () => termPrint(
     "verbs: help · clear · ls · cat <file> · new <file> · rm <file>\n" +
     "       play [scene] · theme · accent <name> · grid · ent · find <text>\n" +
-    "       git · zoom in|out|fit · mm · about · date · echo <text>"),
+    "       git · branch [-d|-m] · zoom in|out|fit · mm · about · date"),
   clear: () => { $("term-out").textContent = ""; },
   ls: () => termPrint(TREE.filter((t) => !t.dir).map((t) => t.path).join("\n") || "(empty)"),
   cat: (a) => api("read", { path: a[0] }).then((r) => termPrint(r.content)).catch((e) => termPrint("cat: " + e.message)),
@@ -1994,6 +2050,36 @@ const TERM_VERBS = {
         (st.clean ? "working tree clean"
                   : st.files.map((f) => f.x + " " + f.path).join("\n       ")));
     } catch (e) { termPrint("status: " + e.message); }
+  },
+  branch: async (a) => {             // list · create · delete · rename
+    try {
+      if (!a.length) {
+        const r = await api("git_branches", {});
+        termPrint(r.branches.map((b) =>
+          (b === r.current ? "● " : "  ") + b).join("\n"));
+        return;
+      }
+      if (a[0] === "-d" && a[1]) {
+        const r = await api("git_branch", { action: "delete", name: a[1] });
+        termPrint(`deleted ${r.deleted} — still on ${r.branch}`);
+        renderGit();
+        return;
+      }
+      if (a[0] === "-m" && a[1] && a[2]) {
+        const r = await api("git_branch",
+          { action: "rename", name: a[1], new: a[2] });
+        termPrint(`renamed ${r.renamed} → ${r.to}`);
+        renderGit();
+        return;
+      }
+      if (!a[0].startsWith("-")) {
+        await api("git_checkout", { name: a[0], create: true });
+        termPrint(`on new branch ${a[0]}`);
+        renderGit();
+        return;
+      }
+      termPrint("usage: branch · branch <new> · branch -d <name> · branch -m <old> <new>");
+    } catch (e) { termPrint("branch: " + e.message); }
   },
   zoom: (a) => {
     if (!GAME) return termPrint("(no scene open)");
@@ -2387,5 +2473,43 @@ async function boot() {
   setGrid(GRID_ON);          // paint the grid button state
   say("STUDIO 3 ready — Ctrl K for commands, F5 to play");
 }
+
+/* drag & drop — the explorer hands files to the editor; the OS can too.
+   Workspace paths open as-is; foreign files land as dirty imports/<name>
+   buffers — Ctrl S writes them into the workspace, honestly. */
+function wireDnD() {
+  const stack = $("editor-stack");
+  window.addEventListener("dragover", (e) => e.preventDefault());
+  window.addEventListener("drop", (e) => e.preventDefault());
+  stack.addEventListener("dragover", (e) => {
+    e.preventDefault();
+    stack.classList.add("drop-target");
+  });
+  stack.addEventListener("dragleave", () => stack.classList.remove("drop-target"));
+  stack.addEventListener("drop", async (e) => {
+    e.preventDefault();
+    stack.classList.remove("drop-target");
+    const path = e.dataTransfer.getData("text/plain");
+    if (path) return openPath(path);       // engine sandbox guards junk paths
+    const file = e.dataTransfer.files && e.dataTransfer.files[0];
+    if (!file) return;
+    const dest = "imports/" + file.name;
+    try {                                  // already imported? open disk truth
+      await api("read", { path: dest });
+      return openPath(dest);
+    } catch (_) { /* not saved yet — fall through */ }
+    try {
+      const text = await file.text();
+      OPEN_TABS = OPEN_TABS.filter((t) => t.path !== dest);
+      OPEN_TABS.push({ path: dest, kind: "file", dirty: true });
+      ACTIVE = dest;
+      $("editor").value = text;
+      showView("editor");
+      renderTabs(); renderHighlight(); renderGutter(); updatePos(); paintMinimap();
+      say("dropped " + file.name + " — Ctrl S saves it into " + dest);
+    } catch (err) { toast("Drop failed: " + err.message, "err"); }
+  });
+}
+wireDnD();
 
 boot();

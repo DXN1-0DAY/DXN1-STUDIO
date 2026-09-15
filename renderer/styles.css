@@ -684,6 +684,20 @@ kbd {
 .tab.dragging { opacity: .45; }
 .tab.drop-target { outline: 2px dashed var(--accent); outline-offset: -2px; }
 
+/* drag a file onto the editor — the whole stack answers */
+#editor-stack.drop-target {
+  outline: 2px dashed var(--accent);
+  outline-offset: -10px;
+  border-radius: 12px;
+  background: color-mix(in srgb, var(--accent) 7%, transparent);
+}
+#editor-stack.drop-target::after {
+  content: "drop to open";
+  position: absolute; inset: 0; display: grid; place-items: center;
+  pointer-events: none; font-size: 13px; letter-spacing: .08em;
+  color: var(--accent); opacity: .85;
+}
+
 /* ============================================================
    v3.0.03 — git panel · z-order · mover rows · zoom cursor
    ============================================================ */

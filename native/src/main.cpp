@@ -8,8 +8,11 @@
 #include <csignal>
 #include <cstdio>
 #include <cstring>
+#include <fstream>
 #include <poll.h>
 #include <print>
+#include <string>
+#include <vector>
 #include <termios.h>
 #include <unistd.h>
 #include <sys/ioctl.h>
@@ -56,38 +59,63 @@ struct Keys {
   bool left = false, right = false, jump = false;
   bool reset = false, fit = false, zoomIn = false, zoomOut = false;
   bool inspect = false, quit = false;
+  bool esc = false;                            // bare ESC (mode-dependent)
+  bool viewFile = false;                       // e — open the scene source
+  int scroll = 0;                              // file view: ±1 lines (arrows ±10)
+  bool slash = false;                          // / — start a search
+  bool enter = false, back = false;
+  std::string typed;                           // printable chars this frame
 };
 
-Keys pollKeys() {
+Keys pollKeys(bool inFile) {
   Keys k;
   char buf[256];
-  while (poll(nullptr, 0, 0) >= 0) {
+  while (true) {
+    // 0-timeout poll: never block the loop between keystrokes (raw mode
+    // read() with VMIN=1 would otherwise freeze the game mid-air)
+    pollfd pfd{STDIN_FILENO, POLLIN, 0};
+    if (::poll(&pfd, 1, 0) <= 0 || !(pfd.revents & POLLIN)) break;
     ssize_t n = ::read(STDIN_FILENO, buf, sizeof buf);
-    if (n <= 0) break;
+    if (n <= 0) break;                    // EOF or fd trouble
     for (ssize_t i = 0; i < n; ++i) {
       const char c = buf[i];
       if (c == '\x1b') {
         // arrow keys arrive as ESC [ A/B/C/D in one read, usually
         if (i + 2 < n && buf[i + 1] == '[') {
           switch (buf[i + 2]) {
-            case 'A': k.jump = true; break;
-            case 'B': break;
-            case 'C': k.right = true; break;
-            case 'D': k.left = true; break;
+            case 'A': if (inFile) k.scroll -= 1; else k.jump = true; break;
+            case 'B': if (inFile) k.scroll += 1; break;
+            case 'C': if (inFile) k.scroll += 10; else k.right = true; break;
+            case 'D': if (inFile) k.scroll -= 10; else k.left = true; break;
           }
           i += 2;
         } else {
-          k.quit = true;                    // bare ESC
+          k.esc = true;                     // bare ESC
+          if (!inFile) k.quit = true;       // …which quits in play/inspect
         }
-      } else if (c == 'a' || c == 'A') k.left = true;
-      else if (c == 'd' || c == 'D') k.right = true;
-      else if (c == 'w' || c == 'W' || c == ' ') k.jump = true;
-      else if (c == 'r' || c == 'R') k.reset = true;
-      else if (c == 'f' || c == 'F') k.fit = true;
-      else if (c == '+' || c == '=') k.zoomIn = true;
-      else if (c == '-' || c == '_') k.zoomOut = true;
-      else if (c == '\t') k.inspect = true;
-      else if (c == 'q' || c == 'Q') k.quit = true;
+        continue;
+      }
+      if (inFile) {                          // FILE VIEW: every letter is text
+        if (c == '\r' || c == '\n') k.enter = true;
+        else if (c == '\t') { /* inert */ }
+        else if (c == 0x7f || c == '\b') k.back = true;
+        else if (c == 'j' || c == 'J') k.scroll += 1;
+        else if (c == 'k' || c == 'K') k.scroll -= 1;
+        else if (c == '/') k.slash = true;
+        else if (c == 'q' || c == 'Q') k.quit = true;
+        else if (static_cast<unsigned char>(c) >= 0x20) k.typed += c;
+      } else {                               // PLAY / INSPECT keys
+        if (c == 'a' || c == 'A') k.left = true;
+        else if (c == 'd' || c == 'D') k.right = true;
+        else if (c == 'w' || c == 'W' || c == ' ') k.jump = true;
+        else if (c == 'r' || c == 'R') k.reset = true;
+        else if (c == 'f' || c == 'F') k.fit = true;
+        else if (c == '+' || c == '=') k.zoomIn = true;
+        else if (c == '-' || c == '_') k.zoomOut = true;
+        else if (c == '\t') k.inspect = true;
+        else if (c == 'e' || c == 'E') k.viewFile = true;
+        else if (c == 'q' || c == 'Q') k.quit = true;
+      }
     }
   }
   return k;
@@ -98,6 +126,33 @@ std::string fmtTime(float t) {
   const int total = static_cast<int>(t);
   std::snprintf(buf, sizeof buf, "%d:%04.1f", total / 60, t - (total / 60) * 60);
   return buf;
+}
+
+// ---- FILE VIEW: the loaded scene's source, line numbers, / search
+
+void drawFile(dxn3::Screen& scr, const std::vector<std::string>& lines,
+              int top, int cur, const std::string& query) {
+  scr.clear(dxn3::rgb(9, 10, 18));
+  const RGB accent = dxn3::rgb(167, 139, 250);
+  const RGB dim = dxn3::rgb(110, 118, 140);
+  const RGB txt = dxn3::rgb(220, 222, 232);
+  const RGB hit = dxn3::rgb(250, 204, 21);
+  char head[96];
+  std::snprintf(head, sizeof head, " FILE — %d/%d lines — /%s (%s to run)",
+                cur + 1, static_cast<int>(lines.size()), query.c_str(),
+                query.empty() ? "type / first" : "enter");
+  scr.text(0, 0, head, accent);
+  const int maxRow = scr.rows - 1;
+  for (int row = 1; row < maxRow; ++row) {
+    const int li = top + row - 1;
+    if (li >= static_cast<int>(lines.size())) break;
+    char num[16];
+    std::snprintf(num, sizeof num, "%4d ", li + 1);
+    scr.text(0, row, num, dim);
+    scr.text(5, row, lines[li],
+             (!query.empty() && lines[li].find(query) != std::string::npos)
+                 ? hit : txt);
+  }
 }
 
 void drawWorld(dxn3::Screen& scr, const dxn3::Game& g) {
@@ -236,6 +291,20 @@ int main(int argc, char** argv) {
   dxn3::Game game(std::move(*loaded));
   bool inspect = false;
 
+  // the scene's own source, for FILE VIEW (e)
+  std::vector<std::string> fileLines;
+  {
+    std::ifstream f(scenePath);
+    std::string ln;
+    while (std::getline(f, ln)) {
+      if (!ln.empty() && ln.back() == '\r') ln.pop_back();
+      fileLines.push_back(ln);
+    }
+  }
+  bool fileView = false, searching = false;
+  int fileTop = 0;
+  std::string query;
+
   std::println("dxn3 native (C++23) — scene '{}' — {} entities — magnet {}px",
                game.scene.name, game.scene.entities.size(),
                static_cast<int>(game.scene.magnet));
@@ -263,24 +332,55 @@ int main(int argc, char** argv) {
     last = now;
     acc += dt;
 
-    const Keys keys = pollKeys();
-    if (keys.quit) break;
-    if (keys.inspect) inspect = !inspect;
-    if (keys.reset) game.reset();
-    if (keys.zoomIn) game.scene.camera.zoom = std::clamp(game.scene.camera.zoom * 1.15f, 0.3f, 4.f);
-    if (keys.zoomOut) game.scene.camera.zoom = std::clamp(game.scene.camera.zoom / 1.15f, 0.3f, 4.f);
-    if (keys.fit) {
-      const float ww = std::max(320.f, game.worldRight() + 160);
-      const float wh = std::max(240.f, game.worldBottom() + 160);
-      const float fz = std::min(cols / ww, (rows - 2) * 2.f / wh);
-      game.scene.camera.zoom = std::clamp(fz, 0.3f, 4.f);
+    const Keys keys = pollKeys(fileView);
+    if (!fileView) {
+      if (keys.quit || keys.esc) break;
+      if (keys.inspect) inspect = !inspect;
+      if (keys.viewFile) {
+        fileView = true; searching = false; query.clear(); fileTop = 0;
+      }
+      if (keys.reset) game.reset();
+      if (keys.zoomIn) game.scene.camera.zoom = std::clamp(game.scene.camera.zoom * 1.15f, 0.3f, 4.f);
+      if (keys.zoomOut) game.scene.camera.zoom = std::clamp(game.scene.camera.zoom / 1.15f, 0.3f, 4.f);
+      if (keys.fit) {
+        const float ww = std::max(320.f, game.worldRight() + 160);
+        const float wh = std::max(240.f, game.worldBottom() + 160);
+        const float fz = std::min(cols / ww, (rows - 2) * 2.f / wh);
+        game.scene.camera.zoom = std::clamp(fz, 0.3f, 4.f);
+      }
+    } else {
+      if (keys.quit) break;                    // q still quits the studio
+      if (keys.esc) {                          // ESC leaves the view/search
+        if (searching) searching = false;
+        else fileView = false;
+      }
+      if (keys.slash && !searching) { searching = true; query.clear(); }
+      if (searching) {
+        if (keys.back) { if (!query.empty()) query.pop_back(); }
+        else query += keys.typed;
+      }
+      if (keys.scroll != 0) {
+        const int maxTop = std::max(0, static_cast<int>(fileLines.size()) - (rows - 3));
+        fileTop = std::clamp(fileTop + keys.scroll, 0, maxTop);
+      }
+      if (keys.enter && searching && !query.empty()) {
+        searching = false;
+        for (size_t i = 1; i <= fileLines.size(); ++i) {   // wrap-around find
+          const size_t li = (fileTop + i) % fileLines.size();
+          if (fileLines[li].find(query) != std::string::npos) {
+            const int maxTop = std::max(0, static_cast<int>(fileLines.size()) - (rows - 3));
+            fileTop = std::clamp(static_cast<int>(li) - 2, 0, maxTop);
+            break;
+          }
+        }
+      }
     }
 
     dxn3::Input in;
     in.left = keys.left; in.right = keys.right; in.jump = keys.jump;
 
     constexpr double STEP = 1.0 / 60.0;
-    if (!inspect) {
+    if (!inspect && !fileView) {
       while (acc >= STEP) {
         game.update(static_cast<float>(STEP), in);
         acc -= STEP;
@@ -308,10 +408,15 @@ int main(int argc, char** argv) {
     if (g_raw) {
       termSize(cols, rows);
       scr.resize(cols, rows);
-      if (inspect) drawInspect(scr, game);
+      if (fileView) drawFile(scr, fileLines, fileTop, fileTop, query);
+      else if (inspect) drawInspect(scr, game);
       else drawWorld(scr, game);
-      if (inspect) scr.help(" a/d move · w jump · r reset · +/- zoom · f fit · tab inspect · q quit");
-      else scr.help(" a/d move · w/space jump · r reset · +/- zoom · f fit · tab inspect · q quit");
+      if (fileView)
+        scr.help(" j/k scroll · / find · enter run · esc back · q quit");
+      else if (inspect)
+        scr.help(" a/d move · w jump · r reset · +/- zoom · f fit · tab inspect · q quit");
+      else
+        scr.help(" a/d move · w/space jump · r reset · +/- zoom · f fit · tab inspect · e file · q quit");
       std::fputs(scr.flush().c_str(), stdout);
       std::fflush(stdout);
     } else {

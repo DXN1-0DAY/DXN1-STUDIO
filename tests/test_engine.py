@@ -260,6 +260,59 @@ class TestGit(EngineBase):
         r = self.req("git_checkout", {"name": "", "create": True})
         self.assertFalse(r["ok"])
 
+    def test_branch_delete_and_rename(self):
+        if not self.has_git:
+            self.skipTest("git not installed")
+        self._init_repo()
+        self.req("write", {"path": "a.txt", "content": "one"})
+        self.req("git_commit", {"message": "base"})
+        base = self.req("git_branches")["result"]["current"]
+        self.req("git_checkout", {"name": "feature/old", "create": True})
+        self.req("git_checkout", {"name": "feature/keep", "create": True})
+        self.req("git_checkout", {"name": base})
+        # delete works from the outside
+        r = self.req("git_branch", {"action": "delete", "name": "feature/old"})
+        self.assertTrue(r["ok"])
+        self.assertEqual(r["result"]["deleted"], "feature/old")
+        r = self.req("git_branches")
+        self.assertNotIn("feature/old", r["result"]["branches"])
+        # deleting the branch you are on is refused (git's rule)
+        r = self.req("git_branch", {"action": "delete", "name": base})
+        self.assertFalse(r["ok"])
+        self.assertIn("cannot delete the branch you are on", r["error"])
+        # deleting a ghost is refused
+        r = self.req("git_branch", {"action": "delete", "name": "feature/old"})
+        self.assertFalse(r["ok"])
+        self.assertIn("no such branch", r["error"])
+        # rename works; renaming the current branch moves HEAD
+        self.req("git_checkout", {"name": "feature/keep"})
+        r = self.req("git_branch", {"action": "rename",
+                                    "name": "feature/keep", "new": "feature/new"})
+        self.assertTrue(r["ok"])
+        self.assertEqual(r["result"]["branch"], "feature/new")
+        r = self.req("git_branches")
+        self.assertEqual(r["result"]["current"], "feature/new")
+        self.assertNotIn("feature/keep", r["result"]["branches"])
+        # rename collisions + same-name + ghosts + hostile names refused
+        r = self.req("git_branch", {"action": "rename",
+                                    "name": "feature/new", "new": base})
+        self.assertFalse(r["ok"])
+        self.assertIn("already exists", r["error"])
+        r = self.req("git_branch", {"action": "rename",
+                                    "name": "feature/new", "new": "feature/new"})
+        self.assertFalse(r["ok"])
+        self.assertIn("same name", r["error"])
+        r = self.req("git_branch", {"action": "rename",
+                                    "name": "ghost", "new": "x"})
+        self.assertFalse(r["ok"])
+        self.assertIn("no such branch", r["error"])
+        r = self.req("git_branch", {"action": "delete", "name": "-evil"})
+        self.assertFalse(r["ok"])
+        self.assertIn("invalid branch name", r["error"])
+        r = self.req("git_branch", {"action": "party", "name": base})
+        self.assertFalse(r["ok"])
+        self.assertIn("action must be delete or rename", r["error"])
+
 
 class TestServeLoop(unittest.TestCase):
     def test_line_per_request(self):

@@ -322,6 +322,44 @@ class Engine:
             branch = m.group(1)
         return {"branch": branch, "created": create}
 
+    def cmd_git_branch(self, args):
+        """Delete or rename a branch — git's own rules, honestly stated:
+        the branch you are on can never be deleted, renames refuse
+        collisions, and names are validated like checkout's."""
+        self._git_repo()
+        action = str(args.get("action") or "").strip()
+        name = str(args.get("name") or "").strip()
+        if action not in ("delete", "rename"):
+            raise EngineError("action must be delete or rename")
+
+        def valid(n):
+            return bool(re.fullmatch(r"[\w./-]+", n or "")) \
+                and not n.startswith("-") and len(n) <= 80
+
+        if not valid(name):
+            raise EngineError("invalid branch name")
+        info = self.cmd_git_branches({})
+        branches, current = info["branches"], info["current"]
+        if name not in branches:
+            raise EngineError(f"no such branch: {name}")
+
+        if action == "delete":
+            if name == current:
+                raise EngineError("cannot delete the branch you are on")
+            self._git("branch", "-D", name)
+            return {"deleted": name, "branch": current}
+
+        new = str(args.get("new") or "").strip()
+        if not valid(new):
+            raise EngineError("invalid new branch name")
+        if new == name:
+            raise EngineError("rename to the same name")
+        if new in branches:
+            raise EngineError(f"branch already exists: {new}")
+        self._git("branch", "-m", name, new)
+        return {"renamed": name, "to": new,
+                "branch": new if current == name else current}
+
     def cmd_git_diff(self, args):
         """Unified diff of one file vs HEAD. Untracked files come back
         as an all-added diff; clean files as zero hunks."""
