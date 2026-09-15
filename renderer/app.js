@@ -2073,8 +2073,13 @@ const TERM_VERBS = {
         return;
       }
       if (!a[0].startsWith("-")) {
-        await api("git_checkout", { name: a[0], create: true });
-        termPrint(`on new branch ${a[0]}`);
+        try {                              // existing branch: git switch
+          const r = await api("git_checkout", { name: a[0] });
+          termPrint(`on ${r.branch}`);
+        } catch (e1) {                     // else create it and switch
+          await api("git_checkout", { name: a[0], create: true });
+          termPrint(`on new branch ${a[0]}`);
+        }
         renderGit();
         return;
       }
