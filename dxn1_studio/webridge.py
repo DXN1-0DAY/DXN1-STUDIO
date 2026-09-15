@@ -329,10 +329,100 @@ class BridgeState:
         except Exception:  # noqa: BLE001 — fall back to the literal
             return a == b
 
+    # ---- workspace switching (wave 11: web parity for the desktop's
+    #      Open Workspace dialog — the desktop stays the single truth) --
+    def workspaces(self):
+        """Recent workspaces (+ the current one) for the web switcher."""
+        from . import projects
+        cur = getattr(self.app, "project_dir", "") or ""
+        items = []
+        try:
+            items = projects.list_recent(self.app.config)
+        except Exception:  # noqa: BLE001 — a broken registry ≠ a 500
+            items = []
+        if cur and not any(i.get("path") == cur for i in items):
+            try:
+                meta = projects.read_project_meta(cur)
+            except Exception:  # noqa: BLE001
+                meta = {"name": os.path.basename(cur) or cur,
+                        "kind": "empty"}
+            items.insert(0, {"path": cur, "kind": meta["kind"],
+                             "name": meta["name"], "opened": ""})
+        for item in items:
+            item["current"] = (item.get("path") == cur)
+        return {"ok": True, "current": cur, "workspaces": items[:9]}
+
+    def _seed_token(self, ws):
+        """(Re)write the bridge token + local excludes into `ws` so an
+        Electron shell pointed at the NEW workspace still authenticates."""
+        try:
+            dxn1_dir = os.path.join(ws, ".dxn1")
+            os.makedirs(dxn1_dir, exist_ok=True)
+            tok_path = os.path.join(dxn1_dir, "bridge_token")
+            with open(tok_path, "w", encoding="utf-8") as fh:
+                fh.write(self.token)
+            try:
+                os.chmod(tok_path, 0o600)
+            except OSError:  # noqa: BLE001
+                pass
+            self._exclude_dxn1(ws)
+        except OSError:  # noqa: BLE001 — read-only workspace: bridge
+            pass         # stays up, the token file just doesn't move
+
+    def workspace_set(self, path):
+        """Switch the studio to another workspace from the web face.
+
+        Same pipeline as the desktop's Open Workspace dialog (recents,
+        sidebar, agent jail, terminal log — everything). Refuses while
+        ANY open buffer has unsaved changes: nothing is ever lost.
+        """
+        from . import projects
+        path = str(path or "").strip()
+        if not path:
+            return None, "path required"
+        cand = os.path.abspath(os.path.expanduser(path))
+        if not os.path.isdir(cand):
+            return None, "not a directory: " + path
+        buffers = getattr(self.app, "_buffers", {})
+        dirty = [k for k, b in buffers.items() if b.get("dirty")]
+        if dirty:
+            return None, ("unsaved changes in %d file(s) — save first"
+                          % len(dirty))
+        try:
+            meta = projects.read_project_meta(cand)
+        except Exception:  # noqa: BLE001 — switch must never 500
+            meta = {"name": os.path.basename(cand) or cand,
+                    "kind": "empty"}
+        if cand == (getattr(self.app, "project_dir", "") or ""):
+            return {"workspace": cand, "name": meta["name"],
+                    "kind": meta["kind"], "unchanged": True}, None
+
+        def _switch():
+            app = self.app
+            # close every open tab first: the new workspace must not
+            # inherit dead tabs whose sandboxed paths would escape
+            for key in list(getattr(app, "_buffers", {}).keys()):
+                try:
+                    app.close_tab(key)
+                except Exception:  # noqa: BLE001 — a dead tab dies alone
+                    pass
+            self._seed_token(cand)
+            try:
+                app._set_workspace(cand, meta["kind"])
+            except Exception:  # noqa: BLE001 — never kill the desktop
+                pass
+        self.post(_switch)
+        self._engine_obj = None   # file ops rebind to the new workspace
+        return {"workspace": cand, "name": meta["name"],
+                "kind": meta["kind"]}, None
+
     # ---- file ops (reuse the TESTED stdio engine: bridge.Bridge) ------
     def _engine(self):
         from .bridge import Bridge
-        if not hasattr(self, "_engine_obj"):
+        # getattr (not hasattr): workspace_set resets this to None on
+        # every switch — a None cache must rebuild against the NEW
+        # workspace, not come back as the engine itself
+        if getattr(self, "_engine_obj", None) is None:
             self._engine_obj = Bridge(
                 getattr(self.app, "project_dir", None) or os.getcwd())
         return self._engine_obj
@@ -687,6 +777,8 @@ class _Handler(BaseHTTPRequestHandler):
                 {"ok": err is None, **(payload or {}),
                  **({"error": err} if err else {})},
                 200 if err is None else 400)
+        elif route == "/api/workspaces":
+            self._send_json(self.state.workspaces())
         elif route == "/api/file":
             payload, err = self.state.file_read(
                 (q.get("path") or [""])[0])
@@ -732,6 +824,9 @@ class _Handler(BaseHTTPRequestHandler):
                 str(body.get("path") or ""))
         elif u.path == "/api/config":
             payload, err = self.state.config_set(body)
+        elif u.path == "/api/workspace":
+            payload, err = self.state.workspace_set(
+                str(body.get("path") or ""))
         elif u.path == "/api/git":
             payload, err = self.state.git_action(body)
         elif u.path == "/api/run":

@@ -4,6 +4,53 @@ All notable changes to DXN1 STUDIO. Format based on
 [Keep a Changelog](https://keepachangelog.com/); versioning is
 `MAJOR.MINOR.PATCH` while in **beta**.
 
+## [2.71.12] — 2026-09-15 · beta · "the web face switches workspaces"
+
+### Added
+- **Workspace switcher in the web face** — parity with the desktop's
+  Open Workspace dialog. Click the workspace name in the top bar (or
+  `Ctrl+Alt+W`, or the new `Web: switch workspace` palette verb) and a
+  picker lists your recent workspaces — name, kind, last-opened, mono
+  path, the current one tinted and marked — plus an absolute-path
+  field for anything not on the list. Switching runs the SAME
+  `_set_workspace` pipeline as the desktop: recents, sidebar, agent
+  jail, statusbar chips, terminal log — everything follows.
+- `GET /api/workspaces` on the bridge — the recent list (capped 9)
+  with the current workspace always present and flagged.
+- `POST /api/workspace` — the guarded switch. Honest 400s for an
+  empty path, a missing folder, or a plain file; a hard refusal while
+  ANY open buffer has unsaved changes ("nothing is ever lost"); an
+  idempotent `unchanged` answer for switching to the workspace you
+  are already in. On success the bridge re-seeds the token into the
+  new workspace (`.dxn1/bridge_token`, chmod 600) so an Electron
+  shell pointed there still authenticates.
+- **Tk bridge polish** — `Web UI / Electron — start the bridge
+  server…` now copies the tokened URL straight to the clipboard and
+  writes `<workspace>/.dxn1/bridge_url`, so "paste it in your
+  browser" is one Ctrl+V and an Electron shell can auto-discover the
+  bridge without a terminal dig.
+
+### Fixed
+- **The wave-7 resurrection race, switch edition** — the web face
+  followed the first state snapshot after a switch, which could still
+  describe the OLD workspace (the desktop drains its mutation queue
+  on its own 80 ms cadence): it re-opened the old workspace's file
+  into the new one, creating a tab the sandbox would refuse. The
+  follow loop now waits until the snapshot actually reports the NEW
+  workspace AND an active tab, then follows (caught live in headless
+  Chromium, fixed, re-verified end-to-end).
+- A cached file-ops engine kept pointing at the previous workspace
+  after a switch (`hasattr` treated the deliberate `None` reset as
+  "already built"); file creation landed in the old folder while the
+  UI claimed the new one. Caught by the new tests before release.
+
+### Tests
+- Five new bridge tests: the workspaces listing, the full switch
+  roundtrip (buffers closed, entry file auto-opened, token re-seeded,
+  recents recorded, list re-flagged), the dirty-buffer refusal,
+  input validation (empty/missing/file), and file-ops rebinding to
+  the new sandbox. Suite: 186 → 191.
+
 ## [2.71.11] — 2026-09-15 · beta · "snippets in the web editor"
 
 ### Added

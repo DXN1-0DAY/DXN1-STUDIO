@@ -10,6 +10,7 @@ import os
 import sys
 import unittest
 import urllib.error
+import urllib.parse
 import urllib.request
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(
@@ -63,7 +64,8 @@ class TestWebBridge(unittest.TestCase):
         # idempotence: earlier failures must never poison later runs
         import shutil
         for junk in ("wb_dir", "webridge_probe.txt", "webridge_write.txt",
-                     "webridge_new.txt"):
+                     "webridge_new.txt", "wb_wsdirty.txt",
+                     "wb_wsfile.txt"):
             p = os.path.join(self.ws, junk)
             if os.path.isdir(p):
                 shutil.rmtree(p, ignore_errors=True)
@@ -654,6 +656,261 @@ class TestSnippetsEndpoint(unittest.TestCase):
             self.assertIn("class", packs)
         finally:
             os.remove(userfile)
+
+
+class TestWorkspaceSwitch(unittest.TestCase):
+    """POST /api/workspace + GET /api/workspaces (wave 11).
+
+    Own harness: switching mutates app.project_dir, buffers and the
+    recents config, so it must never share a fixture with suites that
+    assume a stable workspace.
+    """
+
+    @classmethod
+    def setUpClass(cls):
+        import tempfile
+        import tkinter as tk
+        try:
+            cls.root = tk.Tk()
+        except Exception:
+            raise unittest.SkipTest("no display available")
+        cls.root.withdraw()
+        cls.app = _make_app()
+        cls.ws = tempfile.mkdtemp(prefix="dxn1-wsswitch-")
+        cls.app.project_dir = cls.ws
+        cls.server, cls.url, cls.token = wb.start_bridge(cls.app)
+        cls.base = cls.url
+
+    @classmethod
+    def tearDownClass(cls):
+        import shutil
+        try:
+            cls.server.shutdown()
+        except Exception:
+            pass
+        try:
+            cls.app.root.destroy()
+        except Exception:
+            pass
+        try:
+            cls.root.destroy()
+        except Exception:
+            pass
+        shutil.rmtree(getattr(cls, "ws", ""), ignore_errors=True)
+
+    def setUp(self):
+        # every test starts from the SAME known workspace, no buffers
+        self.app.project_dir = self.ws
+        for key in list(getattr(self.app, "_buffers", {}).keys()):
+            try:
+                self.app.close_tab(key)
+            except Exception:
+                pass
+
+    # ---- helpers -----------------------------------------------------
+    def get(self, path):
+        req = urllib.request.Request(self.base + path)
+        req.add_header("X-DXN1-Token", self.token)
+        try:
+            with urllib.request.urlopen(req, timeout=5) as r:
+                return r.status, json.loads(r.read().decode("utf-8"))
+        except urllib.error.HTTPError as exc:
+            return exc.code, json.loads(exc.read().decode("utf-8"))
+
+    def post(self, path, payload):
+        data = json.dumps(payload).encode("utf-8")
+        req = urllib.request.Request(self.base + path, data=data,
+                                     method="POST")
+        req.add_header("X-DXN1-Token", self.token)
+        req.add_header("Content-Type", "application/json")
+        try:
+            with urllib.request.urlopen(req, timeout=5) as r:
+                return r.status, json.loads(r.read().decode("utf-8"))
+        except urllib.error.HTTPError as exc:
+            return exc.code, json.loads(exc.read().decode("utf-8"))
+
+    def _flush_pump(self):
+        # the mutation queue drains on the Tk loop (80 ms cadence) —
+        # give it a few beats, then pump the loop once more
+        import time
+        for _ in range(4):
+            time.sleep(0.09)
+            self.app.root.update()
+
+    def _buffer_keys(self):
+        return list(getattr(self.app, "_buffers", {}).keys())
+
+    def _swap_config_guard(self):
+        """Snapshot recent-project keys — Config.set persists to disk,
+        so a test must never leave its throwaway workspaces behind."""
+        cfg = self.app.config
+        return (cfg.get("recent_projects"), cfg.get("last_project"))
+
+    def _restore_config(self, guard):
+        recent, last = guard
+        cfg = self.app.config
+        cfg.set("recent_projects", recent, save=False)
+        cfg.set("last_project", last, save=False)
+        cfg.save()
+
+    # ---- workspace switching (wave 11) ---------------------------------
+    def _swap_config_guard(self):
+        """Snapshot recent-project keys — Config.set persists to disk,
+        so a test must never leave its throwaway workspaces behind."""
+        cfg = self.app.config
+        return (cfg.get("recent_projects"), cfg.get("last_project"))
+
+    def _restore_config(self, guard):
+        recent, last = guard
+        cfg = self.app.config
+        cfg.set("recent_projects", recent, save=False)
+        cfg.set("last_project", last, save=False)
+        cfg.save()
+
+    def test_workspaces_lists_current(self):
+        status, body = self.get("/api/workspaces")
+        self.assertEqual(status, 200)
+        self.assertTrue(body["ok"])
+        self.assertEqual(body["current"], self.app.project_dir)
+        paths = [w["path"] for w in body["workspaces"]]
+        self.assertIn(self.app.project_dir, paths)
+        cur = next(w for w in body["workspaces"] if w["current"])
+        self.assertEqual(cur["path"], self.app.project_dir)
+        self.assertIn("kind", cur)
+        self.assertIn("name", cur)
+
+    def test_workspace_set_roundtrip(self):
+        import shutil
+        import tempfile
+        guard = self._swap_config_guard()
+        old = self.app.project_dir
+        other = tempfile.mkdtemp(prefix="dxn1-ws-other-")
+        with open(os.path.join(other, "main.py"), "w",
+                  encoding="utf-8") as fh:
+            fh.write("print('other workspace')\n")
+        try:
+            status, body = self.post("/api/workspace", {"path": other})
+            self.assertEqual(status, 200)
+            self.assertEqual(body["workspace"], other)
+            self.assertEqual(body["kind"], "python")
+            self._flush_pump()
+            # the desktop moved (same pipeline as its own dialog)
+            self.assertEqual(self.app.project_dir, other)
+            # the old tabs were closed and the entry file auto-opened —
+            # only NEW-workspace buffers may remain (no dead escapes)
+            self.assertTrue(self._buffer_keys())
+            for k in self._buffer_keys():
+                self.assertTrue(k.startswith(other), k)
+            # the new workspace auto-opened its entry file
+            self.assertTrue(
+                (self.app.editor.file_path or "").startswith(other))
+            # the token file followed into the new workspace
+            tok = os.path.join(other, ".dxn1", "bridge_token")
+            self.assertTrue(os.path.isfile(tok))
+            with open(tok, encoding="utf-8") as fh:
+                self.assertEqual(fh.read(), self.token)
+            # recents recorded the switch
+            recents = self.app.config.get("recent_projects") or []
+            self.assertTrue(recents)
+            self.assertEqual(recents[0]["path"], other)
+            # the workspaces list marks the NEW current
+            status, body = self.get("/api/workspaces")
+            cur = next(w for w in body["workspaces"] if w["current"])
+            self.assertEqual(cur["path"], other)
+        finally:
+            # close anything the switch opened, restore the old ws
+            for key in self._buffer_keys():
+                try:
+                    self.app.close_tab(key)
+                except Exception:
+                    pass
+            self.app.project_dir = old
+            shutil.rmtree(other, ignore_errors=True)
+            self._restore_config(guard)
+
+    def test_workspace_set_refuses_dirty_buffers(self):
+        import shutil
+        import tempfile
+        old = self.app.project_dir
+        other = tempfile.mkdtemp(prefix="dxn1-ws-dirty-")
+        try:
+            # open a clean file, then dirty the desktop buffer
+            seed = os.path.join(self.ws, "wb_wsdirty.txt")
+            with open(seed, "w", encoding="utf-8") as fh:
+                fh.write("clean\n")
+            status, _ = self.post("/api/open", {"path": "wb_wsdirty.txt"})
+            self.assertEqual(status, 200)
+            self._flush_pump()
+            key = next(k for k in self._buffer_keys()
+                       if k.endswith("wb_wsdirty.txt"))
+            self.app._buffers[key]["dirty"] = True
+            status, body = self.post("/api/workspace", {"path": other})
+            self.assertEqual(status, 400)
+            self.assertIn("unsaved", body["error"])
+            # nothing moved
+            self.assertEqual(self.app.project_dir, old)
+            self.assertIn(key, self.app._buffers)
+            self.app._buffers[key]["dirty"] = False
+        finally:
+            for k in list(self.app._buffers):
+                if k.endswith("wb_wsdirty.txt"):
+                    try:
+                        self.app.close_tab(k)
+                    except Exception:
+                        pass
+            shutil.rmtree(other, ignore_errors=True)
+
+    def test_workspace_set_validates(self):
+        import shutil
+        import tempfile
+        old = self.app.project_dir
+        # honest refusals — nothing is half-switched
+        for payload, marker in (({}, "path required"),
+                                ({"path": ""}, "path required"),
+                                ({"path": "/no/such/dir/x9z"},
+                                 "not a directory")):
+            status, body = self.post("/api/workspace", payload)
+            self.assertEqual(status, 400, payload)
+            self.assertIn(marker, body["error"])
+        # a FILE is not a workspace
+        self.post("/api/new_file", {"path": "wb_wsfile.txt",
+                                    "content": "x"})
+        status, body = self.post("/api/workspace",
+                                 {"path": os.path.join(self.ws,
+                                                       "wb_wsfile.txt")})
+        self.assertEqual(status, 400)
+        self.assertIn("not a directory", body["error"])
+        # same-dir switch is an honest idempotent no-op
+        status, body = self.post("/api/workspace", {"path": old})
+        self.assertEqual(status, 200)
+        self.assertTrue(body.get("unchanged"))
+        self.assertEqual(self.app.project_dir, old)
+
+    def test_workspace_switch_rebinds_file_ops(self):
+        # after a switch, file ops must act on the NEW workspace
+        import shutil
+        import tempfile
+        guard = self._swap_config_guard()
+        old = self.app.project_dir
+        other = tempfile.mkdtemp(prefix="dxn1-ws-ops-")
+        try:
+            status, _ = self.post("/api/workspace", {"path": other})
+            self.assertEqual(status, 200)
+            self._flush_pump()
+            status, body = self.post("/api/new_file",
+                                     {"path": "made_after.txt",
+                                      "content": "fresh\n"})
+            self.assertEqual(status, 200)
+            self.assertTrue(os.path.isfile(
+                os.path.join(other, "made_after.txt")))
+            # reads outside the new sandbox still refuse
+            status, body = self.get("/api/file?path=" +
+                                    urllib.parse.quote("../escape.txt"))
+            self.assertEqual(status, 400)
+        finally:
+            self.app.project_dir = old
+            shutil.rmtree(other, ignore_errors=True)
+            self._restore_config(guard)
 
 
 if __name__ == "__main__":

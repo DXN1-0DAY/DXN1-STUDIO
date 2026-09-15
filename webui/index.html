@@ -12,7 +12,8 @@
 <div id="app">
   <header id="topbar">
     <div class="brand"><span class="logo-dot"></span>DXN1 <b>STUDIO</b></div>
-    <div id="ws-name" class="ws">no workspace</div>
+    <div id="ws-name" class="ws ws-click" tabindex="0" role="button"
+         title="Switch workspace (Ctrl+Alt+W)">no workspace</div>
     <div class="spacer"></div>
     <button id="btn-run" class="btn accent" title="Run project (F5)">▶ Run</button>
     <button id="btn-agents" class="btn" title="DXN1 Agents">◆ Agents</button>
@@ -86,6 +87,19 @@
   <div id="diffpanel">
     <div class="set-title">WORKING TREE vs HEAD <button class="ghost" id="diff-close" aria-label="Close diff" style="float:right">✕</button></div>
     <pre id="diff-body"></pre>
+  </div>
+</div>
+
+<div id="ws-overlay" class="hidden">
+  <div id="ws-panel">
+    <div class="set-title">SWITCH WORKSPACE <button class="ghost" id="ws-close" aria-label="Close" style="float:right">✕</button></div>
+    <div id="ws-list"></div>
+    <div class="git-commit" style="margin-top:10px">
+      <input id="ws-path" type="text" placeholder="Absolute path to a folder…"
+             autocomplete="off" spellcheck="false">
+      <button id="ws-open" class="btn accent sm">Open</button>
+    </div>
+    <div class="palette-hint">click a recent to switch · Enter open path · Esc close</div>
   </div>
 </div>
 

@@ -487,6 +487,9 @@ const WEB_CMDS = [
     web: true,
     run: () => { const v = !pref("zen");
                  pref("zen", v); applyZen(v); } },
+  { index: -3, label: "Web: switch workspace", key: "Ctrl+Alt+W",
+    web: true,
+    run: () => wsOpen() },
 ];
 
 /* ---------- snippets (wave 10) — same brain as the desktop ------
@@ -776,6 +779,9 @@ window.addEventListener("keydown", (e) => {
     e.preventDefault();
     const v = !pref("zen"); pref("zen", v); applyZen(v);
   }
+  if (e.ctrlKey && e.altKey && e.key.toLowerCase() === "w") {
+    e.preventDefault(); wsOpen();   // wave 11 — workspace switcher
+  }
 });
 
 /* ---------- quick open (Ctrl+P) ---------- */
@@ -956,7 +962,110 @@ $("git-branch-go").onclick = async () => {
 window.addEventListener("keydown", (e) => {
   if (e.key === "Escape") {
     ["git-overlay", "settings-overlay", "diff-overlay",
-     "quickopen-overlay"].forEach(id => $(id).classList.add("hidden"));
+     "quickopen-overlay", "ws-overlay"].forEach(
+      id => $(id).classList.add("hidden"));
+  }
+});
+
+/* ---------- workspace switcher (wave 11) — parity with the
+   desktop's Open Workspace dialog. The desktop stays the single
+   source of truth: switching rebinds sidebar, agent, recents and
+   the terminal through the SAME _set_workspace pipeline. ---------- */
+function wsOpen() {
+  $("ws-overlay").classList.remove("hidden");
+  const inp = $("ws-path");
+  inp.value = "";
+  wsRender();
+  setTimeout(() => inp.focus(), 30);
+}
+
+async function wsRender() {
+  const list = $("ws-list");
+  list.innerHTML = "";
+  let items = [];
+  try {
+    const r = await (await api("/api/workspaces")).json();
+    if (r.ok) items = r.workspaces || [];
+  } catch (e) { /* bridge offline — the panel still opens */ }
+  if (!items.length) {
+    list.innerHTML = "<div class='pal-item' style='color:var(--muted)'>"
+      + "No recent workspaces — type a path below.</div>";
+  }
+  for (const w of items) {
+    const row = document.createElement("div");
+    row.className = "pal-item ws-row" + (w.current ? " cur" : "");
+    row.innerHTML = `<span class="ws-ico">${w.current ? "◆" : "◇"}</span>`
+      + `<span class="ws-meta"><b>${esc(w.name)}</b>`
+      + `<small>${esc(w.kind)}${w.opened ? " · " + esc(w.opened) : ""}`
+      + `</small><small class="ws-p">${esc(w.path)}</small></span>`;
+    row.onclick = () => wsSwitch(w.path);
+    list.appendChild(row);
+  }
+}
+
+async function wsSwitch(path) {
+  // web-local keystrokes live only in the textarea until Ctrl+S —
+  // the server refuses too, but the honest guard comes first
+  if (dirtyLocal) {
+    toast("Save first (Ctrl+S) — you have unsaved edits");
+    return;
+  }
+  const r = await (await api("/api/workspace", {
+    method: "POST", body: JSON.stringify({ path }) })).json();
+  if (!r.ok) return toast("Switch failed: " + (r.error || "?"));
+  $("ws-overlay").classList.add("hidden");
+  if (r.unchanged) { toast("Already in " + (r.name || path)); return; }
+  // the old session-restore key belongs to the OLD workspace — drop
+  // it so a reload never resurrects a file from elsewhere
+  localStorage.removeItem("dxn1_last_file");
+  currentFile = null;
+  dirtyLocal = false;
+  SNIP_SESS = null; snipHint(false);
+  SNIPS = null; SNIPS_LANG = null;   // packs re-pull for the new file
+  $("editor").value = "";
+  $("st-file").textContent = "";
+  $("st-pos").textContent = "";
+  renderGutter(); renderHighlight(); renderTabs();
+  toast("Workspace: " + (r.name || r.workspace));
+  renderTree();
+  loadSnippets();
+  // the desktop auto-opens the new workspace's entry file — wait until
+  // the snapshot ACTUALLY reflects the new workspace AND has an active
+  // tab before following. Polling for "any tabs" is the wave-7
+  // resurrection race again: a stale snapshot would send us back to
+  // the old workspace's file (QA caught exactly that).
+  const norm = (p) => String(p || "").replace(/\\/g, "/").replace(/\/+$/, "");
+  const target = norm(r.workspace);
+  for (let i = 0; i < 12; i++) {
+    await poll();
+    if (norm(STATE.workspace) === target &&
+        (STATE.tabs || []).some(t => t.active)) break;
+    await new Promise(res => setTimeout(res, 180));
+  }
+  const nxt = (STATE.tabs || []).find(t => t.active);
+  if (nxt && nxt.path !== currentFile) await openFile(nxt.path, true);
+}
+
+$("ws-name").onclick = wsOpen;
+$("ws-name").onkeydown = (e) => {
+  if (e.key === "Enter" || e.key === " ") { e.preventDefault(); wsOpen(); }
+};
+$("ws-close").onclick = () => $("ws-overlay").classList.add("hidden");
+$("ws-overlay").addEventListener("mousedown", (e) => {
+  if (e.target.id === "ws-overlay")
+    $("ws-overlay").classList.add("hidden");
+});
+$("ws-open").onclick = () => {
+  const p = $("ws-path").value.trim();
+  if (p) wsSwitch(p);
+};
+$("ws-path").addEventListener("keydown", (e) => {
+  if (e.key === "Enter") {
+    e.preventDefault();
+    const p = $("ws-path").value.trim();
+    if (p) wsSwitch(p);
+  } else if (e.key === "Escape") {
+    $("ws-overlay").classList.add("hidden");
   }
 });
 

@@ -256,6 +256,37 @@ body.zen #tabbar:hover { opacity: 1; }
   border-top: 1px solid var(--cardb);
 }
 
+/* ---- workspace switcher (wave 11) ---- */
+#ws-overlay {
+  position: fixed; inset: 0; background: rgba(2, 4, 8, .55);
+  backdrop-filter: blur(3px); display: flex;
+  align-items: flex-start; justify-content: center; padding-top: 12vh;
+  z-index: 50;
+}
+#ws-panel {
+  width: min(560px, 92vw); background: var(--card);
+  border: 1px solid var(--cardb); border-radius: 14px;
+  box-shadow: 0 24px 70px rgba(0, 0, 0, .55); overflow: hidden;
+  padding-bottom: 4px;
+}
+#ws-panel .set-title { padding: 12px 16px 8px; }
+#ws-list { max-height: 40vh; overflow: auto; padding: 6px; }
+.ws-row { align-items: center; gap: 12px; }
+.ws-row .ws-ico { color: var(--accent); font-size: 13px; flex: none; }
+.ws-row .ws-meta { display: flex; flex-direction: column; min-width: 0; }
+.ws-row .ws-meta b { color: var(--text); font-size: 13px; }
+.ws-row .ws-meta small { color: var(--muted); font-size: 11px; }
+.ws-row .ws-meta small.ws-p {
+  font-family: var(--mono); font-size: 10.5px;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.ws-row.cur { background: color-mix(in srgb, var(--accent) 12%, transparent); }
+.ws-row.cur .ws-ico { color: var(--success); }
+.ws-click { cursor: pointer; border-radius: 7px; padding: 2px 8px; }
+.ws-click:hover, .ws-click:focus-visible {
+  background: var(--hover); color: var(--text); outline: none;
+}
+
 /* ---- statusbar chips ---- */
 .chip {
   background: transparent; border: 1px solid var(--cardb);

@@ -6167,11 +6167,29 @@ class DXN1Studio:
         self._bridge_server = server
         self._bridge_url = f"{url}/?token={token}"
         self.terminal.log("Web UI / Electron bridge: " + self._bridge_url)
+        # the URL goes straight to the clipboard AND <ws>/.dxn1/
+        # bridge_url — no terminal-digging, and an Electron shell
+        # pointed at the workspace can auto-discover it
+        try:
+            self.root.clipboard_clear()
+            self.root.clipboard_append(self._bridge_url)
+            self.terminal.log("URL copied to the clipboard")
+        except Exception:  # noqa: BLE001 — headless: logging is enough
+            pass
+        try:
+            ws = self.project_dir or os.getcwd()
+            dxn1_dir = os.path.join(ws, ".dxn1")
+            os.makedirs(dxn1_dir, exist_ok=True)
+            with open(os.path.join(dxn1_dir, "bridge_url"), "w",
+                      encoding="utf-8") as fh:
+                fh.write(self._bridge_url)
+        except OSError:  # noqa: BLE001 — read-only ws: URL stays in log
+            pass
         self.terminal.log(
             "Browser: open the URL · Electron: npm start -- --url "
             "\"<url>\"  (see docs/ELECTRON.md)")
-        self.toast("Web UI bridge started — URL in the terminal",
-                   "success")
+        self.toast("Web UI bridge started — URL copied, paste it in "
+                   "your browser", "success")
 
     def _ds2_restart(self):
         """DS2: restart into a new theme — mirrors switch_theme."""
