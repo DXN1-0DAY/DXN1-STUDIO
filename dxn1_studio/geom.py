@@ -256,24 +256,61 @@ LAYOUT_CAP = 12          # remembered layouts (LRU by save time)
 LAYOUT_WINDOW_CAP = 40   # windows per layout (a desk, not a museum)
 
 
+def window_layer(win):
+    """DS2 v2.68 — how a window is LAYERED, read honestly, pure
+    decision-making: ``(alpha, topmost)`` straight from the window
+    manager, with the honest defaults ``(1.0, False)`` when the
+    window refuses to say (a dead window, a headless quirk, an
+    exotic embedding). A window that will not answer is assumed
+    ordinary — never raises."""
+    try:
+        a = float(win.attributes("-alpha"))
+        if a != a or a < 0.0:        # NaN and negatives are junk
+            a = 1.0
+        a = round(min(1.0, max(0.0, a)), 3)
+    except Exception:  # noqa: BLE001 — no alpha here
+        a = 1.0
+    try:
+        t = win.attributes("-topmost")
+        # a real WM says True/False or 1/0; anything else (a stray
+        # string, a banana) is no crown at all
+        if isinstance(t, bool):
+            top = t
+        elif isinstance(t, int):
+            top = bool(t)
+        else:
+            top = False
+    except Exception:  # noqa: BLE001 — no crown here
+        top = False
+    return a, top
+
+
 def capture_layout(windows):
     """DS2 v2.66 — one layout snapshot, pure: a list of live
     Toplevels becomes ``[{"title", "geometry", "transient"}...]``
     in window order. Dead windows are skipped silently, a window
     that refuses its title or geometry is recorded as best-effort
-    with honest empties. Never raises."""
+    with honest empties. Never raises.
+    DS2 v2.68 — the snapshot remembers the LAYERS too: each entry
+    gains ``alpha`` (the ghost level, 1.0 = solid) and ``topmost``
+    (the pin), so a desk arranged once comes back exactly as it
+    was — geometry AND skin."""
     try:
         out = []
         for w in list(windows)[:LAYOUT_WINDOW_CAP]:
             try:
+                alpha, top = window_layer(w)
                 out.append({
                     "title": str(w.title()),
                     "geometry": str(w.winfo_geometry()),
                     "transient": bool(w.transient()),
+                    "alpha": alpha,
+                    "topmost": top,
                 })
             except Exception:  # noqa: BLE001 — one dead window
                 out.append({"title": "", "geometry": "",
-                            "transient": True})
+                            "transient": True,
+                            "alpha": 1.0, "topmost": False})
         return out
     except Exception:  # noqa: BLE001 — a snapshot never raises
         return []
@@ -293,7 +330,8 @@ def store_layout(store, name, snapshot, cap=LAYOUT_CAP):
         layouts.pop(name, None)
         layouts[name] = [dict(e) if isinstance(e, dict) else
                          {"title": "", "geometry": "",
-                          "transient": True}
+                          "transient": True,
+                          "alpha": 1.0, "topmost": False}
                          for e in snapshot[:LAYOUT_WINDOW_CAP]]
         while len(layouts) > cap:
             oldest = next(iter(layouts))
@@ -312,7 +350,15 @@ def apply_layout(snapshot, windows, min_w=40, min_h=20):
     saved geometry handed back. Returns ``(restored, missing)``
     where restored is ``[(title, geometry)]`` and missing is the
     titles with no live window — layouts arrange what EXISTS; the
-    verb tells the user what to reopen. Never raises."""
+    verb tells the user what to reopen. Never raises.
+    DS2 v2.68 — restored entries grow into four-tuples
+    ``(title, geometry, alpha, topmost)``: the layering rides
+    along so the verb can re-ghost and re-pin what it puts back.
+    A snapshot that DOESN'T say — saved before the layers were
+    remembered, or carrying junk — yields ``None`` for that
+    layer, and None means DON'T TOUCH: an old layout keeps
+    meaning what it always meant, and junk is never a license to
+    repaint a window."""
     try:
         restored, missing = [], []
         live = []
@@ -342,12 +388,53 @@ def apply_layout(snapshot, windows, min_w=40, min_h=20):
                 continue
             used.add(id(hit))
             if geo and parse_geometry(geo):
-                restored.append((title, geo))
+                # v2.68 — the layering rides along; a layer the
+                # snapshot does not state (absent or junk) comes
+                # back None and the verb touches nothing
+                raw_a = (entry or {}).get("alpha", None)
+                alpha = None
+                if isinstance(raw_a, (int, float)) \
+                        and not isinstance(raw_a, bool):
+                    f = float(raw_a)
+                    if f == f and 0.0 <= f <= 1.0:
+                        alpha = round(f, 3)
+                raw_t = (entry or {}).get("topmost", None)
+                top = raw_t if isinstance(raw_t, bool) else None
+                restored.append((title, geo, alpha, top))
             else:
                 missing.append(title)
         return restored, missing
     except Exception:  # noqa: BLE001 — a restore never raises
         return [], []
+
+
+def layer_counts(snapshot):
+    """DS2 v2.68 — how much layering a snapshot carries, pure:
+    ``(ghosted, pinned)`` — the windows saved below full opacity
+    and the windows saved with the crown. Entries that do not
+    state a layer (junk, wrong type) count as neither — a count
+    is only ever earned, never guessed. The save report, the
+    list marker and the show verb all speak from this one body.
+    Never raises."""
+    try:
+        ghosted = pinned = 0
+        for entry in list(snapshot or [])[:LAYOUT_WINDOW_CAP]:
+            try:
+                raw_a = (entry or {}).get("alpha", None)
+                if isinstance(raw_a, (int, float)) \
+                        and not isinstance(raw_a, bool) \
+                        and 0.0 <= float(raw_a) < 0.995:
+                    ghosted += 1
+            except Exception:  # noqa: BLE001 — junk alpha
+                pass
+            try:
+                if (entry or {}).get("topmost", None) is True:
+                    pinned += 1
+            except Exception:  # noqa: BLE001 — junk pin
+                pass
+        return ghosted, pinned
+    except Exception:  # noqa: BLE001 — a count never raises
+        return 0, 0
 
 
 # ------------------------------------------------- v2.67.0 window layering

@@ -4,6 +4,42 @@ All notable changes to DXN1 STUDIO. Format based on
 [Keep a Changelog](https://keepachangelog.com/); versioning is
 `MAJOR.MINOR.PATCH` while in **beta**.
 
+## [2.68.0] — 2026-09-15 · beta · "the layouts remember the layers" (skin-deep layouts: ghost + pin saved and restored, a show-before-recall preview, find for the desk, a tooltip computed at hover)
+
+### Added
+- **Layered layouts — `tools layout save` / restore now carry the
+  skin** — snapshots record each window's ghost level and pin
+  alongside its geometry (`geom.window_layer()`, the one honest
+  read the listing, the capture and the tooltip all share): a desk
+  saved ghosted recalls ghosted (`Cheatsheet · ghosted to 40%`),
+  a saved crown recalls pinned, and a snapshot saved SOLID actively
+  restores solid (`solid again`, said once, only when something
+  changed). A snapshot that does not say — a v2.66-era layout, or
+  junk values — touches nothing: an old layout keeps meaning what
+  it always meant, and junk is never a license to repaint a
+  window. The save report counts the layers up front
+  (`remembers 3 windows (1 ghosted, 1 pinned)`) and `list` marks
+  layered books
+- **`tools layout show <name>`** — a recall you can read before
+  you run it: the whole snapshot window by window — title,
+  geometry, ghost level, pin — and whether each window is open
+  right now (`· open now` / `· not open`), without touching a
+  single window
+- **`tools windows find <text>`** — Ctrl-F for the desk: the
+  honest listing narrowed to titles carrying the text,
+  case-insensitive, with an honest `N of M open` header and every
+  marker riding the narrowed lines; a needle nothing carries is
+  answered with the miss and the full list pointed at
+- **The live chip tooltip** — `_chip_tip_fn()`: the open-windows
+  chip's hover help is computed at hover, not frozen at startup —
+  `Open tool windows — 3 open · 1 ghosted · 1 pinned — …` speaks
+  the desk as it IS; a callable that raises or answers nothing
+  means no tooltip at all, because garnish never breaks a hover
+
+### Changed
+- TERMINAL_HELP and the `tools windows` footer teach the new
+  verbs (`find <text>`; the layout family with `show <name>`)
+
 ## [2.67.0] — 2026-09-15 · beta · "the desk sees through walls" (window layering: ghost, pin, focus marks, and a chip menu that recalls the desk)
 
 ### Added

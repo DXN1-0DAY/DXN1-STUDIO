@@ -74,13 +74,15 @@ TERMINAL_HELP = (
     ("tools windows [raise|close|ghost|pin <n|title>]", "the "
      "studio's open tool windows — list them numbered, raise one, "
      "close one, ghost one see-through (60 or 60% or off), or pin "
-     "one above the pile, or close every transient one at once"),
+     "one above the pile, or close every transient one at once — "
+     "or find <text> narrows the list to matching titles"),
     ("tools cascade | tile", "tidy every open tool window — "
      "cascade stacks them title-bar by title-bar, tile deals them "
      "into a screen-filling grid"),
     ("tools layout <name>", "the window manager's memory — save "
-     "every open tool window's place under a name, recall it "
-     "later (save <name> · <name> · list · forget <name|all>)"),
+     "every open tool window's place AND layering under a name, "
+     "recall it later (save <name> · <name> · show <name> · list "
+     "· forget <name|all>)"),
     ("cron <expr>", "decode a cron schedule + next runs"),
     ("readability", "reading level of the current file"),
     ("jwt <token>", "decode a JWT — header, payload, exp"),
@@ -897,9 +899,9 @@ class DXN1Studio:
         self._chip_tip(self.status_scribe,
                        "Scribe meter — click for session details, "
                        "right-click for actions · Ctrl+Alt+W")
-        self._chip_tip(self.status_wins,
-                       "Open tool windows — click lists them in the "
-                       "terminal, right-click to cascade or tile")
+        self._chip_tip_fn(
+            self.status_wins,
+            lambda: self._wins_tip_text())  # v2.68 — computed at hover
         # DS2 v2.44: the studio keeps its receipts — every toast is
         # archived in a ring buffer the Activity window can show.
         # DS2 v2.45: the receipts survive the night — reload whatever
@@ -3584,6 +3586,53 @@ class DXN1Studio:
                     self.terminal.log("tools windows %s failed: %s"
                                       % (action, exc))
                 return
+            if sub.startswith("find"):
+                # DS2 v2.68 — the listing, narrowed: `tools windows
+                # find <text>` is the same honest listing filtered to
+                # the windows whose title carries the text — a dozen
+                # windows open and alt-tab is a slot machine; this is
+                # ctrl-f for the desk. Junk text answers usage.
+                needle = sub[len("find"):].strip()
+                if not needle:
+                    self.terminal.log(
+                        "usage: tools windows find <text> — the open "
+                        "list narrowed to titles carrying the text")
+                    return
+                try:
+                    hits = [w for w in wins
+                            if needle.lower() in str(w.title()).lower()]
+                except Exception:  # noqa: BLE001 — a dead window
+                    hits = []
+                if not hits:
+                    self.terminal.log(
+                        "tools windows find '%s' — no open window's "
+                        "title carries it (the full list: "
+                        "tools windows)" % needle)
+                    return
+                self.terminal.log(
+                    "tools windows find '%s' — %d of %d open"
+                    % (needle, len(hits), len(wins)))
+                for i, w in enumerate(hits, 1):
+                    try:
+                        line = ("  %d · %s · %s"
+                                % (i, w.title(), w.winfo_geometry()))
+                        if w.transient():
+                            line += " · transient"
+                        try:
+                            a = float(w.attributes("-alpha"))
+                            if a < 0.995:
+                                line += " · %d%%" % round(a * 100)
+                        except Exception:  # noqa: BLE001 — garnish
+                            pass
+                        try:
+                            if bool(w.attributes("-topmost")):
+                                line += " · pinned"
+                        except Exception:  # noqa: BLE001 — garnish
+                            pass
+                        self.terminal.log(line)
+                    except Exception:  # noqa: BLE001 — went away
+                        self.terminal.log("  %d · (window went away)" % i)
+                return
             if not wins:
                 self.terminal.log(
                     "tools windows — none open (every tool window is "
@@ -3593,27 +3642,26 @@ class DXN1Studio:
                               % len(wins))
             focused = None
             try:      # v2.67 — mark the window that holds the focus
-                from .geom import focused_toplevel
+                from .geom import focused_toplevel, window_layer
                 focused = focused_toplevel(self.root.focus_get(), wins)
             except Exception:  # noqa: BLE001 — the mark is garnish
                 focused = None
+                window_layer = None
             for i, w in enumerate(wins, 1):
                 try:
                     line = ("  %d · %s · %s" % (i, w.title(),
                                                 w.winfo_geometry()))
                     if w.transient():
                         line += " · transient"
-                    try:    # v2.67 — ghosted windows show their level
-                        a = float(w.attributes("-alpha"))
-                        if a < 0.995:
-                            line += " · %d%%" % round(a * 100)
-                    except Exception:  # noqa: BLE001 — no alpha here
-                        pass
-                    try:    # v2.67 — pinned windows wear their crown
-                        if bool(w.attributes("-topmost")):
+                    if window_layer is not None:
+                        # v2.68 — one honest read for both markers
+                        # (the same body capture_layout uses, so the
+                        # listing and the layouts never disagree)
+                        alpha, top = window_layer(w)
+                        if alpha < 0.995:
+                            line += " · %d%%" % round(alpha * 100)
+                        if top:
                             line += " · pinned"
-                    except Exception:  # noqa: BLE001 — garnish
-                        pass
                     if w is focused:
                         line += " · focused"
                     self.terminal.log(line)
@@ -3622,8 +3670,8 @@ class DXN1Studio:
             self.terminal.log(
                 "(tools windows raise <n|title> · close <n|title> · "
                 "close all — transient windows only · ghost <n|title> "
-                "<60|60%|off> · pin <n|title> · tools cascade · "
-                "tools tile · tools layout save <name>)")
+                "<60|60%|off> · pin <n|title> · find <text> · "
+                "tools cascade · tools tile · tools layout save <name>)")
             return
         if low == "tools cascade":
             # DS2 v2.65 — the window manager learns to tidy. Cascade
@@ -3739,12 +3787,19 @@ class DXN1Studio:
             # name, never conjured. `tools layout list` shows what
             # is remembered; `tools layout forget <name>` removes
             # one, `forget all` clears the book.
+            # DS2 v2.68 — the memory goes skin-deep: snapshots now
+            # carry each window's ghost level and pin too, restore
+            # re-applies them and says which windows came back
+            # layered, and `tools layout show <name>` reads a
+            # snapshot window by window (marking what is open
+            # right now) without touching a single window.
             arg = low[len("tools layout"):].strip()
             verb, _, rest = arg.partition(" ")
             rest = rest.strip()
             try:
                 from .geom import (capture_layout, store_layout,
-                                   apply_layout, LAYOUTS_KEY)
+                                   apply_layout, layer_counts,
+                                   LAYOUTS_KEY)
                 if verb == "save":
                     if not rest:
                         self.terminal.log(
@@ -3763,11 +3818,24 @@ class DXN1Studio:
                     store = dict(self.config.get(LAYOUTS_KEY) or {})
                     if store_layout(store, rest, snap):
                         self.config.set(LAYOUTS_KEY, store)
+                        # v2.68 — the report is honest about the
+                        # layers: a desk saved ghosted comes back
+                        # ghosted, and the report says so up front
+                        ghosted, pinned = layer_counts(snap)
+                        layers = ""
+                        if ghosted and pinned:
+                            layers = " (%d ghosted, %d pinned)"
+                            layers = layers % (ghosted, pinned)
+                        elif ghosted or pinned:
+                            layers = " (%d %s)" % (
+                                ghosted or pinned,
+                                "ghosted" if ghosted else "pinned")
                         self.terminal.log(
                             "tools layout save — '%s' remembers %d "
-                            "window%s (recall with: tools layout %s)"
+                            "window%s%s (recall with: tools layout %s)"
                             % (rest, len(snap),
-                               "" if len(snap) == 1 else "s", rest))
+                               "" if len(snap) == 1 else "s",
+                               layers, rest))
                     else:
                         self.terminal.log(
                             "tools layout save — '%s' could not be "
@@ -3790,11 +3858,70 @@ class DXN1Studio:
                             for e in (snap or [])[:4])
                         more = ("" if len(snap or []) <= 4
                                 else " …")
+                        # v2.68 — a snapshot carrying layers wears it
+                        ghosted, pinned = layer_counts(snap or [])
+                        layered = (""
+                                   if not ghosted and not pinned
+                                   else " · layered")
                         self.terminal.log(
-                            "  %s · %d window%s · %s%s"
+                            "  %s · %d window%s · %s%s%s"
                             % (nm, len(snap or []),
                                "" if len(snap or []) == 1 else "s",
-                               titles, more))
+                               titles, more, layered))
+                    return
+                if verb == "show":
+                    # DS2 v2.68 — read-only preview: what the layout
+                    # remembers, window by window, and which of those
+                    # windows is open RIGHT NOW — a recall you can
+                    # read before you run it. Never conjures.
+                    if not rest:
+                        self.terminal.log(
+                            "usage: tools layout show <name> — what "
+                            "the layout remembers, before you recall "
+                            "it")
+                        return
+                    snap = (dict(self.config.get(LAYOUTS_KEY) or {})
+                            .get(rest))
+                    if snap is None:
+                        self.terminal.log(
+                            "tools layout show — '%s' is not "
+                            "remembered (see: tools layout list)"
+                            % rest)
+                        return
+                    ghosted, pinned = layer_counts(snap or [])
+                    self.terminal.log(
+                        "tools layout show — '%s' remembers %d "
+                        "window%s%s"
+                        % (rest, len(snap or []),
+                           "" if len(snap or []) == 1 else "s",
+                           ("" if not ghosted and not pinned else
+                            " · %d ghosted · %d pinned"
+                            % (ghosted, pinned))))
+                    open_titles = []
+                    try:
+                        open_titles = [str(w.title()).lower()
+                                       for w in self._open_tool_windows()]
+                    except Exception:  # noqa: BLE001 — open marks
+                        open_titles = []      # are garnish
+                    for e in (snap or []):
+                        title = str((e or {}).get("title") or "?")
+                        geo = str((e or {}).get("geometry") or "?")
+                        line = "  %s · %s" % (title, geo)
+                        try:
+                            a = float((e or {}).get("alpha", 1.0))
+                            if a < 0.995:
+                                line += " · %d%%" % round(a * 100)
+                        except Exception:  # noqa: BLE001 — garnish
+                            pass
+                        try:
+                            if bool((e or {}).get("topmost", False)):
+                                line += " · pinned"
+                        except Exception:  # noqa: BLE001 — garnish
+                            pass
+                        line += (" · open now" if title.lower()
+                                 in open_titles
+                                 else " · not open")
+                        self.terminal.log(line)
                     return
                 if verb == "forget":
                     store = dict(self.config.get(LAYOUTS_KEY) or {})
@@ -3830,7 +3957,8 @@ class DXN1Studio:
                 if not name:
                     self.terminal.log(
                         "usage: tools layout save <name> · "
-                        "tools layout <name> · tools layout list · "
+                        "tools layout <name> · tools layout show "
+                        "<name> · tools layout list · "
                         "tools layout forget <name|all>")
                     return
                 store = dict(self.config.get(LAYOUTS_KEY) or {})
@@ -3852,7 +3980,8 @@ class DXN1Studio:
                     except Exception:  # noqa: BLE001 — dead window
                         pass
                 used = set()
-                for title, geo in restored:
+                layer_notes = []
+                for title, geo, alpha, top in restored:
                     tl = title.lower()
                     hit = None
                     for lt, w in live:
@@ -3870,11 +3999,50 @@ class DXN1Studio:
                             hit.geometry(geo)
                         except Exception:  # noqa: BLE001 — dead win
                             pass
+                        # v2.68 — the layout puts the SKIN back too:
+                        # a desk saved ghosted recalls ghosted, a
+                        # desk saved solid recalls solid. None (an
+                        # old snapshot, or junk) touches nothing.
+                        notes = []
+                        try:
+                            cur = float(hit.attributes("-alpha"))
+                        except Exception:  # noqa: BLE001 — no alpha
+                            cur = 1.0
+                        if alpha is not None:
+                            try:
+                                if alpha < 0.995:
+                                    hit.attributes("-alpha", alpha)
+                                    notes.append("ghosted to %d%%"
+                                                 % round(alpha * 100))
+                                elif cur < 0.995:
+                                    # the snapshot says solid and the
+                                    # window ISN'T — say so once
+                                    hit.attributes("-alpha", 1.0)
+                                    notes.append("solid again")
+                            except Exception:  # noqa: BLE001 — garnish
+                                pass
+                        if top is True:
+                            try:
+                                hit.attributes("-topmost", True)
+                                notes.append("pinned")
+                            except Exception:  # noqa: BLE001 — garnish
+                                pass
+                        elif top is False:
+                            try:    # the quiet default, still applied
+                                hit.attributes("-topmost", False)
+                            except Exception:  # noqa: BLE001 — garnish
+                                pass
+                        if notes:
+                            layer_notes.append("  %s · %s"
+                                               % (title,
+                                                  " · ".join(notes)))
                 self.root.update()
                 self.terminal.log(
                     "tools layout %s — %d window%s back in place"
                     % (name, len(restored),
                        "" if len(restored) == 1 else "s"))
+                for note in layer_notes:
+                    self.terminal.log(note)
                 for title in missing:
                     self.terminal.log(
                         "  not open: %s (a layout arranges what "
@@ -7213,6 +7381,38 @@ class DXN1Studio:
         except Exception:  # noqa: BLE001 — a chip never raises
             return []
 
+    def _wins_tip_text(self):
+        """DS2 v2.68 — the open-windows chip's tooltip, computed at
+        hover: the desk as it IS — N open, and when any window is
+        ghosted or pinned the tooltip says so. Pure read over the
+        live windows; junk collapses to the honest minimum. Never
+        raises."""
+        try:
+            wins = self._open_tool_windows()
+            n = len(wins)
+            ghosted = pinned = 0
+            try:
+                from .geom import window_layer
+                for w in wins:
+                    a, top = window_layer(w)
+                    if a < 0.995:
+                        ghosted += 1
+                    if top:
+                        pinned += 1
+            except Exception:  # noqa: BLE001 — counts are garnish
+                ghosted = pinned = 0
+            parts = ["%d open" % n]
+            if ghosted:
+                parts.append("%d ghosted" % ghosted)
+            if pinned:
+                parts.append("%d pinned" % pinned)
+            return ("Open tool windows — %s — click lists them in "
+                    "the terminal, right-click for actions"
+                    % " · ".join(parts))
+        except Exception:  # noqa: BLE001 — garnish
+            return ("Open tool windows — click lists them in the "
+                    "terminal, right-click for actions")
+
     def _update_wins_chip(self, force=False):
         """DS2 v2.65 — redraw the open-windows chip: quiet when no
         tool window is open, muted "N open" while the pile is
@@ -7580,11 +7780,27 @@ class DXN1Studio:
         """DS2 v2.40 polish — a quiet tooltip for statusbar chips:
         hover explains what the chip is and what clicking it does.
         Best-effort, never raises."""
+        self._chip_tip_fn(widget, lambda: text)
+
+    def _chip_tip_fn(self, widget, text_fn):
+        """DS2 v2.68 — the live tooltip: the same quiet hover help,
+        but the text is COMPUTED at hover time, so a chip whose
+        truth changes by the second (the open-windows chip counts
+        ghosted and pinned windows) speaks the desk as it IS, not
+        as it was at startup. A callable that raises or returns
+        nothing falls back to no tooltip — garnish must never
+        break a hover. Never raises."""
         try:
             tip = {"win": None}
 
             def enter(_e):
                 if tip["win"] is not None:
+                    return
+                try:
+                    text = str(text_fn())
+                except Exception:  # noqa: BLE001 — no text, no tip
+                    return
+                if not text:
                     return
                 x = widget.winfo_rootx() + 8
                 y = widget.winfo_rooty() - 30

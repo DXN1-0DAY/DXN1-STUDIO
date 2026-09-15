@@ -8342,7 +8342,24 @@ def test_window_layouts(tmp_path):
     live = [FakeWin("chart studio", "1x1+0+0"),
             FakeWin("My Terminal Window", "1x1+0+0")]
     restored, missing = apply_layout(snap, live)
-    assert [t for t, _g in restored] == ["Chart Studio", "Terminal"]
+    # v2.68 — restored entries are four-tuples (title, geometry,
+    # alpha, topmost); a fresh capture of a window that refuses
+    # its layer reads honest defaults (solid, unpinned)
+    assert [t for t, _g, _a, _top in restored] == [
+        "Chart Studio", "Terminal"]
+    assert all(a == 1.0 and top is False for _t, _g, a, top in restored)
+    # a v2.66-era snapshot (no layer keys at all) yields None —
+    # the verb touches nothing it was never told
+    restored, missing = apply_layout(
+        [{"title": "Chart Studio", "geometry": "760x560+10+10",
+          "transient": True}], live)
+    assert [t for t, _g, _a, _top in restored] == ["Chart Studio"]
+    assert all(a is None and top is None for _t, _g, a, top in restored)
+    # junk layers are None too — junk is never a license to repaint
+    restored, missing = apply_layout(
+        [{"title": "Chart Studio", "geometry": "760x560+10+10",
+          "transient": True, "alpha": "x", "topmost": "yes"}], live)
+    assert all(a is None and top is None for _t, _g, a, top in restored)
     assert missing == []
     # no live windows: every saved title is honestly missing
     restored, missing = apply_layout(snap, [])
@@ -8690,6 +8707,288 @@ def test_wins_menu_layout_rows(tmp_path):
             if e[0] == "---":
                 continue
             assert len(e) > 4 and e[4], e
+    finally:
+        app.terminal.log = _old_log
+        try:
+            app.root.destroy()
+        except Exception:  # noqa: BLE001
+            pass
+    monkeypatch.undo()
+
+
+def test_layout_layers(tmp_path):
+    """DS2 v2.68 — the layouts remember the layers: window_layer
+    reads a window's ghost level and crown honestly (a window that
+    refuses says solid); capture_layout snapshots alpha + topmost
+    alongside geometry; layer_counts earns its numbers only from
+    well-typed values; the verb saves a desk ghosted and recalls it
+    ghosted (with the per-window note saying so), a solid layout
+    actively restores solid, a v2.66-era snapshot moves geometry
+    without touching skins, list marks layered books, show previews
+    a snapshot window by window marking what is open — and never
+    touches a window doing it."""
+    import tkinter as tk
+    try:
+        root = tk.Tk(); root.withdraw()
+    except tk.TclError:
+        return
+    import pytest
+    import dxn1_studio.config as cfgmod
+    from dxn1_studio.app import DXN1Studio, TERMINAL_HELP
+    from dxn1_studio.geom import (window_layer, capture_layout,
+                                  layer_counts)
+
+    # ---- the honest read, pure
+    class MuteWin:                    # refuses everything
+        def attributes(self, *_a):
+            raise RuntimeError("no wm here")
+
+    a, top = window_layer(MuteWin())
+    assert a == 1.0 and top is False  # a window that won't say is
+                                      # assumed ordinary
+    junk = window_layer(type("J", (), {"attributes":
+                        lambda self, k: "banana"})())
+    assert junk == (1.0, False)       # junk collapses to defaults
+
+    w0 = tk.Toplevel(root)
+    w0.title("Layer probe")
+    w0.geometry("200x140+5+5")
+    root.update()
+    a, top = window_layer(w0)
+    assert abs(a - 1.0) < 0.01 and top is False
+    w0.attributes("-alpha", 0.6)
+    root.update()
+    a, top = window_layer(w0)
+    assert abs(a - 0.6) < 0.01        # the level is read back
+    snap = capture_layout([w0])
+    assert abs(snap[0]["alpha"] - 0.6) < 0.01
+    assert snap[0]["topmost"] is False
+    # counts: earned, never guessed
+    assert layer_counts(snap) == (1, 0)
+    assert layer_counts([{"title": "x", "geometry": "1x1+0+0",
+                          "transient": True}]) == (0, 0)
+    assert layer_counts([{"title": "x", "alpha": "x",
+                          "topmost": "yes"}]) == (0, 0)
+    assert layer_counts("banana") == (0, 0)
+    w0.destroy()
+    root.update()
+
+    # ---- the verb, live
+    monkeypatch = pytest.MonkeyPatch()
+    monkeypatch.setattr(cfgmod, "CONFIG_DIR", str(tmp_path / "cfg"))
+    monkeypatch.setattr(cfgmod, "CONFIG_PATH",
+                        str(tmp_path / "cfg" / "config.json"))
+    monkeypatch.setenv("HOME", str(tmp_path / "home"))
+    app = DXN1Studio(cfgmod.Config(), smoke_test=True, no_splash=True)
+    try:
+        root = app.root
+        root.update()
+        logs = []
+        _old_log = app.terminal.log
+        app.terminal.log = lambda s, *a, **k: logs.append(str(s))
+
+        def _dispatch(cmd):
+            logs.clear()
+            app.handle_terminal_command(cmd)
+            root.update()
+            return "\n".join(logs)
+
+        # help row teaches the layout family
+        keys = [r[0] for r in TERMINAL_HELP]
+        assert "tools layout <name>" in keys
+
+        w = tk.Toplevel(root)
+        w.title("Cheat Sheet")
+        w.transient(root)
+        w.geometry("300x200+10+10")
+        root.update()
+
+        # a solid desk saves without a layering suffix
+        blob = _dispatch("tools layout save solid_desk")
+        assert "remembers 1 window" in blob, blob
+        assert "ghosted" not in blob and "pinned" not in blob, blob
+
+        # ghost it, save again: the report is honest about layers
+        _dispatch("tools windows ghost 1 40")
+        blob = _dispatch("tools layout save layered_desk")
+        assert "(1 ghosted)" in blob, blob
+        # list wears the layered marker on the layered book only
+        blob = _dispatch("tools layout list")
+        assert "layered_desk · 1 window · Cheat Sheet · layered" \
+            in blob, blob
+        assert "solid_desk · 1 window · Cheat Sheet\n" in blob, blob
+
+        # show previews the snapshot: ghost % marker, open marks
+        blob = _dispatch("tools layout show layered_desk")
+        assert "remembers 1 window · 1 ghosted" in blob, blob
+        assert "Cheat Sheet · 300x200+10+10 · 40% · open now" \
+            in blob, blob
+        blob = _dispatch("tools layout show solid_desk")
+        assert "solid_desk' remembers 1 window" in blob, blob
+        assert "· open now" in blob, blob
+        # an unknown name and a bare verb answer usage
+        assert "not remembered" in _dispatch("tools layout show nope")
+        assert "usage:" in _dispatch("tools layout show")
+
+        # recall the layered desk AFTER solidifying and moving:
+        # the ghost comes back, the note says so, geometry returns
+        w.attributes("-alpha", 1.0)
+        w.geometry("800x600+120+90")
+        root.update()
+        blob = _dispatch("tools layout restore layered_desk")
+        assert "1 window back in place" in blob, blob
+        assert "Cheat Sheet · ghosted to 40%" in blob, blob
+        assert abs(float(w.attributes("-alpha")) - 0.4) < 0.01
+        assert w.winfo_geometry() == "300x200+10+10"
+
+        # recalling the SOLID desk while ghosted restores solid —
+        # and the report says so once
+        blob = _dispatch("tools layout restore solid_desk")
+        assert "Cheat Sheet · solid again" in blob, blob
+        assert abs(float(w.attributes("-alpha")) - 1.0) < 0.01
+
+        # a v2.66-era snapshot (no layer keys) moves geometry and
+        # never touches a skin — an old layout keeps meaning what
+        # it always meant
+        app.config.set("tool_window_layouts", {
+            "ancient": [{"title": "Cheat Sheet",
+                         "geometry": "200x200+1+1",
+                         "transient": True}]})
+        w.attributes("-alpha", 0.5)
+        root.update()
+        blob = _dispatch("tools layout restore ancient")
+        assert "1 window back in place" in blob, blob
+        assert "ghosted" not in blob and "solid" not in blob, blob
+        assert w.winfo_geometry() == "200x200+1+1"
+        assert abs(float(w.attributes("-alpha")) - 0.5) < 0.01
+
+        # the pin rides along too — the report is the contract
+        # (bare Xvfb keeps no -topmost state, so the readback is
+        # conditional, as v2.67 established)
+        blob = _dispatch("tools windows pin 1")
+        assert "pinned" in blob, blob
+        try:
+            stuck = bool(w.attributes("-topmost"))
+        except Exception:  # noqa: BLE001 — no WM, no readback
+            stuck = False
+        blob = _dispatch("tools layout save crowned_desk")
+        if stuck:
+            assert "(1 pinned)" in blob, blob
+        _dispatch("tools windows pin 1")   # back to unpinned
+        blob = _dispatch("tools layout restore crowned_desk")
+        if stuck:
+            assert "pinned" in blob, blob
+            try:
+                assert bool(w.attributes("-topmost"))
+            except Exception:  # noqa: BLE001 — gone between reads
+                pass
+        _dispatch("tools layout forget all")
+    finally:
+        app.terminal.log = _old_log
+        try:
+            app.root.destroy()
+        except Exception:  # noqa: BLE001
+            pass
+    monkeypatch.undo()
+
+
+def test_windows_find_and_live_tip(tmp_path):
+    """DS2 v2.68 — `tools windows find <text>` narrows the honest
+    listing to the titles carrying the text (case-insensitive, the
+    full list a keystroke away, usage and no-match answered
+    honestly), and the open-windows chip's tooltip is COMPUTED at
+    hover: N open plus ghosted/pinned counts as the desk IS, with
+    a raise or an empty answer meaning no tooltip — garnish never
+    breaks a hover."""
+    import tkinter as tk
+    try:
+        root = tk.Tk(); root.withdraw()
+    except tk.TclError:
+        return
+    import pytest
+    import dxn1_studio.config as cfgmod
+    import dxn1_studio.geom as geommod
+    from dxn1_studio.app import DXN1Studio
+    monkeypatch = pytest.MonkeyPatch()
+    monkeypatch.setattr(cfgmod, "CONFIG_DIR", str(tmp_path / "cfg"))
+    monkeypatch.setattr(cfgmod, "CONFIG_PATH",
+                        str(tmp_path / "cfg" / "config.json"))
+    monkeypatch.setenv("HOME", str(tmp_path / "home"))
+    app = DXN1Studio(cfgmod.Config(), smoke_test=True, no_splash=True)
+    try:
+        root = app.root
+        root.update()
+        logs = []
+        _old_log = app.terminal.log
+        app.terminal.log = lambda s, *a, **k: logs.append(str(s))
+
+        def _dispatch(cmd):
+            logs.clear()
+            app.handle_terminal_command(cmd)
+            root.update()
+            return "\n".join(logs)
+
+        # usage and honest no-match, BEFORE any window exists
+        assert "usage:" in _dispatch("tools windows find")
+        assert "no open window" in _dispatch("tools windows find x")
+
+        w1 = tk.Toplevel(root)
+        w1.title("Git History")
+        w1.transient(root)
+        w1.geometry("300x200+10+10")
+        w2 = tk.Toplevel(root)
+        w2.title("Terminal")
+        w2.transient(root)
+        w2.geometry("300x200+50+50")
+        root.update()
+
+        # find narrows: header counts N of M, the hit line renders,
+        # a case-insensitive needle still matches
+        blob = _dispatch("tools windows find git")
+        assert "find 'git' — 1 of 2 open" in blob, blob
+        assert "Git History · 300x200+10+10" in blob, blob
+        assert "Terminal" not in blob.split("\n", 1)[1], blob
+        blob = _dispatch("tools windows find GIT")
+        assert "1 of 2 open" in blob, blob
+        # the markers ride the narrowed lines too
+        _dispatch("tools windows ghost git 50")
+        blob = _dispatch("tools windows find history")
+        assert "· 50%" in blob, blob
+        assert "· transient" in blob, blob
+        # nothing carries the needle → honest answer, full list
+        # still one keystroke away
+        blob = _dispatch("tools windows find zzzqqq")
+        assert "no open window's title carries it" in blob, blob
+        assert "tools windows)" in blob, blob
+        # the full listing is unchanged by find's existence
+        blob = _dispatch("tools windows")
+        assert "2 open" in blob, blob
+        assert "Git History" in blob and "Terminal" in blob, blob
+
+        # the live tooltip: computed at hover, honest at every state
+        tip = app._wins_tip_text()
+        assert "2 open" in tip and "1 ghosted" in tip, tip
+        _dispatch("tools windows ghost git off")
+        tip = app._wins_tip_text()
+        assert "2 open" in tip and "ghosted" not in tip, tip
+        # a hostile window_layer collapses to the plain counts —
+        # the tooltip never dies over garnish
+        monkeypatch.setattr(geommod, "window_layer",
+                            lambda *_a, **_k: (_ for _ in ()).throw(
+                                RuntimeError("boom")))
+        tip = app._wins_tip_text()
+        assert "2 open" in tip and "ghosted" not in tip, tip
+        # a dying window list falls back to the base sentence
+        monkeypatch.setattr(app, "_open_tool_windows",
+                            lambda: (_ for _ in ()).throw(
+                                RuntimeError("boom")))
+        tip = app._wins_tip_text()
+        assert "click lists them" in tip, tip
+        monkeypatch.undo()
+        # the tooltip plumbing: the wins chip's Enter binding is
+        # the live one (a callable, not a static sentence)
+        assert app.status_wins.bind("<Enter>")
+        _dispatch("tools windows close all")
     finally:
         app.terminal.log = _old_log
         try:

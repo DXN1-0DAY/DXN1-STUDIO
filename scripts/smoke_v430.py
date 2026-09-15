@@ -213,7 +213,7 @@ check("bindings: all four chips bind Button-3",
       and "self.status_deps.bind(\"<Button-3>\"" in src
       and "self.status_git.bind(\"<Button-3>\"" in src)
 check("tooltips: every chip advertises right-click for actions",
-      src.count("right-click for actions") == 4)
+      src.count("right-click for actions") == 6)
 check("palette: the chip-family rows are registered",
       "Session — snapshot tabs now…" in src
       and "Scribe — reset the writing meter…" in src)

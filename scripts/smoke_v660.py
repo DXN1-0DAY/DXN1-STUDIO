@@ -167,7 +167,7 @@ check("the LRU cap holds", len(_store) == LAYOUT_CAP)
 _rest, _miss = apply_layout(_snap, [_W("a", "1x1+0+0"),
                                     _W("XB", "1x1+0+0")])
 check("exact match beats the substring impostor",
-      [t for t, _g in _rest] == ["A", "B"] and _miss == [])
+      [t for t, *_g in _rest] == ["A", "B"] and _miss == [])
 
 # ------------------------------------- docs consistency
 _ft = open(os.path.join("docs", "FEATURES.md"), encoding="utf-8").read()

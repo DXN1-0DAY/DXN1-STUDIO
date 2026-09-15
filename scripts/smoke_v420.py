@@ -180,7 +180,7 @@ finally:
 src = open("dxn1_studio/app.py", encoding="utf-8").read()
 # v2.43: all four chips (git, deps, sesave, scribe) advertise menus now
 check("tooltips: every chip advertises its right-click menu",
-      src.count("right-click for actions") == 4)
+      src.count("right-click for actions") == 6)
 check("renderer: exactly one popup renderer drives both menus",
       src.count("def _render_chip_menu") == 1
       and "_render_chip_menu(self._git_menu_entries(), event)"
