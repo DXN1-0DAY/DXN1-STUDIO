@@ -1,0 +1,119 @@
+{
+  "name": "level-2",
+  "bg": "#0d0b1c",
+  "gravity": 1500,
+  "camera": {
+    "x": 0,
+    "y": 0,
+    "zoom": 1
+  },
+  "entities": [
+    {
+      "name": "player",
+      "x": 80,
+      "y": 330,
+      "w": 34,
+      "h": 44,
+      "color": "#8b5cf6",
+      "controls": "platformer",
+      "solid": true,
+      "tag": "player"
+    },
+    {
+      "name": "ground-a",
+      "x": -200,
+      "y": 430,
+      "w": 560,
+      "h": 90,
+      "color": "#1c2136",
+      "solid": true
+    },
+    {
+      "name": "ground-b",
+      "x": 760,
+      "y": 430,
+      "w": 700,
+      "h": 90,
+      "color": "#1c2136",
+      "solid": true
+    },
+    {
+      "name": "mover-1",
+      "x": 400,
+      "y": 360,
+      "w": 150,
+      "h": 22,
+      "color": "#22d3ee",
+      "solid": true,
+      "path": {
+        "toX": 660,
+        "toY": 250,
+        "speed": 110
+      }
+    },
+    {
+      "name": "mover-2",
+      "x": 980,
+      "y": 300,
+      "w": 130,
+      "h": 22,
+      "color": "#22d3ee",
+      "solid": true,
+      "path": {
+        "toX": 1130,
+        "toY": 300,
+        "speed": 90
+      }
+    },
+    {
+      "name": "coin-1",
+      "x": 560,
+      "y": 190,
+      "w": 22,
+      "h": 22,
+      "shape": "circle",
+      "color": "#fbbf24",
+      "tag": "coin"
+    },
+    {
+      "name": "coin-2",
+      "x": 1030,
+      "y": 240,
+      "w": 22,
+      "h": 22,
+      "shape": "circle",
+      "color": "#fbbf24",
+      "tag": "coin"
+    },
+    {
+      "name": "spike-1",
+      "x": 880,
+      "y": 402,
+      "w": 34,
+      "h": 28,
+      "shape": "triangle",
+      "color": "#fb7185",
+      "tag": "hazard"
+    },
+    {
+      "name": "sign",
+      "x": 90,
+      "y": 360,
+      "w": 210,
+      "h": 30,
+      "text": "ride the movers!",
+      "tsize": 20,
+      "color": "#9aa1b5"
+    },
+    {
+      "name": "goal",
+      "x": 1330,
+      "y": 366,
+      "w": 30,
+      "h": 64,
+      "color": "#34d399",
+      "tag": "goal"
+    }
+  ],
+  "next": "scenes/playground.dxn1.json"
+}

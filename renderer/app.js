@@ -26,7 +26,7 @@ let RECENTS = STORE.get("recents", []);
 let SCENE_PATH = null;    // open scene path (game view)
 let GAME = null;          // live Spark.Game
 let SEL_ENT = null;
-const VERSION = "3.0.02";
+const VERSION = "3.0.03";
 
 /* ============================================================
    ENGINE CLIENTS
@@ -48,11 +48,40 @@ class DemoFS {
         + "if __name__ == \"__main__\":\n    main()\n");
       this.put("scenes/playground.dxn1.json",
         JSON.stringify(Spark.demoScene(), null, 2));
+      this.put("scenes/level-2.dxn1.json",
+        JSON.stringify(Spark.demoScene2(), null, 2));
       this.save();
+      // a tiny honest git history for the demo filesystem
+      this.vgit = { branch: "main", snap: { ...this.data }, commits: [
+        { hash: "a1b3c9f", subject: "import playground + level-2",
+          author: "you", when: "at import" } ] };
     }
   }
   put(path, content) { this.data[path] = content; this.save(); }
   save() { STORE.set("demo_fs", this.data); }
+  _vgit() {
+    if (!this.vgit) {
+      this.vgit = STORE.get("demo_vgit", null) || { branch: "main",
+        snap: { ...this.data }, commits: [ { hash: "a1b3c9f",
+        subject: "import playground + level-2", author: "you",
+        when: "at import" } ] };
+    }
+    return this.vgit;
+  }
+  _vdiff() {
+    const g = this._vgit();
+    const files = [];
+    const seen = new Set();
+    for (const [p, c] of Object.entries(this.data)) {
+      seen.add(p);
+      if (!(p in g.snap)) files.push({ path: p, x: "A", y: " " });
+      else if (g.snap[p] !== c) files.push({ path: p, x: "M", y: " " });
+    }
+    for (const p of Object.keys(g.snap)) {
+      if (!seen.has(p)) files.push({ path: p, x: "D", y: " " });
+    }
+    return files;
+  }
   async request(cmd, args) {
     const ok = (result) => ({ ok: true, result });
     const bad = (error) => ({ ok: false, error });
@@ -104,6 +133,27 @@ class DemoFS {
       case "scene_save":
         this.put(String(args.path), JSON.stringify(args.scene, null, 2));
         return ok({ saved: args.path });
+      case "git_status": {
+        const files = this._vdiff();
+        return ok({ branch: this._vgit().branch, ahead: 0, files,
+                    clean: files.length === 0 });
+      }
+      case "git_log":
+        return ok({ commits: this._vgit().commits });
+      case "git_commit": {
+        const msg = String(args.message || "").trim();
+        if (!msg) return bad("commit message required");
+        const files = this._vdiff();
+        if (!files.length) return bad("nothing to commit, working tree clean");
+        const g = this._vgit();
+        const hash = Math.floor(Math.random() * 0xfffffff)
+          .toString(16).padStart(7, "0").slice(0, 7);
+        g.commits.unshift({ hash, subject: msg, author: "you",
+          when: "just now", files: files.length });
+        g.snap = { ...this.data };
+        STORE.set("demo_vgit", g);
+        return ok({ committed: hash, files: files.length });
+      }
       default:
         return bad(`demo engine does not implement ${cmd}`);
     }
@@ -506,6 +556,161 @@ function findShow(dir) {
 }
 
 /* ============================================================
+   REPLACE IN FILE — extends the findbar (Ctrl+H focuses replace)
+   ============================================================ */
+function replaceOpen() {
+  if (!ACTIVE) return toast("Nothing to replace — open a file first", "err");
+  findOpen();
+  $("replace-inp").focus();
+}
+
+function replaceOne() {
+  const ta = $("editor");
+  const q = $("find-inp").value;
+  const rep = $("replace-inp").value;
+  if (!q) return;
+  const sel = ta.value.slice(ta.selectionStart, ta.selectionEnd);
+  if (sel.toLowerCase() === q.toLowerCase()) {
+    const start = ta.selectionStart;
+    ta.setRangeText(rep, start, ta.selectionEnd, "end");
+    editorChanged();
+  }
+  findCompute();
+}
+
+function replaceAll() {
+  const q = $("find-inp").value;
+  const rep = $("replace-inp").value;
+  const ta = $("editor");
+  if (!q) return;
+  let n = 0;
+  const re = new RegExp(q.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"), "gi");
+  const out = ta.value.replace(re, () => { n++; return rep; });
+  if (!n) { $("find-count").textContent = "0/0"; return say("nothing to replace"); }
+  const pos = ta.selectionStart;
+  ta.value = out;
+  ta.setSelectionRange(Math.min(pos, out.length), Math.min(pos, out.length));
+  editorChanged();
+  FIND.hits = []; FIND.idx = -1;
+  toast(`Replaced ${n} occurrence${n === 1 ? "" : "s"}`, "ok", 1800);
+  findCompute();
+}
+
+/* ============================================================
+   GO TO LINE — Ctrl+G
+   ============================================================ */
+function gotoOpen() {
+  if (!ACTIVE) return toast("Open a file first", "err");
+  $("gotobar").classList.remove("hidden");
+  const inp = $("goto-inp");
+  inp.value = "";
+  inp.focus();
+}
+
+function gotoClose() {
+  $("gotobar").classList.add("hidden");
+  $("editor").focus();
+}
+
+function gotoLine(n) {
+  const ta = $("editor");
+  const lines = ta.value.split("\n");
+  const line = Math.max(1, Math.min(lines.length, n || 1));
+  let pos = 0;
+  for (let i = 0; i < line - 1; i++) pos += lines[i].length + 1;
+  ta.focus();
+  ta.setSelectionRange(pos, pos + (lines[line - 1] || "").length);
+  const lh = parseFloat(getComputedStyle(ta).lineHeight) || 21;
+  ta.scrollTop = Math.max(0, (line - 4) * lh);
+  gotoClose();
+  updatePos();
+  say("line " + line + " of " + lines.length);
+}
+
+/* ============================================================
+   EDITOR EDIT PIPELINE — one function any edit goes through
+   ============================================================ */
+function editorChanged() {
+  renderHighlight(); renderGutter(); updatePos(); paintMinimap();
+  const tab = OPEN_TABS.find((t) => t.path === ACTIVE);
+  if (tab && !tab.dirty) { tab.dirty = true; renderTabs(); }
+}
+
+// bracket/quote auto-close + selection wrap — small, honest, fast
+const PAIRS = { "(": ")", "[": "]", "{": "}", '"': '"', "'": "'", "`": "`" };
+const CLOSERS = new Set(Object.values(PAIRS));
+
+function editorKeydown(e) {
+  const ta = $("editor");
+  if (e.key === "Tab") {                    // 2-space indent, always ours
+    e.preventDefault();
+    const s = ta.selectionStart, epos = ta.selectionEnd;
+    ta.setRangeText("  ", s, epos, "end");
+    editorChanged();
+    return;
+  }
+  const open = PAIRS[e.key];
+  const sel = ta.value.slice(ta.selectionStart, ta.selectionEnd);
+  if (CLOSERS.has(e.key) && !sel &&
+      ta.value[ta.selectionStart] === e.key) {     // type-over the closer first
+    e.preventDefault();
+    ta.setSelectionRange(ta.selectionStart + 1, ta.selectionStart + 1);
+    return;
+  }
+  if (open && e.key !== "'") {              // quotes: only wrap selections
+    e.preventDefault();
+    const s0 = ta.selectionStart;
+    if (sel) ta.setRangeText(e.key + sel + open,
+      s0, ta.selectionEnd, "end");
+    else {
+      ta.setRangeText(e.key + open, s0, ta.selectionEnd, "end");
+      ta.setSelectionRange(s0 + 1, s0 + 1);   // cursor between the pair
+    }
+    editorChanged();
+    return;
+  }
+  if ((e.key === '"' || e.key === "'") && sel) {   // wrap selection in quotes
+    e.preventDefault();
+    ta.setRangeText(e.key + sel + e.key, ta.selectionStart, ta.selectionEnd, "end");
+    editorChanged();
+    return;
+  }
+  if (e.key === "Backspace" && !sel) {             // delete empty pairs
+    const before = ta.value[ta.selectionStart - 1];
+    const after = ta.value[ta.selectionStart];
+    if (before && PAIRS[before] === after) {
+      e.preventDefault();
+      ta.setSelectionRange(ta.selectionStart - 1, ta.selectionStart + 1);
+      ta.setRangeText("", ta.selectionStart, ta.selectionEnd, "end");
+      editorChanged();
+    }
+  }
+}
+
+function editorCtxMenu(e) {
+  const cmds = [
+    { label: "Undo", run: () => document.execCommand("undo") },
+    { label: "Redo", run: () => document.execCommand("redo") },
+    "-",
+    { label: "Cut", run: () => document.execCommand("cut") },
+    { label: "Copy", run: () => document.execCommand("copy") },
+    { label: "Paste", run: async () => {
+        try { await navigator.clipboard.readText().then((t) => {
+          const ta = $("editor");
+          ta.setRangeText(t, ta.selectionStart, ta.selectionEnd, "end");
+          editorChanged();
+        }); } catch { toast("Clipboard blocked — press Ctrl+V", "info"); }
+      } },
+    { label: "Select all", run: () => $("editor").select() },
+    "-",
+    { label: "Find  (Ctrl+F)", run: () => findOpen() },
+    { label: "Replace  (Ctrl+H)", run: () => replaceOpen() },
+    { label: "Go to line  (Ctrl+G)", run: () => gotoOpen() },
+  ];
+  ctxMenu(e.clientX, e.clientY, cmds);
+}
+
+/* ============================================================
    MINIMAP — DS3 style: one bar per line + viewport lens
    ============================================================ */
 let MM_PENDING = false;
@@ -603,6 +808,7 @@ function buildGame(scene) {
   GAME = new Spark.Game($("game-canvas"), scene, {
     onScore: (s) => say("score " + s),
     onHit: () => say("ouch!"),
+    onTransition: (nextPath) => transitionScene(nextPath),
     onStop: () => {
       $("btn-play").classList.remove("running");
       $("btn-play").textContent = "▶";
@@ -616,6 +822,31 @@ function buildGame(scene) {
   renderEntityList();
 }
 
+// goal reached — load scene.next and keep the run alive
+async function transitionScene(nextPath) {
+  if (!nextPath) { say("GOAL! — no next scene (set 'next' in the scene JSON)"); return; }
+  try {
+    const r = await api("scene_get", { path: nextPath });
+    const name = nextPath.split("/").pop();
+    toast("LEVEL CLEAR → " + name, "ok", 2000);
+    SCENE_PATH = nextPath;
+    OPEN_TABS = OPEN_TABS.filter((t) => t.path !== nextPath);
+    OPEN_TABS.push({ path: nextPath, kind: "scene", dirty: false });
+    ACTIVE = nextPath;
+    $("scene-name").textContent = name;
+    renderTabs();
+    SEL_ENT = null;
+    buildGame(r.scene);
+    renderSceneDock(GAME.scene);
+    GAME.start();                 // never make the player press play twice
+    $("btn-play").classList.add("running");
+    $("btn-play").textContent = "■";
+  } catch (e) {
+    toast("Next scene missing: " + nextPath, "err", 3200);
+    say("transition failed: " + e.message);
+  }
+}
+
 /* ============================================================
    ENTITY PALETTE — add · duplicate · delete · edit grid
    ============================================================ */
@@ -626,6 +857,9 @@ const ENT_PRESETS = {
   spike:    () => ({ name: "spike", w: 34, h: 28, shape: "triangle", color: "#fb7185", tag: "hazard" }),
   bouncer:  () => ({ name: "bouncer", w: 90, h: 22, color: "#22d3ee", solid: true, bounce: 1.4, tag: "bouncy" }),
   text:     () => ({ name: "label", w: 170, h: 30, text: "hello!", tsize: 22, color: "#9aa1b5" }),
+  goal:     () => ({ name: "goal", w: 30, h: 64, color: "#34d399", tag: "goal" }),
+  mover:    () => ({ name: "mover", w: 150, h: 22, color: "#22d3ee", solid: true,
+                     path: { toX: 0, toY: 0, speed: 120 } }),
 };
 
 let GRID_ON = STORE.get("grid", true);
@@ -649,13 +883,16 @@ function uniqueName(base) {
   for (let i = 2; ; i++) if (!names.has(`${base}-${i}`)) return `${base}-${i}`;
 }
 
-function addEntity(kind) {
+function addEntity(kind, at) {
   if (!GAME) return toast("Open a scene first", "err");
   const preset = ENT_PRESETS[kind];
   if (!preset) return;
   const e = Spark.makeEntity(preset());
-  e.x = snap(GAME.scene.camera.x + GAME.canvas.width / 2 - e.w / 2);
-  e.y = snap(GAME.scene.camera.y + GAME.canvas.height / 2 - e.h / 2);
+  const cx = at ? at.x : GAME.scene.camera.x + GAME.canvas.width / (2 * (GAME.scene.camera.zoom || 1));
+  const cy = at ? at.y : GAME.scene.camera.y + GAME.canvas.height / (2 * (GAME.scene.camera.zoom || 1));
+  e.x = snap(cx - e.w / 2);
+  e.y = snap(cy - e.h / 2);
+  if (e.path) { e.path.toX = e.x + 160; e.path.toY = e.y; }  // movers get a rail
   e.name = uniqueName(e.name);
   GAME.scene.entities.push(e);
   SEL_ENT = e;
@@ -665,6 +902,26 @@ function addEntity(kind) {
   renderInspector();
   GAME.repaint();
   say("added " + e.name);
+}
+
+// z-order — the entities array IS the paint order
+function zOrder(dir) {
+  if (!GAME || !SEL_ENT) return toast("No entity selected", "err");
+  const list = GAME.scene.entities;
+  const i = list.indexOf(SEL_ENT);
+  if (i < 0) return;
+  let j = i;
+  if (dir === "front") j = list.length - 1;
+  else if (dir === "back") j = 0;
+  else if (dir === "up") j = Math.min(list.length - 1, i + 1);
+  else if (dir === "down") j = Math.max(0, i - 1);
+  if (j === i) return;
+  list.splice(i, 1);
+  list.splice(j, 0, SEL_ENT);
+  markSceneDirty();
+  renderEntityList();
+  GAME.repaint();
+  say(SEL_ENT.name + " → " + dir);
 }
 
 function dupEntity() {
@@ -703,8 +960,35 @@ function wireSceneEditing() {
   SCENE_EDIT_WIRED = true;
   const cv = $("game-canvas");
   let dragging = null;
+  let panning = null;
+  let spaceHeld = false;
+
+  window.addEventListener("keydown", (e) => {
+    if (e.code === "Space" && gameView() && !(e.target.closest?.("input,textarea")))
+      spaceHeld = true;
+  });
+  window.addEventListener("keyup", (e) => {
+    if (e.code === "Space") spaceHeld = false;
+  });
+
+  // wheel zoom — toward the cursor, edit mode only
+  cv.addEventListener("wheel", (e) => {
+    if (!GAME || GAME.running) return;
+    e.preventDefault();
+    GAME.zoomAt(e.deltaY < 0 ? 1.1 : 1 / 1.1, e.clientX, e.clientY);
+    GAME.repaint();
+  }, { passive: false });
+
   cv.addEventListener("mousedown", (e) => {
     if (!GAME || GAME.running) return;   // editing is an EDITOR power
+    if (e.button === 1 || (e.button === 0 && spaceHeld)) {
+      e.preventDefault();
+      panning = { sx: e.clientX, sy: e.clientY, cx: GAME.scene.camera.x,
+                  cy: GAME.scene.camera.y };
+      cv.style.cursor = "grabbing";
+      return;
+    }
+    if (e.button !== 0) return;
     const w = GAME.screenToWorld(e.clientX, e.clientY);
     const ent = GAME.entityAt(w.x, w.y);
     SEL_ENT = ent;
@@ -715,7 +999,15 @@ function wireSceneEditing() {
     }
     renderEntityList(); renderInspector();
   });
-  cv.addEventListener("mousemove", (e) => {
+  window.addEventListener("mousemove", (e) => {
+    if (panning && GAME && !GAME.running) {
+      const r = cv.getBoundingClientRect();
+      const scale = cv.width / r.width / (GAME.scene.camera.zoom || 1);
+      GAME.scene.camera.x = panning.cx - (e.clientX - panning.sx) * scale;
+      GAME.scene.camera.y = panning.cy - (e.clientY - panning.sy) * scale;
+      GAME.repaint();
+      return;
+    }
     if (!dragging || !GAME || GAME.running) return;
     const w = GAME.screenToWorld(e.clientX, e.clientY);
     dragging.ent.x = Math.round(w.x - dragging.dx);
@@ -728,7 +1020,38 @@ function wireSceneEditing() {
     GAME.repaint();                       // live feedback while dragging
     renderInspector();                    // live numbers while dragging
   });
-  cv.addEventListener("mouseup", () => { dragging = null; });
+  window.addEventListener("mouseup", () => {
+    dragging = null;
+    if (panning) { panning = null; cv.style.cursor = ""; }
+  });
+
+  // canvas right-click — the scene toolbox comes to the cursor
+  cv.addEventListener("contextmenu", (e) => {
+    if (!GAME || GAME.running) return;
+    e.preventDefault();
+    const w = GAME.screenToWorld(e.clientX, e.clientY);
+    const ent = GAME.entityAt(w.x, w.y);
+    if (ent) { SEL_ENT = ent; GAME.selected = ent;
+      renderEntityList(); renderInspector(); GAME.repaint(); }
+    const items = [
+      { label: "Add block here", run: () => addEntity("block", w) },
+      { label: "Add platform here", run: () => addEntity("platform", w) },
+      { label: "Add coin here", run: () => addEntity("coin", w) },
+      { label: "Add spike here", run: () => addEntity("spike", w) },
+      { label: "Add bouncer here", run: () => addEntity("bouncer", w) },
+      { label: "Add mover here", run: () => addEntity("mover", w) },
+      { label: "Add goal here", run: () => addEntity("goal", w) },
+      "-",
+      { label: "Duplicate" + (ent ? " — " + ent.name : ""), run: () => dupEntity(),
+        disabled: !ent },
+      { label: "Delete" + (ent ? " — " + ent.name : ""), run: () => delEntity(),
+        danger: true, disabled: !ent },
+      "-",
+      { label: "Bring to front", run: () => zOrder("front"), disabled: !ent },
+      { label: "Send to back", run: () => zOrder("back"), disabled: !ent },
+    ];
+    ctxMenu(e.clientX, e.clientY, items);
+  });
 }
 
 function renderSceneDock(scene) {
@@ -758,6 +1081,9 @@ function renderEntityList() {
       ctxMenu(ev.clientX, ev.clientY, [
         { label: "Duplicate", run: () => dupEntity() },
         { label: "Delete", danger: true, run: () => delEntity() },
+        "-",
+        { label: "Bring to front", run: () => zOrder("front") },
+        { label: "Send to back", run: () => zOrder("back") },
       ]);
     };
     host.appendChild(el);
@@ -818,6 +1144,40 @@ function renderInspector() {
   solid.onchange = () => { e.solid = solid.checked; live(); };
   row("solid", solid);
   row("tag", text(e.tag || "", (v) => { e.tag = v; renderEntityList(); }));
+
+  // motion — path entities shuttle between here and (toX, toY)
+  if (e.path) {
+    row("to x", num(e.path.toX, (v) => e.path.toX = v));
+    row("to y", num(e.path.toY, (v) => e.path.toY = v));
+    row("speed", num(e.path.speed, (v) => e.path.speed = v));
+    const rm = document.createElement("button");
+    rm.textContent = "⟲ Remove motion"; rm.className = "danger";
+    rm.onclick = () => { e.path = null; markSceneDirty(); renderInspector(); live(); };
+    const rr = document.createElement("div");
+    rr.className = "insp-row"; rr.appendChild(rm);
+    host.appendChild(rr);
+  } else {
+    const add = document.createElement("button");
+    add.textContent = "⟶ Make it move";
+    add.onclick = () => { e.path = { toX: e.x + 160, toY: e.y, speed: 120 };
+      markSceneDirty(); renderInspector(); live(); };
+    const ar = document.createElement("div");
+    ar.className = "insp-row"; ar.appendChild(add);
+    host.appendChild(ar);
+  }
+
+  const zos = document.createElement("div");
+  zos.className = "insp-actions";
+  const zl = (t, d, title) => {
+    const b = document.createElement("button"); b.textContent = t;
+    b.title = title; b.onclick = () => zOrder(d); return b;
+  };
+  zos.appendChild(zl("⤒ front", "front", "Bring to front"));
+  zos.appendChild(zl("↑", "up", "One step forward"));
+  zos.appendChild(zl("↓", "down", "One step backward"));
+  zos.appendChild(zl("⤓ back", "back", "Send to back"));
+  host.appendChild(zos);
+
   const acts = document.createElement("div");
   acts.className = "insp-actions";
   const bd = document.createElement("button");
@@ -944,6 +1304,62 @@ async function runSearch(q) {
 }
 
 /* ============================================================
+   SOURCE CONTROL — honest wiring over the engine's git bridge
+   ============================================================ */
+async function renderGit() {
+  const filesHost = $("git-files");
+  const logHost = $("git-log");
+  if (!filesHost) return;
+  try {
+    const st = await api("git_status", {});
+    $("git-branch").textContent = `⑂ ${st.branch}` +
+      (st.ahead ? ` ↑${st.ahead}` : "") +
+      (st.clean ? " — clean" : ` — ${st.files.length} change${st.files.length === 1 ? "" : "s"}`);
+    $("st-branch").textContent = `⑂ ${st.branch}`;
+    filesHost.innerHTML = "";
+    if (!st.files.length) {
+      filesHost.innerHTML = `<div class="panel-note">working tree clean</div>`;
+    }
+    for (const f of st.files) {
+      const el = document.createElement("div");
+      el.className = "git-file";
+      const badge = { A: "gs-a", M: "gs-m", D: "gs-d", U: "gs-u" }[f.x] || "gs-m";
+      el.innerHTML = `<span class="gs-badge ${badge}">${esc(f.x)}</span>` +
+        `<span class="gf-path" title="${esc(f.path)}">${esc(f.path)}</span>`;
+      el.onclick = () => f.x !== "D" && openPath(f.path);
+      filesHost.appendChild(el);
+    }
+    const lg = await api("git_log", {});
+    logHost.innerHTML = "";
+    for (const c of (lg.commits || []).slice(0, 12)) {
+      const el = document.createElement("div");
+      el.className = "git-commit";
+      el.innerHTML = `<span class="gc-hash">${esc(c.hash)}</span>` +
+        `<span class="gc-sub" title="${esc(c.subject)}">${esc(c.subject)}</span>` +
+        `<span class="gc-when">${esc(c.when || "")}</span>`;
+      logHost.appendChild(el);
+    }
+  } catch (e) {
+    $("git-branch").textContent = "⑂ no git";
+    $("st-branch").textContent = "⑂ —";
+    filesHost.innerHTML = `<div class="panel-note">git: ${esc(e.message)}</div>`;
+    if (logHost) logHost.innerHTML = "";
+  }
+}
+
+async function gitCommit() {
+  const msg = $("git-msg").value.trim();
+  if (!msg) return toast("Write a commit message first", "err");
+  try {
+    const r = await api("git_commit", { message: msg });
+    $("git-msg").value = "";
+    toast(`Committed ${r.committed} (${r.files} file${r.files === 1 ? "" : "s"})`, "ok");
+    renderGit();
+    say("committed " + r.committed);
+  } catch (e) { toast("Commit failed: " + e.message, "err"); }
+}
+
+/* ============================================================
    COMMAND PALETTE
    ============================================================ */
 const COMMANDS = [
@@ -966,8 +1382,12 @@ const COMMANDS = [
       STORE.set("wrap", on); $("set-wrap").checked = on; } },
   { ico: "✕", label: "Close tab", key: "Ctrl+W", run: () => ACTIVE && closeTab(ACTIVE) },
   { ico: "⌕", label: "Find in file", key: "Ctrl+F", run: () => findOpen() },
+  { ico: "⇄", label: "Replace in file", key: "Ctrl+H", run: () => replaceOpen() },
+  { ico: "→", label: "Go to line", key: "Ctrl+G", run: () => gotoOpen() },
   { ico: "▦", label: "Toggle minimap", run: () => toggleMinimap() },
   { ico: "⌗", label: "Toggle edit grid", run: () => setGrid(!GRID_ON) },
+  { ico: "⊕", label: "Zoom fit (scene)", run: () => GAME && GAME.zoomFit() },
+  { ico: "⑂", label: "Refresh source control", run: () => { switchPanel("git"); renderGit(); } },
   { ico: "⧉", label: "Duplicate entity", key: "Ctrl+D", run: () => dupEntity() },
   { ico: "✕", label: "Delete entity", key: "Del", run: () => delEntity() },
   { ico: "⌗", label: "About DXN1 STUDIO 3", run: () =>
@@ -1042,7 +1462,7 @@ const TERM_VERBS = {
   help: () => termPrint(
     "verbs: help · clear · ls · cat <file> · new <file> · rm <file>\n" +
     "       play [scene] · theme · accent <name> · grid · ent · find <text>\n" +
-    "       mm · about · date · echo <text>"),
+    "       git · zoom in|out|fit · mm · about · date · echo <text>"),
   clear: () => { $("term-out").textContent = ""; },
   ls: () => termPrint(TREE.filter((t) => !t.dir).map((t) => t.path).join("\n") || "(empty)"),
   cat: (a) => api("read", { path: a[0] }).then((r) => termPrint(r.content)).catch((e) => termPrint("cat: " + e.message)),
@@ -1063,6 +1483,25 @@ const TERM_VERBS = {
     : "(no scene open)"),
   find: (a) => { if (!a.length) return termPrint("usage: find <text>");
     findOpen(); $("find-inp").value = a.join(" "); findCompute(); },
+  git: async () => {
+    try {
+      const st = await api("git_status", {});
+      termPrint(`⑂ ${st.branch}${st.ahead ? " ↑" + st.ahead : ""} — ` +
+        (st.clean ? "clean" : st.files.map((f) => f.x + " " + f.path).join("\n       ")));
+      const lg = await api("git_log", {});
+      for (const c of (lg.commits || []).slice(0, 5)) {
+        termPrint(`${c.hash} ${c.subject} (${c.when})`);
+      }
+    } catch (e) { termPrint("git: " + e.message); }
+  },
+  zoom: (a) => {
+    if (!GAME) return termPrint("(no scene open)");
+    const cam = GAME.scene.camera;
+    if (a[0] === "fit") GAME.zoomFit();
+    else if (a[0] === "in") { cam.zoom = Math.min(4, (cam.zoom || 1) * 1.25); GAME.repaint(); }
+    else if (a[0] === "out") { cam.zoom = Math.max(0.3, (cam.zoom || 1) / 1.25); GAME.repaint(); }
+    else termPrint("usage: zoom in|out|fit — current " + (cam.zoom || 1).toFixed(2));
+  },
   mm: () => toggleMinimap(),
   about: () => termPrint(`DXN1 STUDIO 3 v${VERSION} — Electron face · Python brain · Spark 2D engine`),
   date: () => termPrint(new Date().toString()),
@@ -1087,9 +1526,11 @@ async function termSubmit() {
 const KEYBINDS = [
   ["Ctrl K", "Command palette"], ["Ctrl P", "Quick open file"],
   ["Ctrl S", "Save"], ["Ctrl F", "Find in file"],
+  ["Ctrl H", "Replace in file"], ["Ctrl G", "Go to line"],
   ["Ctrl `", "Terminal"], ["Ctrl ,", "Settings"],
   ["Ctrl ⇧ F", "Search in project"], ["Ctrl ⇧ E", "Explorer"],
   ["Ctrl D", "Duplicate entity"], ["Del", "Delete entity"],
+  ["Wheel", "Zoom scene (edit)"], ["Space+drag", "Pan scene (edit)"],
   ["F5", "Play / stop scene"], ["Esc", "Close overlays"],
 ];
 
@@ -1137,6 +1578,7 @@ function switchPanel(name) {
   document.querySelectorAll("#sidebar .panel").forEach((p) =>
     p.classList.toggle("active", p.id === "panel-" + name));
   if (name === "game") openSceneList();
+  if (name === "git") renderGit();
   STORE.set("panel", name);
 }
 
@@ -1174,7 +1616,8 @@ function ctxMenu(x, y, items) {
     const b = document.createElement("button");
     b.className = "ctx-item" + (it.danger ? " danger" : "");
     b.textContent = it.label;
-    b.onclick = () => { m.classList.add("hidden"); it.run(); };
+    if (it.disabled) { b.disabled = true; b.style.opacity = ".4"; }
+    else b.onclick = () => { m.classList.add("hidden"); it.run(); };
     m.appendChild(b);
   }
   m.classList.remove("hidden");
@@ -1208,19 +1651,9 @@ function wire() {
 
   // editor
   const ed = $("editor");
-  ed.addEventListener("input", () => {
-    renderHighlight(); renderGutter(); updatePos(); paintMinimap();
-    const tab = OPEN_TABS.find((t) => t.path === ACTIVE);
-    if (tab && !tab.dirty) { tab.dirty = true; renderTabs(); }
-  });
-  ed.addEventListener("keydown", (e) => {
-    if (e.key === "Tab") {                    // 2-space indent, always ours
-      e.preventDefault();
-      const s = ed.selectionStart, epos = ed.selectionEnd;
-      ed.setRangeText("  ", s, epos, "end");
-      renderHighlight(); renderGutter();
-    }
-  });
+  ed.addEventListener("input", editorChanged);
+  ed.addEventListener("keydown", editorKeydown);
+  ed.addEventListener("contextmenu", (e) => { e.preventDefault(); editorCtxMenu(e); });
   ed.addEventListener("keyup", updatePos);
   ed.addEventListener("click", updatePos);
 
@@ -1231,10 +1664,11 @@ function wire() {
   document.querySelectorAll(".ep").forEach((b) =>
     b.onclick = () => addEntity(b.dataset.ent));
   $("btn-grid").onclick = () => setGrid(!GRID_ON);
+  $("btn-fit").onclick = () => { if (GAME) { GAME.zoomFit(); say("zoom fit"); } };
   $("btn-dup").onclick = () => dupEntity();
   $("btn-del-ent").onclick = () => delEntity();
 
-  // find in file
+  // find + replace in file
   $("find-inp").addEventListener("input", () => { FIND.idx = -1; findCompute(); });
   $("find-inp").addEventListener("keydown", (e) => {
     if (e.key === "Enter") { e.preventDefault(); findShow(e.shiftKey ? -1 : 1); }
@@ -1243,6 +1677,19 @@ function wire() {
   $("find-next").onclick = () => findShow(1);
   $("find-prev").onclick = () => findShow(-1);
   $("find-close").onclick = findClose;
+  $("replace-inp").addEventListener("keydown", (e) => {
+    if (e.key === "Enter") { e.preventDefault(); replaceOne(); }
+    else if (e.key === "Escape") findClose();
+  });
+  $("btn-replace").onclick = replaceOne;
+  $("btn-replace-all").onclick = replaceAll;
+
+  // go to line
+  $("goto-inp").addEventListener("keydown", (e) => {
+    if (e.key === "Enter") { e.preventDefault(); gotoLine(Number($("goto-inp").value)); }
+    else if (e.key === "Escape") gotoClose();
+  });
+  $("goto-close").onclick = gotoClose;
 
   // minimap: click + drag to jump
   const mm = $("minimap");
@@ -1276,6 +1723,13 @@ function wire() {
     clearTimeout(searchT);
     searchT = setTimeout(() => runSearch(e.target.value), 240);
   });
+
+  // source control
+  $("git-commit").onclick = gitCommit;
+  $("git-msg").addEventListener("keydown", (e) => {
+    if (e.key === "Enter") gitCommit();
+  });
+  $("git-refresh").onclick = renderGit;
 
   // terminal
   $("term-in").addEventListener("keydown", (e) => {
@@ -1332,6 +1786,8 @@ function wire() {
     else if (mod && e.key.toLowerCase() === "p") { e.preventDefault(); palOpen("file"); }
     else if (mod && e.key.toLowerCase() === "s") { e.preventDefault(); saveActive(); }
     else if (mod && e.key.toLowerCase() === "f" && !e.shiftKey) { e.preventDefault(); findOpen(); }
+    else if (mod && e.key.toLowerCase() === "h") { e.preventDefault(); replaceOpen(); }
+    else if (mod && e.key.toLowerCase() === "g") { e.preventDefault(); gotoOpen(); }
     else if (mod && e.key === "`") { e.preventDefault(); $("dock").classList.toggle("collapsed"); }
     else if (mod && e.key === ",") { e.preventDefault(); switchPanel("settings"); }
     else if (mod && e.shiftKey && e.key.toLowerCase() === "f") { e.preventDefault(); switchPanel("search"); $("search-input").focus(); }
@@ -1341,6 +1797,7 @@ function wire() {
     else if (e.key === "F5") { e.preventDefault(); playScene(); }
     else if (e.key === "Escape") {
       if (!$("findbar").classList.contains("hidden")) findClose();
+      else if (!$("gotobar").classList.contains("hidden")) gotoClose();
       else if (!$("overlay").classList.contains("hidden")) palClose();
     }
   });
@@ -1394,6 +1851,7 @@ async function boot() {
   }
   await loadTree();
   await openSceneList();
+  renderGit();                 // source control wakes up with everything else
   switchPanel(STORE.get("panel", "explorer"));
   setGrid(GRID_ON);          // paint the grid button state
   say("STUDIO 3 ready — Ctrl K for commands, F5 to play");

@@ -1,9 +1,10 @@
 # DXN1 STUDIO 3
 
-![version](https://img.shields.io/badge/version-3.0.02-8b5cf6?style=flat-square)
+![version](https://img.shields.io/badge/version-3.0.03-8b5cf6?style=flat-square)
 ![face](https://img.shields.io/badge/face-electron-22d3ee?style=flat-square)
 ![brain](https://img.shields.io/badge/brain-python-34d399?style=flat-square)
 ![engine](https://img.shields.io/badge/spark_2d-built_in-fbbf24?style=flat-square)
+![tests](https://img.shields.io/badge/tests-18_passing-34d399?style=flat-square)
 
 **A beautiful studio for code and games.** STUDIO 3 is a full rebuild:
 the old Python/Tkinter app is retired (archived on the `ds2-archive`
@@ -16,9 +17,44 @@ branch) and this repo starts fresh, UI-first.
   protocol (atomic writes, sandboxed paths, honest errors). Same brain,
   any face.
 - **Spark 2D engine, built in** — scenes are plain JSON
-  (`scenes/*.dxn1.json`), edited in the studio's scene dock and played
-  with **F5**. Entities, AABB physics, platformer controller, camera
-  follow, particles — 2D only, on purpose.
+  (`scenes/*.dxn1.json`), edited on-canvas and played with **F5**.
+  Entities, AABB physics, platformer controller, moving platforms,
+  goal→next-scene transitions, particles, camera zoom — 2D only,
+  on purpose.
+- **Source control, wired** — branch, changed files with M/A/D badges,
+  commit box, history. Real git through the engine, an honest virtual
+  git in demo mode.
+
+## One-line install
+
+Copy · paste · done — the installer checks your tools, clones STUDIO 3
+and offers the desktop app or the zero-install browser demo:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/DXN1-termux/DXN1-STUDIO/master/scripts/install.sh | bash
+```
+
+Prefer to look before you leap?
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/DXN1-termux/DXN1-STUDIO/master/scripts/install.sh -o install.sh
+less install.sh && bash install.sh
+```
+
+Installer flags: `--dir somewhere` (clone location, default
+`~/dxn1-studio-3`) · `--demo` (browser mode only — perfect for
+Termux/Android) · `--run` (launch immediately). The script prints
+every step and never touches anything outside its install directory
+and `~/.local/bin` (the `dxn3` launcher).
+
+## What it looks like
+
+| | |
+|---|---|
+| ![the welcome hero](docs/img/welcome.png) | ![playing the playground](docs/img/play.png) |
+| *the welcome hero* | *playing the playground — Spark HUD live* |
+| ![editing a scene](docs/img/scene-editing.png) | ![the code editor](docs/img/editor.png) |
+| *scene editor: grid, entities, inspector* | *code: highlighting, minimap, find* |
 
 ## Run
 
@@ -26,8 +62,54 @@ branch) and this repo starts fresh, UI-first.
 npm install && npm start        # desktop (Electron + Python engine)
 ```
 
-Or open `renderer/index.html` in a browser: the face runs in demo mode
-with a virtual filesystem — the whole UI works, honestly labelled.
+No npm? No problem:
+
+```bash
+./scripts/install.sh --demo     # or: python3 -m http.server -d renderer 8899
+# then open http://localhost:8899 — the whole UI runs in demo mode
+```
+
+In demo mode the face carries its own virtual filesystem and a
+simulated git history — every control works, honestly labelled
+`ENGINE: demo`.
+
+## Spark 2D — the built-in game engine
+
+Play with **F5**. Edit without playing. The same canvas does both.
+
+| Power | How |
+|---|---|
+| Entities | blocks, platforms, coins, spikes, bouncers, text labels |
+| **Moving platforms** | `path: {toX, toY, speed}` — ping-pong shuttles that *carry* the player |
+| **Goal → next scene** | tag an entity `goal`, set `"next": "scenes/level-2.dxn1.json"` — the run keeps playing across scenes |
+| Editor camera | wheel zooms toward the cursor · middle-drag or Space+drag pans · ⊕ resets |
+| On-canvas editing | click-select, drag with 8px snap (Alt = free), right-click toolbox: add-here, duplicate, delete, z-order |
+| Motion rails | dashed cyan line shows where a mover travels |
+| Tags | `coin` pickup · `hazard` respawn · `goal` finish · `player` you |
+| Parallax | `parallax: [{speed, color, size, count}]` — layered star fields, per scene |
+| Physics | AABB, per-entity gravity (opt-in), bouncy surfaces, world respawn |
+
+Scenes are plain JSON — hand-edit them in the built-in editor, or wire
+the inspector. Two demo levels ship: `playground` → goal → `level-2`
+(movers!) → goal → back. An endless loop until you build your own.
+
+## The studio, feature by feature
+
+- **Editor** — syntax highlighting (py/js/json/md/html/css), find +
+  **replace** (Ctrl+F / Ctrl+H), **go-to-line** (Ctrl+G), bracket &
+  quote auto-close with selection wrap, type-over closers, 2-space
+  smart Tab, minimap with click-jump lens, word wrap, font sizes.
+- **Tabs** — drag to reorder, dirty dots, scene tabs and code tabs
+  side by side.
+- **Explorer** — hierarchical tree, new file/folder, rename, delete,
+  persisted open folders.
+- **Search** — project-wide grep with inline match highlighting.
+- **Terminal** — real verbs: `ls cat new rm play theme accent grid ent
+  find git zoom mm about date echo help`.
+- **Command palette** — 22 commands + fuzzy file jump (Ctrl K / Ctrl P).
+- **Settings** — dark/light theme, 5 accent colors, font sizes, word
+  wrap, full keybinding table.
+- **Statusbar** — branch, engine state, cursor position, version.
 
 ## Keyboard
 
@@ -37,27 +119,49 @@ with a virtual filesystem — the whole UI works, honestly labelled.
 | `Ctrl P` | go to file |
 | `F5` | play / stop scene |
 | `Ctrl S` | save |
+| `Ctrl F` / `Ctrl H` | find / replace in file |
+| `Ctrl G` | go to line |
+| `Ctrl D` / `Del` | duplicate / delete entity |
+| `Wheel` / `Space+drag` | zoom / pan the scene (edit mode) |
 | `Ctrl \`` | toggle terminal |
 | `Ctrl ,` | settings |
 | `Ctrl Shift F` | search in project |
 
-## The 24-hour plan (set by DXN1)
-
-| Day | Focus |
-|---|---|
-| **Day 1 — today** | the UI: full Electron rebuild, design system, Spark playable |
-| **Day 2** | the engine, purely: Spark deepens (tilemaps, sprites, sound, export) |
-| **Day 3** | the IDE functions: git suite, agents, plugins, the full toolkit |
-
-Versions start at **v3.0.01** and grow by giant hourly updates:
-v3.0.01 → v3.0.02 → … — every update is worth installing.
-
-## Layout
+## Architecture
 
 ```
 electron/    main + preload (spawn the engine, IPC, frameless window)
 renderer/    index.html · styles.css (design system) · app.js · spark.js
 engine/      the Python brain — stdio JSON bridge (python3 -m engine)
-scenes/      Spark scenes (*.dxn1.json)
+             files · scenes · git (status/log/commit), atomic + sandboxed
+scenes/      Spark scenes (*.dxn1.json) — playground + level-2
+scripts/     install.sh · gates.sh (6 quality gates) · selftest.js
 tests/       engine tests:  python3 -m unittest discover -s tests
 ```
+
+The face never touches the disk directly — every mutation goes through
+the engine protocol, so the same brain can later serve any face we
+invent (web, terminal, mobile). When Python is absent the face stays
+alive in demo mode and says so honestly.
+
+## Quality — the gates
+
+`bash scripts/gates.sh` runs six of them: `node --check` on every JS
+file · `compileall` on the engine · full test suite · version-trio
+consistency · scene JSON validity · the renderer selftest (highlighter
+regressions, Spark schema, zoom + mover internals). Nothing ships red.
+
+## The 24-hour plan (set by DXN1)
+
+| Day | Focus |
+|---|---|
+| **Day 1 — today** | the UI: full Electron rebuild, design system, Spark playable, scene editor, git panel |
+| **Day 2** | the engine, purely: Spark deepens (tilemaps, sprites, sound, export) |
+| **Day 3** | the IDE functions: agents, plugins, the full toolkit |
+
+Versions start at **v3.0.01** and grow by giant hourly updates:
+v3.0.01 → v3.0.02 → v3.0.03 → … — every update is worth installing.
+
+## License
+
+MIT — build games with it.

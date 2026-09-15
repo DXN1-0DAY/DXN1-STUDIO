@@ -543,26 +543,49 @@ kbd {
    ============================================================ */
 #findbar {
   position: absolute; top: 10px; right: 104px; z-index: 5;
-  display: flex; align-items: center; gap: 6px;
+  display: flex; flex-direction: column; gap: 6px;
   background: color-mix(in srgb, var(--bg1) 94%, transparent);
   border: 1px solid var(--border2); border-radius: 10px;
-  padding: 5px 7px; box-shadow: var(--shadow);
+  padding: 6px 7px; box-shadow: var(--shadow);
   animation: fb-in .16s ease;
 }
 @keyframes fb-in { from { opacity: 0; transform: translateY(-6px); } }
-#findbar.hidden { display: none; }
-#find-inp {
+#findbar.hidden, #gotobar.hidden { display: none; }
+.fb-row { display: flex; align-items: center; gap: 6px; }
+.fb-row input {
   width: 190px; background: var(--bg2); color: var(--text);
   border: 1px solid var(--border); border-radius: 7px;
   padding: 4px 8px; font-size: 12.5px; outline: none;
   transition: border-color .13s;
 }
-#find-inp:focus { border-color: var(--accent); }
+.fb-row input:focus { border-color: var(--accent); }
 #find-count {
   font: 10.5px var(--mono); color: var(--text3);
   min-width: 38px; text-align: center;
 }
-#findbar .mini { width: 22px; height: 22px; }
+#findbar .mini, #gotobar .mini { width: 22px; height: 22px; }
+.fb-btn {
+  font-size: 11px; color: var(--text2); padding: 4px 10px;
+  border-radius: 7px; border: 1px solid var(--border2);
+  background: var(--bg2); transition: border-color .13s, color .13s;
+}
+.fb-btn:hover { border-color: var(--accent); color: var(--text); }
+
+#gotobar {
+  position: absolute; top: 10px; right: 104px; z-index: 5;
+  display: flex; align-items: center; gap: 8px;
+  background: color-mix(in srgb, var(--bg1) 94%, transparent);
+  border: 1px solid var(--border2); border-radius: 10px;
+  padding: 6px 7px; box-shadow: var(--shadow);
+  animation: fb-in .16s ease;
+}
+#gotobar input {
+  width: 110px; background: var(--bg2); color: var(--text);
+  border: 1px solid var(--border); border-radius: 7px;
+  padding: 4px 8px; font-size: 12.5px; outline: none;
+}
+#gotobar input:focus { border-color: var(--accent); }
+.fb-hint { font-size: 10.5px; color: var(--text3); }
 
 #minimap {
   position: absolute; top: 0; right: 0; bottom: 0; z-index: 3;
@@ -610,6 +633,56 @@ kbd {
 
 .tab.dragging { opacity: .45; }
 .tab.drop-target { outline: 2px dashed var(--accent); outline-offset: -2px; }
+
+/* ============================================================
+   v3.0.03 — git panel · z-order · mover rows · zoom cursor
+   ============================================================ */
+.git-file {
+  display: flex; align-items: center; gap: 8px;
+  padding: 4.5px 8px; margin: 1px 4px; border-radius: 7px;
+  font-size: 12px; color: var(--text2); cursor: pointer;
+  transition: background .12s, color .12s;
+}
+.git-file:hover { background: var(--bg3); color: var(--text); }
+.gf-path {
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  font-family: var(--mono); font-size: 11.5px;
+}
+.gs-badge {
+  flex: none; width: 17px; height: 17px; border-radius: 5px;
+  display: inline-flex; align-items: center; justify-content: center;
+  font: 700 10px var(--mono); color: #0b0e1a;
+}
+.gs-m { background: #fbbf24; }
+.gs-a { background: #34d399; }
+.gs-d { background: #fb7185; color: #fff; }
+.gs-u { background: #8b5cf6; color: #fff; }
+.git-log {
+  flex: 1; overflow: auto; padding: 0 8px 10px;
+  display: flex; flex-direction: column; gap: 2px;
+}
+.git-commit {
+  display: flex; align-items: baseline; gap: 7px;
+  padding: 4px 6px; border-radius: 7px; font-size: 11.5px;
+}
+.git-commit:hover { background: var(--bg3); }
+.gc-hash { font: 700 10.5px var(--mono); color: var(--accent); flex: none; }
+.gc-sub {
+  color: var(--text2); overflow: hidden; text-overflow: ellipsis;
+  white-space: nowrap; flex: 1;
+}
+.gc-when { font-size: 10px; color: var(--text3); flex: none; }
+
+#game-canvas { touch-action: none; }
+#game-canvas.panning { cursor: grabbing; }
+.insp-actions button:hover { border-color: var(--accent); color: var(--text); }
+.insp-row button {
+  width: 100%; padding: 6px 0; border-radius: 8px; font-size: 11.5px;
+  border: 1px solid var(--border2); color: var(--text2);
+  transition: border-color .13s, color .13s;
+}
+.insp-row button:hover { border-color: var(--accent); color: var(--text); }
+.insp-row button.danger:hover { border-color: var(--danger); color: var(--danger); }
 
 .insp-actions { display: flex; gap: 6px; padding: 8px 0 4px; }
 .insp-actions button {

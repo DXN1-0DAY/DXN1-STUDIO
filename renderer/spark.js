@@ -13,9 +13,12 @@ const Spark = (() => {
   // entity: {name, x, y, w, h, shape:"rect"|"circle"|"triangle",
   //          color, text:"", tsize:22,
   //          vx, vy, solid, gravity:boolean(default: scene gravity),
-  //          controls:"platformer"|"none", tag, bounce:0..1, alive:true}
+  //          controls:"platformer"|"none", tag, bounce:0..1, alive:true,
+  //          path:null|{toX,toY,speed} — moving platform, ping-pong}
   //          tag:"coin" pickup · tag:"hazard" respawn on touch
-  // scene:  {name, bg, gravity, camera:{x,y,zoom}, entities:[...]}
+  //          tag:"goal" finish — sends the player to scene.next
+  // scene:  {name, bg, gravity, camera:{x,y,zoom}, entities:[...],
+  //          next:null|"scenes/level2.dxn1.json", parallax:[{speed,color,size,count}]}
 
   function makeEntity(patch) {
     return Object.assign({
@@ -23,6 +26,7 @@ const Spark = (() => {
       shape: "rect", color: "#8b5cf6", text: "", tsize: 22,
       vx: 0, vy: 0, solid: false, gravity: null,
       controls: "none", tag: "", bounce: 0, alive: true,
+      path: null,
     }, patch || {});
   }
 
@@ -52,7 +56,41 @@ const Spark = (() => {
           color: "#fb7185", tag: "hazard" },
         { name: "sign", x: 130, y: 360, w: 190, h: 30, text: "→ find the coins",
           tsize: 20, color: "#9aa1b5" },
+        { name: "sign-2", x: 1080, y: 300, w: 150, h: 30, text: "goal →",
+          tsize: 20, color: "#9aa1b5" },
+        { name: "goal", x: 1250, y: 366, w: 30, h: 64, color: "#34d399",
+          tag: "goal" },
       ],
+      next: "scenes/level-2.dxn1.json",
+    };
+  }
+
+  // level 2 — moving platforms are the whole point here
+  function demoScene2() {
+    return {
+      name: "level-2",
+      bg: "#0d0b1c",
+      gravity: 1500,
+      camera: { x: 0, y: 0, zoom: 1 },
+      entities: [
+        { name: "player", x: 80, y: 330, w: 34, h: 44, color: "#8b5cf6",
+          controls: "platformer", solid: true, tag: "player" },
+        { name: "ground-a", x: -200, y: 430, w: 560, h: 90, color: "#1c2136", solid: true },
+        { name: "ground-b", x: 760, y: 430, w: 700, h: 90, color: "#1c2136", solid: true },
+        { name: "mover-1", x: 400, y: 360, w: 150, h: 22, color: "#22d3ee",
+          solid: true, path: { toX: 660, toY: 250, speed: 110 } },
+        { name: "mover-2", x: 980, y: 300, w: 130, h: 22, color: "#22d3ee",
+          solid: true, path: { toX: 1130, toY: 300, speed: 90 } },
+        { name: "coin-1", x: 560, y: 190, w: 22, h: 22, shape: "circle", color: "#fbbf24", tag: "coin" },
+        { name: "coin-2", x: 1030, y: 240, w: 22, h: 22, shape: "circle", color: "#fbbf24", tag: "coin" },
+        { name: "spike-1", x: 880, y: 402, w: 34, h: 28, shape: "triangle",
+          color: "#fb7185", tag: "hazard" },
+        { name: "sign", x: 90, y: 360, w: 210, h: 30, text: "ride the movers!",
+          tsize: 20, color: "#9aa1b5" },
+        { name: "goal", x: 1330, y: 366, w: 30, h: 64, color: "#34d399",
+          tag: "goal" },
+      ],
+      next: "scenes/playground.dxn1.json",
     };
   }
 
@@ -99,6 +137,8 @@ const Spark = (() => {
       this.input = new Input(canvas);
       this.running = false;
       this.score = 0;
+      this._time = 0;              // seconds since start()
+      this._transLock = false;     // one goal trigger per attempt
       this.showGrid = false;          // editor-only overlay
       this.gridSize = 32;
       this._particles = [];
@@ -114,14 +154,31 @@ const Spark = (() => {
 
     static normalizeScene(raw) {
       const s = raw && typeof raw === "object" ? raw : {};
+      const cam = Object.assign({ x: 0, y: 0, zoom: 1 }, s.camera || {});
       return {
         name: String(s.name || "scene"),
         bg: String(s.bg || "#0b0e1a"),
         gravity: Number(s.gravity ?? 1500),
-        camera: Object.assign({ x: 0, y: 0, zoom: 1 }, s.camera || {}),
+        camera: { x: Number(cam.x) || 0, y: Number(cam.y) || 0,
+                  zoom: Math.min(4, Math.max(0.3, Number(cam.zoom) || 1)) },
         entities: (Array.isArray(s.entities) ? s.entities : [])
           .map((e) => makeEntity(e)),
+        next: typeof s.next === "string" ? s.next : null,
+        parallax: Game._normalizeParallax(s.parallax),
       };
+    }
+
+    static _normalizeParallax(p) {
+      if (Array.isArray(p) && p.length) {
+        return p.map((l) => ({
+          speed: Math.max(0, Math.min(1, Number(l.speed) || 0.25)),
+          color: String(l.color || "rgba(255,255,255,.05)"),
+          size: Math.max(1, Number(l.size) || 2),
+          count: Math.max(1, Math.min(400, Number(l.count) || 40)),
+        }));
+      }
+      // the classic star field stays the default
+      return [{ speed: 0.25, color: "rgba(255,255,255,.05)", size: 2, count: 40 }];
     }
 
     // -------------------------------------------------- editor helpers
@@ -129,8 +186,25 @@ const Spark = (() => {
       const cam = this.scene.camera;
       const r = this.canvas.getBoundingClientRect();
       const scale = this.canvas.width / r.width;   // CSS → backing pixels
-      return { x: (sx - r.left) * scale + cam.x,
-               y: (sy - r.top) * scale + cam.y };
+      const z = cam.zoom || 1;
+      return { x: (sx - r.left) * scale / z + cam.x,
+               y: (sy - r.top) * scale / z + cam.y };
+    }
+
+    // editor zoom — keep the world point under the cursor fixed
+    zoomAt(factor, sx, sy) {
+      const cam = this.scene.camera;
+      const before = this.screenToWorld(sx, sy);
+      cam.zoom = Math.min(4, Math.max(0.3, (cam.zoom || 1) * factor));
+      const after = this.screenToWorld(sx, sy);
+      cam.x += before.x - after.x;
+      cam.y += before.y - after.y;
+    }
+
+    zoomFit() {
+      const cam = this.scene.camera;
+      cam.zoom = 1; cam.x = 0; cam.y = 0;
+      if (!this.running) this.repaint();
     }
 
     entityAt(wx, wy) {
@@ -150,6 +224,12 @@ const Spark = (() => {
       // play from where the editor left the player
       const pl0 = this.scene.entities.find((e) => e.tag === "player");
       if (pl0) this._spawn = { x: pl0.x, y: pl0.y };
+      this._time = 0;
+      this._transLock = false;
+      // movers launch from wherever the editor left them
+      for (const e of this.scene.entities) {
+        if (e.path) { e._home = { x: e.x, y: e.y }; e._pt = 0; e._pd = 1; }
+      }
       this._last = performance.now();
       this.canvas.focus();
       this.canvas.setAttribute("tabindex", "0");
@@ -182,6 +262,8 @@ const Spark = (() => {
       const cam = this.scene.camera;
       const ents = this.scene.entities.filter((e) => e.alive);
       const solids = ents.filter((e) => e.solid);
+      this._time += dt;
+      this._movePaths(dt, ents);
 
       for (const e of ents) {
         // --- controls -------------------------------------------------
@@ -238,11 +320,21 @@ const Spark = (() => {
             this._flash("ouch — spike!");
             if (this.hooks.onHit) this.hooks.onHit();
           }
+          if (other.tag === "goal" && !this._transLock &&
+              this._aabb(player, other)) {
+            this._transLock = true;
+            this._burst(player, "#34d399", 24);
+            this._flash(this.scene.next ? "LEVEL CLEAR!" : "GOAL! — you win");
+            if (this.hooks.onTransition) {
+              this.hooks.onTransition(this.scene.next, this);
+            }
+          }
         }
-        // camera follows the player, softly
-        cam.x += ((player.x + player.w / 2) - (cam.x + this.canvas.width / 2)) *
+        // camera follows the player, softly (center of the zoomed view)
+        const z = cam.zoom || 1;
+        cam.x += ((player.x + player.w / 2) - (cam.x + this.canvas.width / (2 * z))) *
                  Math.min(1, dt * 6);
-        cam.y += ((player.y + player.h / 2) - (cam.y + this.canvas.height / 2)) *
+        cam.y += ((player.y + player.h / 2) - (cam.y + this.canvas.height / (2 * z))) *
                  Math.min(1, dt * 3);
       }
 
@@ -286,6 +378,38 @@ const Spark = (() => {
       return Math.max(...this.scene.entities.map((e) => e.y + e.h), 500);
     }
 
+    // -------------------------------------------------- moving platforms
+    _movePaths(dt, ents) {
+      for (const e of ents) {
+        const p = e.path;
+        if (!p || !e._home) continue;
+        const ax = Number(p.toX) || 0, ay = Number(p.toY) || 0;
+        const len = Math.hypot(ax - e._home.x, ay - e._home.y);
+        if (len < 1) continue;
+        const speed = Math.max(1, Number(p.speed) || 120);
+        let t = (e._pt || 0) + (e._pd || 1) * speed * dt / len;
+        if (t >= 1) { t = 1; e._pd = -1; }
+        else if (t <= 0) { t = 0; e._pd = 1; }
+        e._pt = t;
+        const ox = e.x, oy = e.y;
+        e.x = e._home.x + (ax - e._home.x) * t;
+        e.y = e._home.y + (ay - e._home.y) * t;
+        // carry whatever stands on the old top
+        for (const r of ents) {
+          if (r === e || !r.alive || r.path) continue;
+          const dynamic = r.gravity === true || (r.gravity === null &&
+            (r.controls === "platformer" || r.tag === "ball"));
+          if (!dynamic || r.vy < 0) continue;
+          const bottom = r.y + r.h;
+          if (r.x + r.w > ox + 2 && r.x < ox + e.w - 2 &&
+              bottom >= oy - 12 && bottom <= oy + 8) {
+            r.x += e.x - ox;
+            r.y = e.y - r.h;
+          }
+        }
+      }
+    }
+
     // -------------------------------------------------------- effects
     _burst(at, color, n) {
       for (let i = 0; i < n; i++) {
@@ -309,43 +433,49 @@ const Spark = (() => {
     _render() {
       const { ctx, canvas } = this;
       const cam = this.scene.camera;
+      const z = cam.zoom || 1;
+      const wrap = (v, m) => ((v % m) + m) % m;
       ctx.setTransform(1, 0, 0, 1, 0, 0);
       ctx.fillStyle = this.scene.bg;
       ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-      // faint parallax stars, so movement reads even in an empty field
-      ctx.fillStyle = "rgba(255,255,255,.05)";
-      const ox = -cam.x * 0.25, oy = -cam.y * 0.12;
-      for (let i = 0; i < 40; i++) {
-        const sx = ((i * 173) % canvas.width + ox) % canvas.width;
-        const sy = ((i * 97) % canvas.height + oy) % canvas.height;
-        ctx.fillRect((sx + canvas.width) % canvas.width,
-                     (sy + canvas.height) % canvas.height, 2, 2);
+      // parallax layers — configurable per scene, stars by default
+      for (const L of (this.scene.parallax || [])) {
+        ctx.fillStyle = L.color;
+        const ox = -cam.x * L.speed, oy = -cam.y * L.speed * 0.5;
+        for (let i = 0; i < L.count; i++) {
+          const sx = wrap(i * 173, canvas.width) + ox;
+          const sy = wrap(i * 97, canvas.height) + oy;
+          ctx.fillRect(wrap(sx, canvas.width), wrap(sy, canvas.height),
+                       L.size, L.size);
+        }
       }
 
       ctx.save();
+      ctx.scale(z, z);
       ctx.translate(-cam.x, -cam.y);
+      const viewW = canvas.width / z, viewH = canvas.height / z;
 
       // editor grid — only while editing (the game never sees it)
       if (this.showGrid && !this.running) {
         const gs = this.gridSize || 32;
         ctx.strokeStyle = "rgba(139,92,246,.14)";
-        ctx.lineWidth = 1;
+        ctx.lineWidth = 1 / z;
         ctx.beginPath();
         for (let x = Math.floor(cam.x / gs) * gs;
-             x <= cam.x + canvas.width + gs; x += gs) {
-          ctx.moveTo(x, cam.y); ctx.lineTo(x, cam.y + canvas.height);
+             x <= cam.x + viewW + gs; x += gs) {
+          ctx.moveTo(x, cam.y); ctx.lineTo(x, cam.y + viewH);
         }
         for (let y = Math.floor(cam.y / gs) * gs;
-             y <= cam.y + canvas.height + gs; y += gs) {
-          ctx.moveTo(cam.x, y); ctx.lineTo(cam.x + canvas.width, y);
+             y <= cam.y + viewH + gs; y += gs) {
+          ctx.moveTo(cam.x, y); ctx.lineTo(cam.x + viewW, y);
         }
         ctx.stroke();
       }
 
       for (const e of this.scene.entities) {
         if (!e.alive) continue;
-        if (e.x + e.w < cam.x - 40 || e.x > cam.x + canvas.width + 40) continue;
+        if (e.x + e.w < cam.x - 40 || e.x > cam.x + viewW + 40) continue;
         if (e.text) {                 // text entity — drawn as a label
           ctx.fillStyle = e.color;
           ctx.font = `600 ${e.tsize || 22}px ui-monospace, monospace`;
@@ -378,10 +508,20 @@ const Spark = (() => {
             ctx.fillRect(e.x, e.y, e.w, 3);
           }
         }
+        if (e.path && !this.running) {   // motion rail — editors deserve it
+          ctx.strokeStyle = "rgba(34,211,238,.35)";
+          ctx.lineWidth = 1.5 / z;
+          ctx.setLineDash([6 / z, 5 / z]);
+          ctx.beginPath();
+          ctx.moveTo(e._home ? e._home.x : e.x, e._home ? e._home.y : e.y);
+          ctx.lineTo(e.path.toX, e.path.toY);
+          ctx.stroke();
+          ctx.setLineDash([]);
+        }
         if (this.selected && this.selected === e) {   // identity, not name
           ctx.strokeStyle = "#22d3ee";
-          ctx.lineWidth = 2;
-          ctx.strokeRect(e.x - 3, e.y - 3, e.w + 6, e.h + 6);
+          ctx.lineWidth = 2 / z;
+          ctx.strokeRect(e.x - 3 / z, e.y - 3 / z, e.w + 6 / z, e.h + 6 / z);
         }
       }
 
@@ -398,7 +538,9 @@ const Spark = (() => {
       ctx.fillStyle = "rgba(255,255,255,.92)";
       ctx.font = "600 16px ui-monospace, monospace";
       ctx.textBaseline = "top";
-      ctx.fillText(`SCORE ${this.score}`, 16, 14);
+      const tm = Math.floor((this._time || 0) / 60);
+      const ts = ((this._time || 0) % 60).toFixed(1).padStart(4, "0");
+      ctx.fillText(`SCORE ${this.score}   TIME ${tm}:${ts}`, 16, 14);
       const coins = this.scene.entities.filter(
         (e) => e.tag === "coin" && e.alive).length;
       if (coins === 0) {
@@ -415,5 +557,5 @@ const Spark = (() => {
     }
   }
 
-  return { Game, makeEntity, demoScene };
+  return { Game, makeEntity, demoScene, demoScene2 };
 })();

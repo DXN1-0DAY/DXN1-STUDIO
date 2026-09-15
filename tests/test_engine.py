@@ -119,6 +119,78 @@ class TestScenes(EngineBase):
         self.assertIn("entities", r["error"])
 
 
+class TestGit(EngineBase):
+    """The source control bridge — real git, honest errors."""
+
+    def setUp(self):
+        super().setUp()
+        self.has_git = shutil.which("git") is not None
+
+    def _init_repo(self):
+        def run(*argv):
+            subprocess.run(["git", "-C", self.ws, *argv], check=True,
+                           capture_output=True, text=True, timeout=20)
+        run("init", "-q")
+        run("config", "user.email", "studio@dxn1.test")
+        run("config", "user.name", "DS3 Test")
+        run("config", "commit.gpgsign", "false")
+
+    def test_non_repo_is_honest(self):
+        r = self.req("git_status")
+        self.assertFalse(r["ok"])
+        self.assertIn("not a git repository", r["error"])
+
+    def test_status_branch_and_changes(self):
+        if not self.has_git:
+            self.skipTest("git not installed")
+        self._init_repo()
+        self.req("write", {"path": "a.txt", "content": "one"})
+        r = self.req("git_commit", {"message": "first"})
+        self.assertTrue(r["ok"])
+        self.assertTrue(r["result"]["committed"])
+        r = self.req("git_status")
+        self.assertTrue(r["ok"])
+        self.assertTrue(r["result"]["clean"])
+        self.assertIn(r["result"]["branch"], ("master", "main"))
+        self.req("write", {"path": "a.txt", "content": "two"})
+        self.req("write", {"path": "new.txt", "content": "n"})
+        r = self.req("git_status")
+        files = {f["path"]: f["x"] for f in r["result"]["files"]}
+        self.assertEqual(files.get("a.txt"), "M")
+        self.assertEqual(files.get("new.txt"), "A")
+
+    def test_commit_requires_message(self):
+        if not self.has_git:
+            self.skipTest("git not installed")
+        self._init_repo()
+        r = self.req("git_commit", {"message": "  "})
+        self.assertFalse(r["ok"])
+        self.assertIn("message required", r["error"])
+
+    def test_nothing_to_commit_is_honest(self):
+        if not self.has_git:
+            self.skipTest("git not installed")
+        self._init_repo()
+        self.req("write", {"path": "a.txt", "content": "one"})
+        self.req("git_commit", {"message": "first"})
+        r = self.req("git_commit", {"message": "empty"})
+        self.assertFalse(r["ok"])
+        self.assertIn("nothing to commit", r["error"])
+
+    def test_log_lists_commits(self):
+        if not self.has_git:
+            self.skipTest("git not installed")
+        self._init_repo()
+        self.req("write", {"path": "a.txt", "content": "one"})
+        self.req("git_commit", {"message": "first words"})
+        r = self.req("git_log")
+        self.assertTrue(r["ok"])
+        commits = r["result"]["commits"]
+        self.assertEqual(len(commits), 1)
+        self.assertEqual(commits[0]["subject"], "first words")
+        self.assertTrue(commits[0]["hash"])
+
+
 class TestServeLoop(unittest.TestCase):
     def test_line_per_request(self):
         ws = tempfile.mkdtemp(prefix="dxn3-serve-")

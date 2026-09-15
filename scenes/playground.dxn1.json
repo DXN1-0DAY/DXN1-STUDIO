@@ -147,6 +147,26 @@
       "text": "→ find the coins",
       "tsize": 20,
       "color": "#9aa1b5"
+    },
+    {
+      "name": "sign-2",
+      "x": 1080,
+      "y": 300,
+      "w": 150,
+      "h": 30,
+      "text": "goal →",
+      "tsize": 20,
+      "color": "#9aa1b5"
+    },
+    {
+      "name": "goal",
+      "x": 1250,
+      "y": 366,
+      "w": 30,
+      "h": 64,
+      "color": "#34d399",
+      "tag": "goal"
     }
-  ]
+  ],
+  "next": "scenes/level-2.dxn1.json"
 }

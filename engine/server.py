@@ -13,7 +13,9 @@ resolve refuses to escape the workspace. Writes are atomic
 
 import json
 import os
+import re
 import shutil
+import subprocess
 import sys
 import tempfile
 
@@ -197,6 +199,82 @@ class Engine:
         self.cmd_write({"path": path,
                         "content": json.dumps(scene, indent=2)})
         return {"saved": path}
+
+    # ------------------------------------------------------------- git
+    def _git(self, *argv):
+        """Run git in the workspace; honest errors, never raises past us."""
+        try:
+            out = subprocess.run(
+                ["git", "-C", self.workspace, *argv],
+                capture_output=True, text=True, timeout=20)
+        except FileNotFoundError:
+            raise EngineError("git is not installed")
+        except subprocess.TimeoutExpired:
+            raise EngineError("git timed out")
+        if out.returncode != 0:
+            msg = (out.stderr or out.stdout or "git failed").strip()
+            raise EngineError(msg.splitlines()[-1] if msg else "git failed")
+        return out.stdout
+
+    def _git_repo(self):
+        if not os.path.isdir(os.path.join(self.workspace, ".git")):
+            raise EngineError("not a git repository")
+
+    def cmd_git_status(self, args):
+        self._git_repo()
+        out = self._git("status", "--porcelain", "--branch")
+        branch, ahead = "unknown", 0
+        files = []
+        for line in out.splitlines():
+            if line.startswith("## "):
+                head = line[3:]
+                branch = head.split("...", 1)[0].split(" ", 1)[0] or "unknown"
+                m = re.search(r"\[ahead (\d+)", head)
+                if m:
+                    ahead = int(m.group(1))
+                continue
+            if not line.strip():
+                continue
+            xy, path = line[:2], line[3:]
+            if " -> " in path:               # renames: show the new name
+                path = path.split(" -> ", 1)[1]
+            # effective status: staged X wins, else the worktree Y;
+            # untracked (??) reads as "A" — a file about to be added,
+            # same shape the demo filesystem speaks
+            if xy == "??":
+                status = "A"
+            else:
+                status = xy[0] if xy[0] not in (" ", "?") else (
+                    xy[1] if xy[1] not in (" ", "?") else "?")
+            files.append({"path": path, "x": status, "y": xy[1].strip() or "?"})
+        return {"branch": branch, "ahead": ahead, "files": files,
+                "clean": not files}
+
+    def cmd_git_log(self, args):
+        self._git_repo()
+        out = self._git("log", "-n", "15",
+                        "--pretty=format:%h%x1f%s%x1f%an%x1f%ar")
+        commits = []
+        for line in out.splitlines():
+            if not line.strip():
+                continue
+            parts = line.split("\x1f")
+            commits.append({"hash": parts[0], "subject": parts[1],
+                            "author": parts[2] if len(parts) > 2 else "",
+                            "when": parts[3] if len(parts) > 3 else ""})
+        return {"commits": commits}
+
+    def cmd_git_commit(self, args):
+        self._git_repo()
+        message = str(args.get("message") or "").strip()
+        if not message:
+            raise EngineError("commit message required")
+        if len(message) > 400:
+            raise EngineError("commit message too long (400 chars max)")
+        self._git("add", "-A")
+        out = self._git("commit", "-m", message)
+        m = re.search(r"\[[^\]]+? ([0-9a-f]+)\]", out)
+        return {"committed": m.group(1) if m else "ok", "message": message}
 
     # ----------------------------------------------------------- serve
     def handle(self, line):

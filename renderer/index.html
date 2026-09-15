@@ -71,13 +71,19 @@
     </section>
 
     <section class="panel" id="panel-git">
-      <div class="panel-title">SOURCE CONTROL</div>
+      <div class="panel-title">SOURCE CONTROL
+        <span class="panel-actions">
+          <button id="git-refresh" class="mini" title="Refresh">↻</button>
+        </span>
+      </div>
       <div id="git-branch" class="git-branch">⑂ —</div>
       <div id="git-files" class="git-files"></div>
       <div class="git-row">
         <input id="git-msg" type="text" placeholder="Commit message…" spellcheck="false">
         <button id="git-commit" class="btn accent sm">Commit</button>
       </div>
+      <div class="panel-title" style="padding-top:10px">HISTORY</div>
+      <div id="git-log" class="git-log"></div>
     </section>
 
     <section class="panel" id="panel-game">
@@ -158,12 +164,26 @@
     <!-- editor -->
     <section id="editor-view" class="view">
       <div id="findbar" class="hidden">
-        <span class="fb-ico">⌕</span>
-        <input id="find-inp" type="text" placeholder="Find…" spellcheck="false">
-        <span id="find-count">0/0</span>
-        <button id="find-prev" class="mini" title="Previous (Shift+Enter)">↑</button>
-        <button id="find-next" class="mini" title="Next (Enter)">↓</button>
-        <button id="find-close" class="mini" title="Close (Esc)">✕</button>
+        <div class="fb-row">
+          <span class="fb-ico">⌕</span>
+          <input id="find-inp" type="text" placeholder="Find…" spellcheck="false">
+          <span id="find-count">0/0</span>
+          <button id="find-prev" class="mini" title="Previous (Shift+Enter)">↑</button>
+          <button id="find-next" class="mini" title="Next (Enter)">↓</button>
+          <button id="find-close" class="mini" title="Close (Esc)">✕</button>
+        </div>
+        <div class="fb-row">
+          <span class="fb-ico">⇄</span>
+          <input id="replace-inp" type="text" placeholder="Replace with…" spellcheck="false">
+          <button id="btn-replace" class="fb-btn" title="Replace (Enter)">Replace</button>
+          <button id="btn-replace-all" class="fb-btn" title="Replace all">All</button>
+        </div>
+      </div>
+      <div id="gotobar" class="hidden">
+        <span class="fb-ico">→</span>
+        <input id="goto-inp" type="number" min="1" placeholder="Line number…" spellcheck="false">
+        <span class="fb-hint">Enter to jump · Esc to close</span>
+        <button id="goto-close" class="mini" title="Close (Esc)">✕</button>
       </div>
       <div id="editor-stack" class="mm-on">
         <div id="gutter" aria-hidden="true"></div>
@@ -191,9 +211,12 @@
           <button class="ep" data-ent="coin">◎ coin</button>
           <button class="ep" data-ent="spike">▲ spike</button>
           <button class="ep" data-ent="bouncer">⤒ bouncer</button>
+          <button class="ep" data-ent="mover">⇄ mover</button>
           <button class="ep" data-ent="text">T text</button>
+          <button class="ep" data-ent="goal">⚑ goal</button>
           <span class="ep-sep"></span>
           <button id="btn-grid" class="mini" title="Toggle edit grid">⌗</button>
+          <button id="btn-fit" class="mini" title="Zoom fit">⊕</button>
           <button id="btn-dup" class="mini" title="Duplicate entity (Ctrl+D)">⧉</button>
           <button id="btn-del-ent" class="mini danger" title="Delete entity (Del)">✕</button>
         </div>
@@ -228,7 +251,7 @@
   <span class="spacer"></span>
   <span id="st-pos"></span>
   <span id="st-file"></span>
-  <span id="st-version" class="chip">v3.0.02</span>
+  <span id="st-version" class="chip">v3.0.03</span>
 </footer>
 
 <!-- ============================== overlays -->
