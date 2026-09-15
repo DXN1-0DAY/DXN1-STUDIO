@@ -14,7 +14,7 @@ import tkinter as tk
 from tkinter import font as tkfont
 
 from . import APP_NAME, APP_VERSION, APP_CHANNEL, APP_TAGLINE
-from .theme import PALETTES, ACCENTS, FONT_UI
+from .theme import PALETTES, ACCENTS, FONT_UI, FONT_MONO
 
 ASSETS_DIR = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "assets")
 

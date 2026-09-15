@@ -314,6 +314,9 @@ class FileTree(tk.Frame):
         refresh.pack(side=tk.RIGHT, padx=12)
         refresh.bind("<Button-1>", lambda e: self.load_directory(
             self.current_dir))
+        from . import hints as _hints
+        _hints.tooltip_attach(refresh, "Reload the workspace tree",
+                              theme)
         refresh.bind("<Enter>", lambda e: refresh.config(
             fg=theme["text"]))
         refresh.bind("<Leave>", lambda e: refresh.config(
@@ -1384,6 +1387,9 @@ class Terminal(tk.Frame):
                              fg=theme["text_muted"], font=(FONT_UI, 8, "underline"),
                              cursor="hand2")
         clear_btn.pack(side=tk.RIGHT, padx=12)
+        from . import hints as _hints
+        _hints.tooltip_attach(clear_btn, "Clear the terminal output",
+                              theme)
         clear_btn.bind("<Button-1>", lambda e: self.clear())
 
         self.output = tk.Text(self, bg=theme["terminal"], fg=theme["text"],

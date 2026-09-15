@@ -1536,7 +1536,7 @@ class DXN1Studio:
         def _open_usage_menu():
             try:
                 from .usagedash import open_dashboard
-                open_dashboard(self, self.theme,
+                open_dashboard(self.root, self.theme,
                                workspace=getattr(self, "project_dir", ""),
                                on_log=lambda msg: self.terminal.log(msg))
             except Exception:  # pragma: no cover — menu stays alive
@@ -5332,9 +5332,9 @@ class DXN1Studio:
             from . import diffview as _dv
             cmds += [
                 ("Commit graph (all branches)", "",
-                 lambda: _gg.open_graph(self.root, self.theme,
-                                        self.project_dir,
-                                        on_log=lambda m: None)),
+                 lambda: _gg.GitGraphWindow(self.root, self.theme,
+                                            self.project_dir,
+                                            on_log=lambda m: None)),
                 ("Branch manager — create / merge / cleanup", "",
                  lambda: _br.open_branches(self.root, self.theme,
                                            self.project_dir,
@@ -5580,13 +5580,13 @@ class DXN1Studio:
         # DS2 additions — usage metering + workspace memory (defensive)
         def _open_usage():
             from .usagedash import open_dashboard
-            open_dashboard(self, self.theme,
+            open_dashboard(self.root, self.theme,
                            workspace=getattr(self, "project_dir", ""),
                            on_log=lambda msg: self.terminal.log(msg))
 
         def _open_memory():
             from .memory import open_memory_editor
-            open_memory_editor(self, self.theme,
+            open_memory_editor(self.root, self.theme,
                                workspace=getattr(self, "project_dir", ""),
                                on_log=lambda msg: self.terminal.log(msg))
 
@@ -5610,10 +5610,8 @@ class DXN1Studio:
             pass
         # DS2: AI review (gutter eyes) + pair mode (defensive)
         def _open_pair():
-            from .pair import open_pair
-            panel = getattr(self, "agent_panel", None)
-            open_pair(self, getattr(panel, "sandbox", None),
-                      on_log=lambda m: self.terminal.log(m))
+            from .pair import open_pair_session
+            open_pair_session(self)
         try:
             from . import ai_lint as _lint
             cmds.append(_lint.palette_command(self))
@@ -5637,10 +5635,11 @@ class DXN1Studio:
             pass
         # DS2: task runner + editor minimap (defensive)
         def _open_tasks():
-            from .term import open_tasks
-            open_tasks(self.root, self.theme, self.project_dir,
-                       on_run=self.run_command,
-                       on_log=lambda m: self.terminal.log(m))
+            from .term import open_runner
+            open_runner(self.root, self.theme, self.config,
+                        workspace=self.project_dir,
+                        kind=self.project_kind,
+                        on_log=lambda m: self.terminal.log(m))
 
         def _toggle_minimap():
             if getattr(self, "_minimap", None) is not None:
@@ -5671,9 +5670,11 @@ class DXN1Studio:
         # DS2: cron decoder ring (defensive)
         def _open_cron():
             from .cronexp import open_cron
-            open_cron(self.root, self.theme,
-                      initial=self.editor.text.get("sel.first", "sel.last")
-                      .strip())
+            try:  # pre-fill from the selection when there IS one
+                sel = self.editor.text.get("sel.first", "sel.last").strip()
+            except Exception:  # noqa: BLE001 — no selection is normal
+                sel = ""
+            open_cron(self.root, self.theme, initial=sel)
         try:
             cmds.append(("Cron explainer — decode schedule strings…",
                          "DS2", _open_cron))
@@ -5696,9 +5697,11 @@ class DXN1Studio:
         # DS2: JWT decoder (defensive)
         def _open_jwt():
             from .jwt import open_jwt
-            open_jwt(self.root, self.theme,
-                     initial=self.editor.text.get("sel.first", "sel.last")
-                     .strip())
+            try:  # pre-fill from the selection when there IS one
+                sel = self.editor.text.get("sel.first", "sel.last").strip()
+            except Exception:  # noqa: BLE001 — no selection is normal
+                sel = ""
+            open_jwt(self.root, self.theme, initial=sel)
         try:
             cmds.append(("JWT decoder — inspect a token…",
                          "DS2", _open_jwt))
@@ -7838,8 +7841,8 @@ class DXN1Studio:
         and the Source Control panel open. Never raises."""
         try:
             from . import gitgraph as _gg
-            _gg.open_graph(self.root, self.theme, self.project_dir,
-                           on_log=lambda m: None)
+            _gg.GitGraphWindow(self.root, self.theme, self.project_dir,
+                               on_log=lambda m: None)
         except Exception:  # noqa: BLE001 — best-effort window
             self.terminal.log("git graph unavailable here")
 
