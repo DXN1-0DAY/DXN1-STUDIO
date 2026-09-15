@@ -106,6 +106,27 @@ def esc_bound(win):
     return tree_bound(win, "<Escape>")
 
 
+def hover(widget, enter=None, leave=None):
+    """DS2 UI-sprint — instant hover feedback for label-buttons:
+    apply `enter` config on <Enter> and `leave` on <Leave>. Garnish
+    by design: a dying widget just does nothing."""
+    def _e(_event=None):
+        try:
+            widget.config(**(enter or {}))
+        except Exception:  # noqa: BLE001
+            pass
+
+    def _l(_event=None):
+        try:
+            widget.config(**(leave or {}))
+        except Exception:  # noqa: BLE001
+            pass
+
+    widget.bind("<Enter>", _e, add="+")
+    widget.bind("<Leave>", _l, add="+")
+    return widget
+
+
 def tooltip_attach(widget, text, theme=None, delay=500):
     """DS2 UI-sprint — a quiet themed tooltip for any widget: after
     `delay` ms of hover a small card shows `text`; Leave, click or

@@ -46,7 +46,7 @@ def has_scrollbar_nearby(w, root, horizontal, levels=3):
 
 
 def canvas_overflows(w):
-    """True when a canvas actually holds more content than it shows."""
+    """(over_w, over_h) — per-axis content-vs-viewport truth."""
     try:
         region = w.cget("scrollregion")
         if region and str(region) not in ("", "0 0 0 0"):
@@ -55,16 +55,16 @@ def canvas_overflows(w):
                 rw = parts[2] - parts[0]
                 rh = parts[3] - parts[1]
             else:
-                return False
+                return (False, False)
         else:
             bb = w.bbox("all")
             if not bb:
-                return False
+                return (False, False)
             rw, rh = bb[2] - bb[0], bb[3] - bb[1]
-        return (rw > w.winfo_width() + TOLERANCE or
+        return (rw > w.winfo_width() + TOLERANCE,
                 rh > w.winfo_height() + TOLERANCE)
     except Exception:  # noqa: BLE001
-        return False
+        return (False, False)
 
 
 def audit_size(app, label, problems, root=None):
@@ -87,17 +87,27 @@ def audit_size(app, label, problems, root=None):
                 pw = root.nametowidget(parent) if parent else None
                 over_h = got_h < req_h - TOLERANCE
                 over_w = got_w < req_w - TOLERANCE
+                need_w, need_h = req_w, req_h
                 if cls == "Canvas":
-                    over_h = over_w = canvas_overflows(w)
+                    ov_w, ov_h = canvas_overflows(w)
+                    over_w, over_h = ov_w, ov_h
+                    try:
+                        sr = [int(float(x))
+                              for x in str(w.cget("scrollregion")).split()]
+                        if len(sr) == 4:
+                            need_w = sr[2] - sr[0]
+                            need_h = sr[3] - sr[1]
+                    except Exception:  # noqa: BLE001
+                        pass
                 if over_h and pw is not None and \
                         not has_scrollbar_nearby(w, root, False):
                     problems.append(
-                        f"[{label}] A {cls} '{name}' needs {req_h}px, "
+                        f"[{label}] A {cls} '{name}' needs {need_h}px, "
                         f"has {got_h}px, NO vertical scrollbar nearby")
                 if over_w and pw is not None and \
                         not has_scrollbar_nearby(w, root, True):
                     problems.append(
-                        f"[{label}] A {cls} '{name}' needs {req_w}px, "
+                        f"[{label}] A {cls} '{name}' needs {need_w}px, "
                         f"has {got_w}px, NO horizontal scrollbar nearby")
             elif (got_h < req_h - TOLERANCE or
                   got_w < req_w - TOLERANCE) and cls not in ("Frame",
@@ -129,7 +139,8 @@ def audit_size(app, label, problems, root=None):
             # C. scrollable with no scrollbar anywhere nearby
             if widget_scroll_kinds(w):
                 if cls == "Canvas":
-                    if not canvas_overflows(w):
+                    ov_w, ov_h = canvas_overflows(w)
+                    if not (ov_w or ov_h):
                         continue  # content fits — no scrollbar needed
                 # tiny disabled Texts are mirrors (gutters, tickers)
                 # whose scroll is externally driven — not scroll targets

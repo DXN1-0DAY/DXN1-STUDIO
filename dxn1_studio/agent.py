@@ -1876,6 +1876,11 @@ class AgentSettingsDialog(tk.Toplevel):
                         font=(FONT_UI, 10, "bold"), cursor="hand2",
                         padx=18, pady=6)
         save.pack(side=tk.RIGHT)
+        from . import hints as _hints
+        _hints.hover(cancel, enter=dict(fg=t["text"]),
+                     leave=dict(fg=t["text_secondary"]))
+        _hints.hover(save, enter=dict(bg=t["hover"]),
+                     leave=dict(bg=t.accent))
         save.bind("<Button-1>", lambda e: self._save())
 
         self.bind("<Escape>", lambda e: self.destroy())

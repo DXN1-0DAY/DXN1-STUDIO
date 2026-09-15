@@ -6494,6 +6494,9 @@ class DXN1Studio:
         cancel = tk.Label(row, text="Cancel", bg=self.theme["card"],
                           fg=self.theme["text_secondary"], cursor="hand2",
                           font=(FONT_UI, 10), padx=10)
+        from . import hints as _hints
+        _hints.hover(cancel, enter=dict(fg=self.theme["text"]),
+                     leave=dict(fg=self.theme["text_secondary"]))
         cancel.pack(side=tk.RIGHT)
         cancel.bind("<Button-1>", lambda e: dlg.destroy())
         confirm = tk.Label(row, text="OK", bg=self.theme.accent, fg="#ffffff",

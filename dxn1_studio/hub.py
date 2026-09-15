@@ -90,11 +90,17 @@ class NameDialog(tk.Toplevel):
         cancel = tk.Label(row, text="Cancel", bg=C["overlay"], fg=C["secondary"],
                           font=(FONT_UI, 10), cursor="hand2", padx=10)
         cancel.pack(side=tk.RIGHT)
+        from . import hints as _hints
+        _hints.hover(cancel, enter=dict(fg=C["text"]),
+                     leave=dict(fg=C["secondary"]))
         cancel.bind("<Button-1>", lambda e: self.destroy())
         self.ok_btn = tk.Label(row, text="Create  ✦", bg=accent, fg="#ffffff",
                                font=(FONT_UI, 10, "bold"), cursor="hand2",
                                padx=16, pady=6)
         self.ok_btn.pack(side=tk.RIGHT)
+        _hints.hover(self.ok_btn, enter=dict(bg=C.get("accent_hover",
+                                                      accent)),
+                     leave=dict(bg=accent))
         self.ok_btn.bind("<Button-1>", lambda e: self.confirm())
 
         self.protocol("WM_DELETE_WINDOW", self.destroy)
