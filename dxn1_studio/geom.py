@@ -15,7 +15,8 @@ import re
 __all__ = ["parse_geometry", "make_geometry", "screen_signature",
            "clamp_geometry", "remember", "recall",
            "remember_root", "restore_root", "fit_to_content",
-           "cascade_positions", "tile_rects"]
+           "cascade_positions", "tile_rects",
+           "parse_alpha", "focused_toplevel", "MIN_ALPHA"]
 
 GEOMETRY_KEY = "window_geometry_by_screen"
 _GEOM_RE = re.compile(
@@ -347,3 +348,57 @@ def apply_layout(snapshot, windows, min_w=40, min_h=20):
         return restored, missing
     except Exception:  # noqa: BLE001 — a restore never raises
         return [], []
+
+
+# ------------------------------------------------- v2.67.0 window layering
+
+MIN_ALPHA = 0.10         # a window ghosted below this is simply lost
+
+
+def parse_alpha(text):
+    """DS2 v2.67 — one ghost level, parsed honestly, pure. ``60`` and
+    ``60%`` and ``0.6`` all mean 60%; ``off`` / ``solid`` / ``full``
+    / ``1`` mean 100%; anything past the ends clamps into
+    ``[MIN_ALPHA, 1.0]`` (a window you cannot see is a window you
+    cannot close). Junk — empty, words, None — is None, and the
+    caller answers usage. Never raises."""
+    try:
+        if text is None:
+            return None
+        s = str(text).strip().lower()
+        if not s:
+            return None
+        if s in ("off", "solid", "full", "none", "1", "1.0", "1.00",
+                 "100", "100%"):
+            return 1.0
+        had_pct = s.endswith("%")
+        if had_pct:
+            s = s[:-1].strip()
+        val = float(s)
+        if val < 0:                  # a negative ghost is nonsense
+            return None
+        if had_pct or (val > 1.0 and float(val).is_integer()):
+            val = val / 100.0        # 60 and 60% are percents; a
+                                     # decimal like 1.5 is a fraction
+                                     # that clamps solid, not 1.5%
+        return round(min(1.0, max(MIN_ALPHA, val)), 3)
+    except Exception:  # noqa: BLE001 — junk in, None out
+        return None
+
+
+def focused_toplevel(widget, windows):
+    """DS2 v2.67 — which of ``windows`` holds the focus, pure
+    decision-making: the focused widget's toplevel ancestor is
+    identity-matched against the live windows. No focus (the desktop
+    has it), a widget outside the list, or junk → None. Never
+    raises."""
+    try:
+        if widget is None:
+            return None
+        top = widget.winfo_toplevel()
+        for w in list(windows):
+            if w is top or w is widget:
+                return w
+        return None
+    except Exception:  # noqa: BLE001 — a mark never raises
+        return None

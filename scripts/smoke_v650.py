@@ -164,7 +164,7 @@ check("`chip windows` posts the menu",
       menu is not None and bool(menu.winfo_exists()))
 hints = getattr(menu, "_ds2_hints", None)
 check("menu carries hint rows", isinstance(hints, dict) and
-      len(hints) == 4)
+      len(hints) == 6)
 check("hint keys name real command rows",
       hints and all(menu.type(i) == "command" for i in hints))
 check("first hint says alt-tab", "alt-tab" in list(hints.values())[0])
@@ -172,9 +172,10 @@ check("menu bound Motion for tooltips", bool(menu.bind("<Motion>")))
 check("tip closer armed", callable(getattr(menu, "_ds2_tip_close", None)))
 labels = [menu.entrycget(i, "label")
           for i in app._menu_command_rows(menu)]
-check("menu rows: list, cascade, tile, close-all",
+check("menu rows: list, cascade, tile, layouts, close-all",
       labels == ["List open windows", "Cascade windows",
-                 "Tile windows", "Close all transient"], )
+                 "Tile windows", "No layouts saved yet",
+                 "Save desk layout…", "Close all transient"], )
 check("registry knows wins", "wins" in app._chip_menu_registry())
 check("alias windows → wins",
       app._CHIP_MENU_ALIASES.get("windows") == "wins")

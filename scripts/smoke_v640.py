@@ -56,7 +56,7 @@ check("studio booted headless", root.winfo_exists())
 
 verbs_list = [r[0] for r in TERMINAL_HELP]
 check("TERMINAL_HELP knows tools windows",
-      "tools windows [raise|close <n|title>]" in verbs_list)
+      "tools windows [raise|close|ghost|pin <n|title>]" in verbs_list)
 
 _logs = []
 app.terminal.log = lambda m, *a, **k: _logs.append(str(m))

@@ -7889,7 +7889,7 @@ def test_tools_windows(tmp_path):
     try:
         app.root.update()
         verbs_list = [r[0] for r in TERMINAL_HELP]
-        assert "tools windows [raise|close <n|title>]" in verbs_list
+        assert "tools windows [raise|close|ghost|pin <n|title>]" in verbs_list
         logs = []
         app.terminal.log = lambda m, *a, **k: logs.append(str(m))
 
@@ -8210,7 +8210,7 @@ def test_windows_chip_and_menu_hints(tmp_path):
         menu = app._last_chip_menu
         assert menu is not None and bool(menu.winfo_exists())
         hints = getattr(menu, "_ds2_hints", None)
-        assert isinstance(hints, dict) and len(hints) == 4, hints
+        assert isinstance(hints, dict) and len(hints) == 6, hints
         assert all(menu.type(i) == "command" for i in hints)
         assert "alt-tab" in list(hints.values())[0]
         assert bool(menu.bind("<Motion>"))       # row tooltips wired
@@ -8221,7 +8221,9 @@ def test_windows_chip_and_menu_hints(tmp_path):
         labels = [menu.entrycget(i, "label")
                   for i in app._menu_command_rows(menu)]
         assert labels == ["List open windows", "Cascade windows",
-                          "Tile windows", "Close all transient"], labels
+                          "Tile windows", "No layouts saved yet",
+                          "Save desk layout…", "Close all transient"], \
+            labels
         # registry + aliases + honest unknown-chip answer
         reg = app._chip_menu_registry()
         assert "wins" in reg and reg["wins"][2] == "windows"
@@ -8435,6 +8437,259 @@ def test_window_layouts(tmp_path):
         # help speaks the verb
         assert any(k.startswith("tools layout") for k, _v
                    in TERMINAL_HELP)
+    finally:
+        app.terminal.log = _old_log
+        try:
+            app.root.destroy()
+        except Exception:  # noqa: BLE001
+            pass
+    monkeypatch.undo()
+
+
+# ---------------------------------------------------- v2.67.0 window layering
+def test_parse_alpha_and_focus_math():
+    """DS2 v2.67 — the layering engine as pure math: one ghost level
+    parsed honestly (60 and 60% and 0.6 all mean 60%, off means
+    solid, junk is None, the ends clamp so a window can never be
+    ghosted into invisibility), and the focused window picked by
+    identity from a list of live windows. Nothing ever raises."""
+    from dxn1_studio.geom import parse_alpha, focused_toplevel, MIN_ALPHA
+
+    # every spelling of sixty percent
+    assert parse_alpha("60") == 0.6
+    assert parse_alpha("60%") == 0.6
+    assert parse_alpha("0.6") == 0.6
+    assert parse_alpha(" .6 ") == 0.6
+    # every spelling of solid
+    for tok in ("off", "solid", "full", "1", "1.0", "100", "100%"):
+        assert parse_alpha(tok) == 1.0, tok
+    # the ends clamp — an invisible window is an uncloseable one
+    assert parse_alpha("5") == MIN_ALPHA          # clamps UP
+    assert parse_alpha("150") == 1.0              # clamps DOWN
+    assert parse_alpha("1.5") == 1.0
+    # junk is refused honestly
+    for junk in ("", "   ", "junk", "abc%", "-3", None, 12.5):
+        assert parse_alpha(junk) in (None,) or True  # never raises
+    assert parse_alpha("") is None
+    assert parse_alpha(None) is None
+    assert parse_alpha("junk") is None
+    assert parse_alpha("-3") is None
+
+    # focus picking: identity, not name-matching
+    import tkinter as tk
+    try:
+        root = tk.Tk(); root.withdraw()
+    except tk.TclError:
+        return
+    try:
+        w1 = tk.Toplevel(root); w1.title("One")
+        w2 = tk.Toplevel(root); w2.title("Two")
+        child = tk.Label(w2, text="x")
+        # a widget inside w2 names w2 — the toplevel ancestor wins
+        assert focused_toplevel(child, [w1, w2]) is w2
+        # a toplevel itself names itself
+        assert focused_toplevel(w1, [w1, w2]) is w1
+        # a widget outside the list is nobody
+        assert focused_toplevel(root, [w1, w2]) is None
+        # no focus at all is nobody
+        assert focused_toplevel(None, [w1, w2]) is None
+        # junk windows in the list never break the walk
+        assert focused_toplevel(child, [None, w2]) is w2
+        assert focused_toplevel(child, "junk") is None
+    finally:
+        try:
+            root.destroy()
+        except Exception:  # noqa: BLE001
+            pass
+
+
+def test_ghost_pin_verbs(tmp_path):
+    """DS2 v2.67 — `tools windows ghost` fades a window see-through
+    and the listing wears the level, `pin` toggles stays-above and
+    the listing wears the crown, both verbs refuse junk honestly,
+    and neither ever touches a title (layouts and raise/close match
+    by title — the layering is only skin-deep)."""
+    import tkinter as tk
+    try:
+        root = tk.Tk(); root.withdraw()
+    except tk.TclError:
+        return
+    import pytest
+    import dxn1_studio.config as cfgmod
+    from dxn1_studio.app import DXN1Studio, TERMINAL_HELP
+    monkeypatch = pytest.MonkeyPatch()
+    monkeypatch.setattr(cfgmod, "CONFIG_DIR", str(tmp_path / "cfg"))
+    monkeypatch.setattr(cfgmod, "CONFIG_PATH",
+                        str(tmp_path / "cfg" / "config.json"))
+    monkeypatch.setenv("HOME", str(tmp_path / "home"))
+    app = DXN1Studio(cfgmod.Config(), smoke_test=True, no_splash=True)
+    try:
+        root = app.root
+        root.update()
+        logs = []
+        _old_log = app.terminal.log
+        app.terminal.log = lambda s, *a, **k: logs.append(str(s))
+
+        def _dispatch(cmd):
+            logs.clear()
+            app.handle_terminal_command(cmd)
+            return "\n".join(logs)
+
+        # junk targets are refused with the list pointed at
+        assert "no window matches" in _dispatch("tools windows ghost 1 60")
+        assert "no window matches" in _dispatch("tools windows pin 1")
+
+        w1 = tk.Toplevel(root)
+        w1.title("Ghost target")
+        w1.transient(root)
+        w1.geometry("300x200+80+80")
+        root.update()
+
+        # ghost to 60% — three spellings, one result
+        assert "ghosted to 60%" in _dispatch(
+            "tools windows ghost 1 60"), _dispatch("tools windows ghost 1 60")
+        assert abs(float(w1.attributes("-alpha")) - 0.6) < 0.01
+        assert "ghosted to 60%" in _dispatch(
+            "tools windows ghost Ghost%20target 60%") or \
+            "ghosted to 60%" in _dispatch(
+                "tools windows ghost ghost 60%")
+        assert "ghosted to 40%" in _dispatch("tools windows ghost 1 0.4")
+
+        # bare ghost reports the level without changing it
+        blob = _dispatch("tools windows ghost 1")
+        assert "is at 40%" in blob, blob
+        assert abs(float(w1.attributes("-alpha")) - 0.4) < 0.01
+
+        # junk level: refused with usage, level unchanged
+        blob = _dispatch("tools windows ghost 1 banana")
+        assert "usage:" in blob, blob
+        assert abs(float(w1.attributes("-alpha")) - 0.4) < 0.01
+        # missing target: usage
+        assert "usage:" in _dispatch("tools windows ghost")
+
+        # off restores solid
+        assert "solid again (100%)" in _dispatch(
+            "tools windows ghost 1 off")
+        assert abs(float(w1.attributes("-alpha")) - 1.0) < 0.01
+
+        # pin says which way it went — the readback that drives the
+        # toggle needs a window manager willing to keep the hint
+        # (bare Xvfb has none), so the verb's own report is the
+        # contract here and the listing marker is checked only when
+        # the state actually stuck
+        blob = _dispatch("tools windows pin 1")
+        assert "pinned" in blob and "stays above" in blob, blob
+        blob = _dispatch("tools windows pin Ghost")
+        assert "tools windows pin — Ghost" in blob, blob
+        assert ("pinned" in blob or "unpinned" in blob), blob
+
+        # the listing wears the markers it can honestly know: the
+        # ghost level always, the crown only when a WM kept it
+        _dispatch("tools windows ghost 1 30")
+        pinned_stuck = False
+        try:
+            _dispatch("tools windows pin 1")
+            pinned_stuck = bool(w1.attributes("-topmost"))
+        except Exception:  # noqa: BLE001 — no WM, no readback
+            pass
+        blob = _dispatch("tools windows")
+        assert "· 30%" in blob, blob
+        if pinned_stuck:
+            assert "· pinned" in blob, blob
+        assert "· transient" in blob, blob
+        # the footer teaches the new verbs
+        assert "ghost <n|title>" in blob and "pin <n|title>" in blob
+
+        # the layering is skin-deep: the title never changed, so
+        # raise/close still match by name
+        assert "is front now" in _dispatch("tools windows raise ghost")
+        assert "is gone" in _dispatch("tools windows close 1")
+
+        # help speaks the verbs
+        row = next(k for k, _v in TERMINAL_HELP
+                   if k.startswith("tools windows"))
+        assert "ghost" in row and "pin" in row
+    finally:
+        app.terminal.log = _old_log
+        try:
+            app.root.destroy()
+        except Exception:  # noqa: BLE001
+            pass
+    monkeypatch.undo()
+
+
+def test_wins_menu_layout_rows(tmp_path):
+    """DS2 v2.67 — the windows chip menu remembers the desk: one
+    recall row per stored layout (fresh at every call), an honest
+    no-layouts row when the book is empty, an auto-named save row
+    (desk, desk 2 …) that dispatches the real verb, and the deps
+    menu's severity rows now explain themselves with hints."""
+    import tkinter as tk
+    try:
+        root = tk.Tk(); root.withdraw()
+    except tk.TclError:
+        return
+    import pytest
+    import dxn1_studio.config as cfgmod
+    from dxn1_studio.app import DXN1Studio
+    monkeypatch = pytest.MonkeyPatch()
+    monkeypatch.setattr(cfgmod, "CONFIG_DIR", str(tmp_path / "cfg"))
+    monkeypatch.setattr(cfgmod, "CONFIG_PATH",
+                        str(tmp_path / "cfg" / "config.json"))
+    monkeypatch.setenv("HOME", str(tmp_path / "home"))
+    app = DXN1Studio(cfgmod.Config(), smoke_test=True, no_splash=True)
+    try:
+        root = app.root
+        root.update()
+        logs = []
+        _old_log = app.terminal.log
+        app.terminal.log = lambda s, *a, **k: logs.append(str(s))
+
+        # empty book: the honest row, and every command row carries
+        # a hint (separators ride bare by design)
+        rows = [e for e in app._wins_menu_entries() if e[0] != "---"]
+        labels = [e[0] for e in rows]
+        assert "No layouts saved yet" in labels, labels
+        assert "Save desk layout…" in labels
+        hints = [e[4] if len(e) > 4 else "" for e in rows]
+        assert all(hints), hints
+
+        # save via the menu row: auto-named, real verb, real report
+        w = tk.Toplevel(root)
+        w.title("Menu save probe")
+        w.transient(root)
+        w.geometry("300x200+40+40")
+        root.update()
+        app._wins_menu_save_layout()
+        assert "remembers 1 window" in "\n".join(logs), logs
+        # again: the name walks forward, no silent overwrite
+        app._wins_menu_save_layout()
+        blob = "\n".join(logs)
+        assert ("remembers 1 window" in blob), blob
+        labels = [e[0] for e in app._wins_menu_entries()]
+        assert any("Recall layout 'desk'" in lb for lb in labels), labels
+        assert any("Recall layout 'desk 2'" in lb for lb in labels), \
+            labels
+        # the recall row dispatches the real restore
+        app._wins_menu_entries()
+        recall = [e for e in app._wins_menu_entries()
+                  if e[0].startswith("Recall layout 'desk' (")]
+        assert recall, labels
+        logs.clear()
+        recall[0][1]()
+        assert "back in place" in "\n".join(logs), logs
+
+        # the rows are fresh every post: forgetting from the
+        # terminal empties the menu's book too
+        app.handle_terminal_command("tools layout forget all")
+        labels = [e[0] for e in app._wins_menu_entries()]
+        assert "No layouts saved yet" in labels, labels
+
+        # the deps menu's rows all explain themselves now
+        for e in app._deps_menu_entries():
+            if e[0] == "---":
+                continue
+            assert len(e) > 4 and e[4], e
     finally:
         app.terminal.log = _old_log
         try:

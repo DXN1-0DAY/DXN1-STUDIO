@@ -71,9 +71,10 @@ TERMINAL_HELP = (
     ("verbs", "browse every terminal verb in a window"),
     ("todo", "scan the workspace for TODO / FIXME"),
     ("tools", "developer tools: regex, JSON, text, time"),
-    ("tools windows [raise|close <n|title>]", "the studio's open "
-     "tool windows — list them numbered, raise one, close one, or "
-     "close every transient one at once"),
+    ("tools windows [raise|close|ghost|pin <n|title>]", "the "
+     "studio's open tool windows — list them numbered, raise one, "
+     "close one, ghost one see-through (60 or 60% or off), or pin "
+     "one above the pile, or close every transient one at once"),
     ("tools cascade | tile", "tidy every open tool window — "
      "cascade stacks them title-bar by title-bar, tile deals them "
      "into a screen-filling grid"),
@@ -3439,6 +3440,92 @@ class DXN1Studio:
                 return [w for w in wins
                         if low_t in w.title().lower()] if text else []
 
+            if sub.startswith("ghost") or sub.startswith("pin"):
+                # DS2 v2.67 — the layering verbs. `ghost <n|title>
+                # <level|off>` fades a window see-through (60 and 60%
+                # and 0.6 all mean 60%, off restores solid) so a
+                # cheat-sheet can float over the editor without
+                # hiding it; bare `ghost <n|title>` reports the
+                # current level. `pin <n|title>` toggles
+                # stays-above-everything for a window you keep
+                # glancing at. Neither verb ever touches a title —
+                # layouts and raise/close match by title, so the
+                # layering is only ever skin-deep.
+                action, _, rest = sub.partition(" ")
+                rest = rest.strip()
+                if not rest:
+                    self.terminal.log(
+                        "usage: tools windows %s <n|title>%s — see "
+                        "`tools windows` for the open list"
+                        % (action, " <level|off>"
+                           if action == "ghost" else ""))
+                    return
+                target, _, level_txt = rest.partition(" ")
+                level_txt = level_txt.strip()
+                hits = _match(target if action == "ghost" else rest)
+                if not hits:
+                    self.terminal.log(
+                        "tools windows %s — no window matches '%s' "
+                        "(see `tools windows` for the open list)"
+                        % (action, target if action == "ghost"
+                           else rest))
+                    return
+                if len(hits) > 1:
+                    self.terminal.log(
+                        "tools windows %s — '%s' matches %d windows, "
+                        "name one: %s"
+                        % (action, target if action == "ghost"
+                           else rest, len(hits),
+                           " | ".join("%s" % w.title()
+                                      for w in hits[:4])))
+                    return
+                w = hits[0]
+                try:
+                    title = w.title()
+                    if action == "pin":
+                        was = bool(w.attributes("-topmost"))
+                        w.attributes("-topmost", not was)
+                        self.root.update()
+                        self.terminal.log(
+                            "tools windows pin — %s %s"
+                            % (title, "pinned — stays above the pile"
+                               if not was else
+                               "unpinned — stacks normally again"))
+                        return
+                    # ghost
+                    if not level_txt:
+                        try:
+                            cur = float(w.attributes("-alpha"))
+                        except Exception:  # noqa: BLE001 — no alpha
+                            cur = 1.0
+                        self.terminal.log(
+                            "tools windows ghost — %s is at %d%% "
+                            "(solid again with: tools windows ghost "
+                            "%s off)" % (title, round(cur * 100),
+                                         target))
+                        return
+                    from .geom import parse_alpha, MIN_ALPHA
+                    alpha = parse_alpha(level_txt)
+                    if alpha is None:
+                        self.terminal.log(
+                            "usage: tools windows ghost <n|title> "
+                            "<level|off> — 60, 60%% and 0.6 all mean "
+                            "60%%; off makes it solid again (levels "
+                            "below %d%% clamp up — an invisible "
+                            "window is an uncloseable one)"
+                            % round(MIN_ALPHA * 100))
+                        return
+                    w.attributes("-alpha", alpha)
+                    self.root.update()
+                    self.terminal.log(
+                        "tools windows ghost — %s %s"
+                        % (title, "is solid again (100%)"
+                           if alpha >= 1.0 else
+                           "ghosted to %d%%" % round(alpha * 100)))
+                except Exception as exc:  # noqa: BLE001
+                    self.terminal.log("tools windows %s failed: %s"
+                                      % (action, exc))
+                return
             if sub.startswith("raise") or sub.startswith("close"):
                 action, _, rest = sub.partition(" ")
                 if action == "close" and rest.strip().lower() == "all":
@@ -3504,18 +3591,38 @@ class DXN1Studio:
                 return
             self.terminal.log("tools windows — %d open"
                               % len(wins))
+            focused = None
+            try:      # v2.67 — mark the window that holds the focus
+                from .geom import focused_toplevel
+                focused = focused_toplevel(self.root.focus_get(), wins)
+            except Exception:  # noqa: BLE001 — the mark is garnish
+                focused = None
             for i, w in enumerate(wins, 1):
                 try:
                     line = ("  %d · %s · %s" % (i, w.title(),
                                                 w.winfo_geometry()))
                     if w.transient():
                         line += " · transient"
+                    try:    # v2.67 — ghosted windows show their level
+                        a = float(w.attributes("-alpha"))
+                        if a < 0.995:
+                            line += " · %d%%" % round(a * 100)
+                    except Exception:  # noqa: BLE001 — no alpha here
+                        pass
+                    try:    # v2.67 — pinned windows wear their crown
+                        if bool(w.attributes("-topmost")):
+                            line += " · pinned"
+                    except Exception:  # noqa: BLE001 — garnish
+                        pass
+                    if w is focused:
+                        line += " · focused"
                     self.terminal.log(line)
                 except Exception:  # noqa: BLE001 — a dead window
                     self.terminal.log("  %d · (window went away)" % i)
             self.terminal.log(
                 "(tools windows raise <n|title> · close <n|title> · "
-                "close all — transient windows only · tools cascade · "
+                "close all — transient windows only · ghost <n|title> "
+                "<60|60%|off> · pin <n|title> · tools cascade · "
                 "tools tile · tools layout save <name>)")
             return
         if low == "tools cascade":
@@ -6329,28 +6436,45 @@ class DXN1Studio:
         red = state == "cached" and missing_n > 0
         amber = state == "stale"
         err_c, amber_c = "#f85149", "#f59e0b"   # the chip's own palette
+        # v2.67 — every row explains itself on hover: the severity
+        # colors say hurry, the hints say why and what happens next.
         entries = [("Rescan deps",
                     lambda: (self._run_depcheck(),
                              self._update_depswatch(force=True)),
-                    "", amber_c if amber and not red else None)]
+                    "", amber_c if amber and not red else None,
+                    "re-check the workspace's imports against the "
+                    "installed packages (cached scan, quick)")]
         if red:
             entries.append(("Queue deps fix (%d missing)" % missing_n,
-                            self._deps_queue_fix, "", err_c))
+                            self._deps_queue_fix, "", err_c,
+                            "hand every missing import to the fix "
+                            "queue — it installs while you keep "
+                            "working"))
             # DS2 v2.53 — the repair row's quiet helper: a ready
             # ``pip install`` line for every missing import, pins via
             # depcheck.suggested_pins (PIL becomes pillow). A menu row
             # that hands you the fix, not just the diagnosis.
             entries.append(("Copy pip install command",
-                            self._deps_copy_install))
+                            self._deps_copy_install, "", None,
+                            "a ready pip line for every missing "
+                            "import, straight onto the clipboard"))
         entries.append(("Fresh rescan (bypass cache)",
                         lambda: (self._run_depcheck(force=True),
                                  self._update_depswatch(force=True)),
                         "", err_c if red else
-                        (amber_c if amber else None)))
+                        (amber_c if amber else None),
+                        "ignore the cached report and scan for real "
+                        "— slower, but the truth"))
         entries.append(("---", None))
-        entries.append(("Deps watch on/off", self._deps_watch_toggle))
+        entries.append(("Deps watch on/off", self._deps_watch_toggle,
+                        "", None,
+                        "watch imports while you type and light the "
+                        "chip the moment one goes missing"))
         entries.append(("Rescan chip",
-                        lambda: self._update_depswatch(force=True)))
+                        lambda: self._update_depswatch(force=True),
+                        "", None,
+                        "redraw the chip from the last report — no "
+                        "new scan, just the verdict"))
         return entries
 
     def _deps_chip_menu(self, event=None):
@@ -7154,25 +7278,84 @@ class DXN1Studio:
         listing, the two tidy verbs and the guarded close-all. Rows
         are ``(label, command, accel, color, hint)`` — the hint is
         the row-tooltip the menu shows on hover. Pure data, rendered
-        by the shared `_render_chip_menu`."""
-        return [("List open windows",
-                 lambda: self.handle_terminal_command("tools windows"),
-                 "", "", "numbered, honest geometry — alt-tab, "
-                         "but written down"),
-                ("Cascade windows",
-                 lambda: self.handle_terminal_command("tools cascade"),
-                 "", "", "stack from the top-left, 28px apart, "
-                         "sizes kept"),
-                ("Tile windows",
-                 lambda: self.handle_terminal_command("tools tile"),
-                 "", "", "a screen-filling grid, nothing hides "
-                         "behind nothing"),
-                ("---", None),
-                ("Close all transient",
+        by the shared `_render_chip_menu`.
+        v2.67 — the menu remembers the desk: a ``Save desk layout…``
+        row (auto-named desk, desk 2, desk 3 — the verb's own report
+        says which name landed) and one recall row per remembered
+        layout, fresh from the config store at every post, so saving
+        a layout never needs the terminal at all."""
+        entries = [("List open windows",
+                    lambda: self.handle_terminal_command(
+                        "tools windows"),
+                    "", "", "numbered, honest geometry — alt-tab, "
+                            "but written down"),
+                   ("Cascade windows",
+                    lambda: self.handle_terminal_command(
+                        "tools cascade"),
+                    "", "", "stack from the top-left, 28px apart, "
+                            "sizes kept"),
+                   ("Tile windows",
+                    lambda: self.handle_terminal_command("tools tile"),
+                    "", "", "a screen-filling grid, nothing hides "
+                            "behind nothing"),
+                   ("---", None)]
+        # v2.67 — the layouts section, read fresh at every post
+        try:
+            from .geom import LAYOUTS_KEY
+            store = dict(self.config.get(LAYOUTS_KEY) or {})
+        except Exception:  # noqa: BLE001 — the menu still opens
+            store = {}
+        if store:
+            for nm, snap in store.items():
+                try:
+                    n = len(snap or [])
+                except Exception:  # noqa: BLE001 — junk snapshot
+                    n = 0
+                entries.append(
+                    ("Recall layout '%s' (%d window%s)"
+                     % (nm, n, "" if n == 1 else "s"),
+                     lambda nm=nm: self.handle_terminal_command(
+                         "tools layout %s" % nm),
+                     "", "", "put every window it remembers back "
+                             "where you left it"))
+        else:
+            entries.append(
+                ("No layouts saved yet",
                  lambda: self.handle_terminal_command(
-                     "tools windows close all"),
-                 "", "", "destroys only tool windows — anything "
-                         "docked or rooted is spared")]
+                     "tools layout list"),
+                 "", "", "arrange your tool windows, then save one "
+                         "here — the terminal can do it with: tools "
+                         "layout save <name>"))
+        entries.append(("Save desk layout…", self._wins_menu_save_layout,
+                        "", "", "snapshots every open window's place "
+                                "under a fresh name — desk, desk 2, "
+                                "desk 3 — and tells you which"))
+        entries.append(("---", None))
+        entries.append(("Close all transient",
+                        lambda: self.handle_terminal_command(
+                            "tools windows close all"),
+                        "", "", "destroys only tool windows — anything "
+                                "docked or rooted is spared"))
+        return entries
+
+    def _wins_menu_save_layout(self):
+        """DS2 v2.67 — the chip menu's save row: snapshots the desk
+        under the next free auto name (desk, desk 2, desk 3 …) by
+        dispatching the real `tools layout save <name>` verb, whose
+        honest report names what was remembered. Never raises."""
+        try:
+            from .geom import LAYOUTS_KEY
+            store = dict(self.config.get(LAYOUTS_KEY) or {})
+        except Exception:  # noqa: BLE001 — a fresh name still works
+            store = {}
+        name, n = "desk", 1
+        while name in store:
+            n += 1
+            name = "desk %d" % n
+        try:
+            self.handle_terminal_command("tools layout save %s" % name)
+        except Exception:  # noqa: BLE001 — best-effort save
+            self.terminal.log("tools layout save failed")
 
     def _wins_chip_menu(self, event=None):
         """DS2 v2.65 — right-click the open-windows chip: list,

@@ -4,6 +4,36 @@ All notable changes to DXN1 STUDIO. Format based on
 [Keep a Changelog](https://keepachangelog.com/); versioning is
 `MAJOR.MINOR.PATCH` while in **beta**.
 
+## [2.67.0] — 2026-09-15 · beta · "the desk sees through walls" (window layering: ghost, pin, focus marks, and a chip menu that recalls the desk)
+
+### Added
+- **`tools windows ghost <n|title> <level|off>` · `pin <n|title>`**
+  — the layering verbs: `ghost` fades a tool window see-through
+  (60, 60% and 0.6 all mean 60%, off/solid/full restore 100%, the
+  ends clamp so a window can never be ghosted invisible), bare
+  `ghost` reports the level without touching it, and `pin` toggles
+  stays-above-everything; neither verb ever touches a title, so
+  layouts and raise/close keep matching by name — the layering is
+  only skin-deep
+- **Listing markers** — the `tools windows` report wears what it
+  can honestly know: `· NN%` for a ghosted window, `· pinned` when
+  the window manager kept the crown, `· focused` for the window
+  holding the keyboard (`geom.focused_toplevel` picks it by
+  identity, junk-tolerant)
+- **The windows chip menu remembers the desk** — one recall row per
+  remembered layout read fresh at every post, an honest "No layouts
+  saved yet" row when the book is empty, and a `Save desk layout…`
+  row that snapshots under the next free auto name (desk, desk 2,
+  desk 3 …) by dispatching the real verb; saving and recalling a
+  desk never needs the terminal
+- **The deps rows explain themselves** — every severity-colored
+  chip-menu row carries a hover hint saying why and what happens
+  next, from the fix queue to the cache-bypassing truth
+
+### Changed
+- `smoke_v660`'s version check made future-proof (the version must
+  sit on top of the CHANGELOG, not be pinned to 2.66.0)
+
 ## [2.66.0] — 2026-09-15 · beta · "the window manager remembers" (named tool-window layouts: save, recall, list, forget)
 
 ### Added
