@@ -552,5 +552,109 @@ class TestWebBridge(unittest.TestCase):
         self.assertTrue(body["queued"])
 
 
+class TestSnippetsEndpoint(unittest.TestCase):
+    """GET /api/snippets — the shared registry for both faces."""
+
+    @classmethod
+    def setUpClass(cls):
+        import tempfile
+        import tkinter as tk
+        try:
+            cls.root = tk.Tk()
+        except Exception:
+            raise unittest.SkipTest("no display available")
+        cls.root.withdraw()
+        cls.app = _make_app()
+        cls.ws = tempfile.mkdtemp(prefix="dxn1-snippets-")
+        cls.app.project_dir = cls.ws
+        cls.server, cls.url, cls.token = wb.start_bridge(cls.app)
+        cls.base = cls.url
+
+    @classmethod
+    def tearDownClass(cls):
+        import shutil
+        try:
+            cls.server.shutdown()
+        except Exception:
+            pass
+        try:
+            cls.app.root.destroy()
+        except Exception:
+            pass
+        try:
+            cls.root.destroy()
+        except Exception:
+            pass
+        shutil.rmtree(getattr(cls, "ws", ""), ignore_errors=True)
+
+    def get(self, path):
+        req = urllib.request.Request(self.base + path)
+        req.add_header("X-DXN1-Token", self.token)
+        try:
+            with urllib.request.urlopen(req, timeout=5) as r:
+                return r.status, json.loads(r.read().decode("utf-8"))
+        except urllib.error.HTTPError as exc:
+            return exc.code, json.loads(exc.read().decode("utf-8"))
+
+    def test_token_required(self):
+        req = urllib.request.Request(self.base + "/api/snippets?lang=py")
+        try:
+            with urllib.request.urlopen(req, timeout=5) as r:
+                code = r.status
+        except urllib.error.HTTPError as exc:
+            code = exc.code
+        self.assertEqual(code, 401)
+
+    def test_python_pack_served(self):
+        status, body = self.get("/api/snippets?lang=py")
+        self.assertEqual(status, 200)
+        self.assertTrue(body["ok"])
+        self.assertEqual(body["lang"], "python")
+        self.assertGreaterEqual(body["count"], 4)
+        prefixes = {s["prefix"] for s in body["snippets"]}
+        self.assertIn("def", prefixes)
+        for s in body["snippets"]:
+            self.assertIn("prefix", s)
+            self.assertIn("body", s)
+        self.assertTrue(any(s["body"].startswith("def ") for s
+                            in body["snippets"]))
+
+    def test_short_and_long_lang_names_agree(self):
+        _, short = self.get("/api/snippets?lang=js")
+        _, long = self.get("/api/snippets?lang=javascript")
+        self.assertEqual(short["lang"], "javascript")
+        self.assertEqual(short["snippets"], long["snippets"])
+        self.assertTrue(any(s["prefix"] == "fn" for s
+                            in short["snippets"]))
+
+    def test_unknown_lang_is_empty_not_error(self):
+        status, body = self.get("/api/snippets?lang=klingon")
+        self.assertEqual(status, 200)
+        self.assertTrue(body["ok"])
+        self.assertEqual(body["count"], 0)
+        self.assertEqual(body["snippets"], [])
+
+    def test_user_overrides_shadow_builtins(self):
+        import tempfile
+        from unittest import mock
+        from dxn1_studio import snippets2
+        userfile = tempfile.mktemp(prefix="dxn1-user-snips-",
+                                   suffix=".json")
+        with open(userfile, "w", encoding="utf-8") as fh:
+            json.dump({"python": {"def": "CUSTOM BODY",
+                                  "mine": "own(${x})"}}, fh)
+        try:
+            with mock.patch.object(snippets2, "STORE_PATH", userfile):
+                status, body = self.get("/api/snippets?lang=py")
+            self.assertEqual(status, 200)
+            packs = {s["prefix"]: s["body"] for s in body["snippets"]}
+            self.assertEqual(packs["def"], "CUSTOM BODY")
+            self.assertEqual(packs["mine"], "own(${x})")
+            # builtins not overridden survive untouched
+            self.assertIn("class", packs)
+        finally:
+            os.remove(userfile)
+
+
 if __name__ == "__main__":
     unittest.main()

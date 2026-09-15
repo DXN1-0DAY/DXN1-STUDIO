@@ -232,6 +232,41 @@ class BridgeState:
                     return out
         return out
 
+    _SNIP_LANGS = {"py": "python", "python": "python",
+                   "js": "javascript", "javascript": "javascript",
+                   "ts": "javascript", "jsx": "javascript",
+                   "tsx": "javascript",
+                   "html": "html", "htm": "html",
+                   "md": "markdown", "markdown": "markdown",
+                   "css": "css", "json": "json"}
+
+    def snippets(self, lang):
+        """Snippet pack for the web editor (GET /api/snippets).
+
+        Reuses the Tk-side brain (snippets2): same built-in packs,
+        same ~/.dxn1-studio/snippets.json user overrides — both faces
+        share one registry, so a snippet added on the desktop shows up
+        in the browser and vice versa. Unknown languages answer an
+        empty pack (ok:true) — the renderer treats that as "no
+        snippets", never as a failure.
+        """
+        norm = self._SNIP_LANGS.get((lang or "").lower())
+        if not norm:
+            return {"ok": True, "lang": lang or "", "count": 0,
+                    "snippets": []}
+        from . import snippets2
+        pack = dict(snippets2.default_pack(norm))
+        try:
+            user = snippets2.SnippetEngine._load_user()
+            if isinstance(user, dict):
+                pack.update(user.get(norm, {}))
+        except Exception:  # noqa: BLE001 — user file must never 500
+            pass
+        ordered = [{"prefix": p, "body": b}
+                   for p, b in sorted(pack.items())]
+        return {"ok": True, "lang": norm, "count": len(ordered),
+                "snippets": ordered}
+
     # ---- mutations (scheduled on the Tk loop) ------------------------
     def command(self, index):
         try:
@@ -635,6 +670,9 @@ class _Handler(BaseHTTPRequestHandler):
             self._send_json({"ok": True, "tree": self.state.tree()})
         elif route == "/api/files":
             self._send_json({"ok": True, "files": self.state.files()})
+        elif route == "/api/snippets":
+            self._send_json(
+                self.state.snippets((q.get("lang") or [""])[0]))
         elif route == "/api/diff":
             payload, err = self.state.git_diff()
             self._send_json(

@@ -15,8 +15,11 @@ from dxn1_studio import webridge as wb  # noqa: E402
 
 def main():
     port = int(sys.argv[1]) if len(sys.argv) > 1 else 8791
+    # optional second arg: workspace dir (QA against a throwaway
+    # workspace instead of the repo root — keeps the tree clean)
+    ws = sys.argv[2] if len(sys.argv) > 2 else "."
     app = DXN1Studio(cfgmod.Config(), smoke_test=True, no_splash=True)
-    app.project_dir = "."
+    app.project_dir = ws
     server, url, token = wb.start_bridge(app, host="127.0.0.1",
                                          port=port)
     print(f"URL: {url}/?token={token}", flush=True)

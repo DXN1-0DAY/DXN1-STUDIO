@@ -302,6 +302,7 @@ async function openFile(path, quiet = false) {
   renderTabs();
   updatePos();
   renderMinimap();
+  loadSnippets();   // wave 10 — pack for the new language (cached)
   restoreScrollFor(currentFile);   // wave 7 — the scroll comes back
   localStorage.setItem("dxn1_last_file", currentFile);
   // tell the Tk side too — the file joins _buffers, so the tab bar
@@ -486,9 +487,106 @@ const WEB_CMDS = [
                  pref("zen", v); applyZen(v); } },
 ];
 
+/* ---------- snippets (wave 10) — same brain as the desktop ------
+   The bridge serves snippets2's packs (builtins + the shared
+   ~/.dxn1-studio/snippets.json). Expansion happens LOCALLY: Tab is
+   zero-latency and works even if the bridge blinks mid-keystroke. */
+let SNIPS = null, SNIPS_LANG = null, SNIP_CMDS = [];
+let BASE_CMDS = WEB_CMDS;
+
+async function loadSnippets() {
+  const lang = currentFile ? langFor(currentFile) : null;
+  if (!lang || lang === SNIPS_LANG) return;
+  try {
+    const r = await (await api("/api/snippets?lang=" +
+      encodeURIComponent(lang))).json();
+    if (r.ok) { SNIPS = r.snippets || []; SNIPS_LANG = lang;
+                buildSnippetCmds(); }
+  } catch (e) { /* bridge offline — Tab still indents normally */ }
+}
+
+function snipBuiltin(name) {
+  const d = new Date();
+  if (name === "DATE") return d.toISOString().slice(0, 10);
+  if (name === "TIME")
+    return String(d.getHours()).padStart(2, "0") + ":" +
+           String(d.getMinutes()).padStart(2, "0");
+  if (name === "FILENAME")
+    return currentFile ? currentFile.split("/").pop() : "untitled";
+  return "";   // CLIPBOARD needs clipboard-read permission — honest empty
+}
+
+// ${name:default} · ${name} · ${N} · $N · $$ — mirrors snippets2's
+// TOKEN_RE. Returns {text, stops:[{s,e}]} with stops in appearance
+// order; the caret lands on the first (typing replaces its default).
+function snipExpand(body, indent) {
+  const prepared = indent
+    ? body.split("\n").map((l, ix) => ix && l ? indent + l : l)
+          .join("\n")
+    : body;
+  let text = ""; const stops = [];
+  for (let i = 0; i < prepared.length; ) {
+    if (prepared[i] === "$") {
+      const rest = prepared.slice(i);
+      if (rest[1] === "$") { text += "$"; i += 2; continue; }
+      let m = /^\$\{([A-Za-z_]\w*)(?::([^}\n]*))?\}/.exec(rest);
+      if (m) {
+        const def = m[2] !== undefined ? m[2] : m[1];
+        if (def) stops.push({ s: text.length, e: text.length + def.length });
+        text += def; i += m[0].length; continue;
+      }
+      m = /^\$\{(\d+)\}/.exec(rest) || /^\$(\d)/.exec(rest);
+      if (m) { stops.push({ s: text.length, e: text.length });
+               i += m[0].length; continue; }
+      const bv = /^(FILENAME|DATE|TIME|CLIPBOARD)/.exec(rest);
+      if (bv) { const v = snipBuiltin(bv[1]); text += v;
+                i += bv[0].length; continue; }
+    }
+    text += prepared[i]; i++;
+  }
+  return { text, stops };
+}
+
+function insertSnippet(ta, prefix, body) {
+  const s = ta.selectionStart, en = ta.selectionEnd;
+  const before = ta.value.slice(0, s);
+  const lineStart = before.lastIndexOf("\n") + 1;
+  const indent = (/^[ \t]*/.exec(before.slice(lineStart)) || [""])[0];
+  const { text, stops } = snipExpand(body, indent);
+  const base = s - prefix.length;
+  ta.value = before.slice(0, base) + text + ta.value.slice(en);
+  if (stops.length) {
+    ta.selectionStart = base + stops[0].s;
+    ta.selectionEnd = base + stops[0].e;
+  } else {
+    ta.selectionStart = ta.selectionEnd = base + text.length;
+  }
+  dirtyLocal = true; renderHighlight(); renderGutter(); updatePos();
+  renderMinimap();
+  toast("✂ " + (prefix || "snippet"));
+}
+
+function snipFromPalette(prefix, body) {
+  if (!currentFile) return toast("Open a file first");
+  const ta = $("editor");
+  ta.focus();
+  insertSnippet(ta, "", body);   // nothing to strip — insert at caret
+}
+
+function buildSnippetCmds() {
+  SNIP_CMDS = (SNIPS || []).map((s, ix) => ({
+    index: -1000 - ix, web: true,
+    label: "Snippet: " + s.prefix + "  →  " +
+      (s.body.split("\n")[0] || "").slice(0, 42),
+    run: () => snipFromPalette(s.prefix, s.body),
+  }));
+  CMDS = BASE_CMDS.concat(SNIP_CMDS);
+}
+
 async function loadCommands() {
   const r = await (await api("/api/commands")).json();
-  CMDS = r.ok ? r.commands.concat(WEB_CMDS) : WEB_CMDS;
+  BASE_CMDS = r.ok ? r.commands.concat(WEB_CMDS) : WEB_CMDS;
+  CMDS = BASE_CMDS.concat(SNIP_CMDS);
 }
 
 function palRender(q) {
@@ -567,9 +665,13 @@ window.addEventListener("mouseup", () => { miniScrubbing = false; });
 window.addEventListener("resize", renderMinimap);
 $("editor").addEventListener("keydown", (e) => {
   if ((e.ctrlKey || e.metaKey) && e.key === "s") { e.preventDefault(); saveFile(); }
-  if (e.key === "Tab") {  // real tabs in the editor
+  if (e.key === "Tab") {  // snippet first, real indent otherwise
     e.preventDefault();
     const ta = e.target, s = ta.selectionStart, en = ta.selectionEnd;
+    const wm = SNIPS && s === en
+      ? /([A-Za-z_]\w*)$/.exec(ta.value.slice(0, s)) : null;
+    const snip = wm && SNIPS.find(x => x.prefix === wm[1]);
+    if (snip) { insertSnippet(ta, wm[1], snip.body); return; }
     ta.value = ta.value.slice(0, s) + "    " + ta.value.slice(en);
     ta.selectionStart = ta.selectionEnd = s + 4;
     dirtyLocal = true; renderHighlight(); renderGutter();

@@ -6417,8 +6417,9 @@ class DXN1Studio:
                  font=(FONT_UI, 14, "bold")).pack(pady=(10, 0))
         tk.Label(box, text=APP_TAGLINE, bg=t["bg"],
                  fg=t["text_secondary"], font=(FONT_UI, 10)).pack()
-        tk.Label(box, text="Pure Python core · Tkinter desktop · "
-                           "Electron + Web UI path (best of both).",
+        tk.Label(box, text="One Python brain · two faces: the Tk "
+                           "desktop and the Electron/browser studio "
+                           "over the same bridge.",
                  bg=t["bg"], fg=t["text_muted"], font=(FONT_UI, 9)
                  ).pack(pady=(12, 0))
         link = tk.Label(box, text=REPO_URL, bg=t["bg"], fg=t.accent,

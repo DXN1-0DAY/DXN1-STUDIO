@@ -1,7 +1,7 @@
 {
   "name": "dxn1-studio-shell",
   "productName": "DXN1 STUDIO",
-  "version": "2.71.10",
+  "version": "2.71.11",
   "description": "Electron shell for DXN1 STUDIO — the window around the Python brain.",
   "main": "main.js",
   "private": true,

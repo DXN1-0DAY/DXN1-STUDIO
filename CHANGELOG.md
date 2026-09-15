@@ -4,6 +4,50 @@ All notable changes to DXN1 STUDIO. Format based on
 [Keep a Changelog](https://keepachangelog.com/); versioning is
 `MAJOR.MINOR.PATCH` while in **beta**.
 
+## [2.71.11] — 2026-09-15 · beta · "snippets in the web editor"
+
+### Added
+- **Tab-expansion snippets in the web editor** — type `def`, `for`,
+  `main`, `try`, `with`, `class` + Tab in a `.py` buffer (or `fn`,
+  `arrow`, `log`, `forof`, `fetch` in `.js`) and the skeleton appears
+  with the caret on the first placeholder, its default text selected:
+  one keystroke replaces it. The same brain as the desktop
+  (`snippets2`): identical built-in packs, and the same
+  `~/.dxn1-studio/snippets.json` user overrides — a snippet added on
+  the Tk side works in the browser the moment it is saved.
+- `GET /api/snippets?lang=py|js|javascript|html|md|css` on the
+  bridge — serves the merged pack (builtins + user). Unknown
+  languages answer an empty pack, never an error.
+- **Snippet palette entries** — every snippet in the active
+  language's pack appears in the command palette as
+  `Snippet: <prefix> → <first line>`; running one inserts it at the
+  caret (with an honest "Open a file first" toast when none is).
+- **Indent-aware expansion** — expanding `for` while indented four
+  spaces produces the body indented eight; empty continuation lines
+  stay clean (no trailing-whitespace wart). `$$`, `$N` tabstops,
+  `${name:default}` and `$DATE`/`$TIME`/`$FILENAME` builtins all
+  render; expansion happens locally in the renderer, so Tab stays
+  zero-latency even if the bridge blinks.
+- Plain Tab (no snippet prefix) still indents four spaces — the
+  fallback path is pinned by the same browser QA that proved the
+  expansion.
+
+### Changed
+- `scripts/webui_preview.py` takes an optional workspace directory —
+  visual QA now runs against throwaway workspaces instead of the
+  repo root (no more scratch files dirtying the tree).
+- About dialog copy names the architecture plainly: one Python
+  brain, two faces (Tk desktop + Electron/browser studio) over the
+  same bridge.
+
+### Tested
+- 5 new bridge tests (token guard, python pack shape, short/long
+  language names agree, unknown-language emptiness, user overrides
+  shadowing built-ins) — suite 181 → 186 green.
+- Live browser QA: `def`+Tab → `def func(args):` with `func`
+  selected; indented `for`+Tab → doubly-indented body; plain Tab
+  fallback; six palette entries listed with previews.
+
 ## [2.71.10] — 2026-09-15 · beta · "power tools for the web editor"
 
 ### Added
