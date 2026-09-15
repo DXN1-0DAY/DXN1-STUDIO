@@ -77,6 +77,9 @@ TERMINAL_HELP = (
     ("tools cascade | tile", "tidy every open tool window — "
      "cascade stacks them title-bar by title-bar, tile deals them "
      "into a screen-filling grid"),
+    ("tools layout <name>", "the window manager's memory — save "
+     "every open tool window's place under a name, recall it "
+     "later (save <name> · <name> · list · forget <name|all>)"),
     ("cron <expr>", "decode a cron schedule + next runs"),
     ("readability", "reading level of the current file"),
     ("jwt <token>", "decode a JWT — header, payload, exp"),
@@ -3513,7 +3516,7 @@ class DXN1Studio:
             self.terminal.log(
                 "(tools windows raise <n|title> · close <n|title> · "
                 "close all — transient windows only · tools cascade · "
-                "tools tile)")
+                "tools tile · tools layout save <name>)")
             return
         if low == "tools cascade":
             # DS2 v2.65 — the window manager learns to tidy. Cascade
@@ -3614,6 +3617,168 @@ class DXN1Studio:
                                  cols, rows))
             except Exception as exc:  # noqa: BLE001
                 self.terminal.log("tools tile failed: %s" % exc)
+            return
+        if low == "tools layout" or low.startswith("tools layout "):
+            # DS2 v2.66 — the window manager's memory: arrange the
+            # desk once, recall it forever. `tools layout save
+            # <name>` snapshots every open tool window's title and
+            # geometry into the config store (same name overwrites
+            # — arranging twice is an update, not an error, oldest
+            # layouts fall off past 12). `tools layout <name>` (or
+            # `restore <name>`) hands each saved geometry back to
+            # the live window whose title matches it exactly or as
+            # a substring — layouts arrange what EXISTS, so a saved
+            # window that is not open is reported missing with its
+            # name, never conjured. `tools layout list` shows what
+            # is remembered; `tools layout forget <name>` removes
+            # one, `forget all` clears the book.
+            arg = low[len("tools layout"):].strip()
+            verb, _, rest = arg.partition(" ")
+            rest = rest.strip()
+            try:
+                from .geom import (capture_layout, store_layout,
+                                   apply_layout, LAYOUTS_KEY)
+                if verb == "save":
+                    if not rest:
+                        self.terminal.log(
+                            "usage: tools layout save <name> — "
+                            "snapshot every open tool window's "
+                            "geometry under a name you choose")
+                        return
+                    wins = self._open_tool_windows()
+                    if not wins:
+                        self.terminal.log(
+                            "tools layout save — none open (a "
+                            "layout of nothing saves nothing; open "
+                            "your tool windows first)")
+                        return
+                    snap = capture_layout(wins)
+                    store = dict(self.config.get(LAYOUTS_KEY) or {})
+                    if store_layout(store, rest, snap):
+                        self.config.set(LAYOUTS_KEY, store)
+                        self.terminal.log(
+                            "tools layout save — '%s' remembers %d "
+                            "window%s (recall with: tools layout %s)"
+                            % (rest, len(snap),
+                               "" if len(snap) == 1 else "s", rest))
+                    else:
+                        self.terminal.log(
+                            "tools layout save — '%s' could not be "
+                            "stored (an empty name saves nothing)"
+                            % rest)
+                    return
+                if verb == "list":
+                    store = dict(self.config.get(LAYOUTS_KEY) or {})
+                    if not store:
+                        self.terminal.log(
+                            "tools layout list — nothing remembered "
+                            "yet (arrange your tool windows, then: "
+                            "tools layout save <name>)")
+                        return
+                    self.terminal.log(
+                        "tools layout — %d remembered" % len(store))
+                    for nm, snap in store.items():
+                        titles = ", ".join(
+                            str((e or {}).get("title") or "?")
+                            for e in (snap or [])[:4])
+                        more = ("" if len(snap or []) <= 4
+                                else " …")
+                        self.terminal.log(
+                            "  %s · %d window%s · %s%s"
+                            % (nm, len(snap or []),
+                               "" if len(snap or []) == 1 else "s",
+                               titles, more))
+                    return
+                if verb == "forget":
+                    store = dict(self.config.get(LAYOUTS_KEY) or {})
+                    if rest == "all":
+                        n = len(store)
+                        self.config.set(LAYOUTS_KEY, {})
+                        self.terminal.log(
+                            "tools layout forget all — %d layout%s "
+                            "forgotten" % (n, "" if n == 1 else "s"))
+                        return
+                    if not rest:
+                        self.terminal.log(
+                            "usage: tools layout forget <name|all> "
+                            "— the book forgets, the windows stay")
+                        return
+                    if rest in store:
+                        del store[rest]
+                        self.config.set(LAYOUTS_KEY, store)
+                        self.terminal.log(
+                            "tools layout forget — '%s' is gone "
+                            "(the windows themselves were never "
+                            "mine to close)" % rest)
+                        return
+                    self.terminal.log(
+                        "tools layout forget — '%s' is not a "
+                        "remembered layout (see: tools layout list)"
+                        % rest)
+                    return
+                # anything else is a layout NAME to restore — bare
+                # `tools layout <name>`, `restore <name>`, names with
+                # spaces included
+                name = rest if verb == "restore" else arg
+                if not name:
+                    self.terminal.log(
+                        "usage: tools layout save <name> · "
+                        "tools layout <name> · tools layout list · "
+                        "tools layout forget <name|all>")
+                    return
+                store = dict(self.config.get(LAYOUTS_KEY) or {})
+                snap = store.get(name)
+                if snap is None:
+                    self.terminal.log(
+                        "tools layout — '%s' is not remembered "
+                        "(see: tools layout list)" % name)
+                    return
+                wins = self._open_tool_windows()
+                restored, missing = apply_layout(snap, wins)
+                # the same two-pass match the engine used — exact
+                # titles first, then substrings — so the geometry
+                # lands on the window the engine matched
+                live = []
+                for w in wins:
+                    try:
+                        live.append((str(w.title()).lower(), w))
+                    except Exception:  # noqa: BLE001 — dead window
+                        pass
+                used = set()
+                for title, geo in restored:
+                    tl = title.lower()
+                    hit = None
+                    for lt, w in live:
+                        if lt == tl and id(w) not in used:
+                            hit = w
+                            break
+                    if hit is None:
+                        for lt, w in live:
+                            if tl in lt and id(w) not in used:
+                                hit = w
+                                break
+                    if hit is not None:
+                        used.add(id(hit))
+                        try:
+                            hit.geometry(geo)
+                        except Exception:  # noqa: BLE001 — dead win
+                            pass
+                self.root.update()
+                self.terminal.log(
+                    "tools layout %s — %d window%s back in place"
+                    % (name, len(restored),
+                       "" if len(restored) == 1 else "s"))
+                for title in missing:
+                    self.terminal.log(
+                        "  not open: %s (a layout arranges what "
+                        "exists — reopen it and recall again)"
+                        % title)
+                if not restored and missing:
+                    self.terminal.log(
+                        "(none of '%s' is open right now)" % name)
+                return
+            except Exception as exc:  # noqa: BLE001 — a verb never raises
+                self.terminal.log("tools layout failed: %s" % exc)
             return
         if low == "cron" or low.startswith("cron "):
             # DS2: decode a cron expression (or open the explainer empty)

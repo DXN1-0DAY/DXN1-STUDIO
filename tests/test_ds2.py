@@ -8269,3 +8269,176 @@ def test_windows_chip_and_menu_hints(tmp_path):
         except Exception:  # noqa: BLE001
             pass
     monkeypatch.undo()
+
+
+# ------------------------------------------------- v2.66.0 layouts
+def test_window_layouts(tmp_path):
+    """DS2 v2.66 — the window manager's memory, engine and verb:
+    capture_layout turns live windows into honest title/geometry/
+    transient snapshots (dead windows skip, a refusing window
+    records empties); store_layout overwrites by name (arranging
+    twice is an update, not an error), caps at 12 names LRU-style
+    and 40 windows per layout; apply_layout matches saved titles to
+    live windows exact-first then substring, hands the saved
+    geometry back, and reports every saved title with no live
+    window as missing — a layout arranges what EXISTS, never
+    conjures. The verb: save persists into the config store, the
+    bare name (or `restore <name>`, spaces included) really moves
+    the windows back, list shows the book, forget removes without
+    touching the windows, everything answers honestly when empty or
+    unknown."""
+    import tkinter as tk
+    try:
+        root = tk.Tk(); root.withdraw()
+    except tk.TclError:
+        return
+    import pytest
+    import dxn1_studio.config as cfgmod
+    from dxn1_studio.app import DXN1Studio, TERMINAL_HELP
+    from dxn1_studio.geom import (capture_layout, store_layout,
+                                  apply_layout, LAYOUT_CAP)
+
+    # ---- pure engine, no Tk needed beyond the TclError probe
+    class FakeWin:
+        def __init__(self, title, geo, dead=False):
+            self._t, self._g, self._dead = title, geo, dead
+
+        def title(self):
+            if self._dead:
+                raise RuntimeError("window died")
+            return self._t
+
+        def winfo_geometry(self):
+            if self._dead:
+                raise RuntimeError("window died")
+            return self._g
+
+        def transient(self):
+            return True
+
+    wins = [FakeWin("Chart Studio", "760x560+10+10"),
+            FakeWin("Terminal", "860x520+30+30")]
+    snap = capture_layout(wins)
+    assert [e["title"] for e in snap] == ["Chart Studio", "Terminal"]
+    assert snap[0]["geometry"] == "760x560+10+10"
+    assert all(e["transient"] is True for e in snap)
+    # a dead window is recorded honestly as empty, not skipped out
+    snap_dead = capture_layout([FakeWin("Alive", "1x1+0+0"),
+                                FakeWin(None, None, dead=True)])
+    assert snap_dead[1]["title"] == "" and snap_dead[1]["geometry"] == ""
+    # store: overwrite by name, LRU cap
+    store = {}
+    assert store_layout(store, "desk", snap) is True
+    assert store_layout(store, "desk", snap) is True
+    assert len(store) == 1
+    for i in range(LAYOUT_CAP + 5):
+        store_layout(store, "l%d" % i, snap)
+    assert len(store) == LAYOUT_CAP
+    assert store_layout(store, "", snap) is False   # empty name refused
+    assert store_layout(store, "x", "not-a-list") is False
+    # apply: exact-first matching beats a substring impostor
+    live = [FakeWin("chart studio", "1x1+0+0"),
+            FakeWin("My Terminal Window", "1x1+0+0")]
+    restored, missing = apply_layout(snap, live)
+    assert [t for t, _g in restored] == ["Chart Studio", "Terminal"]
+    assert missing == []
+    # no live windows: every saved title is honestly missing
+    restored, missing = apply_layout(snap, [])
+    assert restored == []
+    assert [t for t in missing] == ["Chart Studio", "Terminal"]
+    # empty snapshot: nothing to restore, nothing missing
+    assert apply_layout([], wins) == ([], [])
+    # junk never raises
+    assert apply_layout([None, {}], [FakeWin("x", "1x1+0+0")]) == ([], [])
+
+    # ---- the verb, live
+    import pytest as _pytest
+    monkeypatch = _pytest.MonkeyPatch()
+    monkeypatch.setattr(cfgmod, "CONFIG_DIR", str(tmp_path / "cfg"))
+    monkeypatch.setattr(cfgmod, "CONFIG_PATH",
+                        str(tmp_path / "cfg" / "config.json"))
+    monkeypatch.setenv("HOME", str(tmp_path / "home"))
+    app = DXN1Studio(cfgmod.Config(), smoke_test=True, no_splash=True)
+    try:
+        root = app.root
+        root.update()
+        logs = []
+        _old_log = app.terminal.log
+        app.terminal.log = lambda s, *a, **k: logs.append(str(s))
+
+        def _dispatch(cmd):
+            logs.clear()
+            app.handle_terminal_command(cmd)
+            root.update()
+            return "\n".join(logs)
+
+        # the bare verb teaches its usage; a save with no windows
+        # answers honestly
+        assert "usage: tools layout save" in _dispatch("tools layout")
+        assert "none open" in _dispatch("tools layout save desk")
+
+        w1 = tk.Toplevel(root)
+        w1.title("Chart Studio")
+        w1.transient(root)
+        w1.geometry("760x560+10+10")
+        w2 = tk.Toplevel(root)
+        w2.title("Terminal")
+        w2.transient(root)
+        w2.geometry("860x520+30+30")
+        root.update()
+
+        blob = _dispatch("tools layout save desk")
+        assert "remembers 2 windows" in blob, blob
+        # the store really persisted through the app's config
+        assert "desk" in (app.config.get("tool_window_layouts") or {})
+
+        # scramble, then recall by the bare name: both windows move
+        # back exactly
+        w1.geometry("1x1+400+400")
+        w2.geometry("1x1+400+400")
+        root.update()
+        blob = _dispatch("tools layout desk")
+        assert "2 windows back in place" in blob, blob
+        assert w1.winfo_geometry() == "760x560+10+10"
+        assert w2.winfo_geometry() == "860x520+30+30"
+
+        # a name with spaces saves and restores via `restore <name>`
+        assert "remembers 2 windows" in _dispatch(
+            "tools layout save my desk")
+        w1.geometry("1x1+0+0")
+        root.update()
+        assert "2 windows back in place" in _dispatch(
+            "tools layout restore my desk")
+
+        # the book lists every layout with its windows
+        blob = _dispatch("tools layout list")
+        assert "2 remembered" in blob
+        assert "my desk · 2 windows" in blob, blob
+
+        # a saved window that is not open is reported missing by
+        # name, never conjured
+        w1.destroy()
+        root.update()
+        blob = _dispatch("tools layout desk")
+        assert "1 window back in place" in blob, blob
+        assert "not open: Chart Studio" in blob, blob
+
+        # unknown names, forgetting
+        assert "not remembered" in _dispatch("tools layout nope")
+        assert "'desk' is gone" in _dispatch(
+            "tools layout forget desk")
+        assert "not a remembered layout" in _dispatch(
+            "tools layout forget desk")
+        blob = _dispatch("tools layout forget all")
+        assert "1 layout forgotten" in blob, blob   # only 'my desk' left
+
+        # help speaks the verb
+        assert any(k.startswith("tools layout") for k, _v
+                   in TERMINAL_HELP)
+    finally:
+        app.terminal.log = _old_log
+        try:
+            app.root.destroy()
+        except Exception:  # noqa: BLE001
+            pass
+    monkeypatch.undo()

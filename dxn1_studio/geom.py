@@ -248,3 +248,102 @@ def tile_rects(n, sw, sh, margin=8, gap=6, min_w=240, min_h=160):
         return out
     except Exception:  # noqa: BLE001 — layout must never raise
         return []
+
+
+LAYOUTS_KEY = "tool_window_layouts"
+LAYOUT_CAP = 12          # remembered layouts (LRU by save time)
+LAYOUT_WINDOW_CAP = 40   # windows per layout (a desk, not a museum)
+
+
+def capture_layout(windows):
+    """DS2 v2.66 — one layout snapshot, pure: a list of live
+    Toplevels becomes ``[{"title", "geometry", "transient"}...]``
+    in window order. Dead windows are skipped silently, a window
+    that refuses its title or geometry is recorded as best-effort
+    with honest empties. Never raises."""
+    try:
+        out = []
+        for w in list(windows)[:LAYOUT_WINDOW_CAP]:
+            try:
+                out.append({
+                    "title": str(w.title()),
+                    "geometry": str(w.winfo_geometry()),
+                    "transient": bool(w.transient()),
+                })
+            except Exception:  # noqa: BLE001 — one dead window
+                out.append({"title": "", "geometry": "",
+                            "transient": True})
+        return out
+    except Exception:  # noqa: BLE001 — a snapshot never raises
+        return []
+
+
+def store_layout(store, name, snapshot, cap=LAYOUT_CAP):
+    """DS2 v2.66 — put one named snapshot into the layouts store
+    (a plain dict as read from config). Same name overwrites —
+    arranging the desk twice is an update, not an error. Oldest
+    layouts fall off past ``cap``. Returns True when stored.
+    Never raises."""
+    try:
+        name = str(name or "").strip()
+        if not name or not isinstance(snapshot, list):
+            return False
+        layouts = dict(store if isinstance(store, dict) else {})
+        layouts.pop(name, None)
+        layouts[name] = [dict(e) if isinstance(e, dict) else
+                         {"title": "", "geometry": "",
+                          "transient": True}
+                         for e in snapshot[:LAYOUT_WINDOW_CAP]]
+        while len(layouts) > cap:
+            oldest = next(iter(layouts))
+            layouts.pop(oldest, None)
+        store.clear()
+        store.update(layouts)
+        return True
+    except Exception:  # noqa: BLE001 — storage must never raise
+        return False
+
+
+def apply_layout(snapshot, windows, min_w=40, min_h=20):
+    """DS2 v2.66 — restore one snapshot onto the live windows, pure
+    decision-making: each saved entry is matched case-insensitively
+    by exact title first, then by title substring; a match gets the
+    saved geometry handed back. Returns ``(restored, missing)``
+    where restored is ``[(title, geometry)]`` and missing is the
+    titles with no live window — layouts arrange what EXISTS; the
+    verb tells the user what to reopen. Never raises."""
+    try:
+        restored, missing = [], []
+        live = []
+        for w in list(windows):
+            try:
+                live.append((str(w.title()).lower(), w))
+            except Exception:  # noqa: BLE001 — dead window
+                pass
+        used = set()
+        for entry in snapshot[:LAYOUT_WINDOW_CAP]:
+            title = str((entry or {}).get("title") or "").strip()
+            geo = str((entry or {}).get("geometry") or "").strip()
+            if not title:
+                continue
+            hit = None
+            for lt, w in live:
+                if lt == title.lower() and id(w) not in used:
+                    hit = w
+                    break
+            if hit is None:
+                for lt, w in live:
+                    if title.lower() in lt and id(w) not in used:
+                        hit = w
+                        break
+            if hit is None:
+                missing.append(title)
+                continue
+            used.add(id(hit))
+            if geo and parse_geometry(geo):
+                restored.append((title, geo))
+            else:
+                missing.append(title)
+        return restored, missing
+    except Exception:  # noqa: BLE001 — a restore never raises
+        return [], []

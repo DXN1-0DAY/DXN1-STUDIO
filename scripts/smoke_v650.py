@@ -237,8 +237,9 @@ _arch = open(os.path.join("docs", "ARCHITECTURE.md"),
 check("ARCHITECTURE.md lists smoke_v650", "smoke_v650" in _arch)
 _chlog = open("CHANGELOG.md", encoding="utf-8").read()
 check("CHANGELOG has 2.65.0", "## [2.65.0]" in _chlog)
-check("studio version is 2.65.0",
-      __import__("dxn1_studio").APP_VERSION == "2.65.0")
+_ver = __import__("dxn1_studio").APP_VERSION
+check("studio version lives on top of the CHANGELOG",
+      _ver > "2.65.0" and "## [%s]" % _ver in _chlog)
 
 # ------------------------------------- regression: the palette audit
 _audited, _broken = 0, []

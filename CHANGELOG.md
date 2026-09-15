@@ -4,6 +4,26 @@ All notable changes to DXN1 STUDIO. Format based on
 [Keep a Changelog](https://keepachangelog.com/); versioning is
 `MAJOR.MINOR.PATCH` while in **beta**.
 
+## [2.66.0] — 2026-09-15 · beta · "the window manager remembers" (named tool-window layouts: save, recall, list, forget)
+
+### Added
+- **`tools layout save <name>` · `tools layout <name>` · `list` ·
+  `forget <name|all>`** — the window manager's memory: save
+  snapshots every open tool window's title, geometry and transient
+  flag into the config store (same name overwrites, oldest falls
+  off past 12, an empty desk saves nothing honestly); the bare
+  name — or `restore <name>`, spaces included — moves each live
+  window whose title matches exact-first then substring back to
+  its saved place; a saved window that is not open is reported
+  missing BY NAME, because a layout arranges what exists and never
+  conjures; `list` shows the book, `forget` removes without
+  touching the windows
+
+### Changed
+- The `tools windows` footer points at the layouts verb, and the
+  layout engine (`capture_layout` / `store_layout` / `apply_layout`)
+  lives in `geom.py` beside the screen-shape memory it extends
+
 ## [2.65.0] — 2026-09-15 · beta · "the windows learn to mind their places" (cascade, tile, a windows chip, and the parked row tooltips land)
 
 ### Added
