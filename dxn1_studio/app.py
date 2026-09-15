@@ -25,7 +25,8 @@ import webbrowser
 from tkinter import ttk, filedialog, messagebox
 
 from . import APP_NAME, APP_VERSION, APP_CHANNEL, APP_TAGLINE
-from .theme import from_config, FONT_UI, FONT_MONO, ACCENTS
+from .theme import from_config, FONT_UI, FONT_MONO, ACCENTS, \
+    apply_scroll_theme
 from .widgets import FileTree, CodeEditor, Terminal, TREE_SKIP
 from .onboarding import WelcomeWizard
 from .tour import InteractiveTour
@@ -725,6 +726,14 @@ class DXN1Studio:
         self.root.geometry("1280x820")
         self.root.minsize(940, 580)
         self.root.configure(bg=self.theme["bg"])
+        # DS2 UI-sprint: the ttk scrollbar style (TS2.*) is registered
+        # once at boot so every dialog's ttk.Scrollbar can opt in with
+        # style="TS2.Vertical.TScrollbar" and match the fleet.
+        try:
+            from tkinter import ttk as _ttk
+            apply_scroll_theme(_ttk.Style(), self.theme)
+        except Exception:  # noqa: BLE001 — style is garnish, never fatal
+            pass
         # DS2: restore remembered per-screen geometry (defensive)
         try:
             from .geom import restore_root

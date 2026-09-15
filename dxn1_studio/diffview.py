@@ -15,7 +15,7 @@ import difflib
 import tkinter as tk
 from tkinter import ttk
 
-from .theme import FONT_UI, FONT_MONO
+from .theme import FONT_UI, FONT_MONO, apply_scroll_theme
 from . import hints
 
 # ------------------------------------------------------------------ tints
@@ -351,7 +351,8 @@ class DiffViewer(tk.Toplevel):
 
         self.left_gut, self.left = make_pane(tk.LEFT, self.old_label)
         self.right_gut, self.right = make_pane(tk.RIGHT, self.new_label)
-        sb = ttk.Scrollbar(pane, orient=tk.VERTICAL, command=self._sync_scroll)
+        sb = ttk.Scrollbar(pane, orient=tk.VERTICAL, command=self._sync_scroll,
+                           style="TS2.Vertical.TScrollbar")
         sb.pack(side=tk.RIGHT, fill=tk.Y)
         for txt in (self.left, self.right):
             txt.configure(yscrollcommand=sb.set)

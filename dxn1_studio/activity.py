@@ -34,6 +34,8 @@ import json
 import os
 import time as _time
 import tkinter as tk
+
+from .theme import make_scrollbar
 from tkinter import filedialog
 
 FONT_UI = "TkDefaultFont"
@@ -437,7 +439,7 @@ def open_activity(master, theme, log, on_copy=None, on_change=None,
     body = tk.Frame(wrap, bg=theme["card"])
     body.pack(fill=tk.BOTH, expand=True, padx=8, pady=(0, 10))
     canvas = tk.Canvas(body, bg=theme["card"], highlightthickness=0)
-    sb = tk.Scrollbar(body, orient=tk.VERTICAL, command=canvas.yview)
+    sb = make_scrollbar(body, theme, tk.VERTICAL, canvas.yview)
     canvas.configure(yscrollcommand=sb.set)
     sb.pack(side=tk.RIGHT, fill=tk.Y)
     canvas.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)

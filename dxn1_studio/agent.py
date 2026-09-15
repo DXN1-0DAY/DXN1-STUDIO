@@ -44,7 +44,7 @@ from . import APP_NAME
 from . import llm
 from .sandbox import (WorkspaceSandbox, SandboxError, AgentEngine,
                       head_preview, PROMPT_STYLES, build_system_prompt)
-from .theme import FONT_UI, FONT_MONO
+from .theme import FONT_UI, FONT_MONO, make_scrollbar
 
 AGENTS_NAME = "DXN1 Agents"
 AGENTS_TAGLINE = "Your studio copilot — with permission."
@@ -423,7 +423,8 @@ class DXN1AgentPanel(tk.Frame):
 
         self.canvas = tk.Canvas(wrap, bg=self.t["sidebar"],
                                 highlightthickness=0)
-        sb = tk.Scrollbar(wrap, orient=tk.VERTICAL, command=self.canvas.yview)
+        sb = make_scrollbar(wrap, self.t, tk.VERTICAL, self.canvas.yview,
+                            trough=self.t["sidebar"])
         self.stream = tk.Frame(self.canvas, bg=self.t["sidebar"])
         self._canvas_win = self.canvas.create_window(
             (0, 0), window=self.stream, anchor="nw", width=270)
