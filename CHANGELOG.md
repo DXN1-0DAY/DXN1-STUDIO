@@ -4,6 +4,36 @@ All notable changes to DXN1 STUDIO. Format based on
 [Keep a Changelog](https://keepachangelog.com/); versioning is
 `MAJOR.MINOR.PATCH` while in **beta**.
 
+## [2.65.0] — 2026-09-15 · beta · "the windows learn to mind their places" (cascade, tile, a windows chip, and the parked row tooltips land)
+
+### Added
+- **`tools cascade` · `tools tile`** — the window manager learns to
+  tidy: cascade stacks every open tool window from the top-left,
+  each title bar 28px apart, wrapping before any title bar leaves
+  the screen, sizes KEPT; tile deals every open tool window into a
+  cols x rows grid (cols = ceil(sqrt(n))) covering the screen,
+  each window resized to its cell, the screen winning over the
+  designed minimum on a display too small for it; both answer
+  honestly when nothing is open
+- **The open-windows chip** — the statusbar counts its tool
+  windows: quiet at zero, muted "N open" while the pile is
+  manageable, amber (bold) at 6+, signature-cached on a 2s
+  heartbeat; click runs the honest `tools windows` listing,
+  right-click opens the tidy menu, and the menu reaches the
+  keyboard via `chip windows` (aliases `wins`/`windows`)
+- **Chip-menu row tooltips** — the twice-parked polish: a
+  chip-menu row may carry a hint, hovering shows a quiet tooltip
+  beside the menu at the row's height (never over the rows), a
+  row without a hint or a closing menu retires the tip, and the
+  unpost poller cleans it up too; the windows, scribe, autosave
+  and git chip menus all carry hints
+
+### Changed
+- The `tools windows` footer now points at the tidy verbs
+  (`tools cascade · tools tile`), and the `chip <name>` verb
+  honestly lists the new fifth chip (branch · deps · scribe ·
+  autosave · windows)
+
 ## [2.64.0] — 2026-09-15 · beta · "the studio keeps its windows" (a window manager for a dozen tool windows)
 
 ### Added

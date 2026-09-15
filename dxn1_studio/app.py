@@ -74,6 +74,9 @@ TERMINAL_HELP = (
     ("tools windows [raise|close <n|title>]", "the studio's open "
      "tool windows — list them numbered, raise one, close one, or "
      "close every transient one at once"),
+    ("tools cascade | tile", "tidy every open tool window — "
+     "cascade stacks them title-bar by title-bar, tile deals them "
+     "into a screen-filling grid"),
     ("cron <expr>", "decode a cron schedule + next runs"),
     ("readability", "reading level of the current file"),
     ("jwt <token>", "decode a JWT — header, payload, exp"),
@@ -147,7 +150,7 @@ TERMINAL_HELP = (
                              "the whole diary lands in exports/ "
                              "every 24h, last 14 kept"),
     ("chip <name>", "open a statusbar chip's menu from the keyboard "
-                    "— branch · deps · scribe · autosave"),
+                    "— branch · deps · scribe · autosave · windows"),
     ("lang", "list available UI language packs and the current one"),
     ("lang audit", "every pack answers for itself — coverage, stale "
                    "keys, highlight-safe honest audit"),
@@ -863,6 +866,20 @@ class DXN1Studio:
         self.status_git.bind("<Button-3>", self._git_chip_menu)
         self._git_sig_state = ""    # last state the git chip was drawn for
         self._git_probed_at = 0.0   # throttle — one git call max per 3s
+        # DS2 v2.65: open-windows chip — the window manager's face in
+        # the statusbar. Quiet while nothing is open; "N open" once
+        # tool windows pile up (amber at 6+, because that is when
+        # alt-tab stops being a strategy). Click runs the honest
+        # listing, right-click for the tidy-up menu.
+        self.status_wins = tk.Label(right, text="", bg=t["statusbar"],
+                                    fg=t["text_muted"],
+                                    font=(FONT_UI, 9), cursor="hand2")
+        self.status_wins.pack(side=tk.RIGHT, padx=(0, 12))
+        self.status_wins.bind("<Button-1>",
+                              lambda _e: self._wins_chip_click())
+        self.status_wins.bind("<Button-3>", self._wins_chip_menu)
+        self._wins_sig_state = None  # last (open, transient) signature
+        self._wins_tip_job = None    # the 2s refresh loop's after id
         self._last_chip_menu = None  # DS2 v2.52: the menu now introspects
         self._chip_tip(self.status_git,
                        "Source control — click opens the panel, "
@@ -876,6 +893,9 @@ class DXN1Studio:
         self._chip_tip(self.status_scribe,
                        "Scribe meter — click for session details, "
                        "right-click for actions · Ctrl+Alt+W")
+        self._chip_tip(self.status_wins,
+                       "Open tool windows — click lists them in the "
+                       "terminal, right-click to cascade or tile")
         # DS2 v2.44: the studio keeps its receipts — every toast is
         # archived in a ring buffer the Activity window can show.
         # DS2 v2.45: the receipts survive the night — reload whatever
@@ -1013,6 +1033,12 @@ class DXN1Studio:
         # DXN1 Agents dock — built above; just refresh its status here
         self._refresh_agents_status()
         self._refresh_plugin_status()   # DS2: plugins statusbar + 5s timer
+        # DS2 v2.65: the open-windows chip gets its 2s heartbeat —
+        # first beat politely late, the statusbar is still settling
+        try:
+            self._wins_tip_job = self.root.after(1500, self._wins_tick)
+        except Exception:  # noqa: BLE001 — garnish must never bite
+            self._wins_tip_job = None
 
     # --------------------------------------------------------- activity bar
     def _build_activity(self):
@@ -3486,7 +3512,108 @@ class DXN1Studio:
                     self.terminal.log("  %d · (window went away)" % i)
             self.terminal.log(
                 "(tools windows raise <n|title> · close <n|title> · "
-                "close all — transient windows only)")
+                "close all — transient windows only · tools cascade · "
+                "tools tile)")
+            return
+        if low == "tools cascade":
+            # DS2 v2.65 — the window manager learns to tidy. Cascade
+            # stacks every open tool window from the screen's top-left
+            # area, each title bar 28px down-right of the last so
+            # every one stays grabbable, wrapping back toward the
+            # origin when the stack would march a title bar off-
+            # screen. Sizes are KEPT — the width sweep taught every
+            # window its right size; this only puts them in a place.
+            try:
+                self.root.update_idletasks()
+                wins = [w for w in self.root.winfo_children()
+                        if isinstance(w, tk.Toplevel)
+                        and bool(w.winfo_exists())]
+            except Exception:  # noqa: BLE001 — a verb never raises
+                wins = []
+            if not wins:
+                self.terminal.log(
+                    "tools cascade — none open (nothing to tidy; "
+                    "open a tool window and try again)")
+                return
+            try:
+                from .geom import cascade_positions
+                self.root.update_idletasks()
+                sw = self.root.winfo_screenwidth()
+                sh = self.root.winfo_screenheight()
+                sizes = []
+                for w in wins:
+                    try:
+                        w.update_idletasks()
+                        sizes.append((max(1, w.winfo_width()),
+                                      max(1, w.winfo_height())))
+                    except Exception:  # noqa: BLE001 — dead window
+                        sizes.append((400, 300))
+                # clamp/wrap math uses the LARGEST window so even the
+                # widest title bar stays reachable
+                pos = cascade_positions(
+                    len(wins), sw, sh,
+                    win_w=max(s[0] for s in sizes),
+                    win_h=max(s[1] for s in sizes))
+                moved = 0
+                for w, (x, y) in zip(wins, pos):
+                    try:
+                        w.geometry("+%d+%d" % (x, y))
+                        moved += 1
+                    except Exception:  # noqa: BLE001 — one window
+                        pass
+                self.root.update()
+                self.terminal.log(
+                    "tools cascade — %d window%s stacked from the "
+                    "top-left, every title bar 28px apart, sizes "
+                    "kept" % (moved, "" if moved == 1 else "s"))
+            except Exception as exc:  # noqa: BLE001
+                self.terminal.log("tools cascade failed: %s" % exc)
+            return
+        if low == "tools tile":
+            # DS2 v2.65 — the other tidy: every open tool window dealt
+            # into a cols x rows grid (cols = ceil(sqrt(n))) covering
+            # the screen inside a small margin, each window resized to
+            # its cell so nothing hides behind nothing. The designed
+            # minimum cell holds while the screen allows; a tiny
+            # screen wins over the minimum, because a window past the
+            # edge is invisible and a cramped one is merely small.
+            try:
+                self.root.update_idletasks()
+                wins = [w for w in self.root.winfo_children()
+                        if isinstance(w, tk.Toplevel)
+                        and bool(w.winfo_exists())]
+            except Exception:  # noqa: BLE001 — a verb never raises
+                wins = []
+            if not wins:
+                self.terminal.log(
+                    "tools tile — none open (nothing to tidy; open a "
+                    "tool window and try again)")
+                return
+            try:
+                from .geom import tile_rects
+                self.root.update_idletasks()
+                sw = self.root.winfo_screenwidth()
+                sh = self.root.winfo_screenheight()
+                rects = tile_rects(len(wins), sw, sh)
+                done = 0
+                for w, (x, y, ww, wh) in zip(wins, rects):
+                    try:
+                        w.geometry("%dx%d+%d+%d" % (ww, wh, x, y))
+                        done += 1
+                    except Exception:  # noqa: BLE001 — one window
+                        pass
+                self.root.update()
+                cols = 1
+                while cols * cols < len(wins):
+                    cols += 1
+                rows = (len(wins) + cols - 1) // cols
+                self.terminal.log(
+                    "tools tile — %d window%s dealt into a %dx%d "
+                    "grid, screen-filling, nothing hides behind "
+                    "nothing" % (done, "" if done == 1 else "s",
+                                 cols, rows))
+            except Exception as exc:  # noqa: BLE001
+                self.terminal.log("tools tile failed: %s" % exc)
             return
         if low == "cron" or low.startswith("cron "):
             # DS2: decode a cron expression (or open the explainer empty)
@@ -4415,12 +4542,14 @@ class DXN1Studio:
             arg = text[4:].strip().lower()
             if not arg:
                 self.terminal.log("chips: branch · deps · scribe · "
-                                  "autosave — try: chip branch")
+                                  "autosave · windows — try: chip "
+                                  "windows")
                 return
             kind = self._CHIP_MENU_ALIASES.get(arg)
             if kind is None:
                 self.terminal.log("unknown chip '%s' — chips: branch · "
-                                  "deps · scribe · autosave" % arg)
+                                  "deps · scribe · autosave · windows"
+                                  % arg)
                 return
             self._open_chip_menu_keyboard(kind)
             self.terminal.log("%s chip menu opened — Enter runs the "
@@ -6101,10 +6230,11 @@ class DXN1Studio:
         "deps": "deps", "env": "deps", "dependencies": "deps",
         "scribe": "scribe", "writing": "scribe",
         "sesave": "sesave", "autosave": "sesave", "session": "sesave",
+        "wins": "wins", "windows": "wins",
     }
 
     def _chip_menu_registry(self):
-        """DS2 v2.53 — the four chip menus the keyboard can reach, as
+        """DS2 v2.53 — the chip menus the keyboard can reach, as
         ``kind → (entries_fn, chip_widget, human name)``. Resolved at
         call time so late-built widgets and rebound methods are always
         current. Never raises."""
@@ -6115,6 +6245,8 @@ class DXN1Studio:
                        "scribe"),
             "sesave": (self._sesave_menu_entries, self.status_sesave,
                        "autosave"),
+            "wins": (self._wins_menu_entries, self.status_wins,
+                     "windows"),
         }
 
     def _open_chip_menu_keyboard(self, kind):
@@ -6148,12 +6280,16 @@ class DXN1Studio:
     # --------------------------------------------- DS2 v2.43 scribe chip menu
     def _scribe_menu_entries(self):
         """DS2 v2.43 — the scribe chip's context menu rows as
-        ``(label, command)`` pairs: the session summary toast, the
-        writing-goal flow and a meter reset. Pure data, rendered by
-        the shared `_render_chip_menu`."""
-        return [("Session summary", self._scribe_click),
-                ("Set writing goal…", self._scribe_goal_from_menu),
-                ("Reset session meter", self._scribe_reset_from_menu)]
+        ``(label, command[, accel, color, hint])`` rows: the session
+        summary toast, the writing-goal flow and a meter reset. Pure
+        data, rendered by the shared `_render_chip_menu`."""
+        return [("Session summary", self._scribe_click, "", "",
+                 "words, minutes and WPM since the meter started"),
+                ("Set writing goal…", self._scribe_goal_from_menu,
+                 "", "", "a word count to chase — the meter turns "
+                          "green when you land it"),
+                ("Reset session meter", self._scribe_reset_from_menu,
+                 "", "", "zero everything, keep the goal")]
 
     def _scribe_goal_from_menu(self):
         """DS2 v2.44 — a themed goal dialog: type the count, Set or
@@ -6213,10 +6349,15 @@ class DXN1Studio:
         snapshot now, the snapshot browser, and the autosave switch
         (the row reads the live config when clicked — honest). Pure
         data, rendered by the shared `_render_chip_menu`."""
-        return [("Snapshot session now", self.save_session_now),
-                ("Browse snapshots…", self.open_session_restore),
+        return [("Snapshot session now", self.save_session_now, "", "",
+                 "tabs, cursor and dirty buffers, saved this instant"),
+                ("Browse snapshots…", self.open_session_restore,
+                 "", "", "every snapshot the studio kept — restore "
+                          "one with a click"),
                 ("---", None),
-                ("Autosave on/off", self._sesave_autosave_toggle)]
+                ("Autosave on/off", self._sesave_autosave_toggle,
+                 "", "", "the 60s loop picks the switch up on its "
+                          "next beat")]
 
     def _sesave_autosave_toggle(self):
         """DS2 v2.43 — flip ``session_autosave`` live: the 60s loop
@@ -6385,14 +6526,16 @@ class DXN1Studio:
         a repository. Pure data — trivially testable, rendered by
         `_git_chip_menu`."""
         entries = [("Open Source Control",
-                    lambda: self.show_sidebar_view("git"))]
+                    lambda: self.show_sidebar_view("git"), "", "",
+                    "the panel where every lane action lives")]
         st = None
         try:
             st = self._git_watch_state()
         except Exception:  # noqa: BLE001 — menu still opens
             st = None
         if st and st.get("repo"):
-            entries.append(("Commit graph", self._open_git_graph_chip))
+            entries.append(("Commit graph", self._open_git_graph_chip,
+                            "", "", "every commit, drawn as lanes"))
             entries.append(("Stage all changes",
                             lambda: self.run_command("git add -A")))
             entries.append(("Commit staged…",
@@ -6481,10 +6624,15 @@ class DXN1Studio:
                            fg=t["text"], activebackground=t["hover"],
                            activeforeground=t["text"],
                            font=(FONT_UI, 9))
+            hints = {}          # v2.65 — menu-index → row tooltip
             for entry in entries:
                 label, cmd = entry[0], entry[1]
                 accel = str(entry[2]) if len(entry) > 2 else ""
                 color = entry[3] if len(entry) > 3 else None
+                hint = (str(entry[4]) if len(entry) > 4
+                        and entry[4] else "")
+                at = menu.index("end")
+                idx = (at + 1) if at is not None else 0
                 if label == "---":
                     menu.add_separator()
                 elif accel or color:
@@ -6496,7 +6644,19 @@ class DXN1Studio:
                     menu.add_command(label=label, command=cmd, **kw)
                 else:
                     menu.add_command(label=label, command=cmd)
+                if hint:
+                    try:
+                        if menu.type(idx) == "command":
+                            hints[idx] = hint
+                    except Exception:  # noqa: BLE001 — garnish
+                        pass
             self._wire_menu_keys(menu)
+            try:                # v2.65 — row tooltips ride along
+                menu._ds2_hints = hints
+                if hints:
+                    self._wire_menu_row_tips(menu)
+            except Exception:  # noqa: BLE001 — tooltips are garnish
+                pass
             try:
                 prev_focus = self.root.focus_get()
             except Exception:  # noqa: BLE001 — focus is garnish
@@ -6546,6 +6706,67 @@ class DXN1Studio:
             self._last_chip_menu = menu
             self._arm_menu_unpost_poll(menu, prev_focus)
         except Exception:  # noqa: BLE001 — a menu must never break typing
+            pass
+
+    def _wire_menu_row_tips(self, menu):
+        """DS2 v2.65 — the twice-parked idea lands: hover a chip-menu
+        row that carries a hint and a quiet tooltip explains it, at
+        the row's height beside the menu (never on top of the rows,
+        so it never steals the click). Motion-driven: a row without
+        a hint, the menu closing, or the pointer leaving — the tip
+        is gone. Best-effort; a menu must never break typing."""
+        try:
+            state = {"win": None, "row": None}
+
+            def close(_e=None):
+                if state["win"] is not None:
+                    try:
+                        state["win"].destroy()
+                    except Exception:  # noqa: BLE001 — already gone
+                        pass
+                state["win"] = None
+                state["row"] = None
+
+            def show(e):
+                try:
+                    idx = menu.index("@%d" % e.y)
+                except Exception:  # noqa: BLE001 — off the rows
+                    close()
+                    return
+                hints = getattr(menu, "_ds2_hints", None) or {}
+                hint = hints.get(idx)
+                if not hint:
+                    close()
+                    return
+                if state["win"] is not None and state["row"] == idx:
+                    return          # same row, tip already up
+                close()
+                try:
+                    tw = tk.Toplevel(menu)
+                    tw.wm_overrideredirect(True)
+                    try:
+                        tw.attributes("-topmost", True)
+                    except Exception:  # noqa: BLE001 — X11 quirk
+                        pass
+                    x = menu.winfo_rootx() + menu.winfo_width() + 4
+                    y = menu.winfo_rooty() + e.y - 8
+                    tw.wm_geometry("+%d+%d" % (x, y))
+                    tk.Label(tw, text=hint, bg=self.theme["header"],
+                             fg=self.theme["text"],
+                             font=(FONT_UI, 8), padx=8, pady=3,
+                             justify="left").pack()
+                    state["win"] = tw
+                    state["row"] = idx
+                except Exception:  # noqa: BLE001 — garnish stays quiet
+                    pass
+
+            menu.bind("<Motion>", show)
+            menu.bind("<Leave>", close)
+            try:
+                menu._ds2_tip_close = close
+            except Exception:  # noqa: BLE001 — introspection is garnish
+                pass
+        except Exception:  # noqa: BLE001 — tooltips are garnish
             pass
 
     @staticmethod
@@ -6653,6 +6874,13 @@ class DXN1Studio:
                             menu.grab_release()
                         except Exception:  # noqa: BLE001
                             pass
+                        try:      # v2.65 — a row tooltip never outlives
+                            closer = getattr(menu, "_ds2_tip_close",
+                                             None)
+                            if closer is not None:
+                                closer()
+                        except Exception:  # noqa: BLE001 — garnish
+                            pass
                         try:
                             menu._ds2_focus_back = prev_focus
                         except Exception:  # noqa: BLE001
@@ -6682,6 +6910,109 @@ class DXN1Studio:
         everything, AI commit draft, push/pull, copy the branch name,
         rescan). Never raises."""
         self._render_chip_menu(self._git_menu_entries(), event)
+
+    # --------------------------------------------- DS2 v2.65 windows chip
+    def _open_tool_windows(self):
+        """DS2 v2.65 — every live root-child Toplevel, newest-build
+        order, dead windows filtered. The one helper the chip, its
+        menu and the 2s tick all share. Never raises."""
+        try:
+            self.root.update_idletasks()
+            return [w for w in self.root.winfo_children()
+                    if isinstance(w, tk.Toplevel)
+                    and bool(w.winfo_exists())]
+        except Exception:  # noqa: BLE001 — a chip never raises
+            return []
+
+    def _update_wins_chip(self, force=False):
+        """DS2 v2.65 — redraw the open-windows chip: quiet when no
+        tool window is open, muted "N open" while the pile is
+        manageable, amber at 6+ (alt-tab stops being a strategy).
+        Signature-cached so the 2s tick redraws only on change.
+        Never raises."""
+        try:
+            wins = self._open_tool_windows()
+            n = len(wins)
+            trans = 0
+            for w in wins:
+                try:
+                    if w.transient():
+                        trans += 1
+                except Exception:  # noqa: BLE001 — one dead window
+                    pass
+            sig = (n, trans)
+            if not force and sig == self._wins_sig_state:
+                return
+            self._wins_sig_state = sig
+            t = self.theme
+            if n <= 0:
+                self.status_wins.config(text="", fg=t["text_muted"],
+                                        font=(FONT_UI, 9))
+            elif n >= 6:
+                self.status_wins.config(
+                    text="%d open" % n, fg="#f59e0b",
+                    font=(FONT_UI, 9, "bold"))
+            else:
+                self.status_wins.config(text="%d open" % n,
+                                        fg=t["text_muted"],
+                                        font=(FONT_UI, 9))
+        except Exception:  # noqa: BLE001 — a chip must never break typing
+            pass
+
+    def _wins_tick(self):
+        """DS2 v2.65 — the open-windows chip's 2s heartbeat. Self-
+        rescheduling, signature-cached (the redraw above no-ops when
+        nothing changed), cancellable by _on_close, and quiet
+        through teardown. Never raises."""
+        try:
+            self._update_wins_chip()
+        except Exception:  # noqa: BLE001 — the tick stays quiet
+            pass
+        try:
+            self._wins_tip_job = self.root.after(2000, self._wins_tick)
+        except Exception:  # noqa: BLE001 — a dying root owns no future
+            self._wins_tip_job = None
+
+    def _wins_chip_click(self):
+        """DS2 v2.65 — click the open-windows chip: the honest listing
+        in the terminal (the same answer `tools windows` gives).
+        Dispatched as a terminal verb — handle_terminal_command, NOT
+        run_command, whose shell subprocess would have no idea what
+        `tools windows` means. Never raises."""
+        try:
+            self.handle_terminal_command("tools windows")
+        except Exception:  # noqa: BLE001 — best-effort click
+            self._prefill_terminal("tools windows")
+
+    def _wins_menu_entries(self):
+        """DS2 v2.65 — the open-windows chip's context menu: the
+        listing, the two tidy verbs and the guarded close-all. Rows
+        are ``(label, command, accel, color, hint)`` — the hint is
+        the row-tooltip the menu shows on hover. Pure data, rendered
+        by the shared `_render_chip_menu`."""
+        return [("List open windows",
+                 lambda: self.handle_terminal_command("tools windows"),
+                 "", "", "numbered, honest geometry — alt-tab, "
+                         "but written down"),
+                ("Cascade windows",
+                 lambda: self.handle_terminal_command("tools cascade"),
+                 "", "", "stack from the top-left, 28px apart, "
+                         "sizes kept"),
+                ("Tile windows",
+                 lambda: self.handle_terminal_command("tools tile"),
+                 "", "", "a screen-filling grid, nothing hides "
+                         "behind nothing"),
+                ("---", None),
+                ("Close all transient",
+                 lambda: self.handle_terminal_command(
+                     "tools windows close all"),
+                 "", "", "destroys only tool windows — anything "
+                         "docked or rooted is spared")]
+
+    def _wins_chip_menu(self, event=None):
+        """DS2 v2.65 — right-click the open-windows chip: list,
+        cascade, tile, close-all in one themed menu. Never raises."""
+        self._render_chip_menu(self._wins_menu_entries(), event)
 
     def _ai_commit_from_chip(self):
         """DS2 v2.42 — the branch chip menu's AI entry: bring the
@@ -7299,6 +7630,13 @@ class DXN1Studio:
         """WM_DELETE_WINDOW — save session, then quit cleanly."""
         # DS2 v2.52: the chip menu goes first (see its docstring)
         self._dismiss_chip_menu()
+        # DS2 v2.65: the windows chip's heartbeat retires with the app
+        try:
+            if getattr(self, "_wins_tip_job", None):
+                self.root.after_cancel(self._wins_tip_job)
+                self._wins_tip_job = None
+        except Exception:  # noqa: BLE001 — exit must never block
+            pass
         try:
             self.stop_run(silent=True)
             if self.config.get("restore_session", True) and \

@@ -14,7 +14,8 @@ import re
 
 __all__ = ["parse_geometry", "make_geometry", "screen_signature",
            "clamp_geometry", "remember", "recall",
-           "remember_root", "restore_root", "fit_to_content"]
+           "remember_root", "restore_root", "fit_to_content",
+           "cascade_positions", "tile_rects"]
 
 GEOMETRY_KEY = "window_geometry_by_screen"
 _GEOM_RE = re.compile(
@@ -157,3 +158,93 @@ def fit_to_content(win, min_w, min_h=None, ratchet=False):
         return "%dx%d" % (w, h)
     except Exception:  # noqa: BLE001 — garnish must never bite
         return ""
+
+
+def cascade_positions(n, sw, sh, x0=60, y0=60, step_x=28, step_y=28,
+                      win_w=400, win_h=300, margin=8):
+    """DS2 v2.65 — the cascade layout, pure math: ``n`` windows
+    stacked from ``(x0, y0)``, each offset by ``(step_x, step_y)``
+    so every title bar stays grabbable, wrapping back toward the
+    origin when the stack would march a window's title off-screen.
+    Every position is clamped so the window (assumed ``win_w`` x
+    ``win_h`` when the caller has nothing better) always keeps its
+    title bar inside the ``sw`` x ``sh`` screen. Returns a list of
+    ``(x, y)`` ints, len == n; ``n <= 0`` → ``[]``. Never raises."""
+    try:
+        n = int(n)
+        if n <= 0:
+            return []
+        sw, sh = int(sw), int(sh)
+        x0, y0 = int(x0), int(y0)
+        step_x, step_y = int(step_x), int(step_y)
+        win_w, win_h = int(win_w), int(win_h)
+        margin = max(0, int(margin))
+        # the furthest offset before a title bar would leave the
+        # screen's right/bottom edge (keep at least the title bar
+        # height worth of window visible)
+        max_off_x = max(0, sw - x0 - min(win_w, 120) - margin)
+        max_off_y = max(0, sh - y0 - min(win_h, 40) - margin)
+        # how many offsets fit before the wrap: k = i*step must stay
+        # <= max_off, so the span is floor(max_off/step)+1 (1 when
+        # the screen is too small for even one step)
+        span_x = max(1, max_off_x // step_x + 1) if step_x > 0 else 1
+        span_y = max(1, max_off_y // step_y + 1) if step_y > 0 else 1
+        out = []
+        for i in range(n):
+            kx = i % span_x
+            ky = i % span_y
+            x = min(x0 + kx * step_x, max(0, sw - min(win_w, 120)
+                                          - margin))
+            y = min(y0 + ky * step_y, max(0, sh - min(win_h, 40)
+                                          - margin))
+            out.append((max(0, x), max(0, y)))
+        return out
+    except Exception:  # noqa: BLE001 — layout must never raise
+        return []
+
+
+def tile_rects(n, sw, sh, margin=8, gap=6, min_w=240, min_h=160):
+    """DS2 v2.65 — the tile layout, pure math: ``n`` windows in a
+    cols x rows grid (``cols = ceil(sqrt(n))``) covering the screen
+    inside ``margin``, cells separated by ``gap``. Cells never
+    shrink below ``min_w`` x ``min_h`` unless the screen itself is
+    smaller, and every rect stays on-screen. Returns a list of
+    ``(x, y, w, h)`` ints, len == n, row-major order; ``n <= 0`` →
+    ``[]``. Never raises."""
+    try:
+        import math
+        n = int(n)
+        if n <= 0:
+            return []
+        sw, sh = int(sw), int(sh)
+        margin = max(0, int(margin))
+        gap = max(0, int(gap))
+        min_w, min_h = int(min_w), int(min_h)
+        cols = max(1, int(math.ceil(math.sqrt(n))))
+        rows = max(1, int(math.ceil(n / float(cols))))
+        avail_w = max(0, sw - 2 * margin - (cols - 1) * gap)
+        avail_h = max(0, sh - 2 * margin - (rows - 1) * gap)
+        # the designed cell is the floored share; on a screen too
+        # small for the floor, the SCREEN wins (a window past the
+        # edge is invisible, a cramped one is merely small)
+        def _cell(floor, avail_total, edge, parts):
+            floored = max(floor, avail_total // parts)
+            grid = parts * floored + (parts - 1) * gap
+            if grid + margin <= edge:
+                return floored
+            return max(1, (edge - margin - (parts - 1) * gap) // parts)
+        cell_w = _cell(min_w, avail_w, sw, cols)
+        cell_h = _cell(min_h, avail_h, sh, rows)
+        grid_w = cols * cell_w + (cols - 1) * gap
+        grid_h = rows * cell_h + (rows - 1) * gap
+        ox = margin if grid_w + margin <= sw else max(0, sw - grid_w)
+        oy = margin if grid_h + margin <= sh else max(0, sh - grid_h)
+        out = []
+        for i in range(n):
+            r, c = divmod(i, cols)
+            out.append((ox + c * (cell_w + gap),
+                        oy + r * (cell_h + gap),
+                        cell_w, cell_h))
+        return out
+    except Exception:  # noqa: BLE001 — layout must never raise
+        return []

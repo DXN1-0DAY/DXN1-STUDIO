@@ -7955,3 +7955,317 @@ def test_tools_windows(tmp_path):
         except Exception:  # noqa: BLE001
             pass
     monkeypatch.undo()
+
+
+# ---------------------------------------------------- v2.65.0 layout verbs
+def test_window_layout_math():
+    """DS2 v2.65 — the tidy layouts as pure math: cascade stacks n
+    positions from (60, 60) 28px apart and wraps when the screen
+    would push a title bar off; every position keeps the window on
+    screen. Tile deals n cells in a cols x rows grid (cols =
+    ceil(sqrt(n))), row-major, every cell fully on-screen; on a
+    screen too small for the designed minimum cell the SCREEN wins.
+    Junk answers honestly: n <= 0 → [], and nothing ever raises."""
+    from dxn1_studio.geom import cascade_positions, tile_rects
+
+    # cascade: 5 windows on 1920x1080 walk 28px each from (60, 60)
+    pos = cascade_positions(5, 1920, 1080)
+    assert len(pos) == 5
+    assert all(pos[i] == (60 + i * 28, 60 + i * 28) for i in range(5))
+    # a long stack wraps instead of marching off-screen
+    big = cascade_positions(200, 800, 600)
+    assert len(big) == 200
+    assert all(0 <= x <= 800 - 120 - 8 and 0 <= y <= 600 - 40 - 8
+               for x, y in big)
+    # cascade never raises on junk
+    assert cascade_positions(0, 100, 100) == []
+    assert cascade_positions(-2, 100, 100) == []
+    assert cascade_positions(3, 0, 0) == [(0, 0)] * 3  # tiny screen
+
+    # tile: 6 cells → 3 cols x 2 rows, all on-screen
+    rects = tile_rects(6, 1920, 1080)
+    assert len(rects) == 6
+    assert all(0 <= x and x + w <= 1920 and 0 <= y and y + h <= 1080
+               for x, y, w, h in rects)
+    assert len(set(x for x, _y, _w, _h in rects)) == 3
+    assert len(set(y for _x, y, _w, _h in rects)) == 2
+    # 1 window fills the screen inside the margin
+    assert tile_rects(1, 1920, 1080) == [(8, 8, 1904, 1064)]
+    # a tiny screen: cells shrink so the grid still fits — the
+    # screen wins over the minimum, no invisible windows
+    tiny = tile_rects(4, 400, 300)
+    assert all(x + w <= 400 and y + h <= 300 for x, y, w, h in tiny)
+    # junk is honest
+    assert tile_rects(0, 100, 100) == []
+    assert tile_rects(-3, 100, 100) == []
+
+
+def test_tools_layout_verbs(tmp_path):
+    """DS2 v2.65 — `tools cascade` stacks every open tool window
+    from the top-left, 28px apart, sizes KEPT; `tools tile` deals
+    them into a screen-filling grid (resized to their cell); the
+    bare verbs answer honestly when nothing is open; a failing
+    screen probe still cannot make the verb raise."""
+    import tkinter as tk
+    try:
+        root = tk.Tk(); root.withdraw()
+    except tk.TclError:
+        return
+    import pytest
+    import dxn1_studio.config as cfgmod
+    from dxn1_studio.app import DXN1Studio
+    monkeypatch = pytest.MonkeyPatch()
+    monkeypatch.setattr(cfgmod, "CONFIG_DIR", str(tmp_path / "cfg"))
+    monkeypatch.setattr(cfgmod, "CONFIG_PATH",
+                        str(tmp_path / "cfg" / "config.json"))
+    monkeypatch.setenv("HOME", str(tmp_path / "home"))
+    app = DXN1Studio(cfgmod.Config(), smoke_test=True, no_splash=True)
+    try:
+        root = app.root
+        root.update()
+        logs = []
+        _old_log = app.terminal.log
+        app.terminal.log = lambda s, *a, **k: logs.append(str(s))
+
+        def _dispatch(cmd):
+            logs.clear()
+            app.handle_terminal_command(cmd)
+            return "\n".join(logs)
+
+        # none open: honest empty answers from both verbs
+        assert "none open" in _dispatch("tools cascade")
+        assert "none open" in _dispatch("tools tile")
+
+        # two tool windows parked in a corner, same spot
+        w1 = tk.Toplevel(root)
+        w1.title("Tile me one")
+        w1.transient(root)
+        w1.geometry("300x200+900+700")
+        w2 = tk.Toplevel(root)
+        w2.title("Tile me two")
+        w2.transient(root)
+        w2.geometry("300x200+900+700")
+        root.update()
+
+        # cascade: every title bar 28px apart from the top-left
+        blob = _dispatch("tools cascade")
+        root.update()
+        x1 = int(w1.winfo_geometry().split("+")[1])
+        x2 = int(w2.winfo_geometry().split("+")[1])
+        assert x1 == 60 and x2 == x1 + 28, (x1, x2)
+        assert "2 windows stacked" in blob, blob
+        # sizes are KEPT by cascade
+        assert w1.winfo_geometry().split("+")[0] == "300x200"
+
+        # tile: a grid that fills the screen, cells from the margin
+        blob = _dispatch("tools tile")
+        root.update()
+        g1 = w1.winfo_geometry()
+        gw, gh = g1.split("+")[0].split("x")
+        assert (int(gw), int(gh)) != (300, 200)   # resized to cell
+        assert int(g1.split("+")[1]) == 8          # left margin
+        assert "into a 2x1 grid" in blob, blob     # 2 windows → 2x1
+        # every tiled window is fully on this screen
+        sw, sh = root.winfo_screenwidth(), root.winfo_screenheight()
+        for w in (w1, w2):
+            g = w.winfo_geometry()
+            w_, h_ = g.split("+")[0].split("x")
+            x_, y_ = int(g.split("+")[1]), int(g.split("+")[2])
+            assert x_ + int(w_) <= sw and y_ + int(h_) <= sh
+
+        # v2.64 verbs still answer alongside the new ones
+        blob = _dispatch("tools windows")
+        assert "tools windows — 2 open" in blob, blob
+        assert "tools cascade ·" in blob           # footer mentions tidy
+
+        w1.destroy()
+        w2.destroy()
+        root.update()
+
+        # a hostile screen answer cannot make the verbs raise — and
+        # a tiny screen still tiles honestly (the screen wins over
+        # the minimum cell, everything stays inside 40x30)
+        wa = tk.Toplevel(root)
+        wa.title("Tiny one")
+        wa.transient(root)
+        wb = tk.Toplevel(root)
+        wb.title("Tiny two")
+        wb.transient(root)
+        root.update()
+        monkeypatch.setattr(root, "winfo_screenwidth",
+                            lambda *a, **k: 40, raising=False)
+        monkeypatch.setattr(root, "winfo_screenheight",
+                            lambda *a, **k: 30, raising=False)
+        blob = _dispatch("tools tile")
+        assert "tools tile" in blob, blob
+        g1 = wa.winfo_geometry()
+        w_, h_ = g1.split("+")[0].split("x")
+        x_, y_ = int(g1.split("+")[1]), int(g1.split("+")[2])
+        assert x_ + int(w_) <= 40 and y_ + int(h_) <= 30
+        wa.destroy()
+        wb.destroy()
+        root.update()
+        # and a screen probe that explodes entirely is swallowed
+        def _boom(*a, **k):
+            raise RuntimeError("screen gone")
+        monkeypatch.setattr(root, "winfo_screenwidth", _boom,
+                            raising=False)
+        _dispatch("tools cascade")
+        _dispatch("tools tile")   # must not raise
+    finally:
+        try:
+            app.root.destroy()
+        except Exception:  # noqa: BLE001
+            pass
+    monkeypatch.undo()
+
+
+def test_windows_chip_and_menu_hints(tmp_path):
+    """DS2 v2.65 — the open-windows chip: quiet at zero, muted
+    "N open" while the pile is small, amber at 6+; the 2s tick
+    redraws only on change (signature cache); click runs the honest
+    listing; the chip's right-click menu lists the tidy actions and
+    reaches the keyboard (`chip windows`, alias included); and the
+    twice-parked row tooltips land — hint-carrying menus expose
+    `_ds2_hints` keyed by menu index, bind Motion, arm the tip
+    closer, and the unpost poller retires the tip."""
+    import tkinter as tk
+    try:
+        root = tk.Tk(); root.withdraw()
+    except tk.TclError:
+        return
+    import pytest
+    import dxn1_studio.config as cfgmod
+    from dxn1_studio.app import DXN1Studio, TERMINAL_HELP
+    monkeypatch = pytest.MonkeyPatch()
+    monkeypatch.setattr(cfgmod, "CONFIG_DIR", str(tmp_path / "cfg"))
+    monkeypatch.setattr(cfgmod, "CONFIG_PATH",
+                        str(tmp_path / "cfg" / "config.json"))
+    monkeypatch.setenv("HOME", str(tmp_path / "home"))
+    app = DXN1Studio(cfgmod.Config(), smoke_test=True, no_splash=True)
+    try:
+        root = app.root
+        root.update()
+        logs = []
+        _old_log = app.terminal.log
+        app.terminal.log = lambda s, *a, **k: logs.append(str(s))
+
+        def _dispatch(cmd):
+            logs.clear()
+            app.handle_terminal_command(cmd)
+            return "\n".join(logs)
+
+        # quiet at boot
+        assert hasattr(app, "status_wins")
+        assert app.status_wins.cget("text") == ""
+
+        # one open: muted "1 open"
+        w1 = tk.Toplevel(root)
+        w1.title("Chip probe")
+        w1.transient(root)
+        root.update()
+        app._update_wins_chip(force=True)
+        assert app.status_wins.cget("text") == "1 open"
+        assert app.status_wins.cget("fg") == app.theme["text_muted"]
+
+        # signature cache: an unchanged tick is a no-op
+        sig = app._wins_sig_state
+        app._update_wins_chip()
+        assert app._wins_sig_state == sig
+        # one tick step really updates the text (2s loop, driven now)
+        w1.destroy()
+        root.update()
+        app._update_wins_chip()
+        assert app.status_wins.cget("text") == ""
+        # the tick itself re-arms and never raises
+        job = app._wins_tip_job
+        app._wins_tick()
+        app.root.after_cancel(app._wins_tip_job)
+        app._wins_tip_job = job
+
+        # six open: the chip turns amber and bold
+        wins = []
+        for i in range(6):
+            tw = tk.Toplevel(root)
+            tw.title("Pile %d" % i)
+            tw.transient(root)
+            wins.append(tw)
+        root.update()
+        app._update_wins_chip(force=True)
+        assert app.status_wins.cget("text") == "6 open"
+        assert app.status_wins.cget("fg") == "#f59e0b"
+        for tw in wins:
+            tw.destroy()
+        root.update()
+
+        # click: the honest listing in the terminal — the VERB must
+        # actually run (a "$ tools windows" shell echo would be the
+        # run_command bug: a subprocess cannot speak studio verbs)
+        logs.clear()
+        app._wins_chip_click()
+        assert any("tools windows — " in s for s in logs), logs
+
+        # the chip's menu: rows + hints, keyboard reach, alias
+        blob = _dispatch("chip windows")
+        menu = app._last_chip_menu
+        assert menu is not None and bool(menu.winfo_exists())
+        hints = getattr(menu, "_ds2_hints", None)
+        assert isinstance(hints, dict) and len(hints) == 4, hints
+        assert all(menu.type(i) == "command" for i in hints)
+        assert "alt-tab" in list(hints.values())[0]
+        assert bool(menu.bind("<Motion>"))       # row tooltips wired
+        assert callable(getattr(menu, "_ds2_tip_close", None))
+        menu._ds2_tip_close()                    # idempotent, no raise
+        assert "chip windows" in blob or "windows" in blob
+        # the tidy rows are all present
+        labels = [menu.entrycget(i, "label")
+                  for i in app._menu_command_rows(menu)]
+        assert labels == ["List open windows", "Cascade windows",
+                          "Tile windows", "Close all transient"], labels
+        # registry + aliases + honest unknown-chip answer
+        reg = app._chip_menu_registry()
+        assert "wins" in reg and reg["wins"][2] == "windows"
+        assert app._CHIP_MENU_ALIASES.get("windows") == "wins"
+        assert app._CHIP_MENU_ALIASES.get("wins") == "wins"
+        blob = _dispatch("chip nope")
+        assert "unknown chip 'nope'" in blob and "windows" in blob
+        # the bare verb lists every chip including windows
+        assert "windows" in _dispatch("chip")
+
+        # scribe + sesave menus carry hints too (the parked idea,
+        # landed across every chip menu)
+        _dispatch("chip scribe")
+        m2 = app._last_chip_menu
+        assert len(getattr(m2, "_ds2_hints", {})) == 3
+        _dispatch("chip autosave")
+        m3 = app._last_chip_menu
+        assert len(getattr(m3, "_ds2_hints", {})) == 3
+
+        # the unpost poller retires a live tip: unpost the menu, run
+        # the poller's cleanup path, the closer must have been called
+        _dispatch("chip windows")
+        menu = app._last_chip_menu
+        closed = {"n": 0}
+        menu._ds2_tip_close = (lambda: closed.__setitem__(
+            "n", closed["n"] + 1))
+        try:
+            menu.unpost()             # the tip's reason to live is gone
+        except Exception:  # noqa: BLE001 — a headless menu may refuse
+            pass
+        root.update()
+        menu._ds2_poll()              # menu unposted → cleanup runs now
+        assert closed["n"] >= 1, "poller never retired the tip"
+
+        # help + docs speak the new verbs
+        helptext = " ".join(v for _k, v in TERMINAL_HELP)
+        assert "cascade stacks them title-bar by title-bar" in helptext
+        assert any(k.startswith("tools cascade") for k, _v
+                   in TERMINAL_HELP)
+        assert "windows" in _dispatch("chip")
+    finally:
+        app.terminal.log = _old_log
+        try:
+            app.root.destroy()
+        except Exception:  # noqa: BLE001
+            pass
+    monkeypatch.undo()
