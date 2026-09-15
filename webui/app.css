@@ -154,9 +154,43 @@ body {
   flex-direction: column; flex: none;
 }
 #term-log {
-  flex: 1; overflow: auto; padding: 4px 14px 12px;
+  flex: 1; overflow: auto; padding: 4px 14px 8px;
   font: 12px/1.5 var(--mono); color: var(--text2); white-space: pre-wrap;
 }
+.term-input-row {
+  display: flex; align-items: center; gap: 8px;
+  padding: 0 14px 10px;
+}
+.term-prompt { font: 12px var(--mono); color: var(--success); flex: none; }
+#term-input {
+  flex: 1; background: transparent; border: none; outline: none;
+  color: var(--text); font: 12px var(--mono); caret-color: var(--accent);
+  border-bottom: 1px solid transparent; padding: 3px 0;
+}
+#term-input:focus { border-bottom-color: var(--accent); }
+
+/* ---- diff overlay ---- */
+#diff-overlay {
+  position: fixed; inset: 0; background: rgba(2, 4, 8, .62);
+  display: flex; align-items: center; justify-content: center;
+  z-index: 55; padding: 4vh 4vw;
+}
+#diffpanel {
+  width: min(980px, 96vw); max-height: 90vh; display: flex;
+  flex-direction: column; background: var(--card);
+  border: 1px solid var(--cardb); border-radius: 14px;
+  box-shadow: 0 24px 70px rgba(0, 0, 0, .55); padding: 14px 18px 16px;
+}
+#diffpanel .set-title { margin-bottom: 8px; }
+#diff-body {
+  flex: 1; overflow: auto; margin: 0;
+  font: 12px/1.55 var(--mono); color: var(--text2);
+  user-select: text; cursor: text;
+}
+.dl-add { color: var(--success); background: rgba(63, 185, 80, .08); display: block; }
+.dl-del { color: #f85149; background: rgba(248, 81, 73, .08); display: block; }
+.dl-hunk { color: var(--accent); display: block; }
+.dl-meta { color: var(--muted); display: block; }
 
 /* ---- statusbar ---- */
 #statusbar {

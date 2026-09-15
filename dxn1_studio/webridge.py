@@ -329,6 +329,38 @@ class BridgeState:
         self.post(_send)
         return {"queued": True}, None
 
+    # ---- diff + terminal input (wave 6) -------------------------------
+    def git_diff(self):
+        """Unified diff of the working tree vs HEAD (capped)."""
+        out, err = self._git("diff", "HEAD")
+        if err is not None:
+            return None, err
+        if len(out) > 64 * 1024:
+            out = out[:64 * 1024] + "\n… diff truncated at 64 KB\n"
+        return {"diff": out}, None
+
+    def term_command(self, command):
+        """Run a terminal command exactly as if typed in the desktop
+        terminal (history, log, on_command — all on the Tk loop)."""
+        cmd = str(command or "").strip()
+        if not cmd:
+            return None, "command required"
+        if len(cmd) > 2000:
+            return None, "command too long (2000 char max)"
+
+        def _run():
+            try:
+                t = self.app.terminal
+                t.history.append(cmd)
+                t.history_pos = None
+                t.log(cmd)
+                if t.on_command:
+                    t.on_command(cmd)
+            except Exception:  # noqa: BLE001 — never crash the IDE
+                pass
+        self.post(_run)
+        return {"queued": True}, None
+
     # ---- settings (wave 2: the web face can drive config) -------------
     _CONFIG_KEYS = ("theme", "accent", "word_wrap", "auto_save",
                     "editor_font_size", "terminal_font_size")
@@ -543,6 +575,12 @@ class _Handler(BaseHTTPRequestHandler):
             self._send_json({"ok": True, "tree": self.state.tree()})
         elif route == "/api/files":
             self._send_json({"ok": True, "files": self.state.files()})
+        elif route == "/api/diff":
+            payload, err = self.state.git_diff()
+            self._send_json(
+                {"ok": err is None, **(payload or {}),
+                 **({"error": err} if err else {})},
+                200 if err is None else 400)
         elif route == "/api/config":
             self._send_json({"ok": True, "config": self.state.config_get()})
         elif route == "/api/git":
@@ -600,6 +638,9 @@ class _Handler(BaseHTTPRequestHandler):
         elif u.path == "/api/agent":
             payload, err = self.state.agent_send(
                 str(body.get("message") or ""))
+        elif u.path == "/api/term":
+            payload, err = self.state.term_command(
+                str(body.get("command") or ""))
         else:
             payload, err = None, "unknown route"
         self._send_json(

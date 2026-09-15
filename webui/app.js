@@ -464,6 +464,38 @@ async function loadGit() {
   } catch (e) { /* bridge offline */ }
 }
 
+/* ---- diff view ---- */
+async function openDiff() {
+  $("diff-overlay").classList.remove("hidden");
+  const body = $("diff-body");
+  body.innerHTML = `<span class="dl-meta">diffing…</span>`;
+  try {
+    const r = await (await api("/api/diff")).json();
+    if (!r.ok) {
+      body.innerHTML = `<span class="dl-meta">${esc(r.error || "?")}</span>`;
+      return;
+    }
+    body.innerHTML = r.diff.split("\n").map(line => {
+      const safe = esc(line) || " ";
+      if (line.startsWith("+++") || line.startsWith("---") ||
+          line.startsWith("diff") || line.startsWith("index "))
+        return `<span class="dl-meta">${safe}</span>`;
+      if (line.startsWith("@@")) return `<span class="dl-hunk">${safe}</span>`;
+      if (line.startsWith("+")) return `<span class="dl-add">${safe}</span>`;
+      if (line.startsWith("-")) return `<span class="dl-del">${safe}</span>`;
+      return safe;
+    }).join("\n");
+  } catch (e) {
+    body.innerHTML = `<span class="dl-meta">bridge offline</span>`;
+  }
+}
+$("git-diff").onclick = openDiff;
+$("diff-close").onclick = () => $("diff-overlay").classList.add("hidden");
+$("diff-overlay").addEventListener("mousedown", (e) => {
+  if (e.target.id === "diff-overlay")
+    $("diff-overlay").classList.add("hidden");
+});
+
 async function gitAction(action, extra = {}) {
   const r = await (await api("/api/git", {
     method: "POST",
@@ -497,9 +529,24 @@ $("git-push").onclick = () => gitAction("push");
 $("git-pull").onclick = () => gitAction("pull");
 window.addEventListener("keydown", (e) => {
   if (e.key === "Escape") {
-    $("git-overlay").classList.add("hidden");
-    $("settings-overlay").classList.add("hidden");
+    ["git-overlay", "settings-overlay", "diff-overlay",
+     "quickopen-overlay"].forEach(id => $(id).classList.add("hidden"));
   }
+});
+
+/* ---------- terminal input over the bridge ---------- */
+async function termSubmit() {
+  const inp = $("term-input");
+  const cmd = inp.value.trim();
+  if (!cmd) return;
+  inp.value = "";
+  const r = await (await api("/api/term", {
+    method: "POST", body: JSON.stringify({ command: cmd }) })).json();
+  if (r.ok) poll();
+  else toast("Terminal: " + (r.error || "?"));
+}
+$("term-input").addEventListener("keydown", (e) => {
+  if (e.key === "Enter") termSubmit();
 });
 
 /* ---------- settings ---------- */

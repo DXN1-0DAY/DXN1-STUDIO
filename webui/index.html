@@ -40,6 +40,11 @@
       <div id="terminal">
         <div class="side-title">TERMINAL</div>
         <pre id="term-log"></pre>
+        <div class="term-input-row">
+          <span class="term-prompt">dxn1&gt;</span>
+          <input id="term-input" type="text" autocomplete="off"
+                 spellcheck="false" placeholder="type a command — runs in the studio" />
+        </div>
       </div>
     </main>
   </div>
@@ -72,6 +77,13 @@
   </div>
 </div>
 
+<div id="diff-overlay" class="hidden">
+  <div id="diffpanel">
+    <div class="set-title">WORKING TREE vs HEAD <button class="ghost" id="diff-close" aria-label="Close diff" style="float:right">✕</button></div>
+    <pre id="diff-body"></pre>
+  </div>
+</div>
+
 <div id="palette-overlay" class="hidden">
   <div id="palette">
     <input id="palette-input" type="text" placeholder="Type a command… (Ctrl+K)"
@@ -92,6 +104,7 @@
       <button id="git-commit" class="btn accent sm">Commit</button>
     </div>
     <div class="git-actions">
+      <button id="git-diff" class="btn sm">◐ Diff</button>
       <button id="git-push" class="btn sm">↑ Push</button>
       <button id="git-pull" class="btn sm">↓ Pull</button>
     </div>

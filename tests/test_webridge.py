@@ -387,6 +387,43 @@ class TestWebBridge(unittest.TestCase):
         status, body = self.post("/api/agent", {"message": "x" * 9000})
         self.assertEqual(status, 400)
 
+    # ---- diff + terminal input (wave 6) -------------------------------
+    def test_diff_in_a_repo(self):
+        import subprocess
+        subprocess.run(["git", "init", "-q"], cwd=self.ws, timeout=10)
+        subprocess.run(["git", "config", "user.email", "t@dxn1.dev"],
+                       cwd=self.ws, timeout=10)
+        subprocess.run(["git", "config", "user.name", "DXN1 Test"],
+                       cwd=self.ws, timeout=10)
+        # no HEAD yet → git diff HEAD fails cleanly
+        status, body = self.get("/api/diff")
+        self.assertEqual(status, 400)
+        # seed a commit, then modify → the diff shows the change
+        with open(os.path.join(self.ws, "seed.txt"), "w") as fh:
+            fh.write("one\n")
+        subprocess.run(["git", "add", "-A"], cwd=self.ws, timeout=10)
+        subprocess.run(["git", "commit", "-qm", "seed"], cwd=self.ws,
+                       timeout=10)
+        with open(os.path.join(self.ws, "seed.txt"), "a") as fh:
+            fh.write("two\n")
+        status, body = self.get("/api/diff")
+        self.assertEqual(status, 200)
+        self.assertIn("seed.txt", body["diff"])
+        self.assertIn("+two", body["diff"])
+        # leave the tree clean for sibling tests (alphabetical order:
+        # this runs before the git-status test)
+        subprocess.run(["git", "checkout", "-q", "--", "."], cwd=self.ws,
+                       timeout=10)
+
+    def test_term_command_validation_and_queue(self):
+        status, body = self.post("/api/term", {"command": "  "})
+        self.assertEqual(status, 400)
+        status, body = self.post("/api/term", {"command": "x" * 3000})
+        self.assertEqual(status, 400)
+        status, body = self.post("/api/term", {"command": "echo hi"})
+        self.assertEqual(status, 200)
+        self.assertTrue(body["queued"])
+
 
 if __name__ == "__main__":
     unittest.main()
