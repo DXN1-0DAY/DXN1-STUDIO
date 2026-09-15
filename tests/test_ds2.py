@@ -9225,3 +9225,120 @@ def test_menu_drift_marks(tmp_path):
         except Exception:  # noqa: BLE001
             pass
     monkeypatch.undo()
+
+
+def test_layout_compare(tmp_path):
+    """DS2 v2.71 — two SAVED layouts, compared book to book:
+    layout_compare matches titles case-insensitively and exactly
+    (no substring guessing between books), reports the windows
+    standing identically in both, the windows that changed
+    (geometry AND layer deltas named — ghost level and pin —
+    because a layout is skin and place alike), and the windows
+    only one book knows. Junk entries are skipped on both sides;
+    junk never raises. The verb: `diff <a> <b>` — with the
+    single-name live-diff form tried FIRST so names with spaces
+    keep working — read-only, honest about unknown names."""
+    import tkinter as tk
+    try:
+        root = tk.Tk(); root.withdraw()
+    except tk.TclError:
+        return
+    import pytest
+    import dxn1_studio.config as cfgmod
+    from dxn1_studio.app import DXN1Studio, TERMINAL_HELP
+    from dxn1_studio.geom import layout_compare
+
+    A = [{"title": "Chart", "geometry": "300x200+10+10",
+          "transient": False, "alpha": 1.0, "topmost": False},
+         {"title": "Solo", "geometry": "100x100+0+0",
+          "transient": True}]
+    B = [{"title": "chart", "geometry": "500x300+40+40",
+          "transient": False, "alpha": 0.4, "topmost": True},
+         {"title": "Extra", "geometry": "9x9+1+1",
+          "transient": True}]
+    same, changed, only_a, only_b = layout_compare(A, B)
+    assert same == []
+    assert changed == [("Chart", "300x200+10+10", "500x300+40+40",
+                        "ghost solid → 40% · pin off → on")], changed
+    assert only_a == [("Solo", "100x100+0+0")]
+    assert only_b == [("Extra", "9x9+1+1")]
+    # identical books agree completely
+    assert layout_compare(A, A) == (
+        [("Chart", "300x200+10+10"), ("Solo", "100x100+0+0")],
+        [], [], [])
+    # a layer-only change is named even when the geometry agrees
+    A2 = [{"title": "X", "geometry": "1x1+0+0", "transient": False,
+           "alpha": 1.0, "topmost": False}]
+    B2 = [{"title": "X", "geometry": "1x1+0+0", "transient": False,
+           "alpha": 0.5, "topmost": False}]
+    same, changed, only_a, only_b = layout_compare(A2, B2)
+    assert same == [] and only_a == [] and only_b == []
+    assert changed == [("X", "1x1+0+0", "1x1+0+0",
+                        "ghost solid → 50%")], changed
+    # junk on both sides never raises
+    assert layout_compare("banana", [None]) == ([], [], [], [])
+    assert layout_compare([None], "banana") == ([], [], [], [])
+
+    # ---- the verb, live
+    monkeypatch = pytest.MonkeyPatch()
+    monkeypatch.setattr(cfgmod, "CONFIG_DIR", str(tmp_path / "cfg"))
+    monkeypatch.setattr(cfgmod, "CONFIG_PATH",
+                        str(tmp_path / "cfg" / "config.json"))
+    monkeypatch.setenv("HOME", str(tmp_path / "home"))
+    app = DXN1Studio(cfgmod.Config(), smoke_test=True, no_splash=True)
+    try:
+        root = app.root
+        root.update()
+        logs = []
+        _old_log = app.terminal.log
+        app.terminal.log = lambda s, *a, **k: logs.append(str(s))
+
+        def _dispatch(cmd):
+            logs.clear()
+            app.handle_terminal_command(cmd)
+            root.update()
+            return "\n".join(logs)
+
+        # help teaches the two-name form
+        assert "diff <a> <b>" in dict(TERMINAL_HELP)[
+            "tools layout <name>"]
+        # the bare verb teaches BOTH forms now
+        blob = _dispatch("tools layout diff")
+        assert "diff <name>" in blob and "diff <a> <b>" in blob, blob
+        assert "is not remembered" in _dispatch(
+            "tools layout diff day nope")
+
+        app.config.set("tool_window_layouts", {"day": A, "night": B})
+        blob = _dispatch("tools layout diff day night")
+        assert "diff 'day' → 'night' — 0 of 2 windows unchanged" \
+            in blob, blob
+        assert ("changed: Chart — 300x200+10+10 → 500x300+40+40 "
+                "· ghost solid → 40% · pin off → on") in blob, blob
+        assert "only in 'day': Solo (100x100+0+0)" in blob, blob
+        assert "only in 'night': Extra (9x9+1+1)" in blob, blob
+        # reversed order: the arrow points the honest way
+        blob = _dispatch("tools layout diff night day")
+        assert "diff 'night' → 'day'" in blob, blob
+        assert "ghost 40% → solid" in blob, blob
+        # identical books agree out loud
+        app.config.set("tool_window_layouts",
+                       {"a1": A, "a2": [dict(e) for e in A]})
+        blob = _dispatch("tools layout diff a1 a2")
+        assert "2 of 2 windows unchanged" in blob, blob
+        assert "the two layouts agree completely" in blob, blob
+        # a name WITH SPACES still takes the single-name form —
+        # the full argument is tried as a layout name first
+        app.config.set("tool_window_layouts", {
+            "desk 2": [{"title": "Chart",
+                        "geometry": "300x200+10+10",
+                        "transient": False}]})
+        blob = _dispatch("tools layout diff desk 2")
+        assert "diff — 'desk 2'" in blob or "in place" in blob, blob
+        assert "'desk'" not in blob.split("\n")[0], blob
+    finally:
+        app.terminal.log = _old_log
+        try:
+            app.root.destroy()
+        except Exception:  # noqa: BLE001
+            pass
+    monkeypatch.undo()

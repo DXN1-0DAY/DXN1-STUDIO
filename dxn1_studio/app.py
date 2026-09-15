@@ -82,7 +82,8 @@ TERMINAL_HELP = (
     ("tools layout <name>", "the window manager's memory — save "
      "every open tool window's place AND layering under a name, "
      "recall it later (save <name> · <name> · show <name> · diff "
-     "<name> · list · rename <old> <new> · forget <name|all>)"),
+     "<name> · diff <a> <b> · list · rename <old> <new> · forget "
+     "<name|all>)"),
     ("cron <expr>", "decode a cron schedule + next runs"),
     ("readability", "reading level of the current file"),
     ("jwt <token>", "decode a JWT — header, payload, exp"),
@@ -3934,14 +3935,74 @@ class DXN1Studio:
                     # diff never disagrees with what a recall would
                     # actually move. Read-only: not a single window
                     # is touched.
+                    # DS2 v2.71 — `diff <a> <b>` compares two SAVED
+                    # layouts book to book: what stands identically
+                    # in both, what changed (geometry AND layer
+                    # deltas named), what only one book knows. The
+                    # single-name form is tried FIRST — the full
+                    # argument as a layout name wins, so names with
+                    # spaces keep working — and the two-name form
+                    # wants space-free names.
                     if not rest:
                         self.terminal.log(
                             "usage: tools layout diff <name> — how "
-                            "far the live desk has drifted from a "
-                            "saved layout")
+                            "far the live desk has drifted · tools "
+                            "layout diff <a> <b> — two saved "
+                            "layouts, book to book")
                         return
-                    snap = (dict(self.config.get(LAYOUTS_KEY) or {})
-                            .get(rest))
+                    store = dict(self.config.get(LAYOUTS_KEY) or {})
+                    name_a, _, name_b = rest.partition(" ")
+                    name_a, name_b = name_a.strip(), name_b.strip()
+                    if name_b and rest not in store:
+                        snap_a = store.get(name_a)
+                        snap_b = store.get(name_b)
+                        if snap_a is None:
+                            self.terminal.log(
+                                "tools layout diff — '%s' is not "
+                                "remembered (see: tools layout "
+                                "list)" % name_a)
+                            return
+                        if snap_b is None:
+                            self.terminal.log(
+                                "tools layout diff — '%s' is not "
+                                "remembered (see: tools layout "
+                                "list)" % name_b)
+                            return
+                        from .geom import layout_compare
+                        same, changed, only_a, only_b = \
+                            layout_compare(
+                                snap_a if isinstance(snap_a, list)
+                                else [],
+                                snap_b if isinstance(snap_b, list)
+                                else [])
+                        n = len(snap_a) if isinstance(snap_a, list) \
+                            else 0
+                        self.terminal.log(
+                            "tools layout diff '%s' → '%s' — %d of "
+                            "%d window%s unchanged"
+                            % (name_a, name_b, len(same), n,
+                               "" if n == 1 else "s"))
+                        for t, ga, gb, note in changed:
+                            line = ("  changed: %s — %s → %s"
+                                    % (t, ga, gb))
+                            if note:
+                                line += " · " + note
+                            self.terminal.log(line)
+                        for t, g in only_a:
+                            self.terminal.log(
+                                "  only in '%s': %s (%s)"
+                                % (name_a, t, g))
+                        for t, g in only_b:
+                            self.terminal.log(
+                                "  only in '%s': %s (%s)"
+                                % (name_b, t, g))
+                        if (not changed and not only_a
+                                and not only_b and same):
+                            self.terminal.log(
+                                "  the two layouts agree "
+                                "completely")
+                        return
+                    snap = store.get(rest)
                     if snap is None:
                         self.terminal.log(
                             "tools layout diff — '%s' is not "
@@ -4047,6 +4108,7 @@ class DXN1Studio:
                         "usage: tools layout save <name> · "
                         "tools layout <name> · tools layout show "
                         "<name> · tools layout diff <name> · "
+                        "tools layout diff <a> <b> · "
                         "tools layout list · "
                         "tools layout rename <old> <new> · "
                         "tools layout forget <name|all>")

@@ -504,6 +504,96 @@ def layout_drift(snapshot, windows):
         return [], [], [], []
 
 
+def layout_compare(snap_a, snap_b):
+    """DS2 v2.71 — two SAVED layouts, compared book to book, pure
+    decision-making: ``(same, changed, only_a, only_b)`` where
+    same is the windows standing identically in both
+    ``[(title, geometry)]``, changed is the windows both remember
+    but differently ``[(title, geo_a, geo_b, note)]`` — the note
+    naming the LAYER deltas too (ghost level, pin) because a
+    layout is skin and place alike — and only_a / only_b are the
+    titles one book knows and the other does not. Titles match
+    case-insensitively and exactly (book to book, no substring
+    guessing); junk entries are skipped on both sides. Never
+    raises."""
+    try:
+        same, changed, only_a, only_b = [], [], [], []
+        book_b = {}
+        for entry in list(snap_b or [])[:LAYOUT_WINDOW_CAP]:
+            try:
+                t = str((entry or {}).get("title") or "").strip()
+                if t:
+                    book_b[t.lower()] = entry
+            except Exception:  # noqa: BLE001 — junk entry
+                pass
+        seen = set()
+        for entry in list(snap_a or [])[:LAYOUT_WINDOW_CAP]:
+            try:
+                t = str((entry or {}).get("title") or "").strip()
+            except Exception:  # noqa: BLE001 — junk entry
+                continue
+            if not t:
+                continue
+            other = book_b.get(t.lower())
+            if other is None:
+                try:
+                    only_a.append((t, str((entry or {})
+                                   .get("geometry") or "?")))
+                except Exception:  # noqa: BLE001 — junk geometry
+                    only_a.append((t, "?"))
+                continue
+            seen.add(t.lower())
+            try:
+                geo_a = str((entry or {}).get("geometry") or "?")
+                geo_b = str((other or {}).get("geometry") or "?")
+            except Exception:  # noqa: BLE001 — junk geometry
+                geo_a = geo_b = "?"
+            notes = []
+            try:
+                a_a = (entry or {}).get("alpha", None)
+                b_a = (other or {}).get("alpha", None)
+                if isinstance(a_a, (int, float)) and \
+                        not isinstance(a_a, bool) and \
+                        isinstance(b_a, (int, float)) and \
+                        not isinstance(b_a, bool) and \
+                        abs(float(a_a) - float(b_a)) > 0.005:
+                    sa = "solid" if a_a >= 0.995 else \
+                        "%d%%" % round(a_a * 100)
+                    sb = "solid" if b_a >= 0.995 else \
+                        "%d%%" % round(b_a * 100)
+                    notes.append("ghost %s → %s" % (sa, sb))
+            except Exception:  # noqa: BLE001 — junk layer
+                pass
+            try:
+                a_t = (entry or {}).get("topmost", None)
+                b_t = (other or {}).get("topmost", None)
+                if isinstance(a_t, bool) and isinstance(b_t, bool) \
+                        and a_t != b_t:
+                    notes.append("pin %s → %s"
+                                 % ("on" if a_t else "off",
+                                    "on" if b_t else "off"))
+            except Exception:  # noqa: BLE001 — junk layer
+                pass
+            if geo_a == geo_b and not notes:
+                same.append((t, geo_a))
+            else:
+                changed.append((t, geo_a, geo_b,
+                                " · ".join(notes)))
+        for lt in book_b:
+            if lt not in seen:
+                try:
+                    e = book_b[lt]
+                    only_b.append((str((e or {}).get("title")
+                                       or lt),
+                                   str((e or {}).get("geometry")
+                                       or "?")))
+                except Exception:  # noqa: BLE001 — junk entry
+                    pass
+        return same, changed, only_a, only_b
+    except Exception:  # noqa: BLE001 — a compare never raises
+        return [], [], [], []
+
+
 # ------------------------------------------------- v2.67.0 window layering
 
 MIN_ALPHA = 0.10         # a window ghosted below this is simply lost

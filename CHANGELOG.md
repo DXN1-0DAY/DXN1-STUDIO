@@ -4,6 +4,21 @@ All notable changes to DXN1 STUDIO. Format based on
 [Keep a Changelog](https://keepachangelog.com/); versioning is
 `MAJOR.MINOR.PATCH` while in **beta**.
 
+## [2.71.0] — 2026-09-15 · beta · "book to book" (tools layout diff <a> <b>: two saved layouts compared, geometry and layer deltas named)
+
+### Added
+- **`tools layout diff <a> <b>` — book to book** — two SAVED
+  layouts compared: the windows standing identically in both, the
+  windows that changed (`changed: Chart — 300x200+10+10 →
+  500x300+40+40 · ghost solid → 40% · pin off → on` — geometry
+  AND layer deltas named, because a layout is skin and place
+  alike), and the windows only one book knows. Titles match
+  case-insensitively and exactly — no substring guessing between
+  books. The single-name live-diff form is tried FIRST (the full
+  argument as a layout name wins, so names with spaces keep
+  working); identical books agree out loud; junk on either side
+  is tolerated, never fatal (`geom.layout_compare()`)
+
 ## [2.70.0] — 2026-09-15 · beta · "the chip menu admits the drift" (recall rows marked as saved / drifted, read fresh at every post)
 
 ### Added
