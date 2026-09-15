@@ -16,6 +16,7 @@ Security model:
 
 import json
 import os
+import queue
 import secrets
 import threading
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
@@ -39,21 +40,55 @@ _MIME = {".html": "text/html; charset=utf-8",
 
 
 class BridgeState:
-    """Thread-safe snapshot of what the web UI needs."""
+    """Thread-safe snapshot of what the web UI needs.
+
+    Mutations NEVER call Tk from the HTTP thread — they push a closure
+    onto a queue that a main-loop pump drains. `start_bridge` (which
+    runs on the Tk main thread) schedules the pump, so cross-thread
+    `after` calls are avoided entirely.
+    """
 
     def __init__(self, app):
         self.app = app
         self.token = secrets.token_hex(16)
+        self._q = queue.Queue()
+
+    def start_pump(self):
+        """Main-thread only: drain the mutation queue every 80 ms."""
+        try:
+            while True:
+                fn = self._q.get_nowait()
+                try:
+                    fn()
+                except Exception:  # noqa: BLE001 — a bad mutation dies alone
+                    pass
+        except queue.Empty:
+            pass
+        try:
+            self.app.root.after(80, self.start_pump)
+        except Exception:  # noqa: BLE001 — root gone: pump ends quietly
+            pass
+
+    def post(self, fn):
+        """Schedule a closure on the Tk main loop (thread-safe)."""
+        self._q.put(fn)
 
     # ---- reads (called on the HTTP thread; only pure data) ----------
     def snapshot(self):
         app = self.app
+        base = getattr(app, "project_dir", None) or os.getcwd()
         tabs = []
         try:
             active = getattr(app.editor, "file_path", None)
             for path, buf in getattr(app, "_buffers", {}).items():
                 name = os.path.basename(path) or path
-                tabs.append({"path": path, "name": name,
+                # workspace-relative for the web face (falls back to the
+                # basename for paths outside the workspace)
+                try:
+                    rel = os.path.relpath(path, base)
+                except ValueError:  # noqa: PERF203 — different drive etc.
+                    rel = name
+                tabs.append({"path": rel, "name": name,
                              "dirty": bool(buf.get("dirty")),
                              "active": path == active})
         except Exception:  # noqa: BLE001 — a dead widget must not 500
@@ -132,10 +167,7 @@ class BridgeState:
                     self.app.open_file(path)
             except Exception:  # noqa: BLE001
                 pass
-        try:
-            self.app.root.after(0, _reopen)
-        except Exception:  # noqa: BLE001
-            pass
+        self.post(_reopen)
         return {"path": path, "saved": True}, None
 
     def tree(self):
@@ -175,7 +207,7 @@ class BridgeState:
                     fn()
                 except Exception:  # noqa: BLE001
                     pass
-            self.app.root.after(0, _run)
+            self.post(_run)
             return {"ran": label}, None
         except Exception as exc:  # noqa: BLE001
             return None, str(exc)
@@ -190,10 +222,7 @@ class BridgeState:
                 self.app.open_file(real)
             except Exception:  # noqa: BLE001
                 pass
-        try:
-            self.app.root.after(0, _open)
-        except Exception:  # noqa: BLE001
-            pass
+        self.post(_open)
         return {"opened": path}, None
 
     # ---- file ops (reuse the TESTED stdio engine: bridge.Bridge) ------
@@ -239,10 +268,7 @@ class BridgeState:
                 self.app.run_current()
             except Exception:  # noqa: BLE001
                 pass
-        try:
-            self.app.root.after(0, _run)
-        except Exception:  # noqa: BLE001
-            pass
+        self.post(_run)
         return {"ran": True}, None
 
     # ---- helpers ------------------------------------------------------
@@ -411,4 +437,10 @@ def start_bridge(app, host="127.0.0.1", port=0):
     thread = threading.Thread(target=server.serve_forever,
                               kwargs={"poll_interval": 0.2}, daemon=True)
     thread.start()
+    # the pump MUST be scheduled from the Tk main loop (we are on it —
+    # the palette command calls start_bridge)
+    try:
+        state.start_pump()
+    except Exception:  # noqa: BLE001 — headless/tests without a loop
+        pass
     return server, url, state.token

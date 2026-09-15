@@ -157,6 +157,10 @@ async function openFile(path) {
   renderGutter();
   renderHighlight();
   renderTabs();
+  // tell the Tk side too — the file joins _buffers, so the tab bar
+  // and the desktop app show the same open set (single source of truth)
+  api("/api/open", { method: "POST", body: JSON.stringify({ path: r.file.path }) })
+    .catch(() => {});
   toast("Opened " + path.split("/").pop());
 }
 
