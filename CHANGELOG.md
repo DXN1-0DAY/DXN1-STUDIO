@@ -1,3 +1,19 @@
+## v3.0.63 — the census (:words)
+
+- **`:words` — the document's word census, ranked and counted.** :stats
+  counts words; the census NAMES them. The laws, all selftested:
+  case is FORGIVEN (the beginner law — "The" and "the" are one word),
+  punctuation is stripped from the EDGES only ("spawn", (spawn) and
+  spawn, all count as spawn), the INSIDE is kept whole (gem-1 stays
+  gem-1, on_hit stays on_hit), pure-punctuation tokens say nothing,
+  ties take the alphabet so the order never wobbles, and the list
+  caps at six with an honest tail ("… +2 more words"). The bar prints
+  "engine: the census, most-said first — spawn×4 · gem-1×3 · the×3",
+  an empty document refuses with the way out, :help's verb list
+  carries the new name, and the whisper explains the law.
+- Selftest group 70 (7 asserts) — 635 → 642 groups. Smoke section
+  13a3 (2 checks) — 114 → 116: the census speaks and it counts.
+
 ## v3.0.62 — the hunt walks the file view
 
 - **F3/shift+F3 in the file view — the scene's source joins the hunt.**

@@ -1921,6 +1921,16 @@ int main(int argc, char** argv) {
           } else {
             ide.console.push_back("engine: nothing to redo");
           }
+        } else if (cmd.verb == "words") {
+          // the census: what the document says most, ranked and capped,
+          // the case forgiven — a mirror for the code you are writing
+          takeStage();
+          const std::string w = dxn3::ideWordsWhisper(ide);
+          ide.console.push_back(
+              w.empty()
+                  ? "engine: the census is empty — the document has no "
+                    "words yet"
+                  : "engine: the census, most-said first — " + w);
         } else if (cmd.verb == "stats") {
           takeStage();
           size_t words = 0, chars = 0;
@@ -1997,7 +2007,7 @@ int main(int argc, char** argv) {
           game.scene.gravity = cmd.num;
           game.say("gravity " + std::to_string(static_cast<int>(cmd.num)), 1.2);
         } else if (cmd.verb == "help") {
-          game.say(":scene :open :recent :template :snip :goto :mark :marks :bm :ruler :minimap :zen :trim :cases :sort :rsort :rev :uniq :indent :dedent :lift :drop :dup :join :upper :lower :title :hist :undo :redo :stats "
+          game.say(":scene :open :recent :template :snip :goto :mark :marks :bm :ruler :minimap :zen :trim :cases :sort :rsort :rev :uniq :indent :dedent :lift :drop :dup :join :upper :lower :title :hist :undo :redo :words :stats "
                     ":zoom :fit :reset :new :w :wq :q :screenshot :magnet :gravity", 4.f);
         }
       } else {

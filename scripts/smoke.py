@@ -817,6 +817,16 @@ def main():
               scr.text(ROWS - 3)[GUTTER:GUTTER + 5] == "zz aa",
               repr(scr.text(ROWS - 3)[:16]))
 
+        # ── 13a3. the census — :words counts what the document says ──
+        print("── 13a3. the census — :words ranks the document's words")
+        scr, _ = s.run_verb("words", "ide")
+        check(":words speaks the census, most-said first",
+              "engine: the census, most-said first — " in scr.text(ROWS - 2),
+              repr(scr.text(ROWS - 2)[:60]))
+        check("the census counts its words",
+              "×" in scr.text(ROWS - 2) and "·" in scr.text(ROWS - 2),
+              repr(scr.text(ROWS - 2)[:60]))
+
         # ── 13b. the pen — :w saves the script, the .bak keeps the past
         print("── 13b. the pen — :w writes the doc, a .bak keeps the past")
         scr, _ = s.run_verb("w", "ide")       # the first save: no past yet

@@ -199,7 +199,7 @@ int main() {
   }
 
   // 9. the version quad rides in the binary too
-  ok(std::string(dxn3::DXN3_VERSION) == "3.0.62",
+  ok(std::string(dxn3::DXN3_VERSION) == "3.0.63",
      "native version constant matches the release quad");
 
   // 10. png writer: checksum vectors, real structure, byte determinism
@@ -3249,6 +3249,43 @@ int main() {
     ok(dxn3::ideUndoReceipt(s).find("engine: undo — ") == 0 &&
            dxn3::ideRedoReceipt(s).find("engine: redo — ") == 0,
        "the receipts the bar speaks are the keys' receipts, byte for byte");
+  }
+
+  // 70. :words — the census: case forgiven, the edges stripped, the
+  // inside kept whole, ties taking the alphabet, the tail counted
+  {
+    IdeState s;
+    s.lines = {"The the the spawn",
+               "\"spawn\" (spawn) gem-1",
+               "SPAWN gem-1 gem-1"};
+    const std::string w = dxn3::ideWordsWhisper(s, 6);
+    ok(w.rfind("spawn×4", 0) == 0,
+       "case and edges forgiven — four spawns lead the census");
+    ok(w.find("gem-1×3") != std::string::npos &&
+           w.find("the×3") != std::string::npos &&
+           w.find("gem-1×3") < w.find("the×3"),
+       "the inside stays whole and ties take the alphabet");
+    ok(w == "spawn×4 · gem-1×3 · the×3",
+       "the census line is exactly the ranked truth");
+
+    IdeState big;
+    big.lines = {"a b c d e f g"};
+    const std::string w2 = dxn3::ideWordsWhisper(big, 5);
+    ok(w2.find("… +2 more words") != std::string::npos,
+       "the cap counts the words it hides");
+
+    IdeState punct;
+    punct.lines = {"! ? ... ()", "on_hit stays"};
+    const std::string w3 = dxn3::ideWordsWhisper(punct, 6);
+    ok(w3.rfind("on_hit×1", 0) == 0 && w3.find("stays×1") != std::string::npos,
+       "pure punctuation says nothing; the underscore inside survives");
+
+    IdeState e;
+    e.lines = {""};
+    ok(dxn3::ideWordsWhisper(e).empty(),
+       "an empty document holds no census");
+    ok(dxn3::usageHintFor(":words").find("census") != std::string::npos,
+       "the bar whispers the census");
   }
 
 

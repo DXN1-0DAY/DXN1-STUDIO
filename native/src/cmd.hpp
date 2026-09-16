@@ -122,7 +122,8 @@ inline Cmd parseCommand(std::string_view line) {
              c.verb == "lift" || c.verb == "drop" || c.verb == "dup" ||
              c.verb == "join" ||
              c.verb == "mark" || c.verb == "marks" || c.verb == "zen" ||
-             c.verb == "hist" || c.verb == "undo" || c.verb == "redo") {
+             c.verb == "hist" || c.verb == "undo" || c.verb == "redo" ||
+             c.verb == "words") {
     if (!c.arg.empty())
       c.error = ":" + c.verb + " takes no argument";
   } else {
@@ -237,6 +238,9 @@ inline std::string usageHintFor(std::string_view typed) {
     return " :undo — walk the ledger back one step (ctrl+z's twin)";
   if (verb == "redo")
     return " :redo — step forward again (ctrl+y's twin)";
+  if (verb == "words")
+    return " :words — the census: the document's most-said words, counted "
+           "(case forgiven)";
   if (verb == "stats") return " :stats — lines, words, chars, where you stand";
   if (verb == "w")
     return " :w [file] — save the session's work; a .bak is kept";

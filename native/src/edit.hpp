@@ -15,6 +15,7 @@
 #include <cctype>
 #include <cstring>
 #include <functional>
+#include <map>
 #include <optional>
 #include <charconv>
 #include <string>
@@ -740,6 +741,59 @@ inline std::string ideHistWhisper(const IdeState& s, size_t maxNames = 8) {
   }
   if (n > maxNames)
     out += " · … +" + std::to_string(n - maxNames) + " deeper";
+  return out;
+}
+
+// ── the census, listed (:words) ─────────────────────────────────────
+// the document's most-said words, counted and ranked. The laws:
+// case is FORGIVEN (the beginner law — "The" and "the" are one word),
+// punctuation is stripped from the EDGES only ("spawn", (spawn),
+// spawn, and spawn, all count as spawn), the INSIDE is kept whole
+// (gem-1 stays gem-1, on_hit stays on_hit), and ties take the
+// alphabet so the order never wobbles. Pure and selftested — the bar
+// prints it, capped at maxWords with the true tail.
+inline std::string ideWordsWhisper(const IdeState& s, size_t maxWords = 6) {
+  std::map<std::string, int> counts;
+  auto stripEdges = [](const std::string& w) {
+    size_t a = 0, b = w.size();
+    while (a < b && std::ispunct(static_cast<unsigned char>(w[a]))) ++a;
+    while (b > a && std::ispunct(static_cast<unsigned char>(w[b - 1]))) --b;
+    return w.substr(a, b - a);
+  };
+  for (const auto& l : s.lines) {
+    size_t i = 0;
+    while (i < l.size()) {
+      while (i < l.size() &&
+             std::isspace(static_cast<unsigned char>(l[i]))) ++i;
+      const size_t a = i;
+      while (i < l.size() &&
+             !std::isspace(static_cast<unsigned char>(l[i]))) ++i;
+      if (i <= a) continue;
+      std::string w = stripEdges(l.substr(a, i - a));
+      if (w.empty()) continue;            // a pure-punctuation token says nothing
+      for (char& c : w)
+        c = static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
+      ++counts[w];
+    }
+  }
+  if (counts.empty()) return "";
+  std::vector<std::pair<std::string, int>> ranked(counts.begin(), counts.end());
+  std::sort(ranked.begin(), ranked.end(),
+            [](const auto& x, const auto& y) {
+              if (x.second != y.second) return x.second > y.second;
+              return x.first < y.first;   // ties take the alphabet
+            });
+  std::string out;
+  const size_t total = ranked.size();
+  for (size_t i = 0; i < total && i < maxWords + 1; ++i) {
+    if (i == maxWords) {
+      out += " · … +" + std::to_string(total - maxWords) + " more word" +
+             (total - maxWords == 1 ? "" : "s");
+      break;
+    }
+    if (i > 0) out += " · ";
+    out += ranked[i].first + "×" + std::to_string(ranked[i].second);
+  }
   return out;
 }
 
