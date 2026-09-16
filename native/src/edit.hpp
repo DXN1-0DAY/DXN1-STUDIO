@@ -914,6 +914,42 @@ inline std::string ideRecentResolve(const std::vector<std::string>& recent,
   return arg;
 }
 
+// the :open whisper: what ":open <part>" is about to load, spoken
+// while you type. The LEDGER speaks first — files you had open, by
+// path or basename — then the filesystem's candidates fill in behind,
+// deduped, one rule of order: your files before the world's. Clipped
+// to the bar's honest width, never past a separator.
+inline std::string ideOpenWhisper(const std::vector<std::string>& recent,
+                                  const std::string& part,
+                                  const std::vector<std::string>& files,
+                                  size_t maxW) {
+  auto basename = [](const std::string& p) {
+    const size_t slash = p.find_last_of('/');
+    return slash == std::string::npos ? p : p.substr(slash + 1);
+  };
+  auto matches = [&part, &basename](const std::string& p) {
+    return p.rfind(part, 0) == 0 || basename(p).rfind(part, 0) == 0;
+  };
+  std::string w;
+  std::vector<std::string> seen;        // the ledger's word is final:
+  bool full = false;                    // a path never speaks twice
+  auto offer = [&](const std::string& p) {
+    if (full || !matches(p)) return;
+    for (const auto& s : seen)
+      if (s == p) return;
+    seen.push_back(p);
+    const size_t need = w.empty() ? p.size() : w.size() + 3 + p.size();
+    if (need > maxW) {
+      full = true;                      // the FIRST name that does not
+      return;                           // fit ends the whisper — the
+    }                                   // same honest law as :recent's
+    w += w.empty() ? p : " \xc2\xb7 " + p;
+  };
+  for (const auto& p : recent) offer(p);
+  for (const auto& p : files) offer(p);
+  return w;
+}
+
 // ── the minimap: the whole document, compressed, at a glance ────────
 // One doc line becomes one map row; leading whitespace compresses 2:1
 // (deep nests stay inside six columns) and a run of text compresses to

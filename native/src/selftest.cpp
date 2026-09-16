@@ -199,7 +199,7 @@ int main() {
   }
 
   // 9. the version quad rides in the binary too
-  ok(std::string(dxn3::DXN3_VERSION) == "3.0.31",
+  ok(std::string(dxn3::DXN3_VERSION) == "3.0.33",
      "native version constant matches the release quad");
 
   // 10. png writer: checksum vectors, real structure, byte determinism
@@ -286,7 +286,8 @@ int main() {
     c = dxn3::parseCommand(":open game.py");
     ok(c.ok() && c.verb == "open" && c.arg == "game.py",
        "parseCommand reads :open with its file");
-    ok(!dxn3::parseCommand(":open").ok(), ":open without a file is refused");
+    const auto openBare = dxn3::parseCommand(":open");
+    ok(openBare.ok(), "a bare :open is legal — the ledger's head answers");
     c = dxn3::parseCommand(":goto 42");
     ok(c.ok() && c.verb == "goto" && c.num == 42.f,
        "parseCommand reads :goto with its line");
@@ -2030,6 +2031,35 @@ int main() {
     const int textW = editW - 1 - G;   // no map: code runs to the divider
     ok(G == 5 && textW == 40,
        "a 1000-line doc's pane is one column narrower, honestly");
+  }
+
+  // 44. :open learned the ledger: a bare :open reopens the head, and
+  // the whisper speaks YOUR files before the filesystem's
+  {
+    const auto c1 = dxn3::parseCommand(":open");
+    ok(c1.ok() && c1.verb == "open" && c1.arg.empty(),
+       "a bare :open parses — the argument is optional now");
+    const std::vector<std::string> ledger{
+        "games/mygame.py", "sdk/examples/bounce.js", "untitled.py"};
+    const std::vector<std::string> files{
+        "untitled.py", "sdk/examples/flappy.py", "pong.cpp"};
+    using dxn3::ideOpenWhisper;
+    ok(ideOpenWhisper(ledger, "", files, 400) ==
+           "games/mygame.py \xc2\xb7 sdk/examples/bounce.js \xc2\xb7 "
+           "untitled.py \xc2\xb7 sdk/examples/flappy.py \xc2\xb7 pong.cpp",
+       "the ledger speaks first, the filesystem fills in behind");
+    ok(ideOpenWhisper(ledger, "un", files, 400) == "untitled.py",
+       "a path both zones speak is never whispered twice");
+    ok(ideOpenWhisper(ledger, "my", files, 400) == "games/mygame.py",
+       "a ledger-only path (gone from disk) still whispers");
+    ok(ideOpenWhisper(ledger, "fl", files, 400) == "sdk/examples/flappy.py",
+       "a disk-only file whispers by its basename");
+    ok(ideOpenWhisper(ledger, "zz", files, 400).empty(),
+       "a ghost stays silent — enter will refuse it honestly");
+    ok(ideOpenWhisper(ledger, "", files, 24) == "games/mygame.py",
+       "a narrow bar carries the head and stops before the separator");
+    ok(ideOpenWhisper({}, "un", files, 400) == "untitled.py",
+       "an empty ledger leaves the floor to the filesystem");
   }
 
   if (fails == 0) {

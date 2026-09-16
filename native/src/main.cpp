@@ -1480,8 +1480,20 @@ int main(int argc, char** argv) {
             loadTemplate(hit);
           }
         } else if (cmd.verb == "open") {
-          const std::string err = openScript(cmd.arg);
-          if (!err.empty()) { cmdErr = err; cmdErrT = 3.5f; }
+          if (cmd.arg.empty()) {
+            // a bare :open: the ledger's head — what you had last, one
+            // word away; an empty ledger refuses with the way out
+            if (ide.recent.empty()) {
+              cmdErr = "open what? — name a path (:recent lists the ledger)";
+              cmdErrT = 3.5f;
+            } else {
+              const std::string err = openScript(ide.recent.front());
+              if (!err.empty()) { cmdErr = err; cmdErrT = 3.5f; }
+            }
+          } else {
+            const std::string err = openScript(cmd.arg);
+            if (!err.empty()) { cmdErr = err; cmdErrT = 3.5f; }
+          }
         } else if (cmd.verb == "recent") {
           if (cmd.arg.empty()) {
             if (!ide.open) ide.open = true;  // the stage, for the reading
@@ -1893,7 +1905,7 @@ int main(int argc, char** argv) {
           const char* pre;
           size_t len;
           bool bare;             // whispers even with nothing typed after it
-        } qs[] = {{"scene ", 6, false},      {"open ", 5, false},
+        } qs[] = {{"scene ", 6, false},      {"open ", 5, true},
                   {"screenshot ", 11, true}, {"w ", 2, false},
                   {"snip ", 5, false},       {"recent ", 7, true}};
         for (const auto& q : qs) {
@@ -1908,14 +1920,21 @@ int main(int argc, char** argv) {
               w += m;
             }
           } else if (std::strcmp(q.pre, "open ") == 0) {
-            // scripts match on their FILE name, but whisper the full
-            // path — "f" finds sdk/examples/flappy.py
-            for (const auto& p : scriptCandidates()) {
-              const std::string base =
-                  std::filesystem::path(p).filename().string();
-              if (base.rfind(part, 0) != 0) continue;
-              if (!w.empty()) w += " · ";
-              w += p;
+            if (part.empty()) {
+              // bare :open: what enter WILL open — the ledger's head,
+              // or the honest nothing when the ledger is empty
+              if (ide.recent.empty())
+                w = "(the ledger is empty — name a path)";
+              else
+                w = ide.recent.front() + " — the ledger's head";
+            } else {
+              // the LEDGER speaks first — files you had open, by path
+              // or basename — then the cwd's scripts and the gallery's
+              // examples fill in behind, deduped, in that order
+              const int hcolW = 2 + static_cast<int>(cmdBuf.size());
+              w = dxn3::ideOpenWhisper(
+                  ide.recent, part, scriptCandidates(),
+                  static_cast<size_t>(std::max(0, cols - 1 - hcolW)));
             }
           } else if (std::strcmp(q.pre, "screenshot ") == 0) {
             if (part.empty()) {

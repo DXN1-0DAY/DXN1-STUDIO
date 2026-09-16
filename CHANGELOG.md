@@ -1,3 +1,26 @@
+## v3.0.33 — the bare open
+
+- **A bare `:open` reopens the ledger's head.** The verb you used to
+  refuse without a file now answers with what you had LAST — one
+  word, your most recent file, back on the stage. An empty ledger
+  still refuses, honestly, with the way out ("name a path — :recent
+  lists the ledger"). The grammar follows the truth: `:open`'s
+  argument is optional now, exactly like `:recent`'s.
+- **The :open whisper speaks YOUR files first.** Type `:open bo` and
+  the ledger's matches whisper ahead of the filesystem's — full path
+  OR basename carries the prefix, ledger order, then the cwd's
+  scripts and the gallery's examples fill in behind, deduped (a path
+  the ledger already spoke is never spoken twice), clipped to the
+  bar's honest width by the SAME law as the :recent whisper. A bare
+  `:open` whispers what enter WILL open — the head, or "(the ledger
+  is empty — name a path)". The bar never lies ahead of the truth.
+- Selftest: group 44 (the bare :open parse, ledger-before-filesystem
+  order, dedup, the ledger-only ghost path that still whispers, the
+  disk-only basename match, the silent ghost, the narrow bar, the
+  empty ledger) plus the two assertions that rode along — the old
+  ":open without a file is refused" now asserts the new law, and the
+  version quad moved — 377 → 385 assertion groups, all green.
+
 ## v3.0.32 — the wide gutter
 
 - **The gutter earns its width.** Four columns carried line numbers
