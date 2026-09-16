@@ -69,6 +69,7 @@ public:
   }
   void unclip() { vx0_ = 0; vy0_ = 0; vx1_ = -1; vy1_ = -1; }
   void px(float sx, float sy, RGB c);   // plot world pixel (nearest)
+  void pxDot(float wx, float wy, RGB c);// plot ONE dot (braille sub-px)
   RGB at(int gx, int gy) const;         // read a grid pixel (0 outside)
   void rect(float x0, float y0, float x1, float y1, RGB c);
   void rectGradient(float x0, float y0, float x1, float y1, RGB top, RGB bottom);

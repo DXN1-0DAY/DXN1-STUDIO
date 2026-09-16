@@ -67,6 +67,16 @@ void Screen::px(float sx, float sy, RGB c) {
   }
 }
 
+void Screen::pxDot(float wx, float wy, RGB c) {
+  const int bw = cols * dotX(), bh = halfRows() * dotY();
+  const int x = static_cast<int>(wx * dotX());
+  const int y = static_cast<int>(wy * dotY());
+  if (vx1_ >= 0 && (x / dotX() < vx0_ || x / dotX() > vx1_ ||
+                    y / dotY() < vy0_ || y / dotY() > vy1_)) return;
+  if (x < 0 || x >= bw || y < 0 || y >= bh) return;
+  grid_[static_cast<size_t>(y) * bw + x] = c;
+}
+
 RGB Screen::at(int gx, int gy) const {
   const int bw = cols * dotX();
   const int x0 = gx * dotX(), y0 = gy * dotY();

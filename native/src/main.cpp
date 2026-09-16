@@ -85,6 +85,7 @@ struct Keys {
   bool aLeft = false, aRight = false;          // IDE: cursor cols
   bool toPlay = false;                         // IDE: tab — play your game
   bool braille = false;                        // b — toggle the dot renderer
+  bool ctrlN = false;                          // IDE: next template
   std::string typed;                           // printable chars this frame
 };
 
@@ -137,6 +138,7 @@ Keys pollKeys(Mode mode) {
         else if (c == 0x7f || c == '\b') k.back = true;
         else if (c == 0x13) k.ctrlS = true;               // Ctrl+S — save+run
         else if (c == 0x12) k.ctrlR = true;               // Ctrl+R — run
+        else if (c == 0x0e) k.ctrlN = true;               // Ctrl+N — template
         else if (static_cast<unsigned char>(c) >= 0x20) k.typed += c;
       } else if (mode == Mode::File) {       // FILE VIEW: every letter is text
         if (c == '\r' || c == '\n') k.enter = true;
@@ -366,26 +368,22 @@ void drawWorld(dxn3::Screen& scr, const dxn3::Game& g) {
       }
       const float rw = (x1 - x0) / 2.f, rh = (y1 - y0) / 2.f;
       if (rw <= 0 || rh <= 0) continue;
-      const int ry0 = std::max(0, static_cast<int>(y0) - 1);
-      const int ry1 = std::min(hr, static_cast<int>(y1) + 1);
-      for (int ry = ry0; ry <= ry1; ++ry) {
-        const float t = ((static_cast<float>(ry) + 0.5f) - cym) / rh;
-        const float k = 1.f - t * t;
-        if (k <= 0) continue;
-        const float hw = rw * std::sqrt(k);
-        scr.rect(cxm - hw, static_cast<float>(ry), cxm + hw,
-                 static_cast<float>(ry), c1);
-      }
-      // rim light so discs hold their edge against the void
-      for (int ry = ry0; ry <= ry1; ++ry) {
-        const float t = ((static_cast<float>(ry) + 0.5f) - cym) / rh;
-        const float k = 1.f - t * t;
-        if (k <= 0.02f) continue;
-        const float hw = rw * std::sqrt(k);
-        scr.rect(cxm - hw, static_cast<float>(ry), cxm - hw,
-                 static_cast<float>(ry), edgeC);
-        scr.rect(cxm + hw, static_cast<float>(ry), cxm + hw,
-                 static_cast<float>(ry), edgeC);
+      // per-DOT circle test: in braille mode every dot is its own pixel,
+      // so discs are genuinely round instead of stair-stepped
+      const int dx0 = std::max(0, static_cast<int>(x0 * 2.f) - 1);
+      const int dx1 = std::min(cols * 2 - 1, static_cast<int>(x1 * 2.f) + 1);
+      const int dy0 = std::max(0, static_cast<int>(y0 * 2.f) - 1);
+      const int dy1 = std::min(hr * 2 - 1, static_cast<int>(y1 * 2.f) + 1);
+      for (int dy = dy0; dy <= dy1; ++dy) {
+        const float wy = dy * 0.5f + 0.25f;
+        const float ty = (wy - cym) / rh;
+        for (int dx = dx0; dx <= dx1; ++dx) {
+          const float wx = dx * 0.5f + 0.25f;
+          const float tx = (wx - cxm) / rw;
+          const float k2 = tx * tx + ty * ty;
+          if (k2 > 1.f) continue;
+          scr.pxDot(wx, wy, k2 > 0.80f ? edgeC : c1);
+        }
       }
       continue;
     }
@@ -494,7 +492,21 @@ struct IdeState {
   std::vector<std::string> console;          // engine notes + game prints
   std::string state = "new file — write code, Ctrl+R runs it";
   bool hostUp = false;
+  int tpl = -1;                                // Ctrl+N gallery index
 };
+
+// the Ctrl+N gallery: cycle real, working starting points
+const char* TPL_BLANK =
+    "# blank canvas — W and H are the world size.\n"
+    "# make anything: rect(), circle(), label(), on_key, on_tick, run()\n\n"
+    "from dxn3 import *\n\n"
+    "ball = circle(\"ball\", W // 2, H // 2, 6, 6, \"#facc15\")\n"
+    "ball.vx = 3\n"
+    "ball.vy = 2\n\n"
+    "def on_tick(dt):\n"
+    "    if ball.x < 0 or ball.x > W - 6: ball.vx = -ball.vx\n"
+    "    if ball.y < 0 or ball.y > H - 6: ball.vy = -ball.vy\n\n"
+    "run()\n";
 
 const char* STARTER = R"(# DXN1 STUDIO — your game starts here.
 # edit anything — stop typing for a beat and the viewport refreshes LIVE.
@@ -712,7 +724,7 @@ void drawIDE(dxn3::Screen& scr, IdeState& ide, const dxn3::Game& g, bool hostUp)
   const std::string l1 = n >= 1 ? ide.console[n - 1] : "";
   const std::string l2 = n >= 2 ? ide.console[n - 2] : "";
   scr.text(1, c0, l1.substr(0, static_cast<size_t>(cols - 3)), dxn3::rgb(148, 156, 180));
-  const std::string hint = " ctrl+r run · ctrl+s save · esc play · :scene <file> loads a demo ";
+  const std::string hint = " ctrl+r run · ctrl+n template · ctrl+s save · esc play · q quits from play ";
   scr.text(1, c0 + 1, hint.substr(0, static_cast<size_t>(cols - 3)), dxn3::rgb(84, 72, 120));
   if (!l2.empty())
     scr.text(cols - std::min(cols - 3, static_cast<int>(l2.size())) - 1, c0 + 1,
@@ -1150,6 +1162,33 @@ int main(int argc, char** argv) {
       } else if (keys.ctrlR) {
         ideRun();
         ide.idle = 0;
+      } else if (keys.ctrlN) {
+        static const char* names[] = {"blank", "shooter", "cards", "background"};
+        ide.tpl = (ide.tpl + 1) % 4;
+        const std::string name = names[ide.tpl];
+        if (std::string(name) == "blank") {
+          ide.lines = starterLines();          // same tiny shooter, fresh
+          ide.lines = std::vector<std::string>{std::string(TPL_BLANK)};
+          std::string ss = TPL_BLANK;
+          ide.lines.clear();
+          size_t pos;
+          while ((pos = ss.find('\n')) != std::string::npos) {
+            ide.lines.push_back(ss.substr(0, pos));
+            ss.erase(0, pos + 1);
+          }
+          ide.path = "untitled.py";
+        } else {
+          std::ifstream f(std::string("sdk/examples/") + name + ".py");
+          ide.lines.clear();
+          std::string ln;
+          while (std::getline(f, ln)) ide.lines.push_back(ln);
+          ide.path = std::string("untitled-") + name + ".py";
+        }
+        ide.curR = ide.curC = ide.top = 0;
+        ide.dirty = true;
+        ide.idle = 0;
+        ide.console.push_back("engine: template — " + name +
+                              " (ctrl+n again to cycle)");
       }
       if (keys.esc) ide.open = false;          // esc → play your game
     }

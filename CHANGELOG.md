@@ -1,3 +1,13 @@
+## v3.0.11 — the polish round
+
+- **Discs are genuinely round now**: circles rasterize per dot, so in
+  braille mode every coin, moon and enemy is a true curve with a rim
+  light — no more stair steps.
+- **Ctrl+N cycles starting points** in the IDE: a bouncing-ball blank,
+  the shooter, the card game, the background — each loads into the
+  editor and goes live, so "start with nothing" never means "start
+  alone".
+
 ## v3.0.10 — the de-pixel: braille dots
 
 **Four times the pixels, zero new dependencies**
