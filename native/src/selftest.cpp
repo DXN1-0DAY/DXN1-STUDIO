@@ -199,7 +199,7 @@ int main() {
   }
 
   // 9. the version quad rides in the binary too
-  ok(std::string(dxn3::DXN3_VERSION) == "3.0.67",
+  ok(std::string(dxn3::DXN3_VERSION) == "3.0.68",
      "native version constant matches the release quad");
 
   // 10. png writer: checksum vectors, real structure, byte determinism
@@ -3411,6 +3411,48 @@ int main() {
        "one gathered receipt needs no digest — the window shows it");
     ok(dxn3::usageHintFor(":zen").find("replays") != std::string::npos,
        "the bar whispers the wake's replay");
+  }
+
+  // 74. the welcome back: the hand returns where it left — planted on
+  // the way out, looked up on the way in, LANDED honest (clamped to
+  // the document as it is NOW, never off the page, an empty page
+  // indexes nothing)
+  {
+    std::map<std::string, dxn3::DocCur> m;
+    dxn3::ideDocCurRemember(m, "game.py", 6, 0);
+    ok(m.size() == 1, "the hand is planted under the file's name");
+    dxn3::ideDocCurRemember(m, "", 3, 3);
+    ok(m.size() == 1,
+       "a nameless file plants nothing (no name, no memory)");
+    const auto hand = dxn3::ideDocCurLookup(m, "game.py");
+    ok(hand && hand->first == 6 && hand->second == 0,
+       "the lookup returns the planted hand");
+    ok(!dxn3::ideDocCurLookup(m, "other.py"),
+       "an unknown file has no past");
+    dxn3::ideDocCurRemember(m, "game.py", 2, 4);
+    ok(m.size() == 1 && m["game.py"].first == 2,
+       "a new visit replaces the old hand — one memory per file");
+
+    const std::vector<std::string> doc = {"alpha", "beta", "gamma"};
+    const auto home = dxn3::ideDocCurLand(doc, dxn3::DocCur{1, 2});
+    ok(home.first == 1 && home.second == 2,
+       "a hand inside the doc lands where it stood");
+    const auto deep = dxn3::ideDocCurLand(doc, dxn3::DocCur{40, 0});
+    ok(deep.first == 2,
+       "a file that shrank keeps the hand on its last line");
+    const auto wide = dxn3::ideDocCurLand(doc, dxn3::DocCur{0, 99});
+    ok(wide.second == 5, "the column clamps to the line it lands in");
+    const auto wild = dxn3::ideDocCurLand(doc, dxn3::DocCur{-3, -2});
+    ok(wild.first == 0 && wild.second == 0,
+       "a wild hand still lands inside the page");
+    const std::vector<std::string> none;
+    const auto bare = dxn3::ideDocCurLand(none, dxn3::DocCur{5, 5});
+    ok(bare.first == 0 && bare.second == 0,
+       "a file vanished to zero bytes holds the hand at the top");
+    ok(dxn3::usageHintFor(":open").find("returns") != std::string::npos &&
+           dxn3::usageHintFor(":recent").find("returns") !=
+               std::string::npos,
+       "the bar whispers the welcome back on both doors");
   }
 
 

@@ -1402,6 +1402,10 @@ int main(int argc, char** argv) {
     if (!f.good()) return "no such file: " + path;
     host.stop();                     // a new document owns the stage
     ide.hostUp = false;
+    // the welcome back, first half: leaving a file plants its hand —
+    // where the cursor stood the moment you walked away
+    if (!ide.path.empty())
+      dxn3::ideDocCurRemember(ide.docCur, ide.path, ide.curR, ide.curC);
     ide.lines.clear();
     std::string ln;
     while (std::getline(f, ln)) {
@@ -1422,11 +1426,26 @@ int main(int argc, char** argv) {
     ide.findQ.clear();
     ide.findHits.clear();
     ide.findSel = -1;
+    // the welcome back, second half: a reopen is a continuation, not a
+    // rewind — the remembered hand lands (clamped to what the file is
+    // NOW, honest if it shrank) and the view jumps with it
+    bool resumed = false;
+    if (const auto hand = dxn3::ideDocCurLookup(ide.docCur, path)) {
+      const auto [r, c] = dxn3::ideDocCurLand(ide.lines, *hand);
+      ide.curR = r;
+      ide.curC = c;
+      ide.hcol = c;
+      ide.top = std::max(0, r - 4);  // the landing stays mid-screen
+      resumed = true;
+    }
     takeStage();
     ide.dirty = true;
     ide.idle = 0;
     dxn3::ideRecentPush(ide.recent, path);
-    ide.console.push_back("engine: opened " + path);
+    ide.console.push_back(
+        resumed ? "engine: opened " + path + " — the hand returns to line " +
+                      std::to_string(ide.curR + 1)
+                : "engine: opened " + path);
     game.say("open " + path, 1.6);
     return "";
   };

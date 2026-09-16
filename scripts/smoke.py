@@ -930,6 +930,55 @@ def main():
         check("the sleep's save landed (the adopted name on disk)",
               os.path.exists(os.path.join(SMOKE_CWD, "smoke-saved.py")))
 
+        # ── 13d. the welcome back — a reopen is a continuation ───────
+        print("── 13d. the welcome back — :open resumes the hand")
+        with open(os.path.join(SMOKE_CWD, "welcome-a.py"), "w") as f:
+            f.write("".join(f"# line {n}\n" for n in range(1, 61)))
+        with open(os.path.join(SMOKE_CWD, "welcome-b.py"), "w") as f:
+            f.write("# the other file\n")
+        s1d = Studio(binary)
+        wd = None                            # a fresh boot takes a beat:
+        for _ in range(12):                  # poll, never assume it
+            wd = s1d.settle(0.4)
+            if wd is not None and wd.find("untitled.py") is not None:
+                break
+        check("the welcome-back studio opens loud",
+              wd is not None and wd.find("untitled.py") is not None,
+              "no frame" if wd is None else repr(wd.text(0)[-30:]))
+        s1d.settle(1.9)                      # the splash eats a keypress
+        scr, _ = s1d.run_verb("open welcome-a.py", "ide")
+        check("the first visit opens without a past",
+              "engine: opened welcome-a.py" in scr.text(ROWS - 2) and
+              "returns" not in scr.text(ROWS - 2),
+              repr(scr.text(ROWS - 2)[:60]))
+        for _ in range(6):                   # the hand walks to line 7
+            s1d.send("\x1b[B")
+            time.sleep(0.12)
+        s1d.settle(0.3)
+        scr, _ = s1d.run_verb("open welcome-b.py", "ide")
+        check("the other file opens (its first visit, no welcome)",
+              "engine: opened welcome-b.py" in scr.text(ROWS - 2) and
+              "returns" not in scr.text(ROWS - 2),
+              repr(scr.text(ROWS - 2)[:60]))
+        scr, _ = s1d.run_verb("open welcome-a.py", "ide")
+        check("the reopen speaks the welcome back",
+              "the hand returns to line 7" in scr.text(ROWS - 2),
+              repr(scr.text(ROWS - 2)[:70]))
+        scr = s1d.settle(0.3)
+        check("the hand stands on line 7 (the gutter says so)",
+              scr.text(5)[:GUTTER].strip() == "7",
+              repr(scr.text(5)[:GUTTER]))
+        check("the landing rides mid-screen (four lines of past above)",
+              scr.text(1)[:GUTTER].strip() == "3",
+              repr(scr.text(1)[:GUTTER]))
+        s1d.send(ESC)
+        time.sleep(0.3)
+        s1d.send("q")
+        okq = s1d.wait_exit()
+        check("the welcome-back studio exits clean",
+              okq and s1d.exit_code == 0, repr(s1d.exit_code))
+        s1d.close()
+
         # ── 14. the exit — a fresh studio: esc to play, q quits ──────
         print("── 14. the exit — esc to play, q quits")
         s2 = Studio(binary)

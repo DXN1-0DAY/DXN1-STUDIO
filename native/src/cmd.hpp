@@ -183,8 +183,11 @@ inline std::string usageHintFor(std::string_view typed) {
   if (verb == "zoom") return " :zoom in | out | <0.3-4>";
   if (verb == "fit") return " :fit — zoom to fit the scene";
   if (verb == "open")
-    return " :open [file] — load a script; a bare :open reopens the ledger's head";
-  if (verb == "recent") return " :recent [name] — reopen a file you had open";
+    return " :open [file] — load a script; the hand returns where it left; "
+           "a bare :open reopens the ledger's head";
+  if (verb == "recent")
+    return " :recent [name] — reopen a file you had open; the hand "
+           "returns where it left";
   if (verb == "snip")
     return " :snip <name> — fn tick key hit start loop ifelse class try imports main";
   if (verb == "template")

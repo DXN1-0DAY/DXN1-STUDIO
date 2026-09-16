@@ -1,3 +1,35 @@
+## v3.0.68 — the welcome back (a reopen is a continuation)
+
+- **`:open` and `:recent` remember where your hand stood.** Leaving a
+  file plants its hand — the exact (row, col) the cursor held the
+  moment you walked away — and reopening it lands the hand back
+  there, the view jumping with it so the landing stays mid-screen.
+  A reopen is a continuation, not a rewind: the receipt says so
+  ("engine: opened game.py — the hand returns to line 7"), while a
+  file's first visit still opens plainly at the top.
+- **The LANDING law is honest about time.** The remembered hand is
+  clamped to the document as it is NOW — a file that shrank keeps
+  the hand on its last line, a column clamps into the line it lands
+  in, a wild hand still lands inside the page, and a file vanished
+  to zero bytes holds the hand at the top (an empty page indexes
+  nothing — this was a real crash path in the first draft, caught
+  before it ever shipped).
+- The law lives in pure, selftested helpers in edit.hpp —
+  `ideDocCurRemember` (a nameless file plants nothing),
+  `ideDocCurLookup` (an unknown file has no past), `ideDocCurLand`
+  (the clamp) — and the shell's one `openScript` path means
+  `:open`, `:recent <name>` and a bare `:open` (the ledger's head)
+  all share the welcome. The `:open`/`:recent` whispers name it
+  ("the hand returns where it left").
+- Selftest group 74 (11 asserts) — 660 → 671 groups: the plant, the
+  nameless refusal, the lookup, the replace, the four clamps and
+  the empty page. Smoke section 13d (7 checks) — 125 → 132: two
+  files walked on a real studio, the first visits opening plainly,
+  the reopen speaking "the hand returns to line 7" with the gutter
+  standing on 7.
+- README's version badge caught drifting (it said 3.0.66) — the
+  badge now rides the release bump again.
+
 ## v3.0.67 — the quiet's ledger (:zen replays what it gathered)
 
 - **`:zen` wakes with its ledger.** Receipts that gathered while the

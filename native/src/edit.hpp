@@ -140,6 +140,10 @@ struct IdeState {
   // the ledger: the files this studio had open, most recent first —
   // :recent lists and reopens them
   std::vector<std::string> recent;
+  // the welcome back: each file's last hand (row, col), remembered
+  // when you leave it, restored when :open/:recent bring you back —
+  // a reopen is a continuation, not a rewind.
+  std::map<std::string, std::pair<int, int>> docCur;
   // the pins: bookmarks — lines you mark so the hand can leap back
   // (:mark plants, F2 leaps). Sorted, unique line positions that follow
   // insertions and cuts; a pin dies with its line.
@@ -1253,6 +1257,41 @@ inline void ideRecentPush(std::vector<std::string>& recent,
     }
   recent.insert(recent.begin(), path);
   if (recent.size() > 12) recent.resize(12);
+}
+
+// ── the welcome back: where the hand last stood in a document ───────
+// Leaving a file plants its hand in the map; :open/:recent look it up
+// on the way in. The LANDING law clamps the remembered hand to the
+// document it lands in — a file that shrank since the last visit
+// keeps the hand inside (the row into the last line, the column into
+// that line's width), never off the page, and a file that vanished
+// to zero bytes holds the hand at the top (an empty page indexes
+// nothing). Pure and selftested.
+using DocCur = std::pair<int, int>;            // (row, col), 0-based
+
+inline void ideDocCurRemember(std::map<std::string, DocCur>& m,
+                              const std::string& path, int r, int c) {
+  if (path.empty()) return;                    // no name, no memory
+  m[path] = DocCur{r, c};
+}
+
+inline std::optional<DocCur> ideDocCurLookup(
+    const std::map<std::string, DocCur>& m, const std::string& path) {
+  const auto it = m.find(path);
+  if (it == m.end()) return std::nullopt;
+  return it->second;
+}
+
+inline DocCur ideDocCurLand(const std::vector<std::string>& lines,
+                            const DocCur& hand) {
+  if (lines.empty()) return DocCur{0, 0};      // an empty page holds the top
+  const int r =
+      std::max(0, std::min(hand.first,
+                           static_cast<int>(lines.size()) - 1));
+  const int c = std::max(
+      0, std::min(hand.second,
+                  static_cast<int>(lines[static_cast<size_t>(r)].size())));
+  return DocCur{r, c};
 }
 
 // the ledger whispers: what ":recent <part>" is about to resolve to,
