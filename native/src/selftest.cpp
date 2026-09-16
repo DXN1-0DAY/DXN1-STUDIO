@@ -199,7 +199,7 @@ int main() {
   }
 
   // 9. the version quad rides in the binary too
-  ok(std::string(dxn3::DXN3_VERSION) == "3.0.38",
+  ok(std::string(dxn3::DXN3_VERSION) == "3.0.39",
      "native version constant matches the release quad");
 
   // 10. png writer: checksum vectors, real structure, byte determinism
@@ -2204,6 +2204,30 @@ int main() {
     o3.anchorC = 1;
     ok(dxn3::ideSortSel(o3) == 0 && o3.undo.empty(),
        "a same-line selection is refused too");
+  }
+
+  // 49. the fresh slate: ctrl+l wipes the console's noise without
+  // dirtying the document
+  {
+    IdeState f1;
+    f1.lines = {"x = 1"};
+    f1.console = {"game: tick", "engine: hosting python3", "game: tick"};
+    f1.dirty = false;
+    Keys cl;
+    cl.ctrlL = true;
+    dxn3::ideKey(f1, cl);
+    ok(f1.console.size() == 1 &&
+           f1.console[0].find("the console is fresh") != std::string::npos,
+       "the slate is wiped, and the fresh console says so");
+    ok(!f1.dirty && f1.undo.empty(),
+       "the wipe never dirties the doc, never takes an undo step");
+    ok(f1.lines[0] == "x = 1", "the document never hears about it");
+
+    Keys cl2;                          // a second wipe stays honest
+    cl2.ctrlL = true;
+    dxn3::ideKey(f1, cl2);
+    ok(f1.console.size() == 1,
+       "clearing a fresh console stays one honest line");
   }
 
   if (fails == 0) {

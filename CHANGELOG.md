@@ -1,3 +1,17 @@
+## v3.0.39 — the fresh slate
+
+- **ctrl+l wipes the console.** The console rail is where your game
+  speaks — and where noise gathers: ticks, prints, stale engine
+  notes. One keystroke clears the slate so the NEXT traceback reads
+  at a glance, and the fresh console says so ("the console is fresh
+  — ctrl+r replays your game"). The wipe is furniture, never an
+  edit: the document never hears about it, nothing dirties, nothing
+  undoes. Discoverability rides along — the `--help` keys card and
+  the README name ctrl+l.
+- Selftest: group 49 (the wipe with its receipt, no dirty / no undo
+  step / no document change, and a second wipe staying one honest
+  line) — 409 → 413 assertion groups, all green.
+
 ## v3.0.38 — the open book
 
 - **Documentation caught up with the editor.** The README's command

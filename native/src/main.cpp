@@ -264,6 +264,7 @@ Keys pollKeys(Mode mode) {
         else if (c == 0x1c) k.leap = true;                // Ctrl+\ — to the partner
         else if (c == 0x1a) k.ctrlZ = true;               // Ctrl+Z — undo
         else if (c == 0x19) k.ctrlY = true;               // Ctrl+Y — redo
+        else if (c == 0x0c) k.ctrlL = true;               // Ctrl+L — fresh console
         else if (c == 0x06) k.ctrlF = true;               // Ctrl+F — find
         else if (c == 0x04) k.ctrlD = true;               // Ctrl+D — dup lines
         else if (c == 0x17) k.delWord = true;             // Ctrl+W — delete word
@@ -1032,7 +1033,7 @@ int main(int argc, char** argv) {
                    "       ctrl+\\ leap to the partner bracket · tab snippet/indent\n"
                    "       shift+tab dedent · ctrl+/ comment\n"
                    "       shift+arrows select · shift+ctrl+←/→ select words\n"
-                   "       ctrl+n template · ctrl+g error line · ctrl+p screenshot\n"
+                   "       ctrl+l clear the console · ctrl+n template · ctrl+g error line · ctrl+p screenshot\n"
                    "       :minimap the document's map rail · :ruler guides · :stats\n"
                    "       esc play/back · a/d move · w jump\n"
                    "       mouse: click to move · drag to select · wheel rolls\n"

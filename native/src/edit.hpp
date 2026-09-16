@@ -47,6 +47,7 @@ struct Keys {
   bool home = false, end = false;              // IDE: line ends
   bool ctrlG = false;                          // IDE: jump to the error line
   bool ctrlZ = false, ctrlY = false;           // IDE: undo / redo
+  bool ctrlL = false;                          // IDE: clear the console
   bool ctrlF = false;                          // IDE: find in the file
   bool ctrlD = false;                          // IDE: duplicate this line
   bool delWord = false;                        // IDE: ctrl+w — eat the word behind the cursor
@@ -1591,6 +1592,16 @@ inline void ideKey(IdeState& ide, const Keys& k) {
     }
     ide.dirty = true;                        // the game hears about it
     ide.idle = 0;
+  }
+
+  // ── the fresh slate: ctrl+l wipes the console's noise — game spam,
+  // stale engine notes — so the next traceback can be read at a
+  // glance. A look at the console's furniture, never an edit: the
+  // document never hears about it, nothing dirties, nothing undoes.
+  if (k.ctrlL) {
+    ide.console.clear();
+    ide.console.push_back(
+        "engine: the console is fresh — ctrl+r replays your game");
   }
 
   // ── undo / redo: the second chance, one keystroke away — and the
