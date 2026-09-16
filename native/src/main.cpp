@@ -1737,6 +1737,16 @@ int main(int argc, char** argv) {
                                    : mode == 0 ? "whispered" : "stood up") +
                         " — one undo step takes it back"
                   : "engine: select text first (shift+arrows, or drag)");
+        } else if (cmd.verb == "uniq") {
+          if (!ide.open) ide.open = true;      // the studio takes the stage
+          const int gone = dxn3::ideUniqSel(ide);
+          ide.console.push_back(
+              gone > 0
+                  ? "engine: " + std::to_string(gone) + " duplicate line" +
+                        (gone == 1 ? "" : "s") +
+                        " collapsed — one undo step takes it back"
+                  : "engine: nothing to collapse — no line repeats "
+                    "back-to-back");
         } else if (cmd.verb == "stats") {
           if (!ide.open) ide.open = true;      // the studio takes the stage
           size_t words = 0, chars = 0;
@@ -1777,7 +1787,7 @@ int main(int argc, char** argv) {
           game.scene.gravity = cmd.num;
           game.say("gravity " + std::to_string(static_cast<int>(cmd.num)), 1.2);
         } else if (cmd.verb == "help") {
-          game.say(":scene :open :recent :template :snip :goto :mark :marks :bm :ruler :minimap :zen :trim :cases :sort :rsort :upper :lower :title :stats "
+          game.say(":scene :open :recent :template :snip :goto :mark :marks :bm :ruler :minimap :zen :trim :cases :sort :rsort :uniq :upper :lower :title :stats "
                     ":zoom :fit :reset :new :w :wq :q :screenshot :magnet :gravity", 4.f);
         }
       } else {

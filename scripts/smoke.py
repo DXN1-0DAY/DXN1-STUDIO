@@ -499,8 +499,25 @@ def main():
               "from dxn3 import *" in scr.text(5),
               repr(scr.text(5)[:40]))
 
-        # ── 7. the exit — clean, code 0 ───────────────────────────────
-        print("── 7. the exit — esc to play, q quits")
+        # ── 7. the collapse — :uniq — back-to-back repeats say it once
+        print("── 7. the collapse — :uniq sweeps the echoes")
+        s.send(CTRL_END)
+        s.settle(0.25)
+        for text in ("\r", "zz", "\r", "zz"):    # two echoes at the end
+            s.send(text)                          # each step its own frame
+            time.sleep(0.15)
+        s.settle(0.4)
+        scr, _ = s.run_verb("uniq", "ide")
+        check(":uniq names the line that fell",
+              "1 duplicate line collapsed" in scr.text(ROWS - 2),
+              repr(scr.text(ROWS - 2)[:60]))
+        check("one zz remains where two stood (the view clamps up)",
+              scr.text(ROWS - 4)[GUTTER:GUTTER + 2] == "aa" and
+              scr.text(ROWS - 3)[GUTTER:GUTTER + 2] == "zz",
+              repr(scr.text(ROWS - 4)[:12] + scr.text(ROWS - 3)[:12]))
+
+        # ── 8. the exit — clean, code 0 ───────────────────────────────
+        print("── 8. the exit — esc to play, q quits")
         s.send(ESC)
         time.sleep(0.2)
         s.send("q")

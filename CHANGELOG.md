@@ -1,3 +1,21 @@
+## v3.0.46 — the collapse
+
+- **`:uniq` — lines that repeat back-to-back say it once.** A
+  multi-line selection is the bed; NO selection means the whole
+  document (uniq's natural home — its difference from the sort
+  family, told out loud in the docs). The trim's law: nothing to
+  collapse → no snapshot, no phantom step. ONE restore point named
+  "uniq", the hand resting where the first line fell.
+- **The pins speak the structural law honestly.** A pin on a fallen
+  duplicate dies; a pin on a kept line rides the line to its new
+  home (a newHome map, not a blind slide); a pin beneath the bed
+  slides up by the count that fell. Undo still clamps the ghosts.
+- Selftest group 55 (13 asserts: the whole-document law, the
+  interleaved survivor, the selection bed, the pin map, the no-
+  phantom law, the grammar) — 470 → 483 groups. The smoke grew the
+  echo sweep (two typed "zz"s collapse to one, the view clamping up
+  a row as the doc shrinks) — 45 → 47 checks.
+
 ## v3.0.45 — the case
 
 - **`:upper`, `:lower`, `:title` — the selection changes its voice.**

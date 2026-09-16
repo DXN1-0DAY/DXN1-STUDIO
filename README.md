@@ -2,7 +2,7 @@
 
 ![DXN1 STUDIO 3](assets/banner.png)
 
-![version](https://img.shields.io/badge/version-3.0.45-8b5cf6?style=flat-square)
+![version](https://img.shields.io/badge/version-3.0.46-8b5cf6?style=flat-square)
 ![gates](https://github.com/DXN1-termux/DXN1-STUDIO/actions/workflows/ci.yml/badge.svg)
 ![native](https://img.shields.io/badge/native-C%2B%2023-f97316?style=flat-square)
 ![face](https://img.shields.io/badge/face-terminal_truecolor-22d3ee?style=flat-square)
@@ -196,8 +196,10 @@ viewport refreshes — *code a background, and boom, a background.*
   same bed lands Z before A, one honest restore point of its own;
   `:upper`, `:lower` and `:title` change the selection's voice (a
   same-line selection counts — case is an in-line edit — and
-  title stands each line's word-starts up); `:goto <line>` jumps the
-  editor;
+  title stands each line's word-starts up); `:uniq` collapses lines that repeat back-to-back (no selection
+  means the whole document, its difference from the sort family told
+  out loud; the pins follow the survivors down); `:goto <line>` jumps
+  the editor;
   `:stats` counts lines, words, chars and dialect. The gutter earns
   its width honestly — four columns to 999 lines, five from 1000,
   six from 10000 — and the pointer, ruler and glows all speak the
@@ -228,6 +230,7 @@ line ends · `ctrl+home`/`ctrl+end` doc edges · `del` forward-delete ·
 `:trim` sweeps trailing whitespace ·
 `:sort` orders the selection · `:rsort` lands it Z-ward ·
 `:upper`/`:lower`/`:title` change the selection's voice ·
+`:uniq` collapses back-to-back repeats ·
 `:cases` find respects case (Aa) ·
 `:mark`/`:marks`/`:bm` pin lines and leap between them (the pins
 whisper as you type) ·
@@ -307,6 +310,7 @@ accepted:
 | `:upper` | the selection SHOUTS — one undo step |
 | `:lower` | the selection whispers — one undo step |
 | `:title` | every word's first letter stands up |
+| `:uniq` | collapse lines that repeat back-to-back — whole doc, or the selection |
 | `:cases` | find respects case exactly (Aa), or forgives |
 | `:help` | list commands |
 

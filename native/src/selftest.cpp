@@ -199,7 +199,7 @@ int main() {
   }
 
   // 9. the version quad rides in the binary too
-  ok(std::string(dxn3::DXN3_VERSION) == "3.0.45",
+  ok(std::string(dxn3::DXN3_VERSION) == "3.0.46",
      "native version constant matches the release quad");
 
   // 10. png writer: checksum vectors, real structure, byte determinism
@@ -2440,6 +2440,70 @@ int main() {
     ok(dxn3::usageHintFor(":title").find("word") != std::string::npos,
        "the bar whispers the title law");
   }
+
+  // 55. the collapse: :uniq - lines that repeat back-to-back say it
+  // once; no selection means the whole document; the pins follow the
+  // lines down; a clean bed takes no phantom step
+  {
+    IdeState u1;                       // whole-document law (no selection)
+    u1.lines = {"a", "a", "a", "b", "a", "b", "b", "c"};
+    const int gone = dxn3::ideUniqSel(u1);
+    ok(gone == 3, "three duplicates fall (aaa, bb - but aba stays)");
+    ok(u1.lines == std::vector<std::string>({"a", "b", "a", "b", "c"}),
+       "only BACK-TO-BACK repeats collapse; interleaved lines rest");
+    ok(!u1.undo.empty() && u1.undo.back().what == "uniq" && u1.dirty,
+       "the collapse is one restore point, named uniq");
+    ok(dxn3::ideUndo(u1) &&
+           u1.lines == std::vector<std::string>(
+                           {"a", "a", "a", "b", "a", "b", "b", "c"}),
+       "undo restores every fallen line");
+
+    IdeState u2;                       // a selection is the bed
+    u2.lines = {"x", "dup", "dup", "dup", "y"};
+    u2.curR = 1;
+    u2.curC = 0;
+    u2.anchorR = 3;
+    u2.anchorC = 2;
+    ok(dxn3::ideUniqSel(u2) == 2 && u2.lines[2] == "y" &&
+           u2.lines[0] == "x",
+       "the world outside the selection never collapses");
+    ok(u2.curR == 2,
+       "the hand rests where the first line fell");
+
+    IdeState u3;                       // the pins follow the lines down
+    u3.lines = {"a", "b", "b", "c", "d", "e"};
+    dxn3::ideMarkToggle(u3, 4);        // a pin on "e" (line 4)
+    dxn3::ideMarkToggle(u3, 2);        // a pin inside the collapse
+    u3.curR = 0;
+    ok(dxn3::ideUniqSel(u3) == 1 &&
+           u3.lines == std::vector<std::string>({"a", "b", "c", "d", "e"}),
+       "one b falls");
+    ok(u3.marks == std::vector<int>({3}),
+       "the pin inside the collapse dies, the pin beneath slides up");
+
+    IdeState u4;                       // nothing back-to-back
+    u4.lines = {"a", "b", "a"};
+    u4.curR = 0;
+    ok(dxn3::ideUniqSel(u4) == 0 && u4.undo.empty(),
+       "a clean bed takes no phantom step");
+
+    IdeState u5;                       // one line cannot repeat itself
+    u5.lines = {"solo"};
+    u5.curR = 0;
+    u5.anchorR = 0;
+    u5.anchorC = 3;
+    ok(dxn3::ideUniqSel(u5) == 0 && u5.undo.empty(),
+       "a single line is refused too");
+
+    const auto uq = dxn3::parseCommand(":uniq");
+    ok(uq.ok() && uq.verb == "uniq",
+       "parseCommand reads :uniq - the collapse is a verb");
+    ok(!dxn3::parseCommand(":uniq now").ok(),
+       ":uniq with an argument is refused - the bed is the document");
+    ok(dxn3::usageHintFor(":uniq").find("back-to-back") != std::string::npos,
+       "the bar whispers the collapse law");
+  }
+
 
 
   // 53. the pins whisper: ":bm" completes itself as you type - the

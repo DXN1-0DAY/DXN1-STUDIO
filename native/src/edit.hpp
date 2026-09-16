@@ -1259,6 +1259,73 @@ inline int ideCaseSel(IdeState& s, int mode) {
   return changed;
 }
 
+// ── the collapse: consecutive duplicates are noise ──────────────
+// :uniq speaks the file's own law: lines that say the same thing
+// back-to-back say it once. A multi-line selection is the bed; NO
+// selection means the whole document (uniq's natural home — its
+// difference from the sort family, told out loud). The trim's law:
+// nothing to collapse → no snapshot, no phantom step. ONE restore
+// point named "uniq"; the pins speak the structural law (pins inside
+// the collapse die, pins beneath slide up); the hand rests where the
+// first line fell, clamped to the surviving document. Returns the
+// count of lines that vanished.
+inline int ideUniqSel(IdeState& s) {
+  int r0 = 0;
+  int r1 = static_cast<int>(s.lines.size()) - 1;
+  if (const auto sel = ideSelRange(s)) {
+    const auto [a, ca, b, cb] = *sel;
+    r0 = a;
+    r1 = b;
+  }
+  if (r1 <= r0) return 0;
+  int would = 0;                       // the dry pass: count collapses
+  {
+    int kept = r0;
+    for (int read = r0 + 1; read <= r1; ++read) {
+      if (s.lines[static_cast<size_t>(read)] ==
+          s.lines[static_cast<size_t>(kept)])
+        ++would;
+      else
+        kept = read;
+    }
+  }
+  if (would == 0) return 0;
+  idePushUndo(s, "uniq");
+  int kept = r0;                       // the compaction, with a map:
+  std::vector<int> newHome(static_cast<size_t>(r1 + 1), -1);
+  newHome[static_cast<size_t>(r0)] = r0;
+  for (int read = r0 + 1; read <= r1; ++read)
+    if (s.lines[static_cast<size_t>(read)] !=
+        s.lines[static_cast<size_t>(kept)]) {
+      s.lines[static_cast<size_t>(++kept)] = s.lines[static_cast<size_t>(read)];
+      newHome[static_cast<size_t>(read)] = kept;
+    }
+  const int removed = r1 - kept;
+  s.lines.erase(s.lines.begin() + kept + 1, s.lines.begin() + r1 + 1);
+  // the pins speak the structural law: a pin on a fallen line dies, a
+  // pin on a kept line rides the line to its new home, a pin beneath
+  // the bed slides up by the count that fell
+  {
+    std::vector<int> nm;
+    nm.reserve(s.marks.size());
+    for (const int m : s.marks) {
+      if (m < r0) nm.push_back(m);
+      else if (m <= r1) {
+        const int home = newHome[static_cast<size_t>(m)];
+        if (home >= 0) nm.push_back(home);
+      } else
+        nm.push_back(m - removed);
+    }
+    s.marks = std::move(nm);
+  }
+  ideSelClear(s);
+  s.curR = std::min(kept + 1, static_cast<int>(s.lines.size()) - 1);
+  s.curC = 0;
+  s.dirty = true;
+  s.idle = 0;
+  return removed;
+}
+
 // ── the sweep: trailing whitespace is noise ─────────────────────────
 // Every line's tail spaces and tabs come off; a line of pure air goes
 // truly blank. ONE honest restore point named "trim", taken only when
