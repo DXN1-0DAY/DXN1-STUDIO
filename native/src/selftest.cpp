@@ -199,7 +199,7 @@ int main() {
   }
 
   // 9. the version quad rides in the binary too
-  ok(std::string(dxn3::DXN3_VERSION) == "3.0.51",
+  ok(std::string(dxn3::DXN3_VERSION) == "3.0.52",
      "native version constant matches the release quad");
 
   // 10. png writer: checksum vectors, real structure, byte determinism
@@ -2748,6 +2748,51 @@ int main() {
     ok(dxn3::usageHintFor(":lift").find("up") != std::string::npos &&
        dxn3::usageHintFor(":drop").find("down") != std::string::npos,
        "the bar whispers the ride's law");
+  }
+
+  // 60. the echo: ":dup" — the selection's lines say it twice, the
+  // copies sitting below, the originals keeping their pins, the world
+  // beneath sliding down, the hand landing on the copy's head
+  {
+    IdeState e1;
+    e1.lines = {"a", "b", "c"};
+    dxn3::ideMarkToggle(e1, 1);      // a pin inside the bed
+    dxn3::ideMarkToggle(e1, 2);      // a pin beneath the bed
+    e1.curR = 1;
+    e1.curC = 0;                     // the hand's line: "b"
+    ok(dxn3::ideDupSel(e1) == 1,
+       "the hand's line echoes, a one-line bed with no selection");
+    ok(e1.lines == std::vector<std::string>({"a", "b", "b", "c"}),
+       "the copy sits directly below the original");
+    ok(e1.marks == std::vector<int>({1, 3}),
+       "the original keeps its pin, the world beneath slides down");
+    ok(e1.curR == 2, "the hand lands on the copy's head");
+    ok(!e1.undo.empty() && e1.undo.back().what == "dup",
+       "one honest restore point named dup");
+    ok(dxn3::ideUndo(e1) && e1.lines.size() == 3 &&
+       e1.marks == std::vector<int>({1, 2}) && e1.curR == 1,
+       "undo folds the echo away, pins and hand walking back");
+
+    IdeState e2;                     // a block echo
+    e2.lines = {"a", "b", "c", "d"};
+    e2.anchorR = 1;
+    e2.anchorC = 0;
+    e2.curR = 2;
+    e2.curC = 1;
+    ok(dxn3::ideDupSel(e2) == 2, "the block echoes as one");
+    ok(e2.lines == std::vector<std::string>(
+                       {"a", "b", "c", "b", "c", "d"}),
+       "the copies land in order beneath the bed");
+    ok(e2.curR == 3 && !dxn3::ideSelRange(e2),
+       "the hand rides the copy's head, the selection let go");
+
+    const auto du = dxn3::parseCommand(":dup");
+    ok(du.ok() && du.verb == "dup" &&
+       dxn3::parseCommand(":dup now").error.find("takes no argument") !=
+           std::string::npos,
+       "parseCommand reads :dup and refuses it an argument");
+    ok(dxn3::usageHintFor(":dup").find("copies") != std::string::npos,
+       "the bar whispers the echo's law");
   }
 
   // 53. the pins whisper: ":bm" completes itself as you type - the

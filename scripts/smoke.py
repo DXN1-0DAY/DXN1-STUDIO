@@ -629,8 +629,23 @@ def main():
               scr.text(ROWS - 3)[GUTTER:GUTTER + 2] == "aa",
               repr(scr.text(ROWS - 4)[:12] + scr.text(ROWS - 3)[:12]))
 
-        # ── 12. the exit — clean, code 0 ──────────────────────────────
-        print("── 12. the exit — esc to play, q quits")
+        # ── 12. the echo — :dup says the hand's line twice ───────────
+        print("── 12. the echo — the hand's line says it twice")
+        # the tail reads zz(41), zz(42), aa(43); the hand rests at the
+        # ride's landing (line 42, "zz")
+        scr, _ = s.run_verb("dup", "ide")
+        check(":dup names its echo",
+              "duplicated 1 line" in scr.text(ROWS - 2),
+              repr(scr.text(ROWS - 2)[:60]))
+        s.settle(2.5)                     # the burst decays before a
+        scr = s.screen()                  # body-text assert
+        check("the copy sits below (original, echo, in view)",
+              scr.text(ROWS - 4)[GUTTER:GUTTER + 2] == "zz" and
+              scr.text(ROWS - 3)[GUTTER:GUTTER + 2] == "zz",
+              repr(scr.text(ROWS - 4)[:12] + scr.text(ROWS - 3)[:12]))
+
+        # ── 13. the exit — clean, code 0 ──────────────────────────────
+        print("── 13. the exit — esc to play, q quits")
         s.send(ESC)
         time.sleep(0.2)
         s.send("q")

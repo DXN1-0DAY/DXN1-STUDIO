@@ -1,3 +1,20 @@
+## v3.0.52 — the echo
+
+- **`:dup` — the selection's lines say it twice.** The copies land
+  directly below the bed, the originals keep their pins (a pin marks
+  a line, not its echo), and the world beneath slides down by the
+  bed's size. With no selection the hand's line is the bed (the
+  ride's law); the hand lands on the COPY's head — the fresh work is
+  the echo. Never refuses: the hand's line always says something
+  twice.
+- A real bug fixed on the way in: the first implementation inserted
+  the bed's iterators into their own vector — reallocation dangled
+  the range and the copies landed as garbage. The bed is copied
+  first now; the selftest caught it in both beds.
+- Selftest group 60 (11 asserts) — 540 → 551 groups. Smoke grew the
+  echo section (the receipt, original and echo in view) — 65 → 67
+  checks.
+
 ## v3.0.51 — the ride
 
 - **`:lift` and `:drop` — the selection's lines step one line up or

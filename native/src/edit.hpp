@@ -1524,6 +1524,37 @@ inline int ideMoveSel(IdeState& s, bool down) {
   return r1 - r0 + 1;
 }
 
+// ── the echo: the selection's lines say it twice ───────────────────
+// :dup duplicates the bed — the copies land directly below, the
+// originals keep their pins (a pin marks a line, not its echo), and
+// the lines beneath the bed slide down by the bed's size. With no
+// selection the hand's line is the bed (the ride's law — the move's
+// natural home is the echo's too). ONE restore point named "dup";
+// the hand lands on the COPY's head — the fresh work is the echo.
+// Never refuses: the hand's line always says something twice.
+inline int ideDupSel(IdeState& s) {
+  int r0, r1;
+  if (const auto sel = ideSelRange(s)) {
+    const auto [a, ca, b, cb] = *sel;
+    r0 = a;
+    r1 = b;
+  } else {
+    r0 = r1 = s.curR;                  // no selection: the hand's line
+  }
+  const int count = r1 - r0 + 1;
+  idePushUndo(s, "dup");
+  const std::vector<std::string> bed(s.lines.begin() + r0,
+                                     s.lines.begin() + r1 + 1);
+  s.lines.insert(s.lines.begin() + r1 + 1, bed.begin(), bed.end());
+  ideMarkShift(s, r1 + 1, count);      // the world beneath slides down
+  ideSelClear(s);
+  s.curR = r0 + count;                 // the hand lands on the copy's head
+  s.curC = std::min(s.curC, static_cast<int>(s.lines[static_cast<size_t>(s.curR)].size()));
+  s.dirty = true;
+  s.idle = 0;
+  return count;
+}
+
 // ── the sweep: trailing whitespace is noise ─────────────────────────
 // Every line's tail spaces and tabs come off; a line of pure air goes
 // truly blank. ONE honest restore point named "trim", taken only when
