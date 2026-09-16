@@ -2,7 +2,7 @@
 
 ![DXN1 STUDIO 3](assets/banner.png)
 
-![version](https://img.shields.io/badge/version-3.0.82-8b5cf6?style=flat-square)
+![version](https://img.shields.io/badge/version-3.0.83-8b5cf6?style=flat-square)
 ![gates](https://github.com/DXN1-termux/DXN1-STUDIO/actions/workflows/ci.yml/badge.svg)
 ![native](https://img.shields.io/badge/native-C%2B%2023-f97316?style=flat-square)
 ![face](https://img.shields.io/badge/face-terminal_truecolor-22d3ee?style=flat-square)
@@ -288,8 +288,8 @@ of the renderer; your games are the product:
 | ![playground](docs/img/shot-playground.png) | ![level-1](docs/img/shot-level-1.png) |
 | **the climb (level-3)** | **the gauntlet (level-4)** |
 | ![level-3](docs/img/shot-level-3.png) | ![level-4](docs/img/shot-level-4.png) |
-| **the vault (level-5)** | | 
-| ![level-5](docs/img/shot-level-5.png) | |
+| **the vault (level-5)** | **the playground** |
+| ![level-5](docs/img/shot-level-5.png) | ![playground](docs/img/shot-playground.png) |
 
 Goals chain the scenes into a six-scene campaign: **playground → level-1 (the
 gap) → level-2 (the movers) → level-3 (the climb) → level-4 (the gauntlet) →

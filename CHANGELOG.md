@@ -1,3 +1,10 @@
+## v3.0.83 — the vault's portrait (the README table completes)
+
+- The vault's real headless portrait (960x540, captured by the
+  engine's own `--screenshot`) takes its seat in the README's
+  campaign table — the six-scene demo is fully pictured, every
+  scene, no stubbed cells.
+
 ## v3.0.82 — the vault (level-5 joins the campaign)
 
 - **The campaign grew a sixth scene: level-5, the vault.** It opens
