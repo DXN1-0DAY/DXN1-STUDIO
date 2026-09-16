@@ -85,30 +85,70 @@ Keys pollKeys(Mode mode) {
     for (ssize_t i = 0; i < n; ++i) {
       const char c = buf[i];
       if (c == '\x1b') {
-        // arrow keys arrive as ESC [ A/B/C/D in one read, usually;
-        // home/end as ESC[H/F, pages and delete as ESC[5~ / 6~ / 3~
-        if (i + 2 < n && buf[i + 1] == '[' && mode != Mode::Cmd) {
-          const char c2 = buf[i + 2];
-          const bool tilde = i + 3 < n && buf[i + 3] == '~';
-          switch (c2) {
+        // CSI sequences: ESC [ <params: 0-9 ; : < ?> <final: @-~>. Parse
+        // the whole sequence in one bite and SWALLOW unknown ones — a
+        // sequence that leaks its parameters into the document is
+        // corruption (ctrl+arrows used to type "1;5C" into your code).
+        // SS3 (ESC O A) is the same idea in the other dialect.
+        if (i + 1 < n && (buf[i + 1] == '[' || buf[i + 1] == 'O') &&
+            mode != Mode::Cmd) {
+          const bool csi = buf[i + 1] == '[';
+          if (i + 2 >= n) {
+            i = static_cast<int>(n) - 1;   // split read: swallow the fragment
+            continue;
+          }
+          int j = i + 2;
+          if (csi) {                       // parameter bytes: 0-9 ; : < ?
+            while (j < n && (buf[j] == ';' || buf[j] == ':' ||
+                             buf[j] == '<' || buf[j] == '?' ||
+                             (buf[j] >= '0' && buf[j] <= '9')))
+              ++j;
+            if (j >= n) {                  // still no final byte: split read
+              i = static_cast<int>(n) - 1;
+              continue;
+            }
+          }
+          const char fin = buf[j];
+          const std::string params(buf + i + 2, buf + j);
+          int mod = 0;                     // xterm modifier digit (5 = ctrl)
+          {
+            const size_t semi = params.rfind(';');
+            const std::string m =
+                semi == std::string::npos ? params : params.substr(semi + 1);
+            mod = (m.size() == 1 && m[0] >= '2' && m[0] <= '9') ? m[0] - '0' : 0;
+          }
+          if (!csi) mod = 0;               // SS3 carries no modifiers
+          switch (fin) {
             case 'A':
-              if (mode == Mode::Ide) k.up = true;
-              else if (mode == Mode::File) k.scroll -= 1;
-              else k.jump = true;
+              if (mode == Mode::Ide && mod == 5) k.scroll -= 1;  // nudge the view
+              else if (mod == 0) {
+                if (mode == Mode::Ide) k.up = true;
+                else if (mode == Mode::File) k.scroll -= 1;
+                else k.jump = true;
+              }
               break;
             case 'B':
-              if (mode == Mode::Ide) k.down = true;
-              else if (mode == Mode::File) k.scroll += 1;
+              if (mode == Mode::Ide && mod == 5) k.scroll += 1;
+              else if (mod == 0) {
+                if (mode == Mode::Ide) k.down = true;
+                else if (mode == Mode::File) k.scroll += 1;
+              }
               break;
             case 'C':
-              if (mode == Mode::Ide) k.aRight = true;
-              else if (mode == Mode::File) k.scroll += 10;
-              else k.right = true;
+              if (mode == Mode::Ide && mod == 5) k.wRight = true;
+              else if (mod == 0) {
+                if (mode == Mode::Ide) k.aRight = true;
+                else if (mode == Mode::File) k.scroll += 10;
+                else k.right = true;
+              }
               break;
             case 'D':
-              if (mode == Mode::Ide) k.aLeft = true;
-              else if (mode == Mode::File) k.scroll -= 10;
-              else k.left = true;
+              if (mode == Mode::Ide && mod == 5) k.wLeft = true;
+              else if (mod == 0) {
+                if (mode == Mode::Ide) k.aLeft = true;
+                else if (mode == Mode::File) k.scroll -= 10;
+                else k.left = true;
+              }
               break;
             case 'H':
               if (mode == Mode::Ide) k.home = true;
@@ -116,24 +156,20 @@ Keys pollKeys(Mode mode) {
             case 'F':
               if (mode == Mode::Ide) k.end = true;
               break;
-            case '3':
-              if (mode == Mode::Ide && tilde) k.del = true;
+            case '~': {
+              if (mode != Mode::Ide) break;
+              const int p = std::atoi(params.c_str());
+              if (p == 3) k.del = true;
+              else if (p == 5) k.pageUp = true;
+              else if (p == 6) k.pageDn = true;
+              else if (p == 1 || p == 7) k.home = true;
+              else if (p == 4 || p == 8) k.end = true;
               break;
-            case '5':
-              if (mode == Mode::Ide && tilde) k.pageUp = true;
-              break;
-            case '6':
-              if (mode == Mode::Ide && tilde) k.pageDn = true;
-              break;
-            case '1':
-              if (mode == Mode::Ide && tilde) k.home = true;
-              break;
-            case '4':
-              if (mode == Mode::Ide && tilde) k.end = true;
-              break;
+            }
+            default:
+              break;     // mouse reports, DSR answers, F-keys: swallowed whole
           }
-          i += ((c2 == '3' || c2 == '5' || c2 == '6' || c2 == '1' ||
-                c2 == '4') && tilde) ? 3 : 2;
+          i = j;           // the for's ++i consumes the final byte
         } else {
           k.esc = true;                     // bare ESC
           if (mode == Mode::Play) k.quit = true;   // …which quits in play/inspect
@@ -663,10 +699,12 @@ void drawIDE(dxn3::Screen& scr, IdeState& ide, const dxn3::Game& g, bool hostUp)
     scr.text(24 + static_cast<int>(file.size()), 0, pos, dxn3::rgb(110, 118, 140));
 
   // the editor pane
+  const int textW = editW - 5;               // code columns after the gutter
   const int maxTop = std::max(0, static_cast<int>(ide.lines.size()) - bodyRows);
   ide.top = std::clamp(ide.top, 0, maxTop);
   if (ide.curR < ide.top) ide.top = ide.curR;
   if (ide.curR >= ide.top + bodyRows) ide.top = ide.curR - bodyRows + 1;
+  ideHscroll(ide, textW);              // long lines slide under the cursor
   scr.rect(0, static_cast<float>(bodyTop * 2),
            static_cast<float>(split ? editW - 1 : cols - 1),
            static_cast<float>((bodyTop + bodyRows) * 2), paneBg);
@@ -678,15 +716,46 @@ void drawIDE(dxn3::Screen& scr, IdeState& ide, const dxn3::Game& g, bool hostUp)
     std::snprintf(gutter, sizeof gutter, "%3d ", li + 1);
     scr.text(0, bodyTop + r, gutter, dxn3::rgb(84, 72, 120));
     if (onCursor) scr.railBg(bodyTop + r, selBg);
-    drawCodeLine(scr, 4, bodyTop + r, ide.lines[static_cast<size_t>(li)],
-                 editW - 5);
+    // long lines slide: every row shows the window [hcol, hcol + textW)
+    const std::string& ln = ide.lines[static_cast<size_t>(li)];
+    if (ide.hcol > 0) scr.text(3, bodyTop + r, "…", dxn3::rgb(96, 104, 126));
+    const std::string slice =
+        ide.hcol > 0 && static_cast<int>(ln.size()) > ide.hcol
+            ? ln.substr(static_cast<size_t>(ide.hcol))
+            : std::string();
+    drawCodeLine(scr, 4, bodyTop + r, ide.hcol > 0 ? slice : ln, textW);
   }
   // the cursor: inverse video on the exact cell
   if (ide.curR >= ide.top && ide.curR < ide.top + bodyRows) {
     const int row = bodyTop + (ide.curR - ide.top);
     const std::string& l = ide.lines[static_cast<size_t>(ide.curR)];
     const char ch = ide.curC < static_cast<int>(l.size()) ? l[static_cast<size_t>(ide.curC)] : ' ';
-    scr.textBg(4 + ide.curC, row, std::string(1, ch), paneBg, dxn3::rgb(167, 139, 250));
+    scr.textBg(4 + ide.curC - ide.hcol, row, std::string(1, ch), paneBg, dxn3::rgb(167, 139, 250));
+  }
+  // the bracket's partner glows across the file — the cursor's own cell
+  // already burns inverse video, so the glow lands on the partner (and
+  // on the anchor behind the cursor when that is the bracket held)
+  {
+    int br = -1, bc = -1;
+    if (ideMatchBracket(ide, br, bc)) {
+      const RGB glowBg = dxn3::rgb(52, 40, 92);
+      auto glow = [&](int r2, int c2) {
+        if (r2 < ide.top || r2 >= ide.top + bodyRows) return;
+        const std::string& l2 = ide.lines[static_cast<size_t>(r2)];
+        if (c2 < 0 || c2 >= static_cast<int>(l2.size())) return;
+        const int col = 4 + c2 - ide.hcol;
+        if (col < 4 || col >= 4 + textW) return;    // scrolled out of the pane
+        scr.textBg(col, bodyTop + (r2 - ide.top),
+                   std::string(1, l2[static_cast<size_t>(c2)]), paneBg, glowBg);
+      };
+      glow(br, bc);
+      const std::string& cl = ide.lines[static_cast<size_t>(ide.curR)];
+      const char atCur = ide.curC < static_cast<int>(cl.size())
+                             ? cl[static_cast<size_t>(ide.curC)] : '\0';
+      if (atCur != '(' && atCur != '[' && atCur != '{' && atCur != ')' &&
+          atCur != ']' && atCur != '}' && ide.curC > 0)
+        glow(ide.curR, ide.curC - 1);              // the anchor sits behind
+    }
   }
   // the searchlight's wake: every match glows, the current one burns
   if (ide.findOpen && !ide.findHits.empty() && !ide.findQ.empty()) {
@@ -698,11 +767,12 @@ void drawIDE(dxn3::Screen& scr, IdeState& ide, const dxn3::Game& g, bool hostUp)
       while (hi < ide.findHits.size() && ide.findHits[hi].first < li) ++hi;
       for (size_t i = hi; i < ide.findHits.size() &&
                           ide.findHits[i].first == li; ++i) {
-        const int c = ide.findHits[i].second;
+        const int hitC = ide.findHits[i].second;           // the real column
+        const int c = hitC - ide.hcol;                     // the slide applies
         const int room = maxW - 4 - c;
-        if (room <= 0) continue;            // past the pane's edge
+        if (room <= 0 || c < 0) continue;   // past either edge of the pane
         std::string slice = ide.lines[static_cast<size_t>(li)].substr(
-            static_cast<size_t>(c),
+            static_cast<size_t>(hitC),
             std::min<size_t>(ide.findQ.size(), static_cast<size_t>(room)));
         scr.textBg(4 + c, bodyTop + r, slice, paneBg,
                    static_cast<int>(i) == ide.findSel ? dxn3::rgb(180, 83, 9)
@@ -1295,7 +1365,9 @@ int main(int argc, char** argv) {
         ide.dirty = true;
         ide.idle = 0;
       }
-      if (keys.up || keys.down || keys.aLeft || keys.aRight) ide.idle = 0;
+      if (keys.up || keys.down || keys.aLeft || keys.aRight ||
+          keys.wLeft || keys.wRight) ide.idle = 0;
+      if (keys.scroll != 0) ide.top += keys.scroll;   // ctrl+↑/↓ nudge the view
       if (keys.ctrlS) {
         std::string err;
         if (ideSave(ide, &err)) ide.console.push_back("engine: saved " + ide.path);

@@ -2,7 +2,7 @@
 
 ![DXN1 STUDIO 3](assets/banner.png)
 
-![version](https://img.shields.io/badge/version-3.0.16-8b5cf6?style=flat-square)
+![version](https://img.shields.io/badge/version-3.0.17-8b5cf6?style=flat-square)
 ![gates](https://github.com/DXN1-termux/DXN1-STUDIO/actions/workflows/ci.yml/badge.svg)
 ![native](https://img.shields.io/badge/native-C%2B%2023-f97316?style=flat-square)
 ![face](https://img.shields.io/badge/face-terminal_truecolor-22d3ee?style=flat-square)
@@ -100,10 +100,21 @@ viewport refreshes — *code a background, and boom, a background.*
 - **`:open <file>`** loads any script on the machine into the studio —
   your own games and the `sdk/examples/` gallery whisper their names
   as you type. Ghost files are refused honestly.
+- **Word hops and the partner.** `ctrl+←`/`ctrl+→` jump word by word —
+  the same words `ctrl+w` bites — across line edges when they must.
+  Stand on a bracket and its partner glows across the file, nesting
+  respected. And long lines slide under the cursor instead of being
+  chopped at the pane's edge; the gutter marks the cut with `…`.
+- **The input parser grew up.** Escape sequences are parsed whole and
+  unknown ones are swallowed — terminal control chatter (mouse
+  reports, modifier-keyed arrows, split reads) can never leak into
+  your code as text again. `ctrl+↑`/`ctrl+↓` nudge the view without
+  moving the cursor.
 
 Keys: `ctrl+r` run · `ctrl+s` save · `ctrl+z` undo · `ctrl+y` redo ·
 `ctrl+f` find · `enter` next hit · `ctrl+d` duplicate line ·
-`ctrl+w` delete word ·
+`ctrl+w` delete word · `ctrl+←`/`ctrl+→` word hops ·
+`ctrl+↑`/`ctrl+↓` nudge the view ·
 `ctrl+n` next template (or `:new`) · `ctrl+g` jump to the error line ·
 `ctrl+p` screenshot of your live game · `pgup/pgdn` page · `home/end`
 line ends · `del` forward-delete · `esc` play your game fullscreen ·

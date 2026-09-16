@@ -1,3 +1,30 @@
+## v3.0.17 — the long line and the partner
+
+- **`ctrl+←` / `ctrl+→` hop word by word.** The same classification the
+  ctrl+w bite uses — whitespace is a gap, a run of word characters or
+  punctuation is ONE hop — but forward hops land at a run's end and
+  backward hops at its start, the classic editor split. Hops cross
+  line edges: an empty line is just a wider gap, and the hop never
+  touches the document.
+- **Long lines slide under the cursor.** Lines wider than the pane no
+  longer end at a chopped `…` — the view follows the cursor with a
+  small margin on whichever side you came from, an honest `…` marks
+  the cut in the gutter, and the line end stays reachable (clamped,
+  stable, and a line that fits never slides).
+- **The bracket's partner glows.** Stand on a `(`, `[` or `{` (or just
+  behind one) and its match lights up across the file — nesting and
+  line edges respected, quotes are just characters, and an unclosed
+  bracket refuses to fake a match.
+- **The escape parser grew up.** CSI sequences are parsed whole and
+  unknown ones are swallowed — `ctrl+arrows` used to leak `1;5C` into
+  your code as text, mouse reports and DSR answers leaked digits, and
+  split reads typed fragments. Nothing leaks now, and SS3 (`ESC O A`)
+  arrows are understood too.
+- **`ctrl+↑` / `ctrl+↓` nudge the view** without moving the cursor —
+  the honest scroll that gets out of the way the moment you move.
+- Selftest: groups 25 (word hops) + 26 (bracket match + the slide) —
+  157 → 193.
+
 ## v3.0.16 — the bite and the leap
 
 - **`ctrl+w` eats the word behind the cursor.** The gap counts as part

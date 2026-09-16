@@ -199,7 +199,7 @@ int main() {
   }
 
   // 9. the version quad rides in the binary too
-  ok(std::string(dxn3::DXN3_VERSION) == "3.0.16",
+  ok(std::string(dxn3::DXN3_VERSION) == "3.0.17",
      "native version constant matches the release quad");
 
   // 10. png writer: checksum vectors, real structure, byte determinism
@@ -802,6 +802,152 @@ int main() {
     dxn3::ideKey(d, w);
     ok(dxn3::ideUndo(d) && d.lines[0] == "alpha beta",
        "ctrl+w is one honest undo step");
+  }
+
+  // 25. word hops: ctrl+left / ctrl+right walk the words ctrl+w bites
+  {
+    using dxn3::Keys;
+    IdeState s;
+    s.lines = {"foo.bar baz"};
+    s.curR = 0;
+    s.curC = 0;
+    Keys r;
+    r.wRight = true;
+    dxn3::ideKey(s, r);
+    ok(s.curC == 3, "ctrl+right rides a word to its end");
+    dxn3::ideKey(s, r);
+    ok(s.curC == 4, "a punctuation run is one hop");
+    dxn3::ideKey(s, r);
+    ok(s.curC == 7, "the next hop lands after bar");
+    dxn3::ideKey(s, r);
+    ok(s.curC == 11, "the last hop rests at the end of the line");
+    dxn3::ideKey(s, r);
+    ok(s.curC == 11, "ctrl+right at the end of the doc is an honest no-op");
+    Keys l;
+    l.wLeft = true;
+    dxn3::ideKey(s, l);
+    ok(s.curC == 8, "ctrl+left rides back to a word's start");
+    dxn3::ideKey(s, l);
+    ok(s.curC == 4, "the gap behind is crossed in the same hop");
+    dxn3::ideKey(s, l);
+    ok(s.curC == 3, "a punctuation run hops as one");
+    dxn3::ideKey(s, l);
+    ok(s.curC == 0, "home again — the hop lands where it all began");
+    dxn3::ideKey(s, l);
+    ok(s.curC == 0, "ctrl+left at the start of the doc is an honest no-op");
+
+    IdeState x;                      // hops cross line edges
+    x.lines = {"one two", "", "three"};
+    x.curR = 0;
+    x.curC = 3;
+    dxn3::ideKey(x, r);
+    ok(x.curR == 0 && x.curC == 7, "the hop ends where the word ends");
+    dxn3::ideKey(x, r);
+    ok(x.curR == 2 && x.curC == 5,
+       "empty lines are just wider gap — the hop flies across");
+    dxn3::ideKey(x, l);
+    ok(x.curR == 2 && x.curC == 0,
+       "backward from the end rests on the word's start");
+    dxn3::ideKey(x, l);
+    ok(x.curR == 0 && x.curC == 4, "backward across the empty line lands on two");
+
+    IdeState u;                      // movement never dirties the doc
+    u.lines = {"alpha beta"};
+    u.curR = 0;
+    u.curC = 0;
+    u.dirty = false;
+    dxn3::ideKey(u, r);
+    ok(!u.dirty && u.lines[0] == "alpha beta",
+       "word hops move the cursor, never the file");
+  }
+
+  // 26. the partner: bracket match across lines + the long-line slide
+  {
+    IdeState s;
+    s.lines = {"def f(x):", "    return [x, (x + 1)]", "end"};
+    s.curR = 0;
+    s.curC = 5;                      // on the '('
+    int mr = -1, mc = -1;
+    ok(dxn3::ideMatchBracket(s, mr, mc) && mr == 0 && mc == 7,
+       "an opener on the cursor finds its closer");
+    s.curC = 8;                      // on the ':' — the ')' is behind
+    ok(dxn3::ideMatchBracket(s, mr, mc) && mr == 0 && mc == 5,
+       "the bracket behind the cursor counts too");
+
+    IdeState b;                      // the second row's list brackets
+    b.lines = s.lines;
+    b.curR = 1;
+    b.curC = 11;                     // on the '['
+    ok(dxn3::ideMatchBracket(b, mr, mc) && mr == 1 && mc == 22,
+       "a bracket finds its partner on the same row");
+
+    IdeState nst;                    // nesting
+    nst.lines = {"f((x + 1) * 2)"};
+    nst.curR = 0;
+    nst.curC = 2;
+    ok(dxn3::ideMatchBracket(nst, mr, mc) && mc == 8,
+       "the inner opener finds its own closer");
+    nst.curC = 1;
+    ok(dxn3::ideMatchBracket(nst, mr, mc) && mc == 13,
+       "the outer one skips the nested pair");
+
+    IdeState m;                      // across lines
+    m.lines = {"if (ready", "   and willing):", "    go()"};
+    m.curR = 0;
+    m.curC = 3;
+    ok(dxn3::ideMatchBracket(m, mr, mc) && mr == 1 && mc == 14,
+       "the match crosses line edges");
+    m.curR = 1;
+    m.curC = 14;
+    ok(dxn3::ideMatchBracket(m, mr, mc) && mr == 0 && mc == 3,
+       "a closer walks back to its opener");
+
+    IdeState u;                      // honesty
+    u.lines = {"x = (1 + 2"};
+    u.curR = 0;
+    u.curC = 4;
+    ok(!dxn3::ideMatchBracket(u, mr, mc),
+       "an unclosed bracket refuses to fake it");
+    u.curC = 0;
+    ok(!dxn3::ideMatchBracket(u, mr, mc), "no bracket, no match");
+    u.lines = {"y = \"(not a bracket)\""};
+    u.curC = 5;
+    ok(dxn3::ideMatchBracket(u, mr, mc) && mc == 19,
+       "quotes are just characters — brackets match through them");
+
+    IdeState h;                      // the long-line slide
+    h.lines = {std::string(60, 'x') + "tail"};
+    h.curR = 0;
+    h.curC = 0;
+    dxn3::ideHscroll(h, 20);
+    ok(h.hcol == 0, "a cursor at home keeps the view at home");
+    h.curC = 25;
+    dxn3::ideHscroll(h, 20);
+    ok(h.hcol == 9, "running off the right edge slides the view along");
+    h.curC = 40;
+    dxn3::ideHscroll(h, 20);
+    ok(h.hcol == 24, "further right, further slide");
+    h.curC = 30;
+    dxn3::ideHscroll(h, 20);
+    ok(h.hcol == 24, "still visible: no slide needed");
+    h.curC = 20;
+    dxn3::ideHscroll(h, 20);
+    ok(h.hcol == 17, "off the left edge slides back with a margin");
+    h.curC = 3;
+    dxn3::ideHscroll(h, 20);
+    ok(h.hcol == 0, "the home column unslides completely");
+    h.curC = 63;                     // the very end of the line
+    dxn3::ideHscroll(h, 20);
+    ok(h.hcol == 45 && h.curC - h.hcol < 20,
+       "the line end stays visible, clamped honestly");
+    dxn3::ideHscroll(h, 20);         // twice: the clamped view holds
+    ok(h.hcol == 45, "the clamped view is stable");
+    IdeState sh;                     // a short line never scrolls
+    sh.lines = {"short"};
+    sh.curR = 0;
+    sh.curC = 5;
+    dxn3::ideHscroll(sh, 20);
+    ok(sh.hcol == 0, "a line that fits never slides");
   }
 
   if (fails == 0) {

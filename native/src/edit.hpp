@@ -45,6 +45,7 @@ struct Keys {
   bool ctrlF = false;                          // IDE: find in the file
   bool ctrlD = false;                          // IDE: duplicate this line
   bool delWord = false;                        // IDE: ctrl+w — eat the word behind the cursor
+  bool wLeft = false, wRight = false;          // IDE: ctrl+←/→ — hop word by word
   std::string typed;                           // printable chars this frame
 };
 
@@ -59,6 +60,7 @@ struct IdeState {
   bool open = false;
   std::vector<std::string> lines{""};       // a new file starts truly empty
   int curR = 0, curC = 0, top = 0;
+  int hcol = 0;                                // horizontal scroll: first visible col
   int page = 14;                             // visible rows (drawIDE refreshes)
   std::string path;                          // the script file
   bool dirty = true;                         // needs a (re)run
@@ -189,6 +191,205 @@ inline bool ideIsCloser(char c) {
 // a word character for delete-word purposes: letters, digits, snake_case
 inline bool ideWordChar(char c) {
   return std::isalnum(static_cast<unsigned char>(c)) || c == '_';
+}
+
+// ── word-wise hops (ctrl+left / ctrl+right) ─────────────────────────
+// The same classification the ctrl+w bite uses: whitespace is a gap,
+// and a run of word characters or a run of punctuation is ONE hop.
+// Forward hops land at a run's END, backward hops at its START — the
+// classic editor split, so words feel the same size both ways. Hops
+// cross line edges: an empty line is just a wider gap.
+inline void ideWordFwd(IdeState& s) {
+  const int R = static_cast<int>(s.lines.size());
+  if (R == 0) return;
+  auto cls = [&s, R](int r, int c) -> int {  // 1 gap (or EOL), 2 word, 3 punct
+    if (r < 0 || r >= R ||
+        c >= static_cast<int>(s.lines[static_cast<size_t>(r)].size()))
+      return 1;
+    const char ch = s.lines[static_cast<size_t>(r)][static_cast<size_t>(c)];
+    if (ch == ' ' || ch == '\t') return 1;
+    return ideWordChar(ch) ? 2 : 3;
+  };
+  auto step = [&s, R](int& r, int& c) {      // advance one char, across EOLs
+    ++c;
+    while (r < R &&
+           c >= static_cast<int>(s.lines[static_cast<size_t>(r)].size())) {
+      ++r;
+      c = 0;
+    }
+  };
+  auto ride = [&](int& r, int& c, int run) { // to a run's END, never past the
+    while (r < R && cls(r, c) == run) {      // line — only gaps may cross edges
+      if (c + 1 >= static_cast<int>(s.lines[static_cast<size_t>(r)].size())) {
+        ++c;                                 // rest at the line's end
+        break;
+      }
+      step(r, c);
+    }
+  };
+  int r = s.curR, c = s.curC;
+  const int k = cls(r, c);
+  if (k >= 2) {                       // a run is under you: ride it to the end
+    ride(r, c, k);
+  } else {                            // in the gap: to the END of the next run
+    while (r < R && cls(r, c) == 1) step(r, c);
+    if (r < R) ride(r, c, cls(r, c));
+  }
+  if (r >= R) {                       // walked off the end: rest at doc end
+    r = R - 1;
+    c = static_cast<int>(s.lines[static_cast<size_t>(r)].size());
+  }
+  s.curR = r;
+  s.curC = c;
+  ideClamp(s);
+}
+
+inline void ideWordBack(IdeState& s) {
+  const int R = static_cast<int>(s.lines.size());
+  if (R == 0) return;
+  auto cls = [&s, R](int r, int c) -> int {
+    if (r < 0 || r >= R || c < 0 ||
+        c >= static_cast<int>(s.lines[static_cast<size_t>(r)].size()))
+      return 1;                   // before the doc / EOL / line start: gap
+    const char ch = s.lines[static_cast<size_t>(r)][static_cast<size_t>(c)];
+    if (ch == ' ' || ch == '\t') return 1;
+    return ideWordChar(ch) ? 2 : 3;
+  };
+  auto step = [&s](int& r, int& c) {         // retreat one char, across lines
+    --c;
+    while (r >= 0 && c < 0) {
+      --r;
+      c = r >= 0
+              ? static_cast<int>(s.lines[static_cast<size_t>(r)].size())
+              : 0;
+    }
+    return r >= 0;
+  };
+  int r = s.curR, c = s.curC;
+  int pr = r, pc = c;
+  if (!step(pr, pc)) return;                 // at the very start: honest no-op
+  const int behind = cls(pr, pc);            // the char BEHIND owns the hop
+  if (behind >= 2) {                  // a run is behind you: ride to its start
+    r = pr;
+    c = pc;
+    while (true) {
+      int qr = r, qc = c;
+      if (!step(qr, qc) || cls(qr, qc) != behind) break;
+      r = qr;
+      c = qc;
+    }
+  } else {                       // in the gap: to the START of the run before it
+    r = pr;
+    c = pc;
+    while (r >= 0 && cls(r, c) == 1) {
+      int qr = r, qc = c;
+      if (!step(qr, qc)) { r = -1; break; }
+      r = qr;
+      c = qc;
+    }
+    if (r >= 0) {
+      const int run = cls(r, c);
+      while (true) {
+        int qr = r, qc = c;
+        if (!step(qr, qc) || cls(qr, qc) != run) break;
+        r = qr;
+        c = qc;
+      }
+    }
+  }
+  if (r < 0) {
+    r = 0;
+    c = 0;
+  }
+  s.curR = r;
+  s.curC = c;
+  ideClamp(s);
+}
+
+// ── bracket match: the partner, across lines ────────────────────────
+// The cell AT the cursor is probed first, then the one BEHIND it (both
+// conventions exist in the wild). Quotes are honestly out — a lone
+// quote inside a string would fake a match; only ( [ { get partners.
+inline bool ideMatchBracket(const IdeState& s, int& mr, int& mc) {
+  auto face = [](char ch) -> int {           // +1 opener, -1 closer, 0 neither
+    if (ch == '(' || ch == '[' || ch == '{') return 1;
+    if (ch == ')' || ch == ']' || ch == '}') return -1;
+    return 0;
+  };
+  auto partnerOf = [](char ch) -> char {
+    switch (ch) {
+      case '(': return ')';
+      case '[': return ']';
+      case '{': return '}';
+      case ')': return '(';
+      case ']': return '[';
+      case '}': return '{';
+    }
+    return 0;
+  };
+  const int R = static_cast<int>(s.lines.size());
+  auto probe = [&](int r, int c) -> bool {
+    if (r < 0 || r >= R || c < 0 ||
+        c >= static_cast<int>(s.lines[static_cast<size_t>(r)].size()))
+      return false;
+    const char origin =
+        s.lines[static_cast<size_t>(r)][static_cast<size_t>(c)];
+    const int dir = face(origin);
+    if (dir == 0) return false;
+    const char want = partnerOf(origin);
+    int depth = 0;
+    int r2 = r, c2 = c;
+    for (int guard = 0; guard < 200000; ++guard) {
+      if (dir > 0) {                         // forward, wrapping line ends
+        ++c2;
+        while (r2 < R &&
+               c2 >= static_cast<int>(s.lines[static_cast<size_t>(r2)].size())) {
+          ++r2;
+          c2 = 0;
+        }
+        if (r2 >= R) return false;           // the file ends before the pair does
+      } else {                               // backward, wrapping line starts
+        --c2;
+        while (r2 >= 0 && c2 < 0) {
+          --r2;
+          c2 = r2 >= 0
+                  ? static_cast<int>(s.lines[static_cast<size_t>(r2)].size()) - 1
+                  : -1;
+        }
+        if (r2 < 0) return false;
+      }
+      const char h = s.lines[static_cast<size_t>(r2)][static_cast<size_t>(c2)];
+      if (h == origin) ++depth;              // a twin of the bracket we hold
+      else if (h == want) {
+        if (depth == 0) {
+          mr = r2;
+          mc = c2;
+          return true;
+        }
+        --depth;
+      }
+    }
+    return false;                            // guard rail for pathological files
+  };
+  if (probe(s.curR, s.curC)) return true;
+  return probe(s.curR, s.curC - 1);
+}
+
+// ── horizontal scroll: the cursor is always on screen ───────────────
+// Long lines slide under the cursor instead of being chopped off at
+// the pane's edge. hcol is the first visible column; it follows the
+// cursor with a small margin and rests at 0 whenever the line fits.
+inline void ideHscroll(IdeState& s, int textW) {
+  if (textW < 8) return;                     // a sliver of a pane: leave it be
+  const int len =
+      static_cast<int>(s.lines[static_cast<size_t>(s.curR)].size());
+  if (len <= textW) {
+    s.hcol = 0;                              // the whole line fits: rest
+    return;
+  }
+  if (s.curC - s.hcol >= textW) s.hcol = s.curC - textW + 4;  // off the right
+  if (s.curC - s.hcol < 0) s.hcol = s.curC - 3;               // off the left
+  s.hcol = std::clamp(s.hcol, 0, len - textW + 1);  // never past the honest end
 }
 
 // does this line OPEN a block (python ':', C-family '{')?
@@ -340,6 +541,8 @@ inline void ideKey(IdeState& ide, const Keys& k) {
   if (k.down) ++ide.curR;
   if (k.aLeft) --ide.curC;
   if (k.aRight) ++ide.curC;
+  if (k.wLeft) ideWordBack(ide);             // word hops move the cursor only —
+  if (k.wRight) ideWordFwd(ide);             // the document never hears about it
   if (k.home) ide.curC = 0;
   if (k.end) ide.curC = static_cast<int>(L[static_cast<size_t>(ide.curR)].size());
   if (k.pageUp) ide.curR -= ide.page;
