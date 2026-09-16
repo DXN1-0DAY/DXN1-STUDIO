@@ -199,7 +199,7 @@ int main() {
   }
 
   // 9. the version quad rides in the binary too
-  ok(std::string(dxn3::DXN3_VERSION) == "3.0.54",
+  ok(std::string(dxn3::DXN3_VERSION) == "3.0.55",
      "native version constant matches the release quad");
 
   // 10. png writer: checksum vectors, real structure, byte determinism
@@ -2913,6 +2913,102 @@ int main() {
        "an empty ledger whispers nothing - bare :bm refuses instead");
   }
 
+  // 63. the hunt: F3 / shift+F3 walk the last query's hits after the
+  // searchlight rests — the STRICT law (a hand on a hit walks to the
+  // next one, a hand between hits lands on its next one), the wrap,
+  // the live recompute, the receipt, and the look that never dirties
+  {
+    IdeState h;
+    h.lines = {"hello world", "say hello again", "", "hello"};
+    h.findQ = "hello";
+    dxn3::ideFindRefresh(h);
+    h.findOpen = false;              // the searchlight rests — the hunt goes on
+    Keys f3;
+    f3.findJump = true;
+    dxn3::ideKey(h, f3);
+    ok(h.curR == 1 && h.curC == 4,
+       "the first F3 lands on the first hit after the hand");
+    ok(h.findSel == 1, "the walk aims the counter at the landed hit");
+    ok(h.console.back().find("hit 2/3") != std::string::npos,
+       "the receipt speaks the walk's count");
+    dxn3::ideKey(h, f3);
+    ok(h.curR == 3 && h.curC == 0, "F3 keeps walking — the tail's hello");
+    dxn3::ideKey(h, f3);
+    ok(h.curR == 0 && h.curC == 0, "F3 wraps around the file's head");
+    ok(!h.findOpen, "the searchlight stays resting while the hunt walks");
+    Keys sf3;
+    sf3.findBack = true;
+    dxn3::ideKey(h, sf3);
+    ok(h.curR == 3 && h.curC == 0,
+       "shift+F3 from the head wraps to the file's tail");
+    dxn3::ideKey(h, sf3);
+    ok(h.curR == 1 && h.curC == 4, "shift+F3 walks back hit by hit");
+
+    IdeState h2;                     // the heart of the strict law:
+    h2.lines = {"hello world", "say hello again", "", "hello"};
+    h2.curR = 2;                     // the hand stands BETWEEN hits
+    h2.curC = 0;
+    h2.findQ = "hello";
+    dxn3::ideFindRefresh(h2);
+    h2.findOpen = false;
+    Keys f3b;
+    f3b.findJump = true;
+    dxn3::ideKey(h2, f3b);
+    ok(h2.curR == 3 && h2.curC == 0,
+       "a hand between hits lands on its NEXT hit (the old law skipped it)");
+
+    IdeState h3;                     // enter under the light, same law
+    h3.lines = {"hello world", "say hello again", "", "hello"};
+    h3.curR = 2;
+    h3.curC = 0;
+    Keys cf;
+    cf.ctrlF = true;
+    dxn3::ideKey(h3, cf);
+    Keys ty;
+    ty.typed = "hello";
+    dxn3::ideKey(h3, ty);
+    Keys en;
+    en.enter = true;
+    dxn3::ideKey(h3, en);
+    ok(h3.curR == 3 && h3.curC == 0,
+       "enter under the light obeys the strict law too");
+
+    IdeState h4;                     // the doc moved since the light rested
+    h4.lines = {"hello world", "say hello again", "", "hello"};
+    h4.curR = 0;
+    h4.curC = 0;
+    h4.findQ = "hello";
+    h4.findHits = {{0, 0}};          // stale hits — a lie the walk won't keep
+    h4.findOpen = false;
+    dxn3::ideKey(h4, f3);
+    ok(h4.findHits.size() == 3 && h4.curR == 1 && h4.curC == 4,
+       "the hunt recomputes the hits live before it walks");
+
+    IdeState h5;                     // nothing to hunt
+    h5.lines = {"hello"};
+    h5.findOpen = false;
+    const int cr5 = h5.curR;
+    dxn3::ideKey(h5, f3);
+    ok(h5.curR == cr5 && h5.console.empty(),
+       "an empty query has nothing to hunt — silence, no move");
+
+    IdeState h6;                     // the look that never edits
+    h6.lines = {"hello world", "plain", "hello again"};
+    h6.curR = 0;
+    h6.curC = 0;
+    h6.dirty = false;                // the contract: the hunt never dirties
+    h6.findQ = "hello";
+    dxn3::ideFindRefresh(h6);
+    h6.findOpen = false;
+    h6.anchorR = 0;
+    h6.anchorC = 0;
+    h6.curC = 4;                     // a selection lives
+    dxn3::ideKey(h6, f3);
+    ok(!h6.dirty, "the hunt is a look — it never dirties the doc");
+    ok(h6.anchorR < 0, "the walk abandons the selection, like every hop");
+    ok(h6.undo.empty() && h6.redo.empty(),
+       "nothing to undo — nothing happened");
+  }
 
 
   if (fails == 0) {

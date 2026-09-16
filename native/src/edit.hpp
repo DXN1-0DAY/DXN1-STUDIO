@@ -66,6 +66,8 @@ struct Keys {
   bool markToggle = false;                     // IDE: ctrl+F2 — plant/pull a pin
   bool markNext = false, markPrev = false;     // IDE: F2 / shift+F2 — leap
                                                // between pins
+  bool findJump = false, findBack = false;     // IDE: F3 / shift+F3 — walk
+                                               // the last query's hits
   int clickR = -1, clickC = -1;                // mouse press (IDE): doc cell,
                                                // (-1,-1) = no click this frame
   bool clickShift = false;                     // shift+click extends
@@ -663,14 +665,44 @@ inline void ideFindRefresh(IdeState& s) {
   s.findSel = 0;                    // everything is behind you: wrap to 0
 }
 
-// step to the next hit (enter), wrapping; false when there is nothing
+// step to the next hit (enter / F3): the first hit STRICTLY after the
+// hand, wrapping to the file's head; false when there is nothing. The
+// strict law is one law for both stances — a hand standing ON a hit
+// walks to the following one, and a hand standing BETWEEN hits lands
+// on its next one (the old aim-then-step law skipped that first hit:
+// the searchlight aimed at it, then enter stepped PAST it).
 inline bool ideFindNext(IdeState& s) {
   if (s.findHits.empty()) return false;
-  s.findSel = (s.findSel + 1) % static_cast<int>(s.findHits.size());
-  const auto& [r, c] = s.findHits[static_cast<size_t>(s.findSel)];
+  const int n = static_cast<int>(s.findHits.size());
+  int pick = 0;                      // the wrap: the file's head
+  for (int i = 0; i < n; ++i) {
+    const auto& [r, c] = s.findHits[static_cast<size_t>(i)];
+    if (r > s.curR || (r == s.curR && c > s.curC)) { pick = i; break; }
+  }
+  s.findSel = pick;
+  const auto& [r, c] = s.findHits[static_cast<size_t>(pick)];
   s.curR = r;
   s.curC = c;
   ideSelClear(s);                    // the walk abandons any selection
+  return true;
+}
+
+// step to the previous hit (shift+F3): the last hit STRICTLY before
+// the hand, wrapping to the file's tail — the next's mirror, so the
+// hunt walks honestly in both directions.
+inline bool ideFindPrev(IdeState& s) {
+  if (s.findHits.empty()) return false;
+  const int n = static_cast<int>(s.findHits.size());
+  int pick = n - 1;                  // the wrap: the file's tail
+  for (int i = n - 1; i >= 0; --i) {
+    const auto& [r, c] = s.findHits[static_cast<size_t>(i)];
+    if (r < s.curR || (r == s.curR && c < s.curC)) { pick = i; break; }
+  }
+  s.findSel = pick;
+  const auto& [r, c] = s.findHits[static_cast<size_t>(pick)];
+  s.curR = r;
+  s.curC = c;
+  ideSelClear(s);
   return true;
 }
 
@@ -1718,7 +1750,9 @@ inline void ideKey(IdeState& ide, const Keys& k) {
       if (!ide.findQ.empty()) ide.findQ.pop_back();
       else { ide.findOpen = false; return; }   // back on empty: done looking
     }
-    if (k.enter) ideFindNext(ide);             // to the next hit, wrapping
+    if (k.enter) ideFindNext(ide);             // to the next hit
+    if (k.findJump) ideFindNext(ide);          // F3 walks too, bar up or down
+    if (k.findBack) ideFindPrev(ide);          // shift+F3 walks back
     if (!k.typed.empty() || k.back) ideFindRefresh(ide);
     return;
   }
@@ -1729,6 +1763,31 @@ inline void ideKey(IdeState& ide, const Keys& k) {
     ide.findHits.clear();
     ide.findSel = -1;
     ide.lastTyping = ide.lastBack = false;
+    return;
+  }
+
+  // ── the hunt continues: F3 / shift+F3 walk the last query's hits
+  // even after the searchlight has rested. The hits are recomputed
+  // live (the doc may have moved since the bar was up), the hand hops
+  // hit to hit, and the console speaks the count — with the bar down
+  // there is no counter, so the receipt is the walk's witness. A look,
+  // never an edit: nothing dirties, nothing undoes. An empty query has
+  // nothing to hunt; the frame is consumed either way.
+  if (k.findJump || k.findBack) {
+    if (!ide.findQ.empty()) {
+      ideFindRefresh(ide);
+      const bool walked = k.findJump ? ideFindNext(ide) : ideFindPrev(ide);
+      if (walked)
+        ide.console.push_back(
+            "engine: hit " + std::to_string(ide.findSel + 1) + "/" +
+            std::to_string(ide.findHits.size()) + " — line " +
+            std::to_string(ide.curR + 1));
+      else
+        ide.console.push_back("engine: no matches for '" + ide.findQ +
+                              "' — ctrl+f opens the searchlight");
+    }
+    ide.lastTyping = ide.lastBack = false;
+    ide.idle = 0;
     return;
   }
 

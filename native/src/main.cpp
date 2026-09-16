@@ -189,6 +189,13 @@ Keys pollKeys(Mode mode) {
                 if (ctrl) k.markToggle = true;
                 else if (shift) k.markPrev = true;
                 else k.markNext = true;
+              } else if (p == 16) {            // F3: the hunt — the last
+                const bool shift =             // query walks hit to hit,
+                    semi != std::string::npos &&   // shift walks back
+                    semi + 1 < params.size() &&
+                    params[semi + 1] == '2';
+                if (shift) k.findBack = true;
+                else k.findJump = true;
               } else if (!ctrl) {
                 if (p == 5) k.pageUp = true;
                 else if (p == 6) k.pageDn = true;
@@ -199,6 +206,12 @@ Keys pollKeys(Mode mode) {
             }
             case 'Z':
               if (mode == Mode::Ide) k.backTab = true;   // shift+tab — dedent
+              break;
+            case 'R':
+              // SS3 R (ESC O R) is F3 in the xterm dialect — the same
+              // hunt, the other keyboard grammar. A CSI 'R' is a cursor
+              // position report; !csi keeps the report silent.
+              if (!csi && mode == Mode::Ide) k.findJump = true;
               break;
             case 'M': {
               // SGR mouse report: ESC[<b;x;yM — button 0 is the left
@@ -993,7 +1006,8 @@ void drawIDE(dxn3::Screen& scr, IdeState& ide, const dxn3::Game& g, bool hostUp)
     if (ide.findQ.empty()) fb += "type to search the whole file";
     else if (ide.findHits.empty()) fb += "no matches — esc to close";
     else fb += std::to_string(ide.findSel + 1) + "/" +
-               std::to_string(ide.findHits.size()) + " · enter next · esc done";
+               std::to_string(ide.findHits.size()) +
+               " · enter/F3 next · esc done";
     scr.text(1, row, fb.substr(0, static_cast<size_t>(cols - 3)), dxn3::rgb(250, 204, 21));
   };
   if (ide.zen && ide.findOpen) {
@@ -1062,8 +1076,9 @@ int main(int argc, char** argv) {
                    "       dxn3-native --list-scenes | --screenshot out.png | --version\n"
                    "keys:  ctrl+r run · ctrl+s save · ctrl+z undo · ctrl+y redo\n"
                    "       ctrl+c/x/v copy · cut · paste (a bare cut lifts the line)\n"
-                   "       ctrl+f find · enter next hit · ctrl+d duplicate lines\n"
-                   "       ctrl+\\ leap to the partner bracket · tab snippet/indent\n"
+                   "       ctrl+f find · enter next hit · F3/shift+F3 walk the hits\n"
+                   "       ctrl+d duplicate lines · ctrl+\\ leap to the partner bracket\n"
+                   "       tab snippet/indent\n"
                    "       shift+tab dedent · ctrl+/ comment\n"
                    "       shift+arrows select · shift+ctrl+←/→ select words\n"
                    "       ctrl+l clear the console · ctrl+n template · ctrl+g error line · ctrl+p screenshot\n"

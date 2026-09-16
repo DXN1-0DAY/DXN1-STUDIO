@@ -50,6 +50,8 @@ ESC = "\x1b"
 F2 = ESC + "[15~"
 F2_CTRL = ESC + "[15;5~"
 F2_SHIFT = ESC + "[15;2~"
+F3 = ESC + "[16~"
+F3_SHIFT = ESC + "[16;2~"
 CTRL_END = ESC + "[1;5F"
 UP = ESC + "[A"
 S_UP = ESC + "[1;2A"
@@ -505,6 +507,66 @@ def main():
               "jumped up 2 — now at line 6" in scr.text(ROWS - 2),
               repr(scr.text(ROWS - 2)[:60]))
 
+        # ── 5c. the hunt — F3 walks the last query's hits ──────────
+        print("── 5c. the hunt — F3 walks after the searchlight rests")
+        scr, _ = s.run_verb("marks", "ide")       # 5b left the IDE open —
+        s.settle(0.25)                            # open_bar must ESC first
+        s.send(CTRL_END)                          # the hand: the doc's tail
+        s.settle(0.25)
+        s.send("\x06")                            # ctrl+f — the searchlight
+        s.settle(0.3)
+        s.send("print")
+        scr = s.settle(0.3)
+        check("the searchlight counts its hit for the hunt",
+              any("/ find: print" in scr.text(r) and "1/1" in scr.text(r)
+                  for r in range(ROWS)),
+              repr(scr.text(ROWS - 1)[:50]))
+        s.send(ESC)                               # the searchlight rests —
+        scr = s.settle(0.3)                       # the hunt goes on
+        check("the searchlight rests",
+              not any("/ find: " in scr.text(r) for r in range(ROWS)))
+        s.send(F3)                                # from the tail: wrap to 1/1
+        scr = s.settle(0.3)
+        check("F3 walks after the bar rests and speaks the count",
+              "hit 1/1" in scr.text(ROWS - 2), repr(scr.text(ROWS - 2)[:60]))
+        hit_pos = scr.find("print")     # (row, col) — the row text INCLUDES
+        if hit_pos is not None:         # the 4-col gutter, so col is already
+            hit_row, hit_col = hit_pos  # a screen coord; no GUTTER offset
+            check("the hand landed on the hit (inverse video on print)",
+                  scr.bg_at(hit_row, hit_col) == CURSOR_BG,
+                  repr(scr.bg_at(hit_row, hit_col)))
+        else:
+            check("the hand landed on the hit (inverse video on print)",
+                  False, "no print row visible")
+        s.send(F3)                                # again: the wrap holds
+        scr = s.settle(0.3)
+        check("F3 wraps — the sole hit takes the hand again",
+              "hit 1/1" in scr.text(ROWS - 2), repr(scr.text(ROWS - 2)[:60]))
+        # a wider query: the walk advances, shift+F3 walks back
+        s.send("\x06")                            # ctrl+f reopens with a
+        s.settle(0.3)                             # clean query — the law
+        s.send("e")
+        scr = s.settle(0.4)
+        check("the wider query counts its hits",
+              any("/ find: e" in scr.text(r) for r in range(ROWS)),
+              repr(scr.text(ROWS - 1)[:50]))
+        s.send(ESC)
+        s.settle(0.3)
+        s.send(CTRL_END)                          # the hand back to the tail
+        s.settle(0.25)
+        s.send(F3)                                # wrap to the file's first hit
+        scr = s.settle(0.3)
+        check("the wide hunt wraps to the first hit",
+              "hit 1/" in scr.text(ROWS - 2), repr(scr.text(ROWS - 2)[:60]))
+        s.send(F3)
+        scr = s.settle(0.3)
+        check("the wide hunt advances hit by hit",
+              "hit 2/" in scr.text(ROWS - 2), repr(scr.text(ROWS - 2)[:60]))
+        s.send(F3_SHIFT)
+        scr = s.settle(0.3)
+        check("shift+F3 walks back",
+              "hit 1/" in scr.text(ROWS - 2), repr(scr.text(ROWS - 2)[:60]))
+
         # ── 6. the case — the selection changes its voice ─────────────
         print("── 6. the case — upper shouts, lower whispers")
         scr, _ = s.run_verb("goto 5", "ide")      # the hand: line 5, col 0
@@ -563,6 +625,9 @@ def main():
 
         # ── 9. the diamond button — a click on the ◆ pulls the pin ───
         print("── 9. the diamond button — the gutter's edge answers")
+
+
+
         s.settle(1.4)                     # the rev's auto-run speaks first:
                                           # the console quiets before the click
         # pins ride at lines 37 and 40 (0-based 36/39); top is 14, so
@@ -584,6 +649,7 @@ def main():
         check("the sibling pin is unharmed",
               scr.cell(26, GUTTER - 1)[0] == "◆",
               repr(scr.cell(26, GUTTER - 1)))
+
 
         # ── 10. the breath — :indent steps the bed right, :dedent back
         print("── 10. the breath — :indent and :dedent, one round trip")

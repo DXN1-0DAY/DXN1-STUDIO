@@ -1,3 +1,27 @@
+## v3.0.55 — the hunt
+
+- **F3 and shift+F3 — the walk that outlives the bar.** Close the
+  searchlight with esc and the hunt goes on: F3 hops to the next hit
+  of the last query, shift+F3 walks back, both wrapping around the
+  file. The hits are recomputed live before every step (the doc may
+  have moved since the light rested), the console speaks the count
+  ("hit 2/7 — line 12") because with the bar down there is no
+  counter, and the walk is a look — nothing dirties, nothing undoes,
+  any selection is left behind like every hop. F3 works inside the
+  bar too, and the bar itself now whispers "enter/F3 next".
+- **THE STRICT LAW — a real find bug fixed.** enter used to aim the
+  light at the first hit at/after the hand and then step PAST it —
+  so a hand standing BETWEEN two hits skipped its own next hit and
+  wrapped early. One law now rules both stances: the next hit is the
+  first one STRICTLY after the hand (the previous hit, strictly
+  before, for shift+F3). A hand on a hit walks to the following one;
+  a hand between hits lands on its next one. The xterm grammar gets
+  F3 too: SS3 R (ESC O R) walks as well, while a CSI R cursor
+  position report stays silent.
+- Selftest group 63 (15 asserts) — 573 → 588 groups. Smoke grew the
+  hunt section (the count, the landing's inverse video, the wrap,
+  the walk, the walk back) — 72 → 81 checks.
+
 ## v3.0.54 — the ride of the jump
 
 - **`:goto +N` and `:goto -N` — the jump rides from where the hand
