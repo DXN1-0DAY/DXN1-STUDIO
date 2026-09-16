@@ -1,3 +1,46 @@
+## v3.0.21 — the clipboard
+
+- **`ctrl+c` / `ctrl+x` / `ctrl+v` — a real clipboard.** Copy takes
+  the exact selection (character-wise) or, with none live, the whole
+  cursor line (line-wise) — and never dirties the doc. Cut is the
+  copy plus the deletion, one honest undo step; a bare cut lifts the
+  whole line out and turns the clip line-wise. Paste splices
+  character-wise clips at the cursor (tail text rides behind the
+  block, the cursor lands at the clip's end) and drops line-wise
+  clips in above the cursor line; a live selection is the paste's
+  bed, replaced in the same undo step. Cut with a multi-line
+  selection? The clip carries every line's shape.
+- **Word-wise selection.** `shift+ctrl+←`/`→` extend the selection
+  word by word — the anchor is born at the cursor and rides the same
+  hops `ctrl+←`/`→` make, across line edges when they must. A plain
+  move still drops it.
+- **The pair ceremony.** Enter between a bracket pair splits into
+  three lines: the naked middle line takes the cursor, `{` bumps it
+  a level, and the closer keeps its ground on the base indent.
+  Quotes stay honestly out — breaking a string literal is still just
+  a split.
+- **`ctrl+d` duplicates the whole selection.** With a multi-line
+  selection live, every touched line is copied below the range and
+  the copy carries both the cursor and the anchor with it. The plain
+  single-line duplicate is unchanged.
+- **The tab trigger.** Type a shelf name (`tick`, `key`, `fn`, …)
+  and reach for `tab` — the word is eaten and the boilerplate lands
+  in its place, tail text riding behind the block, the cursor at the
+  block's end, one undo step to take it all back. Plain `tab` still
+  gives four honest spaces (grouped like typing), a selected block
+  indents every touched line (the selection survives), and
+  `shift+tab` — a real `ESC[Z` parse — dedents the block or the
+  hand's line by up to four spaces.
+- **`:screenshot` whispers its default.** With no name typed and no
+  shots in `exports/`, the bar tells you what enter WILL write —
+  `exports/<scene>-N.png — the default` — before it writes it.
+- Selftest: groups 31–32 (clipboard semantics, word select, the
+  ceremony, multi-dup, tab triggers, block indent/dedent)
+  — 241 → 284. Smoke: 50 → 67 checks, including a live
+  clipboard round-trip on the flappy import line — and the smoke's
+  own honest-quit fix (LESSON #4: the bar needs play mode; in the
+  IDE a `:` types into the doc and the quit never lands).
+
 ## v3.0.20 — the selection
 
 - **`shift+arrows` select.** The anchor is born at the cursor on the

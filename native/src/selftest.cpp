@@ -199,7 +199,7 @@ int main() {
   }
 
   // 9. the version quad rides in the binary too
-  ok(std::string(dxn3::DXN3_VERSION) == "3.0.20",
+  ok(std::string(dxn3::DXN3_VERSION) == "3.0.21",
      "native version constant matches the release quad");
 
   // 10. png writer: checksum vectors, real structure, byte determinism
@@ -1230,6 +1230,276 @@ int main() {
     e2.anchorC = 0;
     ok(!dxn3::ideSelRange(e2).has_value() && !dxn3::ideSelDelete(e2),
        "anchor == cursor is no selection at all");
+  }
+
+  // 31. the clipboard: copy, cut, paste — the way every editor speaks it
+  {
+    using dxn3::Keys;
+    IdeState s;
+    s.lines = {"hello world", "second line", "third"};
+    s.curR = 0;
+    s.curC = 0;
+    Keys sr;
+    sr.sRight = true;
+    for (int i = 0; i < 5; ++i) dxn3::ideKey(s, sr);
+    Keys cc;
+    cc.ctrlC = true;
+    dxn3::ideKey(s, cc);
+    ok(s.clip.size() == 1 && s.clip[0] == "hello" && !s.clipLines,
+       "copy takes the exact selection");
+    ok(s.lines[0] == "hello world" && dxn3::ideSelRange(s).has_value(),
+       "copy keeps the document and the selection");
+
+    Keys hm;                        // home (a plain move) drops the range
+    hm.docHome = true;
+    dxn3::ideKey(s, hm);
+    Keys cv;
+    cv.ctrlV = true;                // splice at the hand: hello + hello world
+    dxn3::ideKey(s, cv);
+    ok(s.lines[0] == "hellohello world" && s.curC == 5 && s.anchorR < 0,
+       "paste splices at the cursor and lands at the clip's end");
+    ok(dxn3::ideUndo(s) && s.lines[0] == "hello world",
+       "a paste is one honest undo step");
+
+    for (int i = 0; i < 5; ++i) dxn3::ideKey(s, sr);   // re-select "hello"
+    Keys cx;                        // cut the range back out
+    cx.ctrlX = true;
+    dxn3::ideKey(s, cx);
+    ok(s.lines[0] == " world" && s.clip[0] == "hello" && s.curC == 0,
+       "cut removes the range and keeps it in the clip");
+    ok(dxn3::ideUndo(s) && s.lines[0] == "hello world",
+       "a cut is one honest undo step");
+
+    IdeState ln;                    // a bare copy lifts the whole line
+    ln.lines = {"alpha", "beta"};
+    ln.curR = 0;
+    ln.curC = 3;
+    Keys cc2;
+    cc2.ctrlC = true;
+    dxn3::ideKey(ln, cc2);
+    ok(ln.clip.size() == 1 && ln.clip[0] == "alpha" && ln.clipLines,
+       "a copy with no selection lifts the whole cursor line");
+    Keys cv2;
+    cv2.ctrlV = true;               // line-wise: lands ABOVE the cursor line
+    ln.curR = 1;
+    dxn3::ideKey(ln, cv2);
+    ok(ln.lines.size() == 3 && ln.lines[1] == "alpha" && ln.lines[2] == "beta",
+       "a line-wise paste lands above the cursor line");
+    ok(dxn3::ideUndo(ln) && ln.lines.size() == 2,
+       "the line paste undoes whole");
+
+    IdeState cl;                    // a bare cut lifts the line out
+    cl.lines = {"alpha", "beta"};
+    cl.curR = 1;
+    cl.curC = 1;
+    Keys cx2;
+    cx2.ctrlX = true;
+    dxn3::ideKey(cl, cx2);
+    ok(cl.lines.size() == 1 && cl.lines[0] == "alpha" && cl.clipLines &&
+           cl.clip[0] == "beta" && cl.curC == 0,
+       "a bare cut lifts the whole line out");
+    Keys cv3;
+    cv3.ctrlV = true;
+    dxn3::ideKey(cl, cv3);          // the line returns above line 1
+    ok(cl.lines.size() == 2 && cl.lines[0] == "beta" && cl.lines[1] == "alpha",
+       "the lifted line pastes back as a line");
+    ok(dxn3::ideUndo(cl) && cl.lines.size() == 1,
+       "the line cut undoes whole");
+
+    IdeState last;                  // cutting the only line never kills the doc
+    last.lines = {"only"};
+    last.curR = 0;
+    Keys cx3;
+    cx3.ctrlX = true;
+    dxn3::ideKey(last, cx3);
+    ok(last.lines.size() == 1 && last.lines[0].empty(),
+       "cutting the only line leaves one honest empty line");
+    ok(dxn3::ideUndo(last) && last.lines[0] == "only",
+       "the lone-line cut undoes whole");
+
+    IdeState sel;                   // paste over a live selection: one step
+    sel.lines = {"keep this"};
+    sel.curR = 0;
+    sel.curC = 0;
+    sel.anchorR = 0;
+    sel.anchorC = 4;                // "keep" selected
+    sel.clip = {"NEW"};             // the clip rides in from an earlier copy
+    sel.clipLines = false;
+    Keys cv4;
+    cv4.ctrlV = true;
+    dxn3::ideKey(sel, cv4);
+    ok(sel.lines[0] == "NEW this" && sel.curC == 3 && sel.anchorR < 0,
+       "pasting over a selection replaces it with the clip");
+    ok(dxn3::ideUndo(sel) && sel.lines[0] == "keep this",
+       "the selection paste is one honest step (doc restored)");
+  }
+
+  // 32. word select, the pair ceremony, multi-dup, and the tab trigger
+  {
+    using dxn3::Keys;
+    IdeState s;                     // shift+ctrl+right selects word by word
+    s.lines = {"# FLAPPY in the sky"};
+    s.curR = 0;
+    s.curC = 0;
+    Keys sw;
+    sw.sWRight = true;
+    dxn3::ideKey(s, sw);
+    ok(s.curC == 1 && s.anchorR == 0 && s.anchorC == 0,
+       "shift+ctrl+right hops word-wise with the anchor riding");
+    auto sel = dxn3::ideSelRange(s);
+    ok(sel.has_value() && (*sel)[0] == 0 && (*sel)[1] == 0 &&
+           (*sel)[2] == 0 && (*sel)[3] == 1,
+       "the word hop's range is honest");
+    Keys sw2;
+    sw2.sWRight = true;
+    dxn3::ideKey(s, sw2);
+    ok(s.curC == 8, "the next hop rides FLAPPY to its end");
+    Keys sw3;
+    sw3.sWLeft = true;
+    dxn3::ideKey(s, sw3);
+    ok(s.curC == 2, "shift+ctrl+left rides back to the word's start");
+    Keys pl;
+    pl.down = true;
+    dxn3::ideKey(s, pl);
+    ok(!dxn3::ideSelRange(s).has_value(),
+       "a plain move still drops the word selection");
+
+    IdeState p;                     // enter between a pair: the ceremony
+    p.lines = {"f()"};
+    p.curR = 0;
+    p.curC = 2;                     // between ( and )
+    Keys en;
+    en.enter = true;
+    dxn3::ideKey(p, en);
+    ok(p.lines.size() == 3 && p.lines[0] == "f(" && p.lines[1].empty() &&
+           p.lines[2] == ")",
+       "enter between ( ) splits into the three-line ceremony");
+    ok(p.curR == 1 && p.curC == 0,
+       "the cursor rests on the naked middle line");
+    ok(dxn3::ideUndo(p) && p.lines.size() == 1 && p.lines[0] == "f()",
+       "the pair split is one honest undo step");
+
+    IdeState br;                    // a brace pair bumps the middle line
+    br.lines = {"if (x) {}"};
+    br.curR = 0;
+    br.curC = 8;                    // between { and }
+    Keys en2;
+    en2.enter = true;
+    dxn3::ideKey(br, en2);
+    ok(br.lines.size() == 3 && br.lines[1] == "    " && br.lines[2] == "}",
+       "enter between { } keeps the closer at the base indent");
+
+    IdeState q;                     // quotes are honestly out
+    q.lines = {"say \"\""};
+    q.curR = 0;
+    q.curC = 5;                     // between the two quote chars
+    Keys en3;
+    en3.enter = true;
+    dxn3::ideKey(q, en3);
+    ok(q.lines.size() == 2 && q.lines[0] == "say \"" && q.lines[1] == "\"",
+       "enter between quotes is just a plain split — no ceremony");
+
+    IdeState d;                     // ctrl+d duplicates the SELECTED lines
+    d.lines = {"# one", "# two", "three"};
+    d.curR = 0;
+    d.curC = 0;
+    Keys sd;
+    sd.sDown = true;
+    dxn3::ideKey(d, sd);
+    Keys dd;
+    dd.ctrlD = true;
+    dxn3::ideKey(d, dd);
+    ok(d.lines.size() == 5 && d.lines[2] == "# one" && d.lines[3] == "# two",
+       "ctrl+d with a multi-line selection duplicates every touched line");
+    ok(d.curR == 3 && d.anchorR == 2,
+       "the copy carries the cursor and the anchor with it");
+    ok(dxn3::ideUndo(d) && d.lines.size() == 3,
+       "the multi-duplicate is one honest undo step");
+
+    IdeState t;                     // the tab trigger: a shelf word becomes
+    t.lines = {"tick", "rest"};     // the boilerplate, tail riding behind
+    t.path = "game.py";
+    t.curR = 0;
+    t.curC = 4;
+    Keys tb;
+    tb.tab = true;
+    dxn3::ideKey(t, tb);
+    ok(t.lines.size() == 3 && t.lines[0] == "def on_tick(dt):" &&
+           t.lines[1] == "    pass" && t.lines[2] == "rest",
+       "tab on a shelf name expands the snippet in place");
+    ok(t.curR == 1 && t.curC == 8, "the cursor rests at the block's end");
+    ok(dxn3::ideUndo(t) && t.lines.size() == 2 && t.lines[0] == "tick",
+       "the tab trigger is one honest undo step");
+
+    IdeState tl;                    // tail text rides behind the expansion
+    tl.lines = {"tick"};
+    tl.path = "game.py";
+    tl.curR = 0;
+    tl.curC = 4;
+    Keys tb2;
+    tb2.tab = true;
+    dxn3::ideKey(tl, tb2);
+    ok(tl.lines.size() == 2 && tl.lines[0] == "def on_tick(dt):",
+       "the expansion takes the whole line when nothing follows");
+    ok(dxn3::ideUndo(tl) && tl.lines[0] == "tick", "and undoes whole");
+
+    IdeState tw;                    // tail text after the trigger word
+    tw.lines = {"x tick y"};
+    tw.path = "game.py";
+    tw.curR = 0;
+    tw.curC = 6;                    // right after "tick"
+    Keys tb3;
+    tb3.tab = true;
+    dxn3::ideKey(tw, tb3);
+    ok(tw.lines.size() == 2 && tw.lines[0] == "x def on_tick(dt):" &&
+           tw.lines[1] == "    pass y",
+       "tail text after the trigger rides behind the block");
+    ok(tw.curR == 1 && tw.curC == 8,
+       "the cursor lands at the block's end, before the tail");
+
+    IdeState tn;                    // a non-shelf word: four honest spaces
+    tn.lines = {"hello"};
+    tn.curR = 0;
+    tn.curC = 5;
+    Keys tb4;
+    tb4.tab = true;
+    dxn3::ideKey(tn, tb4);
+    ok(tn.lines[0] == "hello    " && tn.curC == 9,
+       "tab on a non-shelf word still gives four honest spaces");
+    ok(dxn3::ideUndo(tn) && tn.lines[0] == "hello",
+       "and the spaces undo whole");
+
+    IdeState bi;                    // tab with a block: every line indents
+    bi.lines = {"one", "two", "three"};
+    bi.curR = 0;
+    bi.curC = 0;
+    bi.anchorR = 1;
+    bi.anchorC = 0;                 // lines 1-2 selected
+    Keys tb5;
+    tb5.tab = true;
+    dxn3::ideKey(bi, tb5);
+    ok(bi.lines[0] == "    one" && bi.lines[1] == "    two" &&
+           bi.lines[2] == "three",
+       "tab with a block indents every touched line");
+    ok(dxn3::ideSelRange(bi).has_value(),
+       "the block selection survives the indent");
+    Keys bt;                        // shift+tab walks it back
+    bt.backTab = true;
+    dxn3::ideKey(bi, bt);
+    ok(bi.lines[0] == "one" && bi.lines[1] == "two",
+       "shift+tab dedents every touched line");
+
+    IdeState bl;                    // shift+tab alone: this line steps back
+    bl.lines = {"    deep"};
+    bl.curR = 0;
+    bl.curC = 7;
+    Keys bt2;
+    bt2.backTab = true;
+    dxn3::ideKey(bl, bt2);
+    ok(bl.lines[0] == "deep" && bl.curC == 3,
+       "shift+tab alone lifts the hand's line back a level");
+    ok(dxn3::ideUndo(bl) && bl.lines[0] == "    deep",
+       "and the dedent undoes whole");
   }
 
   if (fails == 0) {

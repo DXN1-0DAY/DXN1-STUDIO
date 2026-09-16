@@ -36,7 +36,9 @@ struct Keys {
   bool ctrlS = false, ctrlR = false;           // IDE: save / run
   bool up = false, down = false;               // IDE: cursor rows
   bool aLeft = false, aRight = false;          // IDE: cursor cols
-  bool toPlay = false;                         // IDE: tab — play your game
+  bool tab = false;                            // IDE: tab — snippet trigger,
+                                               // block indent, or 4 spaces
+  bool backTab = false;                        // IDE: shift+tab — dedent
   bool braille = false;                        // b — toggle the dot renderer
   bool ctrlN = false;                          // IDE: next template
   bool pageUp = false, pageDn = false;         // IDE: page through the file
@@ -53,6 +55,9 @@ struct Keys {
   bool docHome = false, docEnd = false;        // IDE: ctrl+home/end — the edges
   bool sUp = false, sDown = false;             // IDE: shift+↑/↓ — extend the selection
   bool sLeft = false, sRight = false;          // IDE: shift+←/→ — extend the selection
+  bool sWLeft = false, sWRight = false;        // IDE: shift+ctrl+←/→ — select
+                                               // word by word
+  bool ctrlC = false, ctrlX = false, ctrlV = false;  // IDE: copy / cut / paste
   std::string typed;                           // printable chars this frame
 };
 
@@ -88,6 +93,12 @@ struct IdeState {
   int findSel = -1;                            // the hit you're standing on
   bool ruler = true;                           // the 79/99 column guides
   int anchorR = -1, anchorC = -1;              // selection anchor (-1 = none)
+  // the clipboard: the last copy or cut, as the document speaks it. A
+  // line-wise clip (a copy with no selection, or ANY cut of a bare
+  // line) pastes as whole lines above the cursor; a character-wise
+  // clip splices in at the cursor, tail text riding behind it.
+  std::vector<std::string> clip;
+  bool clipLines = false;
 };
 
 // ── the selection: anchor ↔ cursor, honestly ordered ────────────────
@@ -126,6 +137,125 @@ inline bool ideSelDelete(IdeState& s) {
   s.curC = c0;
   ideSelClear(s);
   return true;
+}
+
+// a word character for delete-word and word-hop purposes: letters,
+// digits, snake_case
+inline bool ideWordChar(char c) {
+  return std::isalnum(static_cast<unsigned char>(c)) || c == '_';
+}
+
+// the cursor clamps to whatever document it lands on
+inline void ideClamp(IdeState& s) {
+  s.curR = std::clamp(s.curR, 0, static_cast<int>(s.lines.size()) - 1);
+  s.curC = std::clamp(s.curC, 0,
+                      static_cast<int>(s.lines[static_cast<size_t>(s.curR)].size()));
+  if (s.anchorR >= 0) {                        // the anchor clamps too — a
+    if (s.anchorR >= static_cast<int>(s.lines.size()))   // shrunken doc keeps
+      s.anchorR = static_cast<int>(s.lines.size()) - 1;  // its selection honest
+    s.anchorC = std::clamp(s.anchorC, 0,
+                           static_cast<int>(s.lines[static_cast<size_t>(s.anchorR)].size()));
+  }
+}
+
+inline void idePushUndo(IdeState& s) {
+  s.undo.push_back({s.lines, s.curR, s.curC});
+  if (s.undo.size() > IdeState::kUndoMax)
+    s.undo.erase(s.undo.begin(),
+                 s.undo.begin() + static_cast<long>(s.undo.size() - IdeState::kUndoMax));
+  s.redo.clear();                    // a fresh edit cuts the redo branch
+  s.lastTyping = s.lastBack = false;
+}
+
+// the run of word characters ending AT the cursor — the tab trigger's
+// fuel: type a shelf name and reach for tab, the word becomes the
+// boilerplate. Nothing wordy behind the hand: an empty string.
+inline std::string ideWordBehind(const IdeState& s) {
+  const std::string& l = s.lines[static_cast<size_t>(s.curR)];
+  const int c = std::min(s.curC, static_cast<int>(l.size()));
+  int a = c;
+  while (a > 0 && ideWordChar(l[static_cast<size_t>(a) - 1])) --a;
+  return l.substr(static_cast<size_t>(a), static_cast<size_t>(c - a));
+}
+
+// ── the clipboard: copy, cut, paste — the way every editor speaks it ──
+// Copy takes the selection (character-wise) or, with none live, the
+// whole cursor line (line-wise). Cut is the copy plus the deletion —
+// one honest restore point. Paste splices character-wise clips at the
+// cursor and drops line-wise clips in above the cursor line; a live
+// selection is the paste's bed and dies in the same undo step.
+inline void ideClipCopy(IdeState& s) {
+  const auto sel = ideSelRange(s);
+  if (!sel) {                      // no selection: the cursor line rides
+    s.clip.assign(1, s.lines[static_cast<size_t>(s.curR)]);
+    s.clipLines = true;
+    return;
+  }
+  const auto [r0, c0, r1, c1] = *sel;
+  s.clip.clear();
+  s.clipLines = false;
+  if (r0 == r1) {
+    const std::string& l = s.lines[static_cast<size_t>(r0)];
+    s.clip.push_back(l.substr(static_cast<size_t>(c0),
+                              static_cast<size_t>(c1 - c0)));
+  } else {
+    s.clip.push_back(
+        s.lines[static_cast<size_t>(r0)].substr(static_cast<size_t>(c0)));
+    for (int r = r0 + 1; r < r1; ++r)
+      s.clip.push_back(s.lines[static_cast<size_t>(r)]);
+    s.clip.push_back(
+        s.lines[static_cast<size_t>(r1)].substr(0, static_cast<size_t>(c1)));
+  }
+}
+
+// cut: the copy, then the deletion — one restore point. With no
+// selection the whole line lifts out (the clip turns line-wise, so the
+// paste puts it back as a line), the way every real editor cuts.
+inline void ideClipCut(IdeState& s) {
+  const bool had = ideSelRange(s).has_value();
+  ideClipCopy(s);
+  idePushUndo(s);
+  if (!had) {
+    s.lines.erase(s.lines.begin() + s.curR);
+    if (s.lines.empty()) s.lines.emplace_back("");   // the doc never dies
+    s.curC = 0;
+  } else {
+    ideSelDelete(s);
+  }
+  s.lastTyping = s.lastBack = false;
+  s.dirty = true;
+  s.idle = 0;
+}
+
+inline void ideClipPaste(IdeState& s) {
+  if (s.clip.empty()) return;
+  idePushUndo(s);
+  ideSelDelete(s);                 // a live selection is the paste's bed
+  auto& L = s.lines;
+  if (s.clipLines) {
+    // whole lines land ABOVE the cursor line; the cursor rests at the
+    // end of what arrived
+    L.insert(L.begin() + s.curR, s.clip.begin(), s.clip.end());
+    s.curR += static_cast<int>(s.clip.size()) - 1;
+    s.curC = static_cast<int>(L[static_cast<size_t>(s.curR)].size());
+  } else {
+    std::string& cur = L[static_cast<size_t>(s.curR)];
+    const int at = std::min(s.curC, static_cast<int>(cur.size()));
+    const std::string tail = cur.substr(static_cast<size_t>(at));
+    cur.resize(static_cast<size_t>(at));
+    cur += s.clip.front();
+    // NOTE: L grows below — `cur` is not touched past this point
+    for (size_t i = 1; i < s.clip.size(); ++i)
+      L.insert(L.begin() + s.curR + static_cast<long>(i), s.clip[i]);
+    L[static_cast<size_t>(s.curR) + s.clip.size() - 1] += tail;
+    s.curR += static_cast<int>(s.clip.size()) - 1;
+    s.curC = static_cast<int>(L[static_cast<size_t>(s.curR)].size()) -
+             static_cast<int>(tail.size());
+  }
+  ideSelClear(s);
+  s.lastTyping = s.lastBack = false;
+  s.dirty = true;
+  s.idle = 0;
 }
 
 // ── snippets: boilerplate that speaks the file's own language ───────
@@ -215,28 +345,6 @@ inline std::optional<std::vector<std::string>> ideSnippetFor(
       return lines;
     }
   return std::nullopt;
-}
-
-// the cursor clamps to whatever document it lands on
-inline void ideClamp(IdeState& s) {
-  s.curR = std::clamp(s.curR, 0, static_cast<int>(s.lines.size()) - 1);
-  s.curC = std::clamp(s.curC, 0,
-                      static_cast<int>(s.lines[static_cast<size_t>(s.curR)].size()));
-  if (s.anchorR >= 0) {                        // the anchor clamps too — a
-    if (s.anchorR >= static_cast<int>(s.lines.size()))   // shrunken doc keeps
-      s.anchorR = static_cast<int>(s.lines.size()) - 1;  // its selection honest
-    s.anchorC = std::clamp(s.anchorC, 0,
-                           static_cast<int>(s.lines[static_cast<size_t>(s.anchorR)].size()));
-  }
-}
-
-inline void idePushUndo(IdeState& s) {
-  s.undo.push_back({s.lines, s.curR, s.curC});
-  if (s.undo.size() > IdeState::kUndoMax)
-    s.undo.erase(s.undo.begin(),
-                 s.undo.begin() + static_cast<long>(s.undo.size() - IdeState::kUndoMax));
-  s.redo.clear();                    // a fresh edit cuts the redo branch
-  s.lastTyping = s.lastBack = false;
 }
 
 // step back through time; false when there is nothing to undo
@@ -331,11 +439,6 @@ inline char ideCloserFor(char open) {
 }
 inline bool ideIsCloser(char c) {
   return c == ')' || c == ']' || c == '}' || c == '"' || c == '\'';
-}
-
-// a word character for delete-word purposes: letters, digits, snake_case
-inline bool ideWordChar(char c) {
-  return std::isalnum(static_cast<unsigned char>(c)) || c == '_';
 }
 
 // the comment prefix this FILE speaks — by extension, honestly. A file
@@ -636,6 +739,12 @@ inline void ideKey(IdeState& ide, const Keys& k) {
   if (ide.curR >= static_cast<int>(L.size()))
     ide.curR = static_cast<int>(L.size()) - 1;
 
+  // ── the clipboard: when one of these fires it is the frame's whole
+  // edit — copy never dirties, cut and paste are one honest step each.
+  if (k.ctrlC) { ideClipCopy(ide); return; }
+  if (k.ctrlX) { ideClipCut(ide); ideClamp(ide); return; }
+  if (k.ctrlV) { ideClipPaste(ide); ideClamp(ide); return; }
+
   // ── the selection and the edit keys: a typed char, backspace,
   // forward-delete or enter with a selection live REPLACES the range —
   // and that replacement is always its own restore point. NOTE: the
@@ -722,28 +831,124 @@ inline void ideKey(IdeState& ide, const Keys& k) {
       --ide.curR;
     }
   }
+  if (k.tab || k.backTab) {                    // tab and shift+tab: the
+                                               // shelf answers, or the
+                                               // block breathes
+    const auto selT = ideSelRange(ide);
+    if (selT && (*selT)[2] > (*selT)[0]) {     // a block under the hand:
+      idePushUndo(ide);                        // every touched line steps
+      for (int r = (*selT)[0]; r <= (*selT)[2]; ++r) {   // left or right
+        std::string& l = L[static_cast<size_t>(r)];
+        if (k.tab) {
+          l.insert(0, 4, ' ');
+        } else {
+          int cutn = 0;                        // up to four honest spaces
+          while (cutn < 4 && cutn < static_cast<int>(l.size()) &&
+                 l[static_cast<size_t>(cutn)] == ' ')
+            ++cutn;
+          if (cutn > 0) l.erase(0, static_cast<size_t>(cutn));
+        }
+      }
+      ide.dirty = true;                        // the game hears about it
+      ide.idle = 0;
+    } else if (k.backTab) {                    // shift+tab alone: this line
+      std::string& cur = L[static_cast<size_t>(ide.curR)];   // steps back
+      int cutn = 0;
+      while (cutn < 4 && cutn < static_cast<int>(cur.size()) &&
+             cur[static_cast<size_t>(cutn)] == ' ')
+        ++cutn;
+      if (cutn > 0) {
+        idePushUndo(ide);
+        cur.erase(0, static_cast<size_t>(cutn));
+        ide.curC = std::max(0, ide.curC - cutn);
+        ide.dirty = true;
+        ide.idle = 0;
+      }
+    } else {                                   // plain tab: a shelf name
+                                               // under the hand becomes the
+                                               // boilerplate, else 4 spaces
+      std::string& cur = L[static_cast<size_t>(ide.curR)];   // fresh: edits above
+      const std::string w = ideWordBehind(ide);
+      const auto block = ideSnippetFor(w, ide.path);
+      if (block) {
+        idePushUndo(ide);                      // the word becomes the snippet
+        const int c = std::min(ide.curC, static_cast<int>(cur.size()));
+        int a = c;
+        while (a > 0 && ideWordChar(cur[static_cast<size_t>(a) - 1])) --a;
+        const std::string tail = cur.substr(static_cast<size_t>(c));
+        cur.resize(static_cast<size_t>(a));
+        cur += (*block)[0];
+        // NOTE: L grows below — `cur` is not touched past this point
+        for (size_t i = 1; i < block->size(); ++i)
+          L.insert(L.begin() + ide.curR + static_cast<long>(i), (*block)[i]);
+        L[static_cast<size_t>(ide.curR) + block->size() - 1] += tail;
+        ide.curR += static_cast<int>(block->size()) - 1;
+        ide.curC = static_cast<int>(L[static_cast<size_t>(ide.curR)].size()) -
+                   static_cast<int>(tail.size());
+        ide.dirty = true;
+        ide.idle = 0;
+      } else {
+        if (selT) {                            // a same-line selection is
+          idePushUndo(ide);                    // the tab's bed: replaced
+          ideSelDelete(ide);
+          std::string& cur2 = L[static_cast<size_t>(ide.curR)];
+          cur2.insert(static_cast<size_t>(std::min(ide.curC, static_cast<int>(cur2.size()))),
+                      4, ' ');
+          ide.curC += 4;
+        } else {
+          if (!(ide.lastTyping && quick)) idePushUndo(ide);
+          else ide.redo.clear();
+          std::string& cur2 = L[static_cast<size_t>(ide.curR)];
+          cur2.insert(static_cast<size_t>(std::min(ide.curC, static_cast<int>(cur2.size()))),
+                      4, ' ');
+          ide.curC += 4;
+          ide.lastTyping = true;
+          ide.lastBack = false;
+        }
+      }
+    }
+  }
   if (k.enter) {
     // re-fetch: back may have joined lines and grown/shrunk L above
     std::string& cur = L[static_cast<size_t>(ide.curR)];
     const int at = std::min(ide.curC, static_cast<int>(cur.size()));
+    // enter between a bracket pair: the closer keeps its ground on a
+    // line of its own — `f(|)` becomes the three-line ceremony. Quotes
+    // stay out: breaking a string literal is just a split.
+    const bool pairSplit =
+        at > 0 && at < static_cast<int>(cur.size()) &&
+        ((cur[static_cast<size_t>(at) - 1] == '(' && cur[at] == ')') ||
+         (cur[static_cast<size_t>(at) - 1] == '[' && cur[at] == ']') ||
+         (cur[static_cast<size_t>(at) - 1] == '{' && cur[at] == '}'));
     std::string rest = cur.substr(static_cast<size_t>(at));
     cur.resize(static_cast<size_t>(at));
     // the block rides down: inherit this line's leading whitespace,
     // bump a level after an opener, drop one before a closer
     const size_t ws = cur.find_first_not_of(" \t");
-    std::string indent = (ws == std::string::npos) ? cur : cur.substr(0, ws);
-    if (ideOpensBlock(cur)) indent += "    ";
-    if (ideClosesBlock(rest)) {
+    const std::string base = (ws == std::string::npos) ? cur : cur.substr(0, ws);
+    std::string indent = base;
+    if (ideOpensBlock(cur) || (pairSplit && cur[static_cast<size_t>(at) - 1] == '{'))
+      indent += "    ";
+    if (ideClosesBlock(rest) && !pairSplit) {
       const size_t cut = indent.size() >= 4 ? indent.size() - 4 : 0;
       indent.resize(cut);
     }
-    L.insert(L.begin() + ide.curR + 1, indent + rest);
-    ++ide.curR;
+    if (pairSplit) {
+      L.insert(L.begin() + ide.curR + 1, indent);      // the naked middle line
+      L.insert(L.begin() + ide.curR + 2, base + rest); // the closer keeps its
+                                                       // ground at the base
+      ++ide.curR;                              // the cursor takes the middle
+    } else {
+      L.insert(L.begin() + ide.curR + 1, indent + rest);
+      ++ide.curR;
+    }
     ide.curC = static_cast<int>(indent.size());
   }
   // ── movement: shift extends the selection, plain moves drop it.
-  // The anchor is born at the cursor on the FIRST shift-extension.
-  const bool shiftMove = k.sUp || k.sDown || k.sLeft || k.sRight;
+  // The anchor is born at the cursor on the FIRST shift-extension —
+  // arrows, or the word hops (shift+ctrl+←/→ select word by word).
+  const bool shiftMove = k.sUp || k.sDown || k.sLeft || k.sRight ||
+                         k.sWLeft || k.sWRight;
   const bool plainMove = k.up || k.down || k.aLeft || k.aRight || k.home ||
                          k.end || k.pageUp || k.pageDn || k.docHome ||
                          k.docEnd || k.wLeft || k.wRight;
@@ -758,6 +963,8 @@ inline void ideKey(IdeState& ide, const Keys& k) {
   if (k.aRight || k.sRight) ++ide.curC;
   if (k.wLeft) ideWordBack(ide);             // word hops move the cursor only —
   if (k.wRight) ideWordFwd(ide);             // the document never hears about it
+  if (k.sWLeft) ideWordBack(ide);            // the word hops with the anchor
+  if (k.sWRight) ideWordFwd(ide);            // riding — the selection grows
   if (k.home) ide.curC = 0;
   if (k.end) ide.curC = static_cast<int>(L[static_cast<size_t>(ide.curR)].size());
   if (k.docHome) {                           // ctrl+home: the very top
@@ -781,11 +988,24 @@ inline void ideKey(IdeState& ide, const Keys& k) {
       L.erase(L.begin() + ide.curR + 1);     // join the next line up
     }
   }
-  if (k.ctrlD) {                             // duplicate this line
-    // copy BEFORE inserting: the insert may reallocate the buffer
-    const std::string cur = L[static_cast<size_t>(ide.curR)];
-    L.insert(L.begin() + ide.curR + 1, cur);
-    ++ide.curR;                              // the copy takes your place
+  if (k.ctrlD) {                             // duplicate — the cursor line
+                                             // alone, or EVERY line the
+                                             // selection spans (the copy
+                                             // carries the selection with it)
+    const auto selD = ideSelRange(ide);
+    if (selD && (*selD)[2] > (*selD)[0]) {
+      const int r0 = (*selD)[0], r1 = (*selD)[2];
+      const int count = r1 - r0 + 1;
+      const std::vector<std::string> copy(L.begin() + r0, L.begin() + r1 + 1);
+      L.insert(L.begin() + r1 + 1, copy.begin(), copy.end());
+      ide.curR += count;
+      if (ide.anchorR >= 0) ide.anchorR += count;   // the selection rides
+    } else {
+      // copy BEFORE inserting: the insert may reallocate the buffer
+      const std::string cur = L[static_cast<size_t>(ide.curR)];
+      L.insert(L.begin() + ide.curR + 1, cur);
+      ++ide.curR;                            // the copy takes your place
+    }
   }
   if (k.delWord) {                           // ctrl+w: eat the word behind you
     std::string& cur = L[static_cast<size_t>(ide.curR)];

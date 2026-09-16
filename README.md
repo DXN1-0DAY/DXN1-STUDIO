@@ -2,7 +2,7 @@
 
 ![DXN1 STUDIO 3](assets/banner.png)
 
-![version](https://img.shields.io/badge/version-3.0.20-8b5cf6?style=flat-square)
+![version](https://img.shields.io/badge/version-3.0.21-8b5cf6?style=flat-square)
 ![gates](https://github.com/DXN1-termux/DXN1-STUDIO/actions/workflows/ci.yml/badge.svg)
 ![native](https://img.shields.io/badge/native-C%2B%2023-f97316?style=flat-square)
 ![face](https://img.shields.io/badge/face-terminal_truecolor-22d3ee?style=flat-square)
@@ -124,12 +124,36 @@ viewport refreshes — *code a background, and boom, a background.*
   anchor↔cursor range across lines; typing, backspace, delete or
   enter replaces it in one undo step; `ctrl+/` comments or strips
   EVERY line the selection covers; a plain move drops it.
+- **The clipboard.** `ctrl+c` copies the selection (or the whole
+  cursor line when nothing is selected), `ctrl+x` cuts — a bare cut
+  lifts the whole line out — and `ctrl+v` pastes: character-wise
+  clips splice at the cursor, line-wise clips land above the cursor
+  line, and a live selection is the paste's bed, replaced in the
+  same undo step. Copy never dirties the doc; cut and paste are one
+  honest step each.
+- **The word select and the ceremony.** `shift+ctrl+←`/`→` extend the
+  selection word by word (the anchor rides the same hops `ctrl+←`/`→`
+  make). Enter between a bracket pair splits into three lines — the
+  naked middle line takes the cursor, `{` bumps it a level, the
+  closer keeps its ground at the base indent; quotes stay out, so
+  breaking a string is still just a split. `ctrl+d` duplicates every
+  line a multi-line selection covers, and the copy carries the
+  selection with it.
+- **The tab trigger.** Type a shelf name (`tick`, `key`, `fn`, …) and
+  reach for `tab` — the word becomes the boilerplate in place, tail
+  text riding behind the block, one undo step to take it back. Plain
+  `tab` still gives four honest spaces, indents a selected block,
+  and `shift+tab` dedents the block (or the hand's line) again.
+  And `:screenshot` whispers its default name before it writes one.
 
 Keys: `ctrl+r` run · `ctrl+s` save · `ctrl+z` undo · `ctrl+y` redo ·
-`ctrl+f` find · `enter` next hit · `ctrl+d` duplicate line ·
+`ctrl+c`/`ctrl+x`/`ctrl+v` copy · cut · paste ·
+`ctrl+f` find · `enter` next hit · `ctrl+d` duplicate lines ·
 `ctrl+w` delete word · `ctrl+del` delete word ahead · `ctrl+/`
 comment toggle (multi-line with a selection) ·
-`shift+arrows` select · `ctrl+←`/`ctrl+→` word hops ·
+`shift+arrows` select · `shift+ctrl+←`/`→` select words ·
+`tab` snippet/indent · `shift+tab` dedent ·
+`ctrl+←`/`ctrl+→` word hops ·
 `ctrl+↑`/`ctrl+↓` nudge the view ·
 `ctrl+n` next template (or `:new`) · `ctrl+g` jump to the error line ·
 `ctrl+p` screenshot of your live game · `pgup/pgdn` page · `home/end`

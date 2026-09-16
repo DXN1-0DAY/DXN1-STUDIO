@@ -137,7 +137,8 @@ Keys pollKeys(Mode mode) {
               }
               break;
             case 'C':
-              if (mode == Mode::Ide && mod == 5) k.wRight = true;
+              if (mode == Mode::Ide && mod == 6) k.sWRight = true;  // word select
+              else if (mode == Mode::Ide && mod == 5) k.wRight = true;
               else if (mode == Mode::Ide && mod == 2) k.sRight = true;
               else if (mod == 0) {
                 if (mode == Mode::Ide) k.aRight = true;
@@ -146,7 +147,8 @@ Keys pollKeys(Mode mode) {
               }
               break;
             case 'D':
-              if (mode == Mode::Ide && mod == 5) k.wLeft = true;
+              if (mode == Mode::Ide && mod == 6) k.sWLeft = true;   // word select
+              else if (mode == Mode::Ide && mod == 5) k.wLeft = true;
               else if (mode == Mode::Ide && mod == 2) k.sLeft = true;
               else if (mod == 0) {
                 if (mode == Mode::Ide) k.aLeft = true;
@@ -186,6 +188,9 @@ Keys pollKeys(Mode mode) {
               }
               break;
             }
+            case 'Z':
+              if (mode == Mode::Ide) k.backTab = true;   // shift+tab — dedent
+              break;
             default:
               break;     // mouse reports, DSR answers, F-keys: swallowed whole
           }
@@ -198,7 +203,7 @@ Keys pollKeys(Mode mode) {
       }
       if (mode == Mode::Ide) {               // IDE: the editor owns typing
         if (c == '\r' || c == '\n') k.enter = true;
-        else if (c == '\t') { k.typed += "    "; }        // tab = 4 spaces
+        else if (c == '\t') k.tab = true;                 // tab: snippet or block
         else if (c == 0x7f || c == '\b') k.back = true;
         else if (c == 0x13) k.ctrlS = true;               // Ctrl+S — save+run
         else if (c == 0x12) k.ctrlR = true;               // Ctrl+R — run
@@ -207,10 +212,13 @@ Keys pollKeys(Mode mode) {
         else if (c == 0x1a) k.ctrlZ = true;               // Ctrl+Z — undo
         else if (c == 0x19) k.ctrlY = true;               // Ctrl+Y — redo
         else if (c == 0x06) k.ctrlF = true;               // Ctrl+F — find
-        else if (c == 0x04) k.ctrlD = true;               // Ctrl+D — dup line
+        else if (c == 0x04) k.ctrlD = true;               // Ctrl+D — dup lines
         else if (c == 0x17) k.delWord = true;             // Ctrl+W — delete word
         else if (c == 0x1f) k.comment = true;             // Ctrl+/ — toggle comment
         else if (c == 0x10) k.shot = true;                // Ctrl+P — screenshot
+        else if (c == 0x03) k.ctrlC = true;               // Ctrl+C — copy
+        else if (c == 0x18) k.ctrlX = true;               // Ctrl+X — cut
+        else if (c == 0x16) k.ctrlV = true;               // Ctrl+V — paste
         else if (static_cast<unsigned char>(c) >= 0x20) k.typed += c;
       } else if (mode == Mode::File) {       // FILE VIEW: every letter is text
         if (c == '\r' || c == '\n') k.enter = true;
@@ -862,7 +870,8 @@ void drawIDE(dxn3::Screen& scr, IdeState& ide, const dxn3::Game& g, bool hostUp)
     const std::string hint = errLine > 0
         ? " ctrl+g jumps to line " + std::to_string(errLine) +
           " · ctrl+z undo · ctrl+f find · esc play "
-        : " ctrl+r run · ctrl+z undo · ctrl+f find · ctrl+p shot · esc play ";
+        : " ctrl+r run · ctrl+z undo · ctrl+c/x/v clipboard · ctrl+f find · "
+          "esc play ";
     const bool errorUp = errLine > 0;
     scr.text(1, c0 + 1, hint.substr(0, static_cast<size_t>(cols - 3)),
              errorUp ? dxn3::rgb(248, 113, 113) : dxn3::rgb(84, 72, 120));
@@ -901,7 +910,10 @@ int main(int argc, char** argv) {
                    "       dxn3-native --host-cmd 'ruby game.rb'   any interpreter you have\n"
                    "       dxn3-native --list-scenes | --screenshot out.png | --version\n"
                    "keys:  ctrl+r run · ctrl+s save · ctrl+z undo · ctrl+y redo\n"
-                   "       ctrl+f find · enter next hit · ctrl+d duplicate line\n"
+                   "       ctrl+c/x/v copy · cut · paste (a bare cut lifts the line)\n"
+                   "       ctrl+f find · enter next hit · ctrl+d duplicate lines\n"
+                   "       tab snippet/indent · shift+tab dedent · ctrl+/ comment\n"
+                   "       shift+arrows select · shift+ctrl+←/→ select words\n"
                    "       ctrl+n template · ctrl+g error line · ctrl+p screenshot\n"
                    "       esc play/back · a/d move · w jump\n"
                    "       tab inspect · e file · : commands (:open loads any script) · q quit\n"
@@ -1531,13 +1543,15 @@ int main(int argc, char** argv) {
       // find-mode keystrokes feed the query — never the document
       if (!ide.findOpen &&
           (!keys.typed.empty() || keys.back || keys.enter || keys.del ||
-           keys.ctrlD || keys.delWord || keys.delWordFwd || keys.comment)) {
+           keys.ctrlD || keys.delWord || keys.delWordFwd || keys.comment ||
+           keys.tab || keys.backTab || keys.ctrlX || keys.ctrlV)) {
         ide.dirty = true;
         ide.idle = 0;
       }
       if (keys.up || keys.down || keys.aLeft || keys.aRight ||
           keys.wLeft || keys.wRight || keys.docHome || keys.docEnd ||
-          keys.sUp || keys.sDown || keys.sLeft || keys.sRight)
+          keys.sUp || keys.sDown || keys.sLeft || keys.sRight ||
+          keys.sWLeft || keys.sWRight)
         ide.idle = 0;
       if (keys.scroll != 0) ide.top += keys.scroll;   // ctrl+↑/↓ nudge the view
       if (keys.ctrlS) {
@@ -1642,10 +1656,14 @@ int main(int argc, char** argv) {
         const struct {
           const char* pre;
           size_t len;
-        } qs[] = {{"scene ", 6},      {"open ", 5},  {"screenshot ", 11},
-                  {"w ", 2},          {"snip ", 5}};
+          bool bare;             // whispers even with nothing typed after it
+        } qs[] = {{"scene ", 6, false},      {"open ", 5, false},
+                  {"screenshot ", 11, true}, {"w ", 2, false},
+                  {"snip ", 5, false}};
         for (const auto& q : qs) {
-          if (cmdBuf.rfind(q.pre, 0) != 0 || cmdBuf.size() <= q.len) continue;
+          if (cmdBuf.rfind(q.pre, 0) != 0 ||
+              cmdBuf.size() < q.len + (q.bare ? 0 : 1))
+            continue;
           const std::string part = cmdBuf.substr(q.len);
           std::string w;
           if (std::strcmp(q.pre, "scene ") == 0) {
@@ -1664,13 +1682,24 @@ int main(int argc, char** argv) {
               w += p;
             }
           } else if (std::strcmp(q.pre, "screenshot ") == 0) {
-            // the exports dir speaks: existing shots complete by name
-            for (const auto& p : shotCandidates()) {
-              const std::string base =
-                  std::filesystem::path(p).filename().string();
-              if (base.rfind(part, 0) != 0) continue;
-              if (!w.empty()) w += " · ";
-              w += p;
+            if (part.empty()) {
+              // exports/ silent and no name typed: the default speaks —
+              // what enter WILL write, before it writes it
+              std::string base =
+                  game.scene.name.empty() ? "scene" : game.scene.name;
+              for (char& ch : base)
+                if (ch == ' ' || ch == '/') ch = '_';
+              w = "exports/" + base + "-" + std::to_string(shotSeq + 1) +
+                  ".png — the default";
+            } else {
+              // the exports dir speaks: existing shots complete by name
+              for (const auto& p : shotCandidates()) {
+                const std::string base =
+                    std::filesystem::path(p).filename().string();
+                if (base.rfind(part, 0) != 0) continue;
+                if (!w.empty()) w += " · ";
+                w += p;
+              }
             }
           } else if (std::strcmp(q.pre, "w ") == 0) {
             // :w writes scene json — the campaign's stems whisper
