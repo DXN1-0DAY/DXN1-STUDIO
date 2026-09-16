@@ -199,7 +199,7 @@ int main() {
   }
 
   // 9. the version quad rides in the binary too
-  ok(std::string(dxn3::DXN3_VERSION) == "3.0.39",
+  ok(std::string(dxn3::DXN3_VERSION) == "3.0.40",
      "native version constant matches the release quad");
 
   // 10. png writer: checksum vectors, real structure, byte determinism
@@ -2228,6 +2228,90 @@ int main() {
     dxn3::ideKey(f1, cl2);
     ok(f1.console.size() == 1,
        "clearing a fresh console stays one honest line");
+  }
+
+  // 50. the pins: bookmarks you plant so the hand can leap back — a
+  // look, never an edit: nothing dirties, nothing undoes, and the pins
+  // FOLLOW the document (inserts slide them, cuts take them along)
+  {
+    IdeState p1;
+    p1.lines = {"a", "b", "c", "d", "e"};
+    ok(dxn3::ideMarkToggle(p1, 3), "a pin plants");
+    ok(dxn3::ideMarkHas(p1, 3) && !dxn3::ideMarkHas(p1, 0),
+       "has() speaks the truth");
+    ok(!dxn3::ideMarkToggle(p1, 3) && !dxn3::ideMarkHas(p1, 3),
+       "a second toggle pulls the pin back out");
+    dxn3::ideMarkToggle(p1, 2);        // out of order on purpose: the
+    dxn3::ideMarkToggle(p1, 0);        // ledger must stay sorted+unique
+    dxn3::ideMarkToggle(p1, 4);
+    ok(p1.marks.size() == 3 && p1.marks[0] == 0 && p1.marks[1] == 2 &&
+           p1.marks[2] == 4,
+       "out-of-order planting keeps the ledger sorted and deduped");
+    ok(dxn3::ideMarkNext(p1, 0) == 2, "next finds the pin ahead");
+    ok(dxn3::ideMarkNext(p1, 4) == 0, "next wraps past the last pin");
+    ok(dxn3::ideMarkPrev(p1, 1) == 0, "prev finds the pin behind");
+    ok(dxn3::ideMarkPrev(p1, 0) == 4, "prev wraps before the first pin");
+    IdeState p2;                       // pinless: honest refusals
+    p2.lines = {"solo"};
+    ok(dxn3::ideMarkNext(p2, 0) == -1 && dxn3::ideMarkPrev(p2, 0) == -1,
+       "a pinless file refuses to leap");
+
+    IdeState p3;                       // the pins follow the document
+    p3.lines = {"a", "b", "c", "d", "e"};
+    dxn3::ideMarkToggle(p3, 1);
+    dxn3::ideMarkToggle(p3, 3);
+    dxn3::ideMarkShift(p3, 2, 2);      // two lines land at row 2
+    ok(p3.marks == std::vector<int>({1, 5}),
+       "pins beneath an insert slide down with the lines");
+    dxn3::ideMarkErase(p3, 0, 1);      // row 0 leaves
+    ok(p3.marks == std::vector<int>({0, 4}),
+       "pins above a cut slide up");
+    dxn3::ideMarkErase(p3, 3, 2);      // rows 3-4 leave — pin 4 inside
+    ok(p3.marks == std::vector<int>({0}),
+       "a pin inside the cut dies with its line");
+    dxn3::ideMarkClamp(p3);            // nothing out of range here: no-op
+    ok(p3.marks == std::vector<int>({0}), "the clamp prunes only the stale");
+    p3.marks.push_back(99);            // a ghost from a shrunken document
+    dxn3::ideMarkClamp(p3);
+    ok(p3.marks == std::vector<int>({0}),
+       "the clamp prunes the ghosts undo left behind");
+    dxn3::ideMarkClear(p3);
+    ok(p3.marks.empty(), "the clear wipes the ledger");
+
+    IdeState p4;                       // the keyboard: F2 leaps, ctrl+F2 pulls
+    p4.lines = {"one", "two", "three"};
+    dxn3::ideMarkToggle(p4, 2);
+    p4.curR = 0;
+    p4.dirty = false;
+    Keys f2;
+    f2.markNext = true;
+    dxn3::ideKey(p4, f2);
+    ok(p4.curR == 2 && p4.curC == 0 && !p4.dirty && p4.undo.empty(),
+       "F2 leaps the hand to the pin — a look, never an edit");
+    ok(!p4.console.empty() &&
+           p4.console.back().find("pin at line 3") != std::string::npos,
+       "the leap speaks its landing");
+    Keys f2t;                          // ctrl+F2 pulls the pin it stands on
+    f2t.markToggle = true;
+    dxn3::ideKey(p4, f2t);
+    ok(!dxn3::ideMarkHas(p4, 2) && !p4.dirty,
+       "ctrl+F2 pulls the pin, still never an edit");
+    Keys f2e;                          // pinless leap says so
+    f2e.markNext = true;
+    dxn3::ideKey(p4, f2e);
+    ok(p4.curR == 2 &&
+           p4.console.back().find("no pins yet") != std::string::npos,
+       "a pinless leap refuses with the way out");
+
+    IdeState p5;                       // shift+F2 walks back
+    p5.lines = {"one", "two", "three", "four"};
+    dxn3::ideMarkToggle(p5, 0);
+    dxn3::ideMarkToggle(p5, 2);
+    p5.curR = 3;
+    Keys f2s;
+    f2s.markPrev = true;
+    dxn3::ideKey(p5, f2s);
+    ok(p5.curR == 2, "shift+F2 walks back to the pin above");
   }
 
   if (fails == 0) {

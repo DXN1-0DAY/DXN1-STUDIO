@@ -86,10 +86,16 @@ inline Cmd parseCommand(std::string_view line) {
              "flappy, bounce, pong");
   } else if (c.verb == "goto") {
     number(1.f, 99999.f, "usage: :goto <line number>");
+  } else if (c.verb == "bm") {
+    // a bare :bm leaps to the next pin; a number takes the Nth
+    if (!c.arg.empty())
+      number(1.f, 99999.f,
+             "usage: :bm <pin number> — a bare :bm leaps to the next pin");
   } else if (c.verb == "q" || c.verb == "wq" || c.verb == "fit" ||
              c.verb == "reset" || c.verb == "help" || c.verb == "new" ||
              c.verb == "ruler" || c.verb == "stats" || c.verb == "minimap" ||
-             c.verb == "trim" || c.verb == "cases" || c.verb == "sort") {
+             c.verb == "trim" || c.verb == "cases" || c.verb == "sort" ||
+             c.verb == "mark" || c.verb == "marks") {
     if (!c.arg.empty())
       c.error = ":" + c.verb + " takes no argument";
   } else {
@@ -155,6 +161,11 @@ inline std::string usageHintFor(std::string_view typed) {
   if (verb == "template")
     return " :template <name> — blank shooter cards background flappy bounce pong";
   if (verb == "goto") return " :goto <line> — jump the editor to a line";
+  if (verb == "mark")
+    return " :mark — plant/pull a pin on this line; F2 leaps between pins";
+  if (verb == "marks") return " :marks — list every pin in the file";
+  if (verb == "bm")
+    return " :bm [n] — leap to a pin; a bare :bm takes the next, wrapping";
   if (verb == "reset") return " :reset — back to spawn";
   if (verb == "ruler") return " :ruler — toggle the 79/99 column guides";
   if (verb == "minimap") return " :minimap — toggle the document's map rail";

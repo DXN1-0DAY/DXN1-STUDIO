@@ -2,7 +2,7 @@
 
 ![DXN1 STUDIO 3](assets/banner.png)
 
-![version](https://img.shields.io/badge/version-3.0.39-8b5cf6?style=flat-square)
+![version](https://img.shields.io/badge/version-3.0.40-8b5cf6?style=flat-square)
 ![gates](https://github.com/DXN1-termux/DXN1-STUDIO/actions/workflows/ci.yml/badge.svg)
 ![native](https://img.shields.io/badge/native-C%2B%2023-f97316?style=flat-square)
 ![face](https://img.shields.io/badge/face-terminal_truecolor-22d3ee?style=flat-square)
@@ -171,6 +171,16 @@ viewport refreshes — *code a background, and boom, a background.*
   pretending. And every undo speaks its name now — `ctrl+z` says
   `undo — paste · 3 steps left`, not a blind count — while a shelf
   word under the hand whispers `⇥ tab expands 'tick'` from the rail.
+- **The pins: bookmarks that follow the code.** `:mark` plants a pin
+  on the hand's line (`ctrl+F2` from the keyboard), `F2` leaps to the
+  next pin and `shift+F2` walks back, both wrapping — `:bm N` takes
+  the Nth, a bare `:bm` takes the next. Pinned lines burn amber in
+  the gutter (a `◆` rides its edge) and carry an amber bar on the
+  minimap, so the file's shape shows where you've been. The pins
+  FOLLOW the document: lines landing above slide them down, a cut
+  takes its pin along, and undo/redo prune pins the restored document
+  never had. Planting and leaping are a look, never an edit — nothing
+  dirties, nothing undoes.
 - **Housekeeping verbs.** `:trim` sweeps every line's trailing
   whitespace in one undo step (a clean doc is refused without a
   phantom step); `:sort` orders the selected lines, A before B, the
@@ -193,6 +203,7 @@ comment toggle (multi-line with a selection) ·
 `tab` snippet/indent · `shift+tab` dedent ·
 `ctrl+←`/`ctrl+→` word hops ·
 `ctrl+↑`/`ctrl+↓` nudge the view ·
+`F2` next pin · `shift+F2` previous pin · `ctrl+F2` plant/pull a pin ·
 `ctrl+n` next template (or `:new`) · `ctrl+g` jump to the error line ·
 `ctrl+p` screenshot of your live game · `pgup/pgdn` page · `home/end`
 line ends · `ctrl+home`/`ctrl+end` doc edges · `del` forward-delete ·
@@ -202,6 +213,7 @@ line ends · `ctrl+home`/`ctrl+end` doc edges · `del` forward-delete ·
 `:template <name>` loads a starter · `:snip <name>` drops boilerplate ·
 `:minimap` toggles the map rail · `:trim` sweeps trailing whitespace ·
 `:sort` orders the selection · `:cases` find respects case (Aa) ·
+`:mark`/`:marks`/`:bm` pin lines and leap between them ·
 `:scene <name>` loads a demo (with
 completion whispers) · `:q` quit.
 
@@ -265,6 +277,9 @@ accepted:
 | `:template <name>` | load a starter (blank, shooter, cards, …) |
 | `:snip <name>` | drop language-aware boilerplate at the hand |
 | `:goto <line>` | jump the editor to a line |
+| `:mark` | plant/pull a pin on this line — F2 leaps between pins |
+| `:marks` | list every pin in the file |
+| `:bm [n]` | leap to a pin; bare `:bm` takes the next, wrapping |
 | `:ruler` | toggle the 79/99 column guides |
 | `:minimap` | toggle the document's map rail |
 | `:stats` | lines, words, chars, dialect, where you stand |

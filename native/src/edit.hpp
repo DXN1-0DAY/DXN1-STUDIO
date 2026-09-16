@@ -62,6 +62,9 @@ struct Keys {
   bool ctrlC = false, ctrlX = false, ctrlV = false;  // IDE: copy / cut / paste
   bool leap = false;                           // IDE: ctrl+\ — jump to the
                                                // partner bracket
+  bool markToggle = false;                     // IDE: ctrl+F2 — plant/pull a pin
+  bool markNext = false, markPrev = false;     // IDE: F2 / shift+F2 — leap
+                                               // between pins
   int clickR = -1, clickC = -1;                // mouse press (IDE): doc cell,
                                                // (-1,-1) = no click this frame
   bool clickShift = false;                     // shift+click extends
@@ -129,6 +132,10 @@ struct IdeState {
   // the ledger: the files this studio had open, most recent first —
   // :recent lists and reopens them
   std::vector<std::string> recent;
+  // the pins: bookmarks — lines you mark so the hand can leap back
+  // (:mark plants, F2 leaps). Sorted, unique line positions that follow
+  // insertions and cuts; a pin dies with its line.
+  std::vector<int> marks;
   // the minimap: a compressed map of the whole document riding the
   // editor pane's right edge (drawn only when the terminal has room;
   // :minimap toggles it)
@@ -166,6 +173,74 @@ inline int ideSelCount(const IdeState& s) {
   return n;
 }
 
+// ── the pins: bookmarks — lines you mark so the hand can leap back ──
+// Sorted, unique line positions. A look, never an edit: planting or
+// leaping never dirties the document, never takes an undo step. The
+// pins FOLLOW the document: lines landing above slide them down, lines
+// cut beneath them take the pin along; a pin inside a cut dies with
+// its line, and undo/redo prune pins the restored document never had.
+inline bool ideMarkHas(const IdeState& s, int line) {
+  return std::binary_search(s.marks.begin(), s.marks.end(), line);
+}
+
+// plant or pull; true when a pin NOW rides the line
+inline bool ideMarkToggle(IdeState& s, int line) {
+  if (line < 0) return false;
+  const auto it = std::lower_bound(s.marks.begin(), s.marks.end(), line);
+  if (it != s.marks.end() && *it == line) {
+    s.marks.erase(it);
+    return false;
+  }
+  s.marks.insert(it, line);
+  return true;
+}
+
+// the next pin strictly BELOW `from`, wrapping to the first — the
+// pinless file refuses with −1
+inline int ideMarkNext(const IdeState& s, int from) {
+  if (s.marks.empty()) return -1;
+  for (const int m : s.marks)
+    if (m > from) return m;
+  return s.marks.front();                    // the wrap
+}
+
+// the pin strictly ABOVE `from`, wrapping to the last
+inline int ideMarkPrev(const IdeState& s, int from) {
+  if (s.marks.empty()) return -1;
+  for (auto it = s.marks.rbegin(); it != s.marks.rend(); ++it)
+    if (*it < from) return *it;
+  return s.marks.back();                     // the wrap
+}
+
+// `count` lines land AT index `at`: pins beneath the landing slide down
+inline void ideMarkShift(IdeState& s, int at, int count) {
+  if (count <= 0) return;
+  for (int& m : s.marks)
+    if (m >= at) m += count;
+}
+
+// `count` lines leave at `at`: a pin inside the cut dies with its line,
+// pins above the cut slide up
+inline void ideMarkErase(IdeState& s, int at, int count) {
+  if (count <= 0) return;
+  const int end = at + count;
+  s.marks.erase(std::remove_if(s.marks.begin(), s.marks.end(),
+                               [&](int m) { return m >= at && m < end; }),
+                s.marks.end());
+  for (int& m : s.marks)
+    if (m >= end) m -= count;
+}
+
+// out-of-range pins go — undo/redo restore documents the pins never saw
+inline void ideMarkClamp(IdeState& s) {
+  const int n = static_cast<int>(s.lines.size());
+  s.marks.erase(std::remove_if(s.marks.begin(), s.marks.end(),
+                               [&](int m) { return m < 0 || m >= n; }),
+                s.marks.end());
+}
+
+inline void ideMarkClear(IdeState& s) { s.marks.clear(); }
+
 // the selection goes first: the range is cut, the cursor collapses to
 // its start, the anchor clears. False when there was nothing selected.
 inline bool ideSelDelete(IdeState& s) {
@@ -181,6 +256,7 @@ inline bool ideSelDelete(IdeState& s) {
     first.resize(static_cast<size_t>(c0));
     first += tail;
     s.lines.erase(s.lines.begin() + r0 + 1, s.lines.begin() + r1 + 1);
+    ideMarkErase(s, r0 + 1, r1 - r0);          // the cut's pins ride out
   }
   s.curR = r0;
   s.curC = c0;
@@ -267,6 +343,7 @@ inline void ideClipCut(IdeState& s) {
   if (!had) {
     s.lines.erase(s.lines.begin() + s.curR);
     if (s.lines.empty()) s.lines.emplace_back("");   // the doc never dies
+    ideMarkErase(s, s.curR, 1);                // the line's pin rides out
     s.curC = 0;
   } else {
     ideSelDelete(s);
@@ -331,7 +408,9 @@ inline void ideClipPaste(IdeState& s) {
   if (s.clipLines) {
     // whole lines land ABOVE the cursor line; the cursor rests at the
     // end of what arrived
-    L.insert(L.begin() + s.curR, s.clip.begin(), s.clip.end());
+    const int at = s.curR;
+    L.insert(L.begin() + at, s.clip.begin(), s.clip.end());
+    ideMarkShift(s, at, static_cast<int>(s.clip.size()));
     s.curR += static_cast<int>(s.clip.size()) - 1;
     s.curC = static_cast<int>(L[static_cast<size_t>(s.curR)].size());
   } else {
@@ -341,6 +420,9 @@ inline void ideClipPaste(IdeState& s) {
     cur.resize(static_cast<size_t>(at));
     cur += s.clip.front();
     // NOTE: L grows below — `cur` is not touched past this point
+    if (s.clip.size() > 1)                     // pins beneath the splice
+      ideMarkShift(s, s.curR + 1,              // slide down with the lines
+                   static_cast<int>(s.clip.size()) - 1);
     for (size_t i = 1; i < s.clip.size(); ++i)
       L.insert(L.begin() + s.curR + static_cast<long>(i), s.clip[i]);
     L[static_cast<size_t>(s.curR) + s.clip.size() - 1] += tail;
@@ -455,6 +537,7 @@ inline bool ideUndo(IdeState& s) {
   s.lastTyping = s.lastBack = false;
   ideSelClear(s);                    // the second chance drops the selection
   ideClamp(s);
+  ideMarkClamp(s);                   // pins the restored document never had go
   return true;
 }
 
@@ -469,6 +552,7 @@ inline bool ideRedo(IdeState& s) {
   s.lastTyping = s.lastBack = false;
   ideSelClear(s);
   ideClamp(s);
+  ideMarkClamp(s);                   // pins the restored document never had go
   return true;
 }
 
@@ -978,6 +1062,7 @@ struct IdeMiniRow {
   bool blank = false;                          // nothing but air: a dim dot
   bool comment = false;                        // the line talks
   bool hit = false;                            // the searchlight found it
+  bool mark = false;                           // a pin rides this line
   bool inView = false;                         // the editor shows it right now
 };
 
@@ -1020,6 +1105,7 @@ inline IdeMini ideMiniMap(const IdeState& s, int mapW, int bodyRows) {
                   ln.compare(first, bare.size(), bare) == 0;
     for (const auto& [hr, hc] : s.findHits)
       if (hr == li) { row.hit = true; break; }
+    row.mark = ideMarkHas(s, li);
     row.inView = li >= s.top && li < s.top + bodyRows;
     m.rows.push_back(row);
   }
@@ -1101,8 +1187,13 @@ inline void ideInsertBlock(IdeState& s, const std::vector<std::string>& block) {
       s.lines[static_cast<size_t>(s.curR)].find_first_not_of(" \t") ==
       std::string::npos;
   auto at = s.lines.begin() + (blank ? s.curR : s.curR + 1);
-  if (blank) at = s.lines.erase(at);         // the empty line steps aside
+  if (blank) {                               // the empty line steps aside
+    at = s.lines.erase(at);
+    ideMarkErase(s, s.curR, 1);              // its pin steps aside with it
+  }
   s.lines.insert(at, block.begin(), block.end());
+  ideMarkShift(s, blank ? s.curR : s.curR + 1,
+               static_cast<int>(block.size()));
   s.curR += blank ? static_cast<int>(block.size()) - 1
                   : static_cast<int>(block.size());
   s.curC = static_cast<int>(s.lines[static_cast<size_t>(s.curR)].size());
@@ -1220,6 +1311,36 @@ inline void ideKey(IdeState& ide, const Keys& k) {
     return;
   }
 
+  // ── the pins: F2 leaps between bookmarks, ctrl+F2 plants/pulls. A
+  // look, never an edit: nothing dirties, nothing undoes, the frame is
+  // the pin's alone.
+  if (k.markToggle || k.markNext || k.markPrev) {
+    if (k.markToggle) {
+      const bool on = ideMarkToggle(ide, ide.curR);
+      ide.console.push_back(
+          on ? "engine: pin planted on line " +
+                   std::to_string(ide.curR + 1) + " — F2 leaps, :marks lists"
+             : "engine: pin pulled from line " +
+                   std::to_string(ide.curR + 1));
+    } else {
+      const int to = k.markNext ? ideMarkNext(ide, ide.curR)
+                                : ideMarkPrev(ide, ide.curR);
+      if (to < 0) {
+        ide.console.push_back(
+            "engine: no pins yet — :mark plants one on this line");
+      } else {
+        ide.curR = to;
+        ide.curC = 0;
+        ideSelClear(ide);
+        ide.console.push_back("engine: the hand leaps to the pin at line " +
+                              std::to_string(to + 1));
+      }
+    }
+    ide.lastTyping = ide.lastBack = false;
+    ide.idle = 0;
+    return;
+  }
+
   // ── the clipboard: when one of these fires it is the frame's whole
   // edit — copy never dirties, cut and paste are one honest step each.
   if (k.ctrlC) { ideClipCopy(ide); return; }
@@ -1313,6 +1434,7 @@ inline void ideKey(IdeState& ide, const Keys& k) {
       ide.curC = static_cast<int>(L[static_cast<size_t>(ide.curR - 1)].size());
       L[static_cast<size_t>(ide.curR - 1)] += line;
       L.erase(L.begin() + ide.curR);
+      ideMarkErase(ide, ide.curR, 1);              // the joined line's pin goes
       --ide.curR;
     }
   }
@@ -1364,6 +1486,9 @@ inline void ideKey(IdeState& ide, const Keys& k) {
         cur.resize(static_cast<size_t>(a));
         cur += (*block)[0];
         // NOTE: L grows below — `cur` is not touched past this point
+        if (block->size() > 1)                   // pins beneath the boiler
+          ideMarkShift(ide, ide.curR + 1,        // plate slide down with it
+                       static_cast<int>(block->size()) - 1);
         for (size_t i = 1; i < block->size(); ++i)
           L.insert(L.begin() + ide.curR + static_cast<long>(i), (*block)[i]);
         L[static_cast<size_t>(ide.curR) + block->size() - 1] += tail;
@@ -1422,9 +1547,11 @@ inline void ideKey(IdeState& ide, const Keys& k) {
       L.insert(L.begin() + ide.curR + 1, indent);      // the naked middle line
       L.insert(L.begin() + ide.curR + 2, base + rest); // the closer keeps its
                                                        // ground at the base
+      ideMarkShift(ide, ide.curR + 1, 2);              // pins slide down
       ++ide.curR;                              // the cursor takes the middle
     } else {
       L.insert(L.begin() + ide.curR + 1, indent + rest);
+      ideMarkShift(ide, ide.curR + 1, 1);
       ++ide.curR;
     }
     ide.curC = static_cast<int>(indent.size());
@@ -1471,6 +1598,7 @@ inline void ideKey(IdeState& ide, const Keys& k) {
     } else if (ide.curR + 1 < static_cast<int>(L.size())) {
       cur += L[static_cast<size_t>(ide.curR) + 1];
       L.erase(L.begin() + ide.curR + 1);     // join the next line up
+      ideMarkErase(ide, ide.curR + 1, 1);    // its pin rides out
     }
   }
   if (k.ctrlD) {                             // duplicate — the cursor line
@@ -1483,12 +1611,14 @@ inline void ideKey(IdeState& ide, const Keys& k) {
       const int count = r1 - r0 + 1;
       const std::vector<std::string> copy(L.begin() + r0, L.begin() + r1 + 1);
       L.insert(L.begin() + r1 + 1, copy.begin(), copy.end());
+      ideMarkShift(ide, r1 + 1, count);      // pins beneath the copy slide
       ide.curR += count;
       if (ide.anchorR >= 0) ide.anchorR += count;   // the selection rides
     } else {
       // copy BEFORE inserting: the insert may reallocate the buffer
       const std::string cur = L[static_cast<size_t>(ide.curR)];
       L.insert(L.begin() + ide.curR + 1, cur);
+      ideMarkShift(ide, ide.curR + 1, 1);    // pins beneath the copy slide
       ++ide.curR;                            // the copy takes your place
     }
   }

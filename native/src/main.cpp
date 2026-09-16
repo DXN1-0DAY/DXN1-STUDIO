@@ -181,6 +181,14 @@ Keys pollKeys(Mode mode) {
               if (p == 3) {
                 if (ctrl) k.delWordFwd = true;
                 else k.del = true;
+              } else if (p == 15) {            // F2: the pins' keyboard —
+                const bool shift =             // ctrl plants/pulls, shift
+                    semi != std::string::npos &&   // walks back, bare leaps
+                    semi + 1 < params.size() &&
+                    params[semi + 1] == '2';
+                if (ctrl) k.markToggle = true;
+                else if (shift) k.markPrev = true;
+                else k.markNext = true;
               } else if (!ctrl) {
                 if (p == 5) k.pageUp = true;
                 else if (p == 6) k.pageDn = true;
@@ -806,13 +814,18 @@ void drawIDE(dxn3::Screen& scr, IdeState& ide, const dxn3::Game& g, bool hostUp)
     const int li = ide.top + r;
     if (li >= static_cast<int>(ide.lines.size())) break;
     const bool onCursor = li == ide.curR;
+    const bool pinned = dxn3::ideMarkHas(ide, li);
     char gutter[16];
     std::snprintf(gutter, sizeof gutter, "%*d ", G - 1, li + 1);
-    scr.text(0, bodyTop + r, gutter, dxn3::rgb(84, 72, 120));
+    scr.text(0, bodyTop + r, gutter,
+             pinned ? dxn3::rgb(250, 204, 21) : dxn3::rgb(84, 72, 120));
     if (onCursor) scr.railBg(bodyTop + r, selBg);
     // long lines slide: every row shows the window [hcol, hcol + textW)
     const std::string& ln = ide.lines[static_cast<size_t>(li)];
     if (ide.hcol > 0) scr.text(G - 1, bodyTop + r, "…", dxn3::rgb(96, 104, 126));
+    if (pinned) scr.text(G - 1, bodyTop + r, "◆",
+                         dxn3::rgb(250, 204, 21));  // the pin owns the gutter's
+                                                    // edge — the … waits
     const std::string slice =
         ide.hcol > 0 && static_cast<int>(ln.size()) > ide.hcol
             ? ln.substr(static_cast<size_t>(ide.hcol))
@@ -956,6 +969,9 @@ void drawIDE(dxn3::Screen& scr, IdeState& ide, const dxn3::Game& g, bool hostUp)
       } else {
         scr.text(mapX + mr.start, row, bars(mr.len), fg);
       }
+      if (mr.mark)                             // the pin: an amber bar at the
+        scr.text(mapX, row, "▌",               // map's edge, drawn last so it
+                 dxn3::rgb(250, 204, 21));     // never drowns in the bars
     }
   }
 
@@ -982,8 +998,8 @@ void drawIDE(dxn3::Screen& scr, IdeState& ide, const dxn3::Game& g, bool hostUp)
     const std::string hint = errLine > 0
         ? " ctrl+g jumps to line " + std::to_string(errLine) +
           " · ctrl+z undo · ctrl+f find · esc play "
-        : " ctrl+r run · ctrl+z undo · ctrl+c/x/v clipboard · ctrl+f find · "
-          "ctrl+\\ leap · esc play ";
+        : " ctrl+r run · ctrl+z undo · ctrl+f find · ctrl+\\ leap · F2 pins · "
+          "ctrl+c/x/v clipboard · esc play ";
     const bool errorUp = errLine > 0;
     scr.text(1, c0 + 1, hint.substr(0, static_cast<size_t>(cols - 3)),
              errorUp ? dxn3::rgb(248, 113, 113) : dxn3::rgb(84, 72, 120));
@@ -1034,6 +1050,7 @@ int main(int argc, char** argv) {
                    "       shift+tab dedent · ctrl+/ comment\n"
                    "       shift+arrows select · shift+ctrl+←/→ select words\n"
                    "       ctrl+l clear the console · ctrl+n template · ctrl+g error line · ctrl+p screenshot\n"
+                   "       F2 next pin · shift+F2 previous pin · ctrl+F2 plant/pull a pin\n"
                    "       :minimap the document's map rail · :ruler guides · :stats\n"
                    "       esc play/back · a/d move · w jump\n"
                    "       mouse: click to move · drag to select · wheel rolls\n"
@@ -1280,6 +1297,7 @@ int main(int argc, char** argv) {
     ide.curR = ide.curC = ide.top = 0;
     ide.hcol = 0;                              // a fresh page, an unslid view
     dxn3::ideSelClear(ide);                    // and no stale selection
+    ide.marks.clear();  // pins belong to the document they were planted in
     ide.dirty = true;
     ide.idle = 0;
     ide.console.push_back("engine: template — " + name + " (" +
@@ -1307,6 +1325,7 @@ int main(int argc, char** argv) {
     ide.lastTyping = ide.lastBack = false;
     ide.curR = ide.curC = ide.top = 0;
     dxn3::ideSelClear(ide);          // no stale selection rides along
+    ide.marks.clear();  // pins belong to the document they were planted in
     ide.hcol = 0;
     ide.tpl = -1;
     ide.findOpen = false;            // the searchlight rests
@@ -1541,6 +1560,57 @@ int main(int argc, char** argv) {
           dxn3::ideSelClear(ide);                // the jump drops the selection
           ide.console.push_back("engine: jumped to line " +
                                 std::to_string(ide.curR + 1));
+        } else if (cmd.verb == "mark") {
+          // plant or pull a pin on the hand's line — a bookmark, not an
+          // edit: F2 leaps between pins, :marks lists them
+          if (!ide.open) ide.open = true;      // the studio takes the stage
+          const bool on = dxn3::ideMarkToggle(ide, ide.curR);
+          ide.console.push_back(
+              on ? "engine: pin planted on line " +
+                       std::to_string(ide.curR + 1) +
+                       " — F2 leaps, :marks lists"
+                 : "engine: pin pulled from line " +
+                       std::to_string(ide.curR + 1));
+        } else if (cmd.verb == "marks") {
+          if (!ide.open) ide.open = true;      // the studio takes the stage
+          if (ide.marks.empty()) {
+            ide.console.push_back(
+                "engine: no pins — :mark plants one on the hand's line");
+          } else {
+            std::string list = "engine: pins —";
+            for (size_t i = 0; i < ide.marks.size(); ++i)
+              list += " " + std::to_string(i + 1) + ") Ln " +
+                      std::to_string(ide.marks[i] + 1);
+            ide.console.push_back(list);
+          }
+        } else if (cmd.verb == "bm") {
+          // leap to a pin: a bare :bm takes the next (wrapping), :bm N
+          // takes the Nth — the :marks order, top of the file first
+          if (!ide.open) ide.open = true;      // the studio takes the stage
+          int to = -1;
+          if (cmd.arg.empty()) {
+            to = dxn3::ideMarkNext(ide, ide.curR);
+          } else if (static_cast<int>(cmd.num) >= 1 &&
+                     static_cast<int>(cmd.num) <=
+                         static_cast<int>(ide.marks.size())) {
+            to = ide.marks[static_cast<size_t>(
+                static_cast<int>(cmd.num) - 1)];
+          }
+          if (to < 0) {
+            ide.console.push_back(
+                ide.marks.empty()
+                    ? "engine: no pins yet — :mark plants one on this line"
+                    : "engine: no such pin — :marks lists " +
+                          std::to_string(ide.marks.size()));
+          } else {
+            ide.findOpen = false;              // the searchlight rests
+            ide.curR = to;
+            ide.curC = 0;
+            ide.top = std::max(0, ide.curR - 4);   // the leap lands mid-screen
+            dxn3::ideSelClear(ide);                // the leap drops the selection
+            ide.console.push_back("engine: the hand leaps to the pin at line " +
+                                  std::to_string(to + 1));
+          }
         } else if (cmd.verb == "snip") {
           // boilerplate from the shelf: an exact name wins, a unique
           // prefix resolves, an ambiguous prefix lists — like :template
@@ -1654,8 +1724,8 @@ int main(int argc, char** argv) {
           game.scene.gravity = cmd.num;
           game.say("gravity " + std::to_string(static_cast<int>(cmd.num)), 1.2);
         } else if (cmd.verb == "help") {
-          game.say(":scene :open :recent :template :snip :goto :ruler :minimap :trim :cases :sort :stats :zoom "
-                    ":fit :reset :new :w :wq :q :screenshot :magnet :gravity", 4.f);
+          game.say(":scene :open :recent :template :snip :goto :mark :marks :bm :ruler :minimap :trim :cases :sort :stats "
+                    ":zoom :fit :reset :new :w :wq :q :screenshot :magnet :gravity", 4.f);
         }
       } else {
         cmdBuf += keys.typed;

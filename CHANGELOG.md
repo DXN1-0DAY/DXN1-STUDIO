@@ -1,3 +1,31 @@
+## v3.0.40 — the pins
+
+- **Bookmarks: lines you pin so the hand can leap back.** `:mark`
+  plants a pin on the hand's line — a second `:mark` (or `ctrl+F2`)
+  pulls it. `F2` leaps to the next pin, `shift+F2` walks back, both
+  wrapping the ends; `:bm N` takes the Nth pin (the `:marks` order),
+  a bare `:bm` takes the next. `:marks` lists the ledger.
+- **The pins are visible.** A pinned line's number burns amber in the
+  gutter and a `◆` rides the gutter's edge (the hscroll `…` waits —
+  the pin wins); on the minimap the pinned row carries an amber bar
+  drawn last so it never drowns in the shape's bars.
+- **The pins follow the document.** Every structural edit speaks the
+  same law: lines landing above a pin slide it down (enter, paste,
+  duplicate, snippet, block insert), lines cut beneath take the pin
+  along (backspace/del joins, line cut, selection cut), a pin inside
+  a cut dies with its line, and undo/redo prune pins the restored
+  document never had. Loading a document starts a fresh ledger.
+- **A look, never an edit.** Planting, pulling and leaping never
+  dirty the document, never take an undo step, and every leap speaks
+  its landing in the console; refusals (pinless leaps) name the way
+  out (`:mark`).
+- Selftest: group 50 (plant/pull/has, sorted+dedup ledger under
+  out-of-order planting, wrap both ways, pinless refusals, the
+  shift/erase/clamp laws, F2/shift+F2/ctrl+F2 through the real
+  ideKey with no dirty and no undo) — 413 → 433 assertion groups.
+- Discoverability: README command table + keys, `--help` keys card,
+  the bar's usage hints, the console rail hint (F2 pins), `:help`.
+
 ## v3.0.39 — the fresh slate
 
 - **ctrl+l wipes the console.** The console rail is where your game
