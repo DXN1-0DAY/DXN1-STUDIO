@@ -1,3 +1,21 @@
+## v3.0.22 — the bridge
+
+- **The system clipboard hears you.** `ctrl+c` and `ctrl+x` now also
+  emit an OSC 52 escape carrying the clip (base64, `ESC]52;c;…ST`) —
+  terminals that honor it (kitty, alacritty, wezterm, foot, iTerm2,
+  Windows Terminal…) keep the OS clipboard in sync with the studio's.
+  The internal ring stays the paste truth: `ctrl+v` pastes from the
+  studio, so a terminal without OSC 52 support loses nothing.
+  `ideClipText` joins the clip's lines and `ideBase64` encodes them
+  honestly (RFC 4648, with the honest `=` padding).
+- **An empty paste speaks up.** `ctrl+v` with nothing in the
+  clipboard used to pretend to happen; now the console rail says
+  `the clipboard is empty — ctrl+c first`, and the doc isn't dirtied
+  (no pointless re-run of your game).
+- Selftest: group 33 (clip text joins, base64 vectors, empty-paste
+  receipt) — 284 → 292. Smoke: 67 → 68 checks (the copy window
+  carries the `]52;c;` bridge bytes).
+
 ## v3.0.21 — the clipboard
 
 - **`ctrl+c` / `ctrl+x` / `ctrl+v` — a real clipboard.** Copy takes

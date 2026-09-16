@@ -1540,11 +1540,24 @@ int main(int argc, char** argv) {
     // :new hand the stage over; the same frame's text must not leak in)
     if (ide.open && !barOwned) {
       ideKey(ide, keys);
+      // the bridge: copy and cut also ride out to the system clipboard
+      // (OSC 52) — terminals that honor it keep the OS's clip in sync
+      // with the studio's; the internal ring stays the paste truth
+      if (keys.ctrlC || keys.ctrlX) {
+        const std::string text = dxn3::ideClipText(ide);
+        if (!text.empty() && text.size() < 100000) {
+          const std::string osc =
+              "\x1b]52;c;" + dxn3::ideBase64(text) + "\x1b\\";
+          std::fputs(osc.c_str(), stdout);
+          std::fflush(stdout);
+        }
+      }
       // find-mode keystrokes feed the query — never the document
       if (!ide.findOpen &&
           (!keys.typed.empty() || keys.back || keys.enter || keys.del ||
            keys.ctrlD || keys.delWord || keys.delWordFwd || keys.comment ||
-           keys.tab || keys.backTab || keys.ctrlX || keys.ctrlV)) {
+           keys.tab || keys.backTab || keys.ctrlX ||
+           (keys.ctrlV && !ide.clip.empty()))) {
         ide.dirty = true;
         ide.idle = 0;
       }

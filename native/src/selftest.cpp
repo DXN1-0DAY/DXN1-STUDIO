@@ -199,7 +199,7 @@ int main() {
   }
 
   // 9. the version quad rides in the binary too
-  ok(std::string(dxn3::DXN3_VERSION) == "3.0.21",
+  ok(std::string(dxn3::DXN3_VERSION) == "3.0.22",
      "native version constant matches the release quad");
 
   // 10. png writer: checksum vectors, real structure, byte determinism
@@ -1500,6 +1500,50 @@ int main() {
        "shift+tab alone lifts the hand's line back a level");
     ok(dxn3::ideUndo(bl) && bl.lines[0] == "    deep",
        "and the dedent undoes whole");
+  }
+
+  // 33. the bridge: the clip speaks text, base64 speaks bytes, and an
+  // empty paste speaks up instead of pretending
+  {
+    using dxn3::Keys;
+    IdeState s;
+    s.lines = {"alpha", "beta"};
+    s.curR = 0;
+    s.curC = 2;
+    Keys cc;
+    cc.ctrlC = true;
+    dxn3::ideKey(s, cc);
+    ok(dxn3::ideClipText(s) == "alpha",
+       "a line-wise clip reads as its text");
+
+    IdeState m;
+    m.lines = {"one", "two", "three"};
+    m.curR = 0;
+    m.curC = 0;
+    m.anchorR = 1;
+    m.anchorC = 3;                  // spanning: "one" + "two"
+    Keys cc2;
+    cc2.ctrlC = true;
+    dxn3::ideKey(m, cc2);
+    ok(dxn3::ideClipText(m) == "one\ntwo",
+       "a spanning clip joins its lines with newlines");
+
+    ok(dxn3::ideBase64("") == "", "base64 of nothing is nothing");
+    ok(dxn3::ideBase64("f") == "Zg==", "base64 pads one byte honestly");
+    ok(dxn3::ideBase64("fo") == "Zm8=", "base64 pads two bytes honestly");
+    ok(dxn3::ideBase64("foo") == "Zm9v", "base64 encodes a clean triple");
+    ok(dxn3::ideBase64("foobar") == "Zm9vYmFy", "base64 chains triples");
+
+    IdeState e;
+    e.lines = {"x"};
+    e.curR = 0;
+    e.curC = 0;
+    Keys cv;
+    cv.ctrlV = true;
+    dxn3::ideKey(e, cv);
+    ok(e.lines[0] == "x" && !e.console.empty() &&
+           e.console.back().find("clipboard is empty") != std::string::npos,
+       "pasting an empty clip speaks up instead of pretending");
   }
 
   if (fails == 0) {

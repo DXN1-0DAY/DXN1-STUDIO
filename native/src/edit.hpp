@@ -227,8 +227,55 @@ inline void ideClipCut(IdeState& s) {
   s.idle = 0;
 }
 
+// the clip as one string, lines joined with '\n' — the OSC 52
+// bridge's payload: the system clipboard speaks text, not lines
+inline std::string ideClipText(const IdeState& s) {
+  std::string out;
+  for (size_t i = 0; i < s.clip.size(); ++i) {
+    if (i) out += '\n';
+    out += s.clip[i];
+  }
+  return out;
+}
+
+// RFC 4648 base64, honestly — the bridge's encoding
+inline std::string ideBase64(const std::string& in) {
+  static const char* tab =
+      "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
+  std::string out;
+  size_t i = 0;
+  while (i + 3 <= in.size()) {
+    const unsigned n = (static_cast<unsigned char>(in[i]) << 16) |
+                       (static_cast<unsigned char>(in[i + 1]) << 8) |
+                       static_cast<unsigned char>(in[i + 2]);
+    out += tab[(n >> 18) & 63];
+    out += tab[(n >> 12) & 63];
+    out += tab[(n >> 6) & 63];
+    out += tab[n & 63];
+    i += 3;
+  }
+  const size_t rest = in.size() - i;
+  if (rest == 1) {
+    const unsigned n = static_cast<unsigned char>(in[i]) << 16;
+    out += tab[(n >> 18) & 63];
+    out += tab[(n >> 12) & 63];
+    out += "==";
+  } else if (rest == 2) {
+    const unsigned n = (static_cast<unsigned char>(in[i]) << 16) |
+                       (static_cast<unsigned char>(in[i + 1]) << 8);
+    out += tab[(n >> 18) & 63];
+    out += tab[(n >> 12) & 63];
+    out += tab[(n >> 6) & 63];
+    out += '=';
+  }
+  return out;
+}
+
 inline void ideClipPaste(IdeState& s) {
-  if (s.clip.empty()) return;
+  if (s.clip.empty()) {
+    s.console.push_back("engine: the clipboard is empty — ctrl+c first");
+    return;
+  }
   idePushUndo(s);
   ideSelDelete(s);                 // a live selection is the paste's bed
   auto& L = s.lines;
