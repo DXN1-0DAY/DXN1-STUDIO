@@ -1032,6 +1032,37 @@ def main():
         check("ctrl+o walks the same ledger one step back",
               "the hand walks back to line 30" in scr.text(ROWS - 2),
               repr(scr.text(ROWS - 2)[:60]))
+
+        # ── 13h. the census — :changes reads the session's hand ──────
+        print("── 13h. :changes — the touched lines, counted")
+        s1d.run_verb("goto 7", "ide")          # a leap, never an edit
+        scr, _ = s1d.run_verb("changes", "ide")
+        check("a page re-read is a clean page — :fresh's truth is the disk's",
+              "a clean page — nothing touched since it opened" in
+              scr.text(ROWS - 2),
+              repr(scr.text(ROWS - 2)[:70]))
+        s1d.send("Hi")                         # the session's first edit
+        time.sleep(0.25)
+        scr, _ = s1d.run_verb("changes", "ide")
+        check("the census names the touched line",
+              "1 line touched since the page opened — 7" in
+              scr.text(ROWS - 2),
+              repr(scr.text(ROWS - 2)[:70]))
+        s1d.run_verb("goto 30", "ide")         # a leap to a second line
+        s1d.send("Yo")                         # the session's second edit
+        time.sleep(0.25)
+        scr, _ = s1d.run_verb("changes", "ide")
+        check("two edits speak ascending, line 7 before line 30",
+              "2 lines touched since the page opened — 7 · 30" in
+              scr.text(ROWS - 2),
+              repr(scr.text(ROWS - 2)[:70]))
+        s1d.run_verb("fresh", "ide")           # the disk's truth wins back
+        scr, _ = s1d.run_verb("changes", "ide")
+        check("a reload restarts the census — the disk wrote, not you",
+              "a clean page — nothing touched since it opened" in
+              scr.text(ROWS - 2),
+              repr(scr.text(ROWS - 2)[:70]))
+
         s1d.send(ESC)
         time.sleep(0.3)
         s1d.send("q")

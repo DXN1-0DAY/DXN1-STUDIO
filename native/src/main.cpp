@@ -842,7 +842,22 @@ void drawIDE(dxn3::Screen& scr, IdeState& ide, const dxn3::Game& g, bool hostUp)
                                                 // at a glance in big files
   if (const int selN = dxn3::ideSelCount(ide); selN > 0)
     pos += " · sel " + std::to_string(selN);
-  if (24 + static_cast<int>(file.size() + pos.size()) + 2 < scol)
+  if (!ide.touched.empty())
+    pos += " · " + std::to_string(ide.touched.size()) +
+           " changed";               // the census at a glance — LAST in the
+                                     // line, so a crowded header sheds it
+                                     // first and keeps the older truths
+  // the header's pos speaks in dot-joined segments; a crowded row sheds
+  // WHOLE segments from the tail — never a half-truth, never a mangled
+  // number. The pins survive where a naive all-or-nothing guard would
+  // have silenced the whole line.
+  while (!pos.empty() &&
+         24 + static_cast<int>(file.size() + pos.size()) + 2 >= scol) {
+    const auto cut = pos.rfind(" · ");
+    if (cut == std::string::npos) { pos.clear(); break; }
+    pos.resize(cut);
+  }
+  if (!pos.empty())
     scr.text(24 + static_cast<int>(file.size()), 0, pos, dxn3::rgb(110, 118, 140));
 
   // the editor pane — the minimap rents its rail from the code's right
@@ -1032,6 +1047,9 @@ void drawIDE(dxn3::Screen& scr, IdeState& ide, const dxn3::Game& g, bool hostUp)
       if (mr.mark)                             // the pin: an amber bar at the
         scr.text(mapX, row, "▌",               // map's edge, drawn last so it
                  dxn3::rgb(250, 204, 21));     // never drowns in the bars
+      else if (dxn3::ideTouchHas(ide, li))     // the session's hand: an
+        scr.text(mapX, row, "·",               // emerald tick on the map's
+                 dxn3::rgb(52, 211, 153));     // edge — see where you wrote
     }
   }
 
@@ -1426,6 +1444,8 @@ int main(int argc, char** argv) {
     // the SAME document re-read: the session's history doesn't lie,
     // so the walker keeps its ledger when the caller says so.
     if (!keepJumps) ide.jumps.clear();
+    dxn3::ideTouchClear(ide);        // a page just opened is a clean page —
+                                     // the census counts THIS session's hand
     ide.lastTyping = ide.lastBack = false;
     ide.curR = ide.curC = ide.top = 0;
     dxn3::ideSelClear(ide);          // no stale selection rides along
@@ -2006,6 +2026,20 @@ int main(int argc, char** argv) {
                   ? "engine: no jumps yet — :goto, F2 and the welcome "
                     "back plant them"
                   : "engine: the jumps, newest first — " + j);
+        } else if (cmd.verb == "changes") {
+          // the touched lines, listed: every line the hand CHANGED since
+          // the page opened — the census of this session's work, top of
+          // the file first, structure-aware (a landing above slides a
+          // touch down; a cut carries its touches out). Undo does not
+          // un-touch: the session's history is a fact.
+          takeStage();
+          const std::string t = dxn3::ideTouchWhisper(ide);
+          ide.console.push_back(
+              t.empty()
+                  ? "engine: a clean page — nothing touched since it opened"
+                  : "engine: " + std::to_string(ide.touched.size()) +
+                        " line" + (ide.touched.size() == 1 ? "" : "s") +
+                        " touched since the page opened — " + t);
         } else if (cmd.verb == "fresh") {
           // the disk's truth wins the page back — :e!'s twin. A reload
           // is a REOPEN: it walks the one openScript path, so the
@@ -2122,7 +2156,7 @@ int main(int argc, char** argv) {
           game.scene.gravity = cmd.num;
           game.say("gravity " + std::to_string(static_cast<int>(cmd.num)), 1.2);
         } else if (cmd.verb == "help") {
-          game.say(":scene :open :recent :template :snip :goto :jumps :fresh :mark :marks :bm :ruler :minimap :zen :relnum :trim :cases :sort :rsort :rev :uniq :indent :dedent :lift :drop :dup :join :upper :lower :title :hist :undo :redo :words :todo :stats "
+          game.say(":scene :open :recent :template :snip :goto :jumps :changes :fresh :mark :marks :bm :ruler :minimap :zen :relnum :trim :cases :sort :rsort :rev :uniq :indent :dedent :lift :drop :dup :join :upper :lower :title :hist :undo :redo :words :todo :stats "
                     ":zoom :fit :reset :new :w :wq :q :screenshot :magnet :gravity", 4.f);
         }
       } else {

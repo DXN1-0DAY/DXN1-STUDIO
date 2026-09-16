@@ -199,7 +199,7 @@ int main() {
   }
 
   // 9. the version quad rides in the binary too
-  ok(std::string(dxn3::DXN3_VERSION) == "3.0.71",
+  ok(std::string(dxn3::DXN3_VERSION) == "3.0.72",
      "native version constant matches the release quad");
 
   // 10. png writer: checksum vectors, real structure, byte determinism
@@ -3587,6 +3587,118 @@ int main() {
     dxn3::ideKey(fz, of);
     ok(fz.console.back().find("nothing ahead") != std::string::npos,
        "the newest leap is the edge, spoken honestly");
+  }
+
+  // 78. the census: :changes — every line the hand CHANGED since the
+  // page opened. The pins' structural law speaks: a landing above
+  // slides a touch down, a cut carries its touches out (a touched line
+  // dies WITH its line); undo does NOT un-touch, it clamps.
+  {
+    IdeState c;
+    c.lines = {"alpha", "beta", "gamma", "delta", "epsilon"};
+    ok(c.touched.empty() && dxn3::ideTouchWhisper(c).empty(),
+       "a fresh page's census is empty");
+    dxn3::ideTouch(c, 2);
+    dxn3::ideTouch(c, 0);
+    dxn3::ideTouch(c, 2);                      // a second touch is a stand
+    ok(c.touched.size() == 2 && c.touched[0] == 0 && c.touched[1] == 2,
+       "touches record sorted and unique");
+    dxn3::ideTouch(c, 99);
+    ok(c.touched.size() == 2,
+       "a touch beyond the document is refused");
+    ok(dxn3::ideTouchWhisper(c) == "1 · 3",
+       "the whisper speaks 1-based, ascending, dot-joined");
+
+    // the structural laws
+    dxn3::ideTouchShift(c, 1, 2);              // two lines land at index 1
+    ok(c.touched[0] == 0 && c.touched[1] == 4,
+       "a landing above slides the touches down (the pins' shift law)");
+    dxn3::ideTouchErase(c, 0, 1);              // line 0 leaves
+    ok(c.touched.size() == 1 && c.touched[0] == 3,
+       "a touch above the cut slides up, none dies (the pins' erase law)");
+    dxn3::ideTouchErase(c, 2, 2);              // the touched line dies
+    ok(c.touched.empty(),
+       "a touched line cut away dies WITH its line");
+    c.lines.resize(2);
+    dxn3::ideTouch(c, 0);
+    dxn3::ideTouch(c, 1);
+    c.lines.resize(1);
+    dxn3::ideTouchClamp(c);
+    ok(c.touched.size() == 1 && c.touched[0] == 0,
+       "the clamp keeps only the touches the restored document can hold");
+
+    // the whisper's cap
+    IdeState cw;
+    for (int i = 0; i < 11; ++i) cw.lines.push_back("l");
+    for (int i = 0; i < 11; ++i) dxn3::ideTouch(cw, i);
+    ok(dxn3::ideTouchWhisper(cw, 8) == "1 · 2 · 3 · 4 · 5 · 6 · 7 · 8 … +3 deeper",
+       "the whisper caps at eight and names the deeper count");
+
+    // the funnel: typing touches the hand's line
+    IdeState t;
+    t.lines = {"", "", ""};
+    dxn3::Keys ty;
+    ty.typed = "x";
+    dxn3::ideKey(t, ty);
+    ok(t.touched.size() == 1 && t.touched[0] == 0,
+       "typing touches the hand's line");
+    dxn3::Keys en;
+    en.enter = true;                           // split line 0: two touched
+    dxn3::ideKey(t, en);
+    ok(t.touched.size() == 2 && t.touched[0] == 0 && t.touched[1] == 1,
+       "enter touches the head it cut and the tail it made");
+    dxn3::Keys ba;
+    ba.back = true;                            // join them back: line 1 dies
+    dxn3::ideKey(t, ba);
+    ok(t.touched.size() == 1 && t.touched[0] == 0,
+       "backspace's join kills the folded line's touch, the seam keeps both");
+
+    // the census rides undo: clamped, never un-touched. The join had
+    // its own restore point (an enter push breaks the coalescing), so
+    // one ctrlZ walks back to the post-split page — the fold undone,
+    // the line it folded away EXISTING again, and its touch NOT coming
+    // back: the erase was a session fact too. The typing's touch
+    // survives the rewind untouched. The document is what came back;
+    // the census is what the session wrote.
+    dxn3::Keys uz;
+    uz.ctrlZ = true;
+    const bool stepped = dxn3::ideUndo(t);
+    ok(stepped && t.lines.size() == 4 && t.touched.size() == 1 &&
+           t.touched[0] == 0,
+       "undo restores the document but never un-touches the session");
+
+    // the paste's bed, the cut's ride-out
+    IdeState p;
+    p.lines = {"one", "two", "three"};
+    p.clip = {"a", "b"};
+    p.clipLines = true;
+    dxn3::ideClipPaste(p);
+    ok(p.touched.size() == 2 && p.touched[0] == 0 && p.touched[1] == 1,
+       "a line paste touches the bed it landed on");
+    dxn3::Keys ct;
+    ct.ctrlX = true;
+    dxn3::ideKey(p, ct);                       // bare cut lifts line 0 away
+    ok(p.touched.size() == 1 && p.touched[0] == 0,
+       "a bare cut carries its touched line out and slides the rest up");
+
+    // the sort's bed, the trim's honesty
+    IdeState so;
+    so.lines = {"c", "a", "b", "d"};
+    so.anchorR = 0; so.anchorC = 0;
+    so.curR = 2; so.curC = 1;
+    dxn3::ideSortSel(so);
+    ok(so.touched.size() == 3 && so.touched[0] == 0 && so.touched[2] == 2,
+       "a sort touches every line it reordered");
+    IdeState tr;
+    tr.lines = {"keep   ", "clean", "tail  "};
+    dxn3::ideTrimTrailing(tr);
+    ok(tr.touched.size() == 2 && tr.touched[0] == 0 && tr.touched[1] == 2,
+       "a trim touches only the lines that lost air");
+
+    // openScript's half is smoke's drive — the clear law, pure:
+    dxn3::ideTouchClear(tr);
+    ok(tr.touched.empty(),
+       "a page just opened is a clean page — the census restarts");
   }
 
 

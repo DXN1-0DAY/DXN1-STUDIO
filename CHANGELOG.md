@@ -1,3 +1,39 @@
+## v3.0.72 — the census (:changes — the lines the session wrote)
+
+- **`:changes` reads the census of your session.** Every line the
+  hand CHANGED since the page opened — typing, paste, split, join,
+  sort, dedent, trim, comment, snippet, duplicate — listed ascending
+  with its count ("2 lines touched since the page opened — 7 · 30").
+  A clean page refuses kindly ("a clean page — nothing touched since
+  it opened"). The census is the answer to "where did the last hour
+  go?" in a file you have been living in.
+- **The pins' structural law speaks here too.** A landing above slides
+  a touch down; a cut carries the touches it holds out — a touched
+  line dies WITH its line; a splice feeds every line it touched; the
+  sort family's beds and the flip's mirror all keep the census honest
+  through structure. Only the lines that actually moved are touched:
+  a trim of a clean line touches nothing, a dedent of an unindented
+  line touches nothing, a comment strip touches only real comments.
+- **Undo rewinds the document, never the record.** A touch is a
+  session fact — ctrl+z restores the page but the census keeps what
+  the session wrote, clamped to the restored document. A reload
+  restarts it: `:fresh`'s truth is the disk's, and the disk wrote,
+  not you. Opening any page starts a clean census.
+- **The map rail wears the session's hand.** A touched line wears an
+  emerald tick on the map's edge (the pin's amber ▌ keeps its
+  precedence) — see WHERE you have been writing in a big file,
+  at a glance. The header speaks the count too ("· 3 changed"),
+  dot-joined last so a crowded row sheds it first and keeps the
+  older truths — whole segments only, never a mangled half-truth.
+- The pure laws live in edit.hpp — `ideTouch`/`ideTouchShift`/
+  `ideTouchErase`/`ideTouchClamp`/`ideTouchHas`/`ideTouchWhisper` —
+  with the census wired into every edit path the IDE owns (the
+  keystroke funnel, the clipboard, the block verbs, the snippet
+  splice). Selftest group 78 (18 asserts) 706 -> 724; smoke 13h
+  (4 checks) 141 -> 145, driving the census through the real pty:
+  clean page, first touch, a second line ascending, and the
+  reload's restart.
+
 ## v3.0.71 — the walker (ctrl+o / alt+←→ walk the jumps)
 
 - **The jumps ledger is now walkable.** ctrl+o (the vim law) and

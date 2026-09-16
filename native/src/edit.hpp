@@ -159,6 +159,15 @@ struct IdeState {
   // (:mark plants, F2 leaps). Sorted, unique line positions that follow
   // insertions and cuts; a pin dies with its line.
   std::vector<int> marks;
+  // the touched lines: every line the hand CHANGED since the page was
+  // opened — :changes reads the census. Sorted, unique line positions
+  // that follow the document's structure exactly the way the pins do
+  // (a landing above slides a touch down, a cut carries its touches
+  // out, a touched line dies with its line); undo does NOT un-touch —
+  // the session's history is a fact — but it clamps the survivors to
+  // the restored document. Cleared when the page opens (a fresh read
+  // is a clean page) — including :fresh, whose truth is the disk's.
+  std::vector<int> touched;
   // the minimap: a compressed map of the whole document riding the
   // editor pane's right edge (drawn only when the terminal has room;
   // :minimap toggles it)
@@ -276,12 +285,82 @@ inline void ideMarkClamp(IdeState& s) {
 
 inline void ideMarkClear(IdeState& s) { s.marks.clear(); }
 
+// ── the touched lines: where the hand has written ───────────────────
+// The census :changes reads. The pins' structural law speaks here too:
+// a landing above slides a touch down, a cut carries the touches it
+// holds out (a touched line dies WITH its line), the world beneath a
+// cut slides up, and a restored document clamps the survivors. A touch
+// is a session fact — undo rewinds the document, never the record.
+inline void ideTouch(IdeState& s, int line) {
+  if (line < 0 || line >= static_cast<int>(s.lines.size())) return;
+  const auto it = std::lower_bound(s.touched.begin(), s.touched.end(), line);
+  if (it == s.touched.end() || *it != line) s.touched.insert(it, line);
+}
+
+// `count` lines land AT index `at`: touches beneath the landing slide
+// down (the pins' shift law, verbatim)
+inline void ideTouchShift(IdeState& s, int at, int count) {
+  if (count <= 0) return;
+  for (int& t : s.touched)
+    if (t >= at) t += count;
+}
+
+// `count` lines leave at `at`: a touch inside the cut dies with its
+// line, touches above the cut slide up (the pins' erase law, verbatim)
+inline void ideTouchErase(IdeState& s, int at, int count) {
+  if (count <= 0) return;
+  const int end = at + count;
+  s.touched.erase(std::remove_if(s.touched.begin(), s.touched.end(),
+                                 [&](int t) { return t >= at && t < end; }),
+                  s.touched.end());
+  for (int& t : s.touched)
+    if (t >= end) t -= count;
+}
+
+// out-of-range touches go — the restored document is the truth the
+// census measures against
+inline void ideTouchClamp(IdeState& s) {
+  const int n = static_cast<int>(s.lines.size());
+  s.touched.erase(std::remove_if(s.touched.begin(), s.touched.end(),
+                                 [&](int t) { return t < 0 || t >= n; }),
+                  s.touched.end());
+}
+
+inline void ideTouchClear(IdeState& s) { s.touched.clear(); }
+
+// a look, never an edit: does a touch ride this line? The map rail's
+// emerald tick asks this per row, the same way the pin's amber asks.
+inline bool ideTouchHas(const IdeState& s, int line) {
+  return line >= 0 &&
+         std::binary_search(s.touched.begin(), s.touched.end(), line);
+}
+
+// the census, spoken: the touched lines ascending, capped, the deep
+// count named when the cap hides some — "3 · 7 · 12 … 41", and the
+// caller owns the prefix and the total. An empty page says nothing
+// (the caller refuses kindly instead).
+inline std::string ideTouchWhisper(const IdeState& s, size_t maxShow = 8) {
+  if (s.touched.empty()) return "";
+  std::string out;
+  size_t shown = 0;
+  for (const int t : s.touched) {
+    if (shown == maxShow) break;
+    out += (shown == 0 ? "" : " · ") + std::to_string(t + 1);
+    ++shown;
+  }
+  if (s.touched.size() > maxShow)
+    out += " … +" + std::to_string(s.touched.size() - maxShow) + " deeper";
+  return out;
+}
+
 // the selection goes first: the range is cut, the cursor collapses to
 // its start, the anchor clears. False when there was nothing selected.
 inline bool ideSelDelete(IdeState& s) {
   const auto sel = ideSelRange(s);
   if (!sel) return false;
   const auto [r0, c0, r1, c1] = *sel;
+  ideTouch(s, r0);                           // the seam line is touched —
+                                             // it kept (or received) the tail
   if (r0 == r1) {
     std::string& l = s.lines[static_cast<size_t>(r0)];
     l.erase(static_cast<size_t>(c0), static_cast<size_t>(c1 - c0));
@@ -291,7 +370,8 @@ inline bool ideSelDelete(IdeState& s) {
     first.resize(static_cast<size_t>(c0));
     first += tail;
     s.lines.erase(s.lines.begin() + r0 + 1, s.lines.begin() + r1 + 1);
-    ideMarkErase(s, r0 + 1, r1 - r0);          // the cut's pins ride out
+    ideMarkErase(s, r0 + 1, r1 - r0);        // the cut's pins ride out
+    ideTouchErase(s, r0 + 1, r1 - r0);       // so do the cut's touches
   }
   s.curR = r0;
   s.curC = c0;
@@ -379,9 +459,10 @@ inline void ideClipCut(IdeState& s) {
     s.lines.erase(s.lines.begin() + s.curR);
     if (s.lines.empty()) s.lines.emplace_back("");   // the doc never dies
     ideMarkErase(s, s.curR, 1);                // the line's pin rides out
+    ideTouchErase(s, s.curR, 1);               // its touch dies with it
     s.curC = 0;
   } else {
-    ideSelDelete(s);
+    ideSelDelete(s);                           // the bed's touches speak there
   }
   s.lastTyping = s.lastBack = false;
   s.dirty = true;
@@ -446,6 +527,10 @@ inline void ideClipPaste(IdeState& s) {
     const int at = s.curR;
     L.insert(L.begin() + at, s.clip.begin(), s.clip.end());
     ideMarkShift(s, at, static_cast<int>(s.clip.size()));
+    ideTouchShift(s, at, static_cast<int>(s.clip.size()));
+    for (int r = at;
+         r < at + static_cast<int>(s.clip.size()); ++r)
+      ideTouch(s, r);                          // the paste's bed is touched
     s.curR += static_cast<int>(s.clip.size()) - 1;
     s.curC = static_cast<int>(L[static_cast<size_t>(s.curR)].size());
   } else {
@@ -458,9 +543,14 @@ inline void ideClipPaste(IdeState& s) {
     if (s.clip.size() > 1)                     // pins beneath the splice
       ideMarkShift(s, s.curR + 1,              // slide down with the lines
                    static_cast<int>(s.clip.size()) - 1);
+    if (s.clip.size() > 1)                     // the census rides the splice
+      ideTouchShift(s, s.curR + 1,
+                    static_cast<int>(s.clip.size()) - 1);
     for (size_t i = 1; i < s.clip.size(); ++i)
       L.insert(L.begin() + s.curR + static_cast<long>(i), s.clip[i]);
     L[static_cast<size_t>(s.curR) + s.clip.size() - 1] += tail;
+    for (size_t i = 0; i < s.clip.size(); ++i)
+      ideTouch(s, s.curR + static_cast<int>(i));  // every fed line touched
     s.curR += static_cast<int>(s.clip.size()) - 1;
     s.curC = static_cast<int>(L[static_cast<size_t>(s.curR)].size()) -
              static_cast<int>(tail.size());
@@ -629,6 +719,9 @@ inline bool ideUndo(IdeState& s) {
   ideSelClear(s);                    // the second chance drops the selection
   ideClamp(s);
   ideMarkClamp(s);                   // pins the restored document never had go
+  ideTouchClamp(s);                  // touches survive the rewind — the
+                                     // session's history is a fact — but
+                                     // clamp to the restored page
   return true;
 }
 
@@ -645,6 +738,7 @@ inline bool ideRedo(IdeState& s) {
   ideSelClear(s);
   ideClamp(s);
   ideMarkClamp(s);                   // pins the restored document never had go
+  ideTouchClamp(s);                  // the census measures the restored page
   return true;
 }
 
@@ -1608,6 +1702,9 @@ inline int ideSortSel(IdeState& s, bool* numeric = nullptr) {
     std::sort(s.lines.begin() + r0, s.lines.begin() + r1 + 1);
   }
   if (numeric) *numeric = allNum;
+  for (int r = r0; r <= r1; ++r)
+    ideTouch(s, r);                    // the census: the bed's lines were
+                                       // reordered — every one was written
   ideSelClear(s);
   s.curR = r0;
   s.curC = 0;
@@ -1648,6 +1745,8 @@ inline int ideRsortSel(IdeState& s, bool* numeric = nullptr) {
               std::greater<std::string>());
   }
   if (numeric) *numeric = allNum;
+  for (int r = r0; r <= r1; ++r)
+    ideTouch(s, r);                    // the census rides the reorder
   ideSelClear(s);
   s.curR = r0;
   s.curC = 0;
@@ -1703,6 +1802,7 @@ inline int ideCaseSel(IdeState& s, int mode) {
                        ? std::min<int>(c1, static_cast<int>(l.size()))
                        : static_cast<int>(l.size());
     if (r > r0) wordStart = true;
+    bool lineChanged = false;
     for (int c = from; c < to; ++c) {
       const unsigned char ch = static_cast<unsigned char>(l[static_cast<size_t>(c)]);
       if (!std::isalpha(ch)) { wordStart = true; continue; }
@@ -1711,8 +1811,10 @@ inline int ideCaseSel(IdeState& s, int mode) {
       if (l[static_cast<size_t>(c)] != goal) {
         l[static_cast<size_t>(c)] = goal;
         ++changed;
+        lineChanged = true;
       }
     }
+    if (lineChanged) ideTouch(s, r);   // only the lines that changed voice
   }
   ideSelClear(s);
   s.curR = r0;
@@ -1781,6 +1883,24 @@ inline int ideUniqSel(IdeState& s) {
     }
     s.marks = std::move(nm);
   }
+  {   // the census speaks the SAME law: a touch on a fallen line dies,
+      // a touch on a kept line rides it home, one beneath slides up
+    std::vector<int> nt;
+    nt.reserve(s.touched.size());
+    for (const int t : s.touched) {
+      if (t < r0) nt.push_back(t);
+      else if (t <= r1) {
+        const int home = newHome[static_cast<size_t>(t)];
+        if (home >= 0) nt.push_back(home);
+      } else
+        nt.push_back(t - removed);
+    }
+    std::sort(nt.begin(), nt.end());
+    nt.erase(std::unique(nt.begin(), nt.end()), nt.end());
+    s.touched = std::move(nt);
+  }
+  for (int r = r0; r <= kept; ++r)
+    ideTouch(s, r);                    // the bed was rewritten by the fold
   ideSelClear(s);
   s.curR = std::min(kept + 1, static_cast<int>(s.lines.size()) - 1);
   s.curC = 0;
@@ -1810,6 +1930,15 @@ inline int ideRevSel(IdeState& s) {
       pinsMoved = true;
     }
   if (pinsMoved) std::sort(s.marks.begin(), s.marks.end());
+  bool touchesMoved = false;
+  for (int& t : s.touched)
+    if (t >= r0 && t <= r1) {
+      t = r0 + (r1 - t);             // the census rides the flip too
+      touchesMoved = true;
+    }
+  if (touchesMoved) std::sort(s.touched.begin(), s.touched.end());
+  for (int r = r0; r <= r1; ++r)
+    ideTouch(s, r);                    // every flipped line was rewritten
   ideSelClear(s);
   s.curR = r0;
   s.curC = 0;
@@ -1862,11 +1991,13 @@ inline int ideDentSel(IdeState& s, bool out) {
       if (cutn > 0) {
         l.erase(0, static_cast<size_t>(cutn));
         ++moved;
-        if (r == r0) headCut = cutn;
+        ideTouch(s, r);                // the census: only the lines that
+        if (r == r0) headCut = cutn;   // actually stepped
       }
     } else if (!keepsSilence(l)) {
       l.insert(0, 4, ' ');
       ++moved;
+      ideTouch(s, r);
     }
   }
   ideSelClear(s);
@@ -1915,6 +2046,12 @@ inline int ideMoveSel(IdeState& s, bool down) {
       else if (m >= r0 && m <= r1) { m -= 1; rode = true; }
     }
     if (rode) std::sort(s.marks.begin(), s.marks.end());
+    for (int& t : s.touched) {
+      if (t == r0 - 1) t = r1;           // the neighbor's touch rides too
+      else if (t >= r0 && t <= r1) t -= 1;
+    }
+    for (int r = r0 - 1; r <= r1; ++r)
+      ideTouch(s, r);                    // the lift rewrote the whole span
     ideSelClear(s);
     s.curR = r0 - 1;                   // the hand rides the block's head
     s.curC = std::min(c0, static_cast<int>(s.lines[static_cast<size_t>(r0 - 1)].size()));
@@ -1932,6 +2069,12 @@ inline int ideMoveSel(IdeState& s, bool down) {
       else if (m >= r0 && m <= r1) { m += 1; rode = true; }
     }
     if (rode) std::sort(s.marks.begin(), s.marks.end());
+    for (int& t : s.touched) {
+      if (t == r1 + 1) t = r0;           // the neighbor's touch rides too
+      else if (t >= r0 && t <= r1) t += 1;
+    }
+    for (int r = r0; r <= r1 + 1; ++r)
+      ideTouch(s, r);                    // the drop rewrote the whole span
     ideSelClear(s);
     s.curR = r0 + 1;                   // the hand rides the block's head
     s.curC = std::min(c0, static_cast<int>(s.lines[static_cast<size_t>(r0 + 1)].size()));
@@ -1964,6 +2107,9 @@ inline int ideDupSel(IdeState& s) {
                                      s.lines.begin() + r1 + 1);
   s.lines.insert(s.lines.begin() + r1 + 1, bed.begin(), bed.end());
   ideMarkShift(s, r1 + 1, count);      // the world beneath slides down
+  ideTouchShift(s, r1 + 1, count);     // the census rides it too
+  for (int r = r1 + 1; r <= r1 + count; ++r)
+    ideTouch(s, r);                    // the copies are the fresh work
   ideSelClear(s);
   s.curR = r0 + count;                 // the hand lands on the copy's head
   s.curC = std::min(s.curC, static_cast<int>(s.lines[static_cast<size_t>(s.curR)].size()));
@@ -2031,6 +2177,16 @@ inline int ideJoinSel(IdeState& s) {
     }
     s.marks = std::move(nm);
   }
+  {   // the census speaks the same law: a touch on a folded line dies
+    std::vector<int> nt;
+    nt.reserve(s.touched.size());
+    for (const int t : s.touched) {
+      if (t > r0 && t <= r1) continue;
+      nt.push_back(t > r1 ? t - (r1 - r0) : t);
+    }
+    s.touched = std::move(nt);
+  }
+  ideTouch(s, r0);                     // the seam holds the fold's words
   ideSelClear(s);
   s.curR = r0;                         // the hand rests at the seam
   s.curC = std::min(seam, static_cast<int>(folded.size()));
@@ -2057,12 +2213,15 @@ inline int ideTrimTrailing(IdeState& s) {
   }
   if (would == 0) return 0;
   idePushUndo(s, "trim");
-  for (auto& l : s.lines) {
+  for (size_t li = 0; li < s.lines.size(); ++li) {
+    std::string& l = s.lines[li];
     const size_t last = l.find_last_not_of(" \t");
-    if (last == std::string::npos)
-      l.clear();
-    else if (last + 1 < l.size())
+    if (last == std::string::npos) {
+      if (!l.empty()) { l.clear(); ideTouch(s, static_cast<int>(li)); }
+    } else if (last + 1 < l.size()) {
       l.resize(last + 1);
+      ideTouch(s, static_cast<int>(li));  // only the lines that lost air
+    }
   }
   ideClamp(s);
   s.dirty = true;
@@ -2085,10 +2244,16 @@ inline void ideInsertBlock(IdeState& s, const std::vector<std::string>& block) {
   if (blank) {                               // the empty line steps aside
     at = s.lines.erase(at);
     ideMarkErase(s, s.curR, 1);              // its pin steps aside with it
+    ideTouchErase(s, s.curR, 1);             // its touch too
   }
   s.lines.insert(at, block.begin(), block.end());
   ideMarkShift(s, blank ? s.curR : s.curR + 1,
                static_cast<int>(block.size()));
+  ideTouchShift(s, blank ? s.curR : s.curR + 1,
+                static_cast<int>(block.size()));
+  const int bedAt = blank ? s.curR : s.curR + 1;
+  for (int r = bedAt; r < bedAt + static_cast<int>(block.size()); ++r)
+    ideTouch(s, r);                          // the boilerplate's landing
   s.curR += blank ? static_cast<int>(block.size()) - 1
                   : static_cast<int>(block.size());
   s.curC = static_cast<int>(s.lines[static_cast<size_t>(s.curR)].size());
@@ -2397,6 +2562,7 @@ inline void ideKey(IdeState& ide, const Keys& k) {
                     closer);
     }
   }
+  if (!k.typed.empty()) ideTouch(ide, ide.curR);   // the hand wrote here
   if (k.back && !selEdit) {
     // backspace between an empty pair removes BOTH halves — the pair
     // was born together, it dies together
@@ -2406,14 +2572,17 @@ inline void ideKey(IdeState& ide, const Keys& k) {
       line.erase(line.begin() + ide.curC);
       line.erase(line.begin() + (ide.curC - 1));
       --ide.curC;
+      ideTouch(ide, ide.curR);
     }
-    else if (ide.curC > 0) { line.erase(line.begin() + ide.curC - 1); --ide.curC; }
+    else if (ide.curC > 0) { line.erase(line.begin() + ide.curC - 1); --ide.curC; ideTouch(ide, ide.curR); }
     else if (ide.curR > 0) {                       // join with previous line
       ide.curC = static_cast<int>(L[static_cast<size_t>(ide.curR - 1)].size());
       L[static_cast<size_t>(ide.curR - 1)] += line;
       L.erase(L.begin() + ide.curR);
       ideMarkErase(ide, ide.curR, 1);              // the joined line's pin goes
+      ideTouchErase(ide, ide.curR, 1);             // its touch goes with it
       --ide.curR;
+      ideTouch(ide, ide.curR);                     // the seam holds both lives
     }
   }
   if (k.tab || k.backTab) {                    // tab and shift+tab: the
@@ -2426,12 +2595,13 @@ inline void ideKey(IdeState& ide, const Keys& k) {
         std::string& l = L[static_cast<size_t>(r)];
         if (k.tab) {
           l.insert(0, 4, ' ');
+          ideTouch(ide, r);
         } else {
           int cutn = 0;                        // up to four honest spaces
           while (cutn < 4 && cutn < static_cast<int>(l.size()) &&
                  l[static_cast<size_t>(cutn)] == ' ')
             ++cutn;
-          if (cutn > 0) l.erase(0, static_cast<size_t>(cutn));
+          if (cutn > 0) { l.erase(0, static_cast<size_t>(cutn)); ideTouch(ide, r); }
         }
       }
       ide.dirty = true;                        // the game hears about it
@@ -2446,6 +2616,7 @@ inline void ideKey(IdeState& ide, const Keys& k) {
         idePushUndo(ide, "dedent");
         cur.erase(0, static_cast<size_t>(cutn));
         ide.curC = std::max(0, ide.curC - cutn);
+        ideTouch(ide, ide.curR);
         ide.dirty = true;
         ide.idle = 0;
       }
@@ -2467,9 +2638,14 @@ inline void ideKey(IdeState& ide, const Keys& k) {
         if (block->size() > 1)                   // pins beneath the boiler
           ideMarkShift(ide, ide.curR + 1,        // plate slide down with it
                        static_cast<int>(block->size()) - 1);
+        if (block->size() > 1)                   // the census rides the boiler
+          ideTouchShift(ide, ide.curR + 1,
+                        static_cast<int>(block->size()) - 1);
         for (size_t i = 1; i < block->size(); ++i)
           L.insert(L.begin() + ide.curR + static_cast<long>(i), (*block)[i]);
         L[static_cast<size_t>(ide.curR) + block->size() - 1] += tail;
+        for (size_t i = 0; i < block->size(); ++i)
+          ideTouch(ide, ide.curR + static_cast<int>(i));  // the boiler touched
         ide.curR += static_cast<int>(block->size()) - 1;
         ide.curC = static_cast<int>(L[static_cast<size_t>(ide.curR)].size()) -
                    static_cast<int>(tail.size());
@@ -2483,6 +2659,7 @@ inline void ideKey(IdeState& ide, const Keys& k) {
           cur2.insert(static_cast<size_t>(std::min(ide.curC, static_cast<int>(cur2.size()))),
                       4, ' ');
           ide.curC += 4;
+          ideTouch(ide, ide.curR);
         } else {
           if (!(ide.lastTyping && quick)) idePushUndo(ide, "tab");
           else ide.redo.clear();
@@ -2490,6 +2667,7 @@ inline void ideKey(IdeState& ide, const Keys& k) {
           cur2.insert(static_cast<size_t>(std::min(ide.curC, static_cast<int>(cur2.size()))),
                       4, ' ');
           ide.curC += 4;
+          ideTouch(ide, ide.curR);
           ide.lastTyping = true;
           ide.lastBack = false;
         }
@@ -2526,10 +2704,17 @@ inline void ideKey(IdeState& ide, const Keys& k) {
       L.insert(L.begin() + ide.curR + 2, base + rest); // the closer keeps its
                                                        // ground at the base
       ideMarkShift(ide, ide.curR + 1, 2);              // pins slide down
+      ideTouchShift(ide, ide.curR + 1, 2);             // the census rides too
+      ideTouch(ide, ide.curR);                         // the head kept the opener
+      ideTouch(ide, ide.curR + 1);                     // the middle is fresh
+      ideTouch(ide, ide.curR + 2);                     // the closer's ground
       ++ide.curR;                              // the cursor takes the middle
     } else {
       L.insert(L.begin() + ide.curR + 1, indent + rest);
       ideMarkShift(ide, ide.curR + 1, 1);
+      ideTouchShift(ide, ide.curR + 1, 1);
+      ideTouch(ide, ide.curR);                         // the head was cut
+      ideTouch(ide, ide.curR + 1);                     // the tail is fresh
       ++ide.curR;
     }
     ide.curC = static_cast<int>(indent.size());
@@ -2573,10 +2758,13 @@ inline void ideKey(IdeState& ide, const Keys& k) {
     std::string& cur = L[static_cast<size_t>(ide.curR)];
     if (ide.curC < static_cast<int>(cur.size())) {
       cur.erase(cur.begin() + ide.curC);
+      ideTouch(ide, ide.curR);
     } else if (ide.curR + 1 < static_cast<int>(L.size())) {
       cur += L[static_cast<size_t>(ide.curR) + 1];
       L.erase(L.begin() + ide.curR + 1);     // join the next line up
       ideMarkErase(ide, ide.curR + 1, 1);    // its pin rides out
+      ideTouchErase(ide, ide.curR + 1, 1);   // its touch rides out too
+      ideTouch(ide, ide.curR);               // the seam holds both lives
     }
   }
   if (k.ctrlD) {                             // duplicate — the cursor line
@@ -2590,6 +2778,9 @@ inline void ideKey(IdeState& ide, const Keys& k) {
       const std::vector<std::string> copy(L.begin() + r0, L.begin() + r1 + 1);
       L.insert(L.begin() + r1 + 1, copy.begin(), copy.end());
       ideMarkShift(ide, r1 + 1, count);      // pins beneath the copy slide
+      ideTouchShift(ide, r1 + 1, count);     // the census rides them
+      for (int r = r1 + 1; r <= r1 + count; ++r)
+        ideTouch(ide, r);                    // the copies are the fresh work
       ide.curR += count;
       if (ide.anchorR >= 0) ide.anchorR += count;   // the selection rides
     } else {
@@ -2597,7 +2788,9 @@ inline void ideKey(IdeState& ide, const Keys& k) {
       const std::string cur = L[static_cast<size_t>(ide.curR)];
       L.insert(L.begin() + ide.curR + 1, cur);
       ideMarkShift(ide, ide.curR + 1, 1);    // pins beneath the copy slide
+      ideTouchShift(ide, ide.curR + 1, 1);   // the census rides them
       ++ide.curR;                            // the copy takes your place
+      ideTouch(ide, ide.curR);               // and it is the fresh work
     }
   }
   if (k.delWord) {                           // ctrl+w: eat the word behind you
@@ -2617,6 +2810,7 @@ inline void ideKey(IdeState& ide, const Keys& k) {
       cur.erase(static_cast<size_t>(from),
                 static_cast<size_t>(ide.curC - from));
       ide.curC = from;
+      ideTouch(ide, ide.curR);               // the bite is a touch
     }
   }
   if (k.delWordFwd) {                        // ctrl+del: eat the word ahead
@@ -2638,9 +2832,11 @@ inline void ideKey(IdeState& ide, const Keys& k) {
       while (to < static_cast<int>(cur.size()) &&
              ideWordChar(cur[static_cast<size_t>(to)]))
         ++to;
-    if (to > ide.curC)
+    if (to > ide.curC) {
       cur.erase(static_cast<size_t>(ide.curC),
                 static_cast<size_t>(to - ide.curC));
+      ideTouch(ide, ide.curR);               // the bite is a touch
+    }
   }
   if (k.comment) {                           // ctrl+/: the line talks or hushes
                                              // — across a selection, EVERY
@@ -2667,9 +2863,11 @@ inline void ideKey(IdeState& ide, const Keys& k) {
           size_t cut = first + bare.size();
           if (cut < l.size() && l[cut] == ' ') ++cut;
           l.erase(first, cut - first);
+          ideTouch(ide, r);
         } else {
           const size_t at = first == std::string::npos ? l.size() : first;
           l.insert(l.begin() + static_cast<long>(at), pre.begin(), pre.end());
+          ideTouch(ide, r);
         }
       }
       ide.curR = (*sel)[2];                  // rest at the range's end
@@ -2691,11 +2889,13 @@ inline void ideKey(IdeState& ide, const Keys& k) {
         cur.erase(first, removed);
         if (ide.curC > static_cast<int>(first))
           ide.curC = std::max(static_cast<int>(first), ide.curC - removed);
+        ideTouch(ide, ide.curR);
       } else {
         // plain code: the prefix lands after the leading whitespace
         const size_t at = first == std::string::npos ? cur.size() : first;
         cur.insert(cur.begin() + static_cast<long>(at), pre.begin(), pre.end());
         ide.curC += static_cast<int>(pre.size());
+        ideTouch(ide, ide.curR);
       }
     }
     ide.dirty = true;                        // the game hears about it
