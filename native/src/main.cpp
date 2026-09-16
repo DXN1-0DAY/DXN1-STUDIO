@@ -1082,6 +1082,7 @@ int main(int argc, char** argv) {
       ide.path = "untitled.py";
       ide.lines = starterLines();
       ide.console.push_back("engine: you start with nothing — edit, then ctrl+r");
+      dxn3::ideRecentPush(ide.recent, ide.path);
     } else if (!hostOverride.empty() || isScriptFile(scenePath)) {
       ideBoot = true;
       ide.path = scenePath;
@@ -1100,6 +1101,7 @@ int main(int argc, char** argv) {
                               " is new — starter loaded, ctrl+s writes it");
       }
     }
+    dxn3::ideRecentPush(ide.recent, ide.path);   // the boot doc, remembered
   }
 
   dxn3::Scene bootScene;
@@ -1272,6 +1274,42 @@ int main(int argc, char** argv) {
     ide.idle = 0;
     ide.console.push_back("engine: template — " + name + " (" +
                           tpls[idx].ext + ", ctrl+n again to cycle)");
+    dxn3::ideRecentPush(ide.recent, ide.path);
+  };
+
+  // any script becomes the live document — :open and :recent share one
+  // honest path: read it, take the stage, remember it in the ledger
+  auto openScript = [&](const std::string& path) -> std::string {
+    std::ifstream f(path, std::ios::binary);
+    if (!f.good()) return "no such file: " + path;
+    host.stop();                     // a new document owns the stage
+    ide.hostUp = false;
+    ide.lines.clear();
+    std::string ln;
+    while (std::getline(f, ln)) {
+      if (!ln.empty() && ln.back() == '\r') ln.pop_back();
+      ide.lines.push_back(ln);
+    }
+    if (ide.lines.empty()) ide.lines.push_back("");
+    ide.path = path;
+    ide.undo.clear();                // a new document, a fresh history
+    ide.redo.clear();
+    ide.lastTyping = ide.lastBack = false;
+    ide.curR = ide.curC = ide.top = 0;
+    dxn3::ideSelClear(ide);          // no stale selection rides along
+    ide.hcol = 0;
+    ide.tpl = -1;
+    ide.findOpen = false;            // the searchlight rests
+    ide.findQ.clear();
+    ide.findHits.clear();
+    ide.findSel = -1;
+    ide.open = true;                 // the studio takes the stage
+    ide.dirty = true;
+    ide.idle = 0;
+    dxn3::ideRecentPush(ide.recent, path);
+    ide.console.push_back("engine: opened " + path);
+    game.say("open " + path, 1.6);
+    return "";
   };
   auto nextTemplate = [&]() {
     ide.tpl = (ide.tpl + 1) % nTpl;
@@ -1434,37 +1472,39 @@ int main(int argc, char** argv) {
             loadTemplate(hit);
           }
         } else if (cmd.verb == "open") {
-          // any script on this machine becomes the live document
-          std::ifstream f(cmd.arg, std::ios::binary);
-          if (!f.good()) {
-            cmdErr = "no such file: " + cmd.arg;
-            cmdErrT = 3.5f;
-          } else {
-            host.stop();                     // a new document owns the stage
-            ide.hostUp = false;
-            ide.lines.clear();
-            std::string ln;
-            while (std::getline(f, ln)) {
-              if (!ln.empty() && ln.back() == '\r') ln.pop_back();
-              ide.lines.push_back(ln);
+          const std::string err = openScript(cmd.arg);
+          if (!err.empty()) { cmdErr = err; cmdErrT = 3.5f; }
+        } else if (cmd.verb == "recent") {
+          if (cmd.arg.empty()) {
+            if (!ide.open) ide.open = true;  // the stage, for the reading
+            // the ledger, read aloud: most recent first, six deep
+            if (ide.recent.empty()) {
+              ide.console.push_back(
+                  "engine: the ledger is empty — :open something first");
+            } else {
+              std::string list = "engine: recent —";
+              for (size_t i = 0; i < ide.recent.size() && i < 6; ++i)
+                list += " " + std::to_string(i + 1) + ") " + ide.recent[i];
+              ide.console.push_back(list);
             }
-            if (ide.lines.empty()) ide.lines.push_back("");
-            ide.path = cmd.arg;
-            ide.undo.clear();                // a new document, a fresh history
-            ide.redo.clear();
-            ide.lastTyping = ide.lastBack = false;
-            ide.curR = ide.curC = ide.top = 0;
-            dxn3::ideSelClear(ide);          // no stale selection rides along
-            ide.hcol = 0;
-            ide.tpl = -1;
-            ide.findOpen = false;            // the searchlight rests
-            ide.findQ.clear();
-            ide.findHits.clear();
-            ide.findSel = -1;
-            ide.open = true;                 // the studio takes the stage
-            ide.dirty = true;
-            ide.idle = 0;
-            game.say("open " + cmd.arg, 1.6);
+          } else {
+            const std::string resolved =
+                dxn3::ideRecentResolve(ide.recent, cmd.arg);
+            if (resolved.empty()) {
+              std::string list;
+              for (const auto& p : ide.recent)
+                if (p.rfind(cmd.arg, 0) == 0)
+                  list += (list.empty() ? "" : " · ") + p;
+              cmdErr = "ambiguous recent '" + cmd.arg + "' — " + list;
+              cmdErrT = 4.f;
+            } else if (std::find(ide.recent.begin(), ide.recent.end(),
+                                 resolved) == ide.recent.end()) {
+              cmdErr = "no such recent file: " + cmd.arg;
+              cmdErrT = 3.5f;
+            } else {
+              const std::string err = openScript(resolved);
+              if (!err.empty()) { cmdErr = err; cmdErrT = 3.5f; }
+            }
           }
         } else if (cmd.verb == "goto") {
           // jump the editor to a line — ctrl+g's sibling for lines
@@ -1566,7 +1606,7 @@ int main(int argc, char** argv) {
           game.scene.gravity = cmd.num;
           game.say("gravity " + std::to_string(static_cast<int>(cmd.num)), 1.2);
         } else if (cmd.verb == "help") {
-          game.say(":scene :open :template :snip :goto :ruler :minimap :stats :zoom "
+          game.say(":scene :open :recent :template :snip :goto :ruler :minimap :stats :zoom "
                     ":fit :reset :new :w :wq :q :screenshot :magnet :gravity", 4.f);
         }
       } else {
@@ -1725,7 +1765,7 @@ int main(int argc, char** argv) {
           keys.sUp || keys.sDown || keys.sLeft || keys.sRight ||
           keys.sWLeft || keys.sWRight)
         ide.idle = 0;
-      if (keys.scroll != 0) { dxn3::ideScroll(ide, keys.scroll); fprintf(stderr, "[AFTER top=%d cur=%d open=%d]", ide.top, ide.curR, ide.open ? 1 : 0); }   // the wheel
+      if (keys.scroll != 0) dxn3::ideScroll(ide, keys.scroll);   // the wheel
                                                 // and the ctrl+↑/↓ nudge
       if (keys.ctrlS) {
         std::string err;

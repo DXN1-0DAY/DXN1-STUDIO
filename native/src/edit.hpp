@@ -112,6 +112,9 @@ struct IdeState {
   // the drag: where the left button went DOWN (−1 = up). Motion while
   // it is set drags the selection from the press to the hand.
   int pressR = -1, pressC = -1;
+  // the ledger: the files this studio had open, most recent first —
+  // :recent lists and reopens them
+  std::vector<std::string> recent;
   // the minimap: a compressed map of the whole document riding the
   // editor pane's right edge (drawn only when the terminal has room;
   // :minimap toggles it)
@@ -772,7 +775,6 @@ inline bool ideClosesBlock(const std::string& s) {
 // rides along with it. Looking around never dirties the doc.
 inline void ideScroll(IdeState& s, int delta) {
   if (delta == 0) return;
-  fprintf(stderr, "[SCROLL d=%d top=%d cur=%d page=%d lines=%d]", delta, s.top, s.curR, s.page, (int)s.lines.size());
   const int page = s.page > 0 ? s.page : 1;
   // the SAME max the draw clamps to (a full last page) — a disagreeing
   // max here made the top oscillate and the wheel die after one notch
@@ -782,6 +784,49 @@ inline void ideScroll(IdeState& s, int delta) {
   if (s.curR >= s.top + page) s.curR = s.top + page - 1; // …or the bottom
   ideClamp(s);
   s.idle = 0;
+}
+
+// ── the ledger: the files you had open, most recent first ───────────
+// The studio remembers so you don't have to: :recent lists them,
+// :recent <prefix> reopens. A path seen again moves to the front;
+// the ledger keeps twelve names, no more.
+inline void ideRecentPush(std::vector<std::string>& recent,
+                          const std::string& path) {
+  if (path.empty()) return;
+  for (size_t i = 0; i < recent.size(); ++i)
+    if (recent[i] == path) {
+      recent.erase(recent.begin() + static_cast<long>(i));
+      break;
+    }
+  recent.insert(recent.begin(), path);
+  if (recent.size() > 12) recent.resize(12);
+}
+
+// what ":recent <arg>" meant: an exact name wins, a UNIQUE prefix
+// resolves, an ambiguous prefix returns "" (the caller lists the
+// matches), and a ghost passes through unchanged — refused upstream,
+// honestly.
+inline std::string ideRecentResolve(const std::vector<std::string>& recent,
+                                    const std::string& arg) {
+  for (const auto& p : recent)
+    if (p == arg) return p;
+  auto basename = [](const std::string& p) {
+    const size_t slash = p.find_last_of('/');
+    return slash == std::string::npos ? p : p.substr(slash + 1);
+  };
+  std::string hit;
+  int hits = 0;
+  for (const auto& p : recent) {
+    // the hand thinks in file names: the full path OR its basename
+    // may carry the prefix
+    if (p.rfind(arg, 0) == 0 || basename(p).rfind(arg, 0) == 0) {
+      hit = p;
+      ++hits;
+    }
+  }
+  if (hits == 1) return hit;
+  if (hits > 1) return "";
+  return arg;
 }
 
 // ── the minimap: the whole document, compressed, at a glance ────────

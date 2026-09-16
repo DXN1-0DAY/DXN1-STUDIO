@@ -1,3 +1,26 @@
+## v3.0.27 — the ledger
+
+- **:recent — the studio remembers.** Every document this studio has
+  hosted (the boot file, every template, every `:open`) lives in a
+  twelve-name ledger, most recent first. `:recent` reads it aloud in
+  the console rail; `:recent <prefix>` reopens — an exact name wins,
+  a unique prefix (of the path OR the bare file name — hands think
+  in file names) resolves, an ambiguous prefix lists its matches,
+  and a ghost is refused honestly with a flash. Reopening a file
+  moves it back to the front; the ledger never grows past twelve.
+  One honest code path (`openScript`) serves both `:open` and
+  `:recent`, so the stage-taking, the searchlight reset and the
+  ledger-keeping can never drift apart.
+- Selftest: group 39 (most-recent-first, dedup-to-front, the
+  twelve-name cap, empty paths ignored, exact/unique/ambiguous/
+  ghost resolution) — 336 → 344. Smoke: 90 → 94 checks — :open a
+  real file, the ledger lists it, `recent bounce` reopens it, a
+  ghost is refused.
+- QA note: a refusal flash renders on the bottom row — which the
+  IDE's console rail paints over. The verb therefore only takes the
+  stage when it has something to SHOW (the list); refusals flash in
+  play mode where they can be seen.
+
 ## v3.0.26 — the drag
 
 - **Drag selects.** Button-motion tracking (`?1002h`, off at exit)

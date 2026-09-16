@@ -76,8 +76,9 @@ inline Cmd parseCommand(std::string_view line) {
     number(0.f, 400.f, "usage: :magnet <pixels 0..400>");
   } else if (c.verb == "gravity") {
     number(-5000.f, 5000.f, "usage: :gravity <force -5000..5000>");
-  } else if (c.verb == "w" || c.verb == "screenshot") {
-    // optional path argument — both fine
+  } else if (c.verb == "w" || c.verb == "screenshot" ||
+             c.verb == "recent") {
+    // optional path argument — all fine
   } else if (c.verb == "open") {
     needsArg("usage: :open <script file> — py, js, cpp, any language you have");
   } else if (c.verb == "snip") {
@@ -140,7 +141,7 @@ inline std::string usageHintFor(std::string_view typed) {
   if (!typed.empty() && typed.front() == ':') typed.remove_prefix(1);
   while (!typed.empty() && typed.front() == ' ') typed.remove_prefix(1);
   if (typed.empty())
-    return " verbs: scene open template snip goto zoom fit reset ruler stats minimap w wq q screenshot magnet gravity help";
+    return " verbs: scene open recent template snip goto zoom fit reset ruler stats minimap w wq q screenshot magnet gravity help";
   const size_t sp = typed.find(' ');
   const std::string verb(sp == std::string_view::npos ? typed
                                                       : typed.substr(0, sp));
@@ -148,6 +149,7 @@ inline std::string usageHintFor(std::string_view typed) {
   if (verb == "zoom") return " :zoom in | out | <0.3-4>";
   if (verb == "fit") return " :fit — zoom to fit the scene";
   if (verb == "open") return " :open <file> — load a script into the studio";
+  if (verb == "recent") return " :recent [name] — reopen a file you had open";
   if (verb == "snip")
     return " :snip <name> — fn tick key hit start loop ifelse class try imports main";
   if (verb == "template")

@@ -199,7 +199,7 @@ int main() {
   }
 
   // 9. the version quad rides in the binary too
-  ok(std::string(dxn3::DXN3_VERSION) == "3.0.26",
+  ok(std::string(dxn3::DXN3_VERSION) == "3.0.27",
      "native version constant matches the release quad");
 
   // 10. png writer: checksum vectors, real structure, byte determinism
@@ -1820,6 +1820,36 @@ int main() {
     dxn3::ideKey(d2, rk2);
     ok(!dxn3::ideSelRange(d2).has_value() && d2.pressR == -1,
        "click-press-release selects nothing (standard)");
+  }
+
+  // 39. the ledger: the studio remembers what you had open
+  {
+    std::vector<std::string> r;
+    dxn3::ideRecentPush(r, "a.py");
+    dxn3::ideRecentPush(r, "b.js");
+    dxn3::ideRecentPush(r, "c.cpp");
+    ok(r.size() == 3 && r[0] == "c.cpp" && r[2] == "a.py",
+       "the ledger is most-recent-first");
+    dxn3::ideRecentPush(r, "a.py");          // seen again: to the front
+    ok(r.size() == 3 && r[0] == "a.py" && r[2] == "b.js",
+       "a path seen again moves to the front, no duplicate");
+    for (int i = 0; i < 15; ++i)
+      dxn3::ideRecentPush(r, "file" + std::to_string(i) + ".py");
+    ok(r.size() == 12 && r[0] == "file14.py",
+       "the ledger keeps twelve names, no more");
+    dxn3::ideRecentPush(r, "");              // an empty path is ignored
+    ok(r.size() == 12, "an empty path never enters the ledger");
+
+    std::vector<std::string> small{"untitled-flappy.py", "game.js",
+                                   "untitled.py"};
+    ok(dxn3::ideRecentResolve(small, "game.js") == "game.js",
+       "an exact name resolves to itself");
+    ok(dxn3::ideRecentResolve(small, "game") == "game.js",
+       "a unique basename prefix resolves whole");
+    ok(dxn3::ideRecentResolve(small, "untitled") == "",
+       "an ambiguous prefix is refused (two untitled files)");
+    ok(dxn3::ideRecentResolve(small, "ghost.py") == "ghost.py",
+       "a ghost passes through for the honest refusal upstream");
   }
 
   if (fails == 0) {

@@ -1,3 +1,5 @@
+:recent
+:recent ghost.py
 // bounce.js — pong-alone: a ball, walls, a paddle YOU steer, bricks to break.
 // run it from the studio:   dxn3 sdk/examples/bounce.js
 const dxn3 = require("dxn3");
