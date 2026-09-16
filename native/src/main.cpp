@@ -1285,6 +1285,8 @@ int main(int argc, char** argv) {
   int shotSeq = 0;
   bool cmdOpen = false;
   std::string cmdBuf, cmdErr;
+  bool macroPlaying = false;             // the register's playback is live
+  size_t macroIx = 0;                    // the register's walk
   float cmdErrT = 0;
   auto defaultShot = [&]() {
     std::string base = game.scene.name.empty() ? "scene" : game.scene.name;
@@ -1586,20 +1588,14 @@ int main(int argc, char** argv) {
                                      // belong to it, never to the IDE
     cols0 = cols; rows0 = rows;
 
-    // live refresh: edits settle for a beat, then your code runs again
-    if (ide.open) {
-      ide.idle += dt;
-      if (ide.dirty && ide.idle > 0.6) ideRun();
-    }
-
-    if (cmdOpen) {                       // the command bar owns the keyboard
-      if (keys.esc) cmdOpen = false;
-      else if (keys.back) { if (!cmdBuf.empty()) cmdBuf.pop_back(); }
-      else if (keys.enter) {
-        cmdBuf += keys.typed;      // a paste that lands with enter counts
-        const dxn3::Cmd cmd = dxn3::parseCommand(cmdBuf);
-        cmdOpen = false;
-        cmdBuf.clear();
+  // the verb dispatch: ONE law for the bar's enter and the macro's
+  // playback — parse the line, walk the chain, take the stage. Returns
+  // true when the verb asks the studio to quit (:q, :wq).
+  auto runCommand = [&](const std::string& line) -> bool {
+    const dxn3::Cmd cmd = dxn3::parseCommand(line);
+    if (cmd.ok() && ide.recording && cmd.verb != "record" &&
+        cmd.verb != "macro")
+      ide.macro.push_back(line);         // the recorder keeps the raw line
         if (!cmd.ok()) { cmdErr = cmd.error; cmdErrT = 3.5f; }
         else if (cmd.verb == "scene") {
           // by name, honestly: unique prefix resolves, ambiguity lists,
@@ -2101,6 +2097,48 @@ int main(int argc, char** argv) {
                 "engine: no such touch — :changes lists " +
                 std::to_string(ide.touched.size()));
           }
+        } else if (cmd.verb == "record") {
+          // the recorder: :record starts (the register empties), every
+          // well-formed verb joins, :record ends it. A session fact —
+          // the register survives opens and reloads.
+          takeStage();
+          ide.recording = !ide.recording;
+          if (ide.recording) {
+            ide.macro.clear();
+            ide.console.push_back(
+                "engine: recording — every verb you run joins the macro "
+                "(:record ends it)");
+          } else {
+            ide.console.push_back(
+                ide.macro.empty()
+                    ? "engine: the recorder rests — an empty macro"
+                    : "engine: the recorder rests — " +
+                          std::to_string(ide.macro.size()) +
+                          " verb" +
+                          (ide.macro.size() == 1 ? "" : "s") +
+                          " in the macro — :macro plays it");
+          }
+        } else if (cmd.verb == "macro") {
+          // the replay: the register's lines walk through the SAME
+          // dispatch, one per frame, in the order they were recorded.
+          takeStage();
+          if (ide.recording) {
+            cmdErr = "the recorder is live — :record ends it first";
+            cmdErrT = 3.5f;
+          } else if (ide.macro.empty()) {
+            ide.console.push_back(
+                "engine: nothing recorded — :record starts a macro");
+          } else if (macroPlaying) {
+            cmdErr = "the macro is already playing";
+            cmdErrT = 3.5f;
+          } else {
+            macroPlaying = true;
+            macroIx = 0;
+            ide.console.push_back(
+                "engine: playing " + std::to_string(ide.macro.size()) +
+                " verb" + (ide.macro.size() == 1 ? "" : "s") +
+                " — the register runs in the order it was recorded");
+          }
         } else if (cmd.verb == "fresh") {
           // the disk's truth wins the page back — :e!'s twin. A reload
           // is a REOPEN: it walks the one openScript path, so the
@@ -2199,15 +2237,15 @@ int main(int argc, char** argv) {
         } else if (cmd.verb == "wq") {
           if (ideEver) {
             std::string err;
-            if (ideSave(ide, &err)) break;   // the save is the sleep
+            if (ideSave(ide, &err)) return true;   // the save is the sleep
             cmdErr = err; cmdErrT = 3.5f;    // a failed pen never quits
           } else {
             const std::string err = dxn3::Game::saveScene(scenePath, game.scene);
-            if (err.empty()) break;
+            if (err.empty()) return true;
             cmdErr = err; cmdErrT = 3.5f;
           }
         } else if (cmd.verb == "q") {
-          break;
+          return true;
         } else if (cmd.verb == "screenshot") {
           doShot(cmd.arg);
         } else if (cmd.verb == "magnet") {
@@ -2221,7 +2259,7 @@ int main(int argc, char** argv) {
                                                // a law, not a suggestion
           if (cmd.arg.empty()) {
             game.say(":scene :open :recent :template :snip :goto :jumps :changes :fresh :mark :marks :bm :ruler :minimap :zen :relnum :trim :cases :sort :rsort :rev :uniq :shuffle :indent :dedent :lift :drop :dup :join :upper :lower :title :hist :undo :redo :words :todo :stats "
-                     ":zoom :fit :reset :new :w :wq :q :screenshot :magnet :gravity — or :help <verb>",
+                     ":record :macro :zoom :fit :reset :new :w :wq :q :screenshot :magnet :gravity — or :help <verb>",
                      4.f);
           } else {
             // one verb's law: the SAME whisper the bar speaks while you
@@ -2234,6 +2272,40 @@ int main(int argc, char** argv) {
               ide.console.push_back("engine:" + hint);
           }
         }
+
+    return false;
+  };
+
+    // live refresh: edits settle for a beat, then your code runs again
+    if (ide.open) {
+      ide.idle += dt;
+      if (ide.dirty && ide.idle > 0.6) ideRun();
+    }
+
+    // the macro's playback: one verb per frame, the register walked in
+    // order, each line through the SAME dispatch the bar speaks. The
+    // frame paces the deal.
+    if (macroPlaying && !cmdOpen) {
+      if (macroIx >= ide.macro.size()) {
+        macroPlaying = false;
+        ide.console.push_back(
+            "engine: the macro ran — " + std::to_string(ide.macro.size()) +
+            " verb" + (ide.macro.size() == 1 ? "" : "s") + ", done");
+      } else {
+        const std::string line = ide.macro[macroIx++];
+        if (runCommand(line)) break;
+      }
+    }
+
+    if (cmdOpen) {                       // the command bar owns the keyboard
+      if (keys.esc) cmdOpen = false;
+      else if (keys.back) { if (!cmdBuf.empty()) cmdBuf.pop_back(); }
+      else if (keys.enter) {
+        cmdBuf += keys.typed;      // a paste that lands with enter counts
+        cmdOpen = false;
+        const std::string line = cmdBuf;   // the clear must not eat the verb
+        cmdBuf.clear();
+        if (runCommand(line)) break;
       } else {
         cmdBuf += keys.typed;
         if (cmdBuf.size() > 120) cmdBuf.resize(120);

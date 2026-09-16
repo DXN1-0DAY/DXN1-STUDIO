@@ -1168,6 +1168,30 @@ def main():
               (scr2.text(1), scr2.text(2), scr2.text(3)) == first,
               repr(scr2.text(1)[:14] + " vs " + first[0][:14]))
 
+        # ── 13k. the register — :record captures, :macro replays ─────
+        print("── 13k. :record / :macro — the verb register, replayed")
+        scr2, _ = s2.run_verb("record", "ide")
+        check(":record starts the recorder",
+              "recording — every verb you run joins the macro" in
+              scr2.text(ROWS - 2),
+              repr(scr2.text(ROWS - 2)[:70]))
+        s2.run_verb("stats", "ide")            # two verbs join the register
+        s2.run_verb("words", "ide")
+        scr2, _ = s2.run_verb("record", "ide")
+        check("the second :record ends it and counts the register",
+              "the recorder rests — 2 verbs in the macro" in
+              scr2.text(ROWS - 2),
+              repr(scr2.text(ROWS - 2)[:70]))
+        scr2, _ = s2.run_verb("macro", "ide")
+        check(":macro replays — two 60fps frames land inside the first",
+              "the macro ran — 2 verbs, done" in scr2.text(ROWS - 2),
+              repr(scr2.text(ROWS - 2)[:70]))
+        s2.settle(0.6)                         # one verb per frame: 2 frames
+        scr2 = s2.screen()
+        check("the register ran to its end (the replay's last receipt)",
+              "the macro ran — 2 verbs, done" in scr2.text(ROWS - 2),
+              repr(scr2.text(ROWS - 2)[:70]))
+
         s2.send(ESC)
         time.sleep(0.3)
         s2.send("q")

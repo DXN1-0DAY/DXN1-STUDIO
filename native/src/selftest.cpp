@@ -199,7 +199,7 @@ int main() {
   }
 
   // 9. the version quad rides in the binary too
-  ok(std::string(dxn3::DXN3_VERSION) == "3.0.76",
+  ok(std::string(dxn3::DXN3_VERSION) == "3.0.77",
      "native version constant matches the release quad");
 
   // 10. png writer: checksum vectors, real structure, byte determinism
@@ -3829,6 +3829,30 @@ int main() {
        "the verb's hint is the bar's own law, spoken in full");
     ok(dxn3::usageHintFor("nosuchverb").empty(),
        "an unknown verb whispers nothing — the caller refuses");
+  }
+
+  // 82. the macro register: the recorder and the replay are verbs with
+  // the no-arg law; the register itself is session state (the engine's
+  // walk is main's — the smoke drives it through the pty).
+  {
+    const auto m1 = dxn3::parseCommand(":record");
+    ok(m1.ok() && m1.arg.empty(), ":record takes no argument");
+    const auto m2 = dxn3::parseCommand(":macro");
+    ok(m2.ok() && m2.arg.empty(), ":macro takes no argument");
+    const auto m3 = dxn3::parseCommand(":macro play");
+    ok(!m3.ok(), ":macro with an argument is refused — the register IS the play");
+    ok(dxn3::usageHintFor("record").find("recorder") != std::string::npos,
+       "the recorder's law whispers as you type");
+    IdeState mr;
+    mr.macro = {":trim", ":stats"};
+    mr.recording = true;
+    // the recorder's toggle law, as the handler speaks it: a restart
+    // empties the register (main clears on start)
+    mr.recording = false;
+    mr.recording = true;
+    mr.macro.clear();
+    ok(mr.recording && mr.macro.empty(),
+       "a fresh recording starts from an empty register");
   }
 
 

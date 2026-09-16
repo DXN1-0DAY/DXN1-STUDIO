@@ -1,3 +1,32 @@
+## v3.0.77 — the register (:record captures, :macro replays)
+
+- **`:record` records a macro of verbs.** Start it, run verbs —
+  :trim, :sort, :goto, :stats, any of them — and each well-formed
+  line joins the register verbatim; `:record` again ends it and
+  counts the take ("the recorder rests — 2 verbs in the macro —
+  :macro plays it"). A fresh recording starts from an empty register;
+  the register is a session fact, surviving opens and reloads.
+- **`:macro` replays the register** through the SAME dispatch the
+  bar speaks — one verb per frame, in the order it was recorded,
+  every receipt honest. The replay refuses while the recorder is
+  live, refuses an empty register ("nothing recorded — :record
+  starts a macro"), and announces its end ("the macro ran — 2
+  verbs, done"). The recorder never records itself (:record and
+  :macro are the two meta-verbs).
+- **THE SEAM this release was built on:** the verb dispatch — one
+  600-line if-else chain buried in the bar's enter handler — is now
+  a first-class `runCommand(line)` lambda, the ONE law for the bar's
+  enter AND the macro's playback. The two loop-breaks (:q, :wq)
+  became quit returns. Two dispatch bugs died on the way: a
+  cmdBuf.clear() that ate the verb before the parse (every verb
+  dispatched empty — the zen cascade caught it), and a silent
+  python replace that skipped the recorder capture (the register
+  stayed empty — the 13k checks caught it).
+- Selftest group 82 (5 asserts) 747 -> 752; smoke 13k (4 checks)
+  155 -> 159 — the record, the count, the replay, and the done
+  receipt through the real pty. `:help` lists both verbs; the bar
+  whispers their usage.
+
 ## v3.0.76 — :help <verb> (the bar's whisper, promoted to the console)
 
 - **`:help <verb>` teaches one verb's law.** `:help sort` speaks

@@ -186,6 +186,12 @@ struct IdeState {
   // hand (the vim way) and the hand's own line keeps its true name.
   // :relnum toggles; the absolutes always come back.
   bool relnum = false;
+  // the macro register: the verb lines recorded this session (:record
+  // toggles the recorder, :macro replays the register through the SAME
+  // dispatch the bar speaks). A session fact like the census — the
+  // register survives opens and reloads; :record's start clears it.
+  std::vector<std::string> macro;
+  bool recording = false;
 };
 
 // ── the selection: anchor ↔ cursor, honestly ordered ────────────────

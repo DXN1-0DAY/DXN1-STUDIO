@@ -141,6 +141,7 @@ inline Cmd parseCommand(std::string_view line) {
              c.verb == "hist" || c.verb == "undo" || c.verb == "redo" ||
              c.verb == "words" || c.verb == "todo" ||
              c.verb == "jumps" || c.verb == "relnum" ||
+             c.verb == "record" || c.verb == "macro" ||
              c.verb == "fresh") {
     if (!c.arg.empty())
       c.error = ":" + c.verb + " takes no argument";
@@ -274,6 +275,11 @@ inline std::string usageHintFor(std::string_view typed) {
   if (verb == "changes")
     return " :changes [n] — the lines this session wrote; a bare verb "
            "lists, a number leaps";
+  if (verb == "record")
+    return " :record — the recorder: start, run verbs, :record again to "
+           "end; :macro replays";
+  if (verb == "macro")
+    return " :macro — replay the register in the order it was recorded";
   if (verb == "fresh")
     return " :fresh — the disk's truth wins the page back; the hand "
            "returns where it left";
