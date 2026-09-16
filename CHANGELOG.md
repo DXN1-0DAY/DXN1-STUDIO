@@ -1,3 +1,50 @@
+## v3.0.09 — the engine: your code, our canvas
+
+**The studio becomes an engine IDE**
+- Boot is the **IDE** now: an editor beside a live viewport and a console
+  rail. You start with nothing — the starter is a working shooter in 30
+  lines — you edit, and the viewport refreshes while you type. `Ctrl+R`
+  runs, `Ctrl+S` saves, `esc` plays your game fullscreen, `esc` again
+  returns to the code.
+- **Your game is your program, in your language.** The engine hosts it as
+  a child process speaking line-JSON on stdio (hello → scene → ticks →
+  frames, one page in `sdk/PROTOCOL.md`): Python and JavaScript SDKs ship
+  in `sdk/`, `.cpp` games are compiled and hosted on the spot, and
+  `--host-cmd 'ruby mygame.rb'` hosts literally anything that reads
+  stdin and writes stdout. The engine owns rendering, input, collision;
+  your code owns the rules — shooters, card games, whatever you write.
+- **The ScriptHost** (`native/src/host.hpp`): fork/exec pipes, a
+  fixed-timestep tick with held keys + typed chars + overlap hits, frame
+  patches applied by name (spawn/move/recolor/despawn), game vars mirrored
+  to the HUD, camera taken live. Unparsable child output becomes console
+  lines and SIGPIPE is ignored — a dead game is an honest exit line in
+  the console, never a dead studio.
+- The SDKs are zero-ceremony: define `on_tick(dt)`, `on_key(k)`,
+  `on_hit(a, b)` and call `run()`. print() lands in the console rail.
+  A fresh `dt` is injected into your frame every tick; hits fire on
+  enter, not every frame; re-drawing a name redraws in place.
+- Examples in `sdk/examples/`: `background.py` (the hello world — three
+  lines and the viewport answers), `shooter.py` (move, shoot, score),
+  `bounce.js` (breakout with a steering paddle — proof the JS SDK bites),
+  `cards.py` (balatro-lite hold-and-score — no physics, pure state,
+  proof the engine is not just platformers).
+
+**The engine underneath**
+- Entities gained a real `shape` (rect / circle / tri / text) parsed and
+  round-tripped through the JSON — coins are true discs now, drawn with a
+  rim light, and any entity can be any shape.
+- `:scene level-3` resolves by name — exact or unique prefix; an
+  ambiguous prefix lists the matches instead of guessing, and the
+  command bar whispers the matches while you type.
+- The selftest grew to **81 assertion groups**, including scene-name
+  resolution and **the whole engine end to end: a real Python SDK child
+  hosted through the real protocol** — scene across the pipe, prints in
+  the console, honest exit.
+- The launcher boots the engine IDE from the install root (so `sdk/`
+  resolves for every hosted game); the five-scene campaign is the demo.
+  `--host-cmd`, `--list-scenes` and the installer carry the new story;
+  the version constant tells the truth again (3.0.09 everywhere).
+
 ## v3.0.08 — the campaign: somewhere to go
 
 **The campaign grows: five scenes**

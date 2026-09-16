@@ -3,6 +3,7 @@
 // selftest binary shares it without linking the whole Screen.
 #include "tui.hpp"
 
+#include <algorithm>
 #include <cstdio>
 
 namespace dxn3 {
@@ -14,12 +15,32 @@ void Screen::resize(int c, int r) {
 }
 
 void Screen::clear(RGB bg) {
+  if (vx1_ >= 0) {                          // view mode: clear only the pane
+    for (int y = vy0_; y <= vy1_ && y < halfRows(); ++y) {
+      auto* row = &grid_[static_cast<size_t>(y) * cols];
+      for (int x = vx0_; x <= vx1_ && x < cols; ++x) row[x] = bg;
+    }
+    // drop only the spans INSIDE the pane — the editor's text, drawn
+    // earlier this frame outside the view, must survive the game's clear
+    spans_.erase(std::remove_if(spans_.begin(), spans_.end(),
+                                [this](const Span& s) {
+                                  const int gy0 = s.row * 2, gy1 = gy0 + 1;
+                                  const int gx0 = s.col;
+                                  const int gx1 = s.col +
+                                      static_cast<int>(s.text.size()) - 1;
+                                  return gx1 >= vx0_ && gx0 <= vx1_ &&
+                                         gy1 >= vy0_ && gy0 <= vy1_;
+                                }),
+                 spans_.end());
+    return;
+  }
   std::fill(grid_.begin(), grid_.end(), bg);
   spans_.clear();
 }
 
 void Screen::px(float sx, float sy, RGB c) {
   const int x = static_cast<int>(sx), y = static_cast<int>(sy);
+  if (vx1_ >= 0 && (x < vx0_ || x > vx1_ || y < vy0_ || y > vy1_)) return;
   if (x < 0 || x >= cols || y < 0 || y >= halfRows()) return;
   grid_[static_cast<size_t>(y) * cols + x] = c;
 }
@@ -30,10 +51,12 @@ RGB Screen::at(int gx, int gy) const {
 }
 
 void Screen::rect(float x0, float y0, float x1, float y1, RGB c) {
-  const int ax = std::max(0, static_cast<int>(x0));
-  const int ay = std::max(0, static_cast<int>(y0));
-  const int bx = std::min(cols, static_cast<int>(x1) + 1);
-  const int by = std::min(halfRows(), static_cast<int>(y1) + 1);
+  int ax = std::max(0, static_cast<int>(x0));
+  int ay = std::max(0, static_cast<int>(y0));
+  int bx = std::min(vx1_ >= 0 ? vx1_ + 1 : cols, static_cast<int>(x1) + 1);
+  int by = std::min(vy1_ >= 0 ? vy1_ + 1 : halfRows(), static_cast<int>(y1) + 1);
+  ax = std::min(ax, cols); ay = std::min(ay, halfRows());
+  bx = std::min(bx, cols); by = std::min(by, halfRows());
   for (int y = ay; y < by; ++y) {
     auto* row = &grid_[static_cast<size_t>(y) * cols];
     for (int x = ax; x < bx; ++x) row[x] = c;
@@ -42,13 +65,14 @@ void Screen::rect(float x0, float y0, float x1, float y1, RGB c) {
 
 void Screen::rectGradient(float x0, float y0, float x1, float y1, RGB top, RGB bottom) {
   const int ay = std::max(0, static_cast<int>(y0));
-  const int by = std::min(halfRows(), static_cast<int>(y1) + 1);
+  const int by = std::min(vy1_ >= 0 ? vy1_ + 1 : halfRows(), static_cast<int>(y1) + 1);
   const float h = std::max(1.f, y1 - y0);
+  const int ax = std::max(0, static_cast<int>(x0));
+  const int bx = std::min(vx1_ >= 0 ? vx1_ + 1 : cols, static_cast<int>(x1) + 1);
+  const float anchor = static_cast<float>(static_cast<int>(y0));
   for (int y = ay; y < by; ++y) {
-    const float t = (y - y0) / h;
+    const float t = (static_cast<float>(y) - anchor) / h;
     const RGB c = lerpColor(top, bottom, t);
-    const int ax = std::max(0, static_cast<int>(x0));
-    const int bx = std::min(cols, static_cast<int>(x1) + 1);
     auto* row = &grid_[static_cast<size_t>(y) * cols];
     for (int x = ax; x < bx; ++x) row[x] = c;
   }
@@ -71,8 +95,12 @@ std::string Screen::codepointAt(std::string_view s, size_t& i) {
 void Screen::text(int col, int row, std::string_view utf8, RGB fg) {
   if (row < 0 || row >= rows) return;
   int c = col;
+  const int r = row;
+  if (r < 0 || r >= rows) return;
   for (size_t i = 0; i < utf8.size() && c < cols;) {
-    spans_.push_back({c, row, codepointAt(utf8, i), fg, 0, false});
+    if (vx1_ < 0 || (c >= vx0_ && c <= vx1_))
+      spans_.push_back({c, r, codepointAt(utf8, i), fg, 0, false});
+    else codepointAt(utf8, i);          // clipped cell: still consume UTF-8
     ++c;
   }
 }
@@ -80,8 +108,11 @@ void Screen::text(int col, int row, std::string_view utf8, RGB fg) {
 void Screen::textBg(int col, int row, std::string_view utf8, RGB fg, RGB bg) {
   if (row < 0 || row >= rows) return;
   int c = col;
+  const int r = row;
+  if (r < 0 || r >= rows) return;
   for (size_t i = 0; i < utf8.size() && c < cols;) {
-    spans_.push_back({c, row, codepointAt(utf8, i), fg, bg, true});
+    if (vx1_ < 0 || (c >= vx0_ && c <= vx1_))
+      spans_.push_back({c, r, codepointAt(utf8, i), fg, bg, true});
     ++c;
   }
 }
@@ -91,8 +122,11 @@ void Screen::railBg(int row, RGB c) {
   for (int sub = 0; sub < 2; ++sub) {
     const int gy = row * 2 + sub;
     if (gy >= halfRows()) break;
+    if (vy1_ >= 0 && (gy < vy0_ || gy > vy1_)) continue;
     auto* line = &grid_[static_cast<size_t>(gy) * cols];
-    for (int x = 0; x < cols; ++x) line[x] = c;
+    const int x0 = vx1_ >= 0 ? vx0_ : 0;
+    const int x1 = vx1_ >= 0 ? vx1_ : cols - 1;
+    for (int x = x0; x <= x1; ++x) line[x] = c;
   }
 }
 

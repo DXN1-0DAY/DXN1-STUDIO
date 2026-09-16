@@ -8,6 +8,7 @@
 #include <cmath>
 #include <string>
 #include <string_view>
+#include <vector>
 
 namespace dxn3 {
 
@@ -85,6 +86,40 @@ inline Cmd parseCommand(std::string_view line) {
     c.error = "no such command: " + c.verb + " — :help lists them";
   }
   return c;
+}
+
+// prefix filter for scene names — the completion core, pure and
+// selftestable: candidates whose stem starts with `partial`, in order.
+inline std::vector<std::string> sceneMatches(std::string_view partial,
+                                             const std::vector<std::string>& names) {
+  std::vector<std::string> out;
+  for (const auto& n : names)
+    if (n.rfind(partial, 0) == 0) out.push_back(n);
+  return out;
+}
+
+// scene-name resolution — the campaign by name, honestly.
+// `names` are the bare scene stems ("level-1", …, "playground") as
+// enumerated from scenes/. Given what the user typed, return the scene
+// file path that should load:
+//   - a full path or anything that matches no stem passes through
+//     unchanged (loadScene reports ghosts honestly),
+//   - an exact stem (with or without "scenes/" or ".dxn1.json") and a
+//     UNIQUE prefix of a stem resolve to "scenes/<stem>.dxn1.json",
+//   - an AMBIGUOUS prefix returns "" — the caller lists the matches.
+inline std::string resolveSceneArg(const std::string& arg,
+                                   const std::vector<std::string>& names) {
+  std::string stem = arg;
+  if (stem.rfind("scenes/", 0) == 0) stem.erase(0, 7);
+  const std::string ext = ".dxn1.json";
+  if (stem.size() > ext.size() &&
+      stem.compare(stem.size() - ext.size(), ext.size(), ext) == 0)
+    stem.resize(stem.size() - ext.size());
+  if (stem.empty()) return arg;
+  const auto matches = sceneMatches(stem, names);
+  if (matches.size() == 1) return "scenes/" + matches[0] + ext;
+  if (matches.empty()) return arg;      // a path, or a ghost — both honest
+  return "";                            // ambiguous — list, don't guess
 }
 
 // the whisper: what the bar shows while you type, so the usage is

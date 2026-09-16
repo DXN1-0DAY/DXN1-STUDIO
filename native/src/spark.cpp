@@ -60,6 +60,7 @@ Scene Game::fromJson(const std::string& text) {
       const std::string c2 = e.at("color2").str_or("");
       if (c2.size() >= 7 && c2[0] == '#') { en.color2 = c2; en.fill = "gradient"; }
       en.fill = e.at("fill").str_or(en.fill);
+      en.shape = e.at("shape").str_or(en.shape);
       en.rot = static_cast<float>(e.at("rot").num_or(0));
       en.spin = static_cast<float>(e.at("spin").num_or(0));
       en.tsize = static_cast<float>(e.at("tsize").num_or(20));
@@ -111,6 +112,7 @@ std::string Game::toJson(const Scene& s) {
     o << ", \"color\": \"" << esc(e.color) << "\"";
     if (e.fill == "gradient" && !e.color2.empty())
       o << ", \"color2\": \"" << esc(e.color2) << "\", \"fill\": \"gradient\"";
+    if (e.shape != "rect") o << ", \"shape\": \"" << esc(e.shape) << "\"";
     if (!e.text.empty()) o << ", \"text\": \"" << esc(e.text) << "\", \"tsize\": "
                            << static_cast<int>(e.tsize);
     if (e.rot != 0) o << ", \"rot\": " << e.rot;

@@ -52,6 +52,14 @@ public:
 
   void resize(int c, int r);
   void clear(RGB bg);                   // fill the whole grid
+  // render INTO a sub-region: all px/rect/text writes translate and clamp
+  // to the pane — the IDE hosts the live game view beside the editor.
+  void setView(int x0, int y0, int x1, int y1) {  // x in cols; y in text rows
+    vx0_ = x0; vx1_ = x1;
+    vy0_ = y0 * 2;                                // grid pixels: 2 per row
+    vy1_ = (y1 + 1) * 2 - 1;
+  }
+  void unclip() { vx0_ = 0; vy0_ = 0; vx1_ = -1; vy1_ = -1; }
   void px(float sx, float sy, RGB c);   // plot world pixel (nearest)
   RGB at(int gx, int gy) const;         // read a grid pixel (0 outside)
   void rect(float x0, float y0, float x1, float y1, RGB c);
@@ -67,6 +75,7 @@ public:
 private:
   std::vector<RGB> grid_;               // cols * halfRows
   std::vector<Span> spans_;
+  int vx0_ = 0, vy0_ = 0, vx1_ = -1, vy1_ = -1;   // view region (off = full)
   static void emitColor(std::string& out, RGB fg, RGB bg, RGB& lastFg, RGB& lastBg);
   static std::string codepointAt(std::string_view s, size_t& i);
 };

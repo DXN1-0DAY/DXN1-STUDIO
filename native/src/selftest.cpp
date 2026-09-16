@@ -4,6 +4,7 @@
 #include <print>
 #include <string>
 #include <sys/stat.h>
+#include <fstream>
 
 #include "spark.hpp"
 #include "version.hpp"
@@ -11,6 +12,7 @@
 #include "png.hpp"
 #include "cmd.hpp"
 #include "shot.hpp"
+#include "host.hpp"
 
 using namespace dxn3;
 
@@ -196,7 +198,7 @@ int main() {
   }
 
   // 9. the version quad rides in the binary too
-  ok(std::string(dxn3::DXN3_VERSION) == "3.0.07", "native version constant is 3.0.07");
+  ok(std::string(dxn3::DXN3_VERSION) == "3.0.09", "native version constant is 3.0.09");
 
   // 10. png writer: checksum vectors, real structure, byte determinism
   {
@@ -321,6 +323,128 @@ int main() {
       diff = a[i].x != c[i].x || a[i].y != c[i].y;
     ok(diff, "a different scene seeds a different sky");
     ok(dxn3::hashSeed("") != 0, "hashSeed never returns zero (xorshift seed)");
+  }
+
+  // 15. shapes are data: circles survive the JSON round trip
+  {
+    auto sc = Game::loadScene(repoPath("scenes/playground.dxn1.json"));
+    ok(sc.has_value(), "playground loads for the shape test");
+    if (sc) {
+      bool sawCircle = false;
+      for (const auto& e : sc->entities)
+        if (e.shape == "circle") sawCircle = true;
+      ok(sawCircle, "coin shapes parse as circles");
+      const std::string j = Game::toJson(*sc);
+      ok(j.find("\"shape\": \"circle\"") != std::string::npos,
+         "circle shape round-trips through toJson");
+    }
+  }
+
+  // 16. :scene completion — prefix matches + honest resolution
+  {
+    const std::vector<std::string> names = {"level-1", "level-2", "level-3",
+                                            "level-4", "playground"};
+    ok(dxn3::sceneMatches("level", names).size() == 4,
+       "prefix filter finds the four levels");
+    ok(dxn3::sceneMatches("zz", names).empty(), "no match is empty");
+    ok(dxn3::resolveSceneArg("level-3", names) == "scenes/level-3.dxn1.json",
+       "exact stem resolves to its scene");
+    ok(dxn3::resolveSceneArg("scenes/level-3.dxn1.json", names) ==
+           "scenes/level-3.dxn1.json",
+       "full paths pass through resolved");
+    ok(dxn3::resolveSceneArg("play", names) == "scenes/playground.dxn1.json",
+       "a unique prefix resolves");
+    ok(dxn3::resolveSceneArg("level", names).empty(),
+       "an ambiguous prefix refuses to guess");
+    ok(dxn3::resolveSceneArg("ghost.dxn1.json", names) == "ghost.dxn1.json",
+       "ghosts pass through for an honest error");
+  }
+
+  // 17. the ScriptHost: a REAL child process speaking the protocol
+  {
+    dxn3::ScriptHost h;
+    const std::string shScript =
+        std::string("echo '{\"t\":\"scene\",\"name\":\"sh\",\"bg\":\"#000000\",") +
+        "\"gravity\":0,\"entities\":[{\"name\":\"a\",\"x\":1,\"y\":2," +
+        "\"w\":3,\"h\":4,\"color\":\"#ffffff\",\"visible\":1}]}'\n" +
+        "while read -r line; do echo '{\"t\":\"frame\",\"set\":[]," +
+        "\"vars\":{\"score\":7}}'; done\n";
+    const std::vector<std::string> argv = {"/bin/sh", "-c", shScript};
+    std::string err;
+    ok(h.start(argv, 80, 46, "", &err), "host starts a real child (sh)");
+    dxn3::json::Value sc;
+    for (int i = 0; i < 20 && !h.takeScene(sc); ++i)
+      h.tick(0.016f, false, false, false, false, "");
+    ok(sc.is(dxn3::json::Kind::Obj) && sc.at("name").str_or("") == "sh",
+       "the child's scene packet parses honestly");
+    auto f = h.tick(0.016f, false, false, false, false, "");
+    ok(f.frame && f.vars.at("score").num_or(0) == 7,
+       "frame round-trip carries the child's vars");
+    ok(h.running(), "the child stays alive across ticks");
+    h.stop();
+    ok(!h.running(), "stop() reaps the child and closes the pipes");
+  }
+
+  // 18. the whole engine, end to end: the real Python SDK hosting a game
+  //     — hello → scene → ticks → frames → prints → honest exit
+  {
+    namespace fs = std::filesystem;
+    const bool havePy =
+        std::system("command -v python3 >/dev/null 2>&1") == 0;
+    std::string sdk;                    // the sdk/ dir, from any CWD
+    for (const std::string& prefix : {std::string(""), std::string("../"),
+                                      std::string("../../")})
+      if (fs::exists(prefix + "sdk/dxn3.py")) { sdk = prefix + "sdk"; break; }
+    const bool haveSdk = !sdk.empty();
+    if (havePy && haveSdk) {
+      const std::string gameDir =
+          (fs::temp_directory_path() / "dxn3-selftest").string();
+      fs::create_directories(gameDir);
+      const std::string gamePath = gameDir + "/probe.py";
+      {
+        std::ofstream g(gamePath, std::ios::binary);
+        g << "from dxn3 import *\n"
+             "box = rect(\"box\", 4, 6, 30, 40, \"#ff00ff\")\n"
+             "box.tag = \"box\"\n"
+             "n = [0]\n"
+             "def on_tick(dt2):\n"
+             "    n[0] += 1\n"
+             "    box.x = box.x + 10 * dt2\n"
+             "    if n[0] >= 3:\n"
+             "        print(\"sdk-probe-done\")\n"
+             "        raise SystemExit(0)\n"
+             "run()\n";
+      }
+      dxn3::ScriptHost h;
+      std::string err;
+      const bool up = h.start({"python3", gamePath}, 100, 44, sdk, &err);
+      ok(up, "the real sdk hosts a python game (" + err + ")");
+      dxn3::json::Value sc;
+      bool frame = false;
+      for (int i = 0; i < 60 && !(frame && sc.is(dxn3::json::Kind::Obj)); ++i) {
+        const auto f = h.tick(0.016f, false, false, false, false, "", {}, 200);
+        frame = frame || f.frame;
+        h.takeScene(sc);
+      }
+      ok(sc.is(dxn3::json::Kind::Obj) &&
+             sc.at("entities").arr.size() == 1 &&
+             sc.at("entities").arr[0].at("name").str_or("") == "box",
+         "the sdk's scene crosses the pipe");
+      bool said = false, exited = false;
+      for (int i = 0; i < 30 && !exited; ++i) {
+        const auto f = h.tick(0.016f, false, false, false, false, "", {}, 200);
+        for (const auto& l : h.takeConsole())
+          if (l.find("sdk-probe-done") != std::string::npos) said = true;
+        exited = f.exited;
+      }
+      ok(said, "the game's prints reach the console");
+      ok(exited, "a finished game reports its exit honestly");
+      h.stop();
+      fs::remove_all(gameDir);
+    } else {
+      std::println("   (skip) python3/sdk unavailable on this machine — "
+                   "the e2e sdk group needs both");
+    }
   }
 
   if (fails == 0) {

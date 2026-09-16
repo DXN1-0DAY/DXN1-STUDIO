@@ -21,6 +21,7 @@ struct Entity {
   std::string color = "#8b5cf6";
   std::string color2;                 // gradient end (fill == "gradient")
   std::string fill = "solid";         // solid | gradient
+  std::string shape = "rect";         // rect | circle | tri | text
   float rot = 0, spin = 0, tsize = 20;
   std::vector<Vec2> path;             // mover waypoints (world px)
   float pathSpeed = 60;

@@ -2,7 +2,7 @@
 
 ![DXN1 STUDIO 3](assets/banner.png)
 
-![version](https://img.shields.io/badge/version-3.0.08-8b5cf6?style=flat-square)
+![version](https://img.shields.io/badge/version-3.0.09-8b5cf6?style=flat-square)
 ![gates](https://github.com/DXN1-termux/DXN1-STUDIO/actions/workflows/ci.yml/badge.svg)
 ![native](https://img.shields.io/badge/native-C%2B%2023-f97316?style=flat-square)
 ![face](https://img.shields.io/badge/face-terminal_truecolor-22d3ee?style=flat-square)
@@ -10,14 +10,19 @@
 ![engine](https://img.shields.io/badge/spark_2d-built_in-fbbf24?style=flat-square)
 ![launch](https://img.shields.io/badge/launch-dxn3_one_liner-22c55e?style=flat-square)
 
-**A beautiful studio for code and games — one C++23 binary, zero dependencies.**
-STUDIO 3 is the Spark 2D engine and a truecolor terminal studio compiled into a
-single native core. It opens on a title card carrying the mark — the STUDIO 2
-circuit spiral with a monolithic **3** carved into it, the way an engine logo
-should be. Scenes are plain JSON — five of them, chained into a campaign.
-The whole thing builds with `make`. There is
-no Electron, no Node and no Python in this repo — the studio is one binary and
-the binary is the product.
+**A beautiful game engine with a studio for code — one C++23 binary, zero dependencies.**
+STUDIO 3 is a real engine: open it and you start with nothing — you write code
+(Python, JavaScript, C++, anything), and it runs LIVE beside your editor. The
+Spark 2D core renders, feeds input, reports collisions and consoles your game
+in truecolor; your code IS the game. It also ships a five-scene campaign as a
+demo of what the engine can do. Scenes are plain JSON, games are plain code,
+and the whole thing builds with `make`.
+
+The engine core has no Electron, no Node and no Python **in it** — one C++23
+binary, nothing else. Your games, though, can speak any language you like:
+the engine hosts them as child processes over a tiny JSON protocol
+([sdk/PROTOCOL.md](sdk/PROTOCOL.md)), with thin SDKs for Python and
+JavaScript in `sdk/` and first-class support for compiled C++ games.
 
 ## Install — one line, fully launchable
 
@@ -36,8 +41,9 @@ into `~/.local/bin`. That's the whole dependency list: git, a compiler,
 libstdc++. Then:
 
 ```bash
-dxn3                              # the title card, then the playground
-dxn3 scenes/level-1.dxn1.json     # any scene, by path
+dxn3                              # THE ENGINE — write a game, it goes live
+dxn3 sdk/examples/background.py   # your first background, then a shooter
+dxn3 scenes/level-1.dxn1.json     # the demo campaign, by path
 dxn3 --list-scenes                # what's installed, with entity counts
 dxn3 --screenshot shot.png        # headless PNG of any scene
 ```
@@ -49,11 +55,38 @@ git clone https://github.com/DXN1-termux/DXN1-STUDIO.git
 cd DXN1-STUDIO && make -C native && ./native/build/dxn3-native
 ```
 
-## The studio, playing for real
+## The engine: your code, our canvas
 
-Half-block truecolor pixels, deterministic starfield skies, gradient entities,
-a HUD that counts your coins. These are real headless renders of the shipped
-scenes — the same frames your terminal draws:
+`dxn3` with no arguments opens the IDE: an editor pane with line numbers and
+syntax tint, a **live viewport**, and a console rail. You start with
+absolutely nothing — a starter game is loaded, and it is already running.
+Edit anything and pause for a beat: your code re-runs itself and the
+viewport refreshes — *code a background, and boom, a background.*
+
+- **Any language.** `.py` and `.js` run via the SDKs, `.cpp` games are
+  compiled and hosted, and `--host-cmd 'ruby game.rb'` covers everything
+  else. The protocol is one page: [sdk/PROTOCOL.md](sdk/PROTOCOL.md).
+- **The engine does the heavy lifting.** Rendering (truecolor half-block
+  pixels, discs, triangles, gradients, starfield skies), input, collision
+  reporting, the HUD, the console. Your code owns the game logic.
+- **The SDK is one import.** `from dxn3 import *` gives you `rect`,
+  `circle`, `tri`, `label`, `on_key` / `on_tick` / `on_hit`, `destroy`,
+  `vars`, `camera` — and `run()`. Entities are plain objects; move them
+  and the engine sees it.
+- **Examples in `sdk/examples/`:** `background.py` (the hello world),
+  `shooter.py` (bullets, score, respawning enemy), `bounce.js`
+  (breakout with a steering paddle), `cards.py` (balatro-lite poker
+  hands vs the blind).
+
+Keys: `ctrl+r` run · `ctrl+s` save · `esc` play your game fullscreen ·
+`e` back to the editor · `:scene <name>` loads a demo (with tab-completion
+whispers) · `:q` quit.
+
+## The built-in demo: a five-scene campaign
+
+The Spark engine ships with a chained platformer — real headless renders
+of the shipped scenes, the same frames your terminal draws. It is a demo
+of the renderer; your games are the product:
 
 | the playground | the gap (level-1) |
 |---|---|
@@ -145,11 +178,12 @@ make -C native test      # engine assertions: physics, movers, coins,
 scripts/gates.sh         # the full gauntlet
 ```
 
-The gates are: a zero-warning `-std=c++23` build, the selftest, **every scene
-must render one real headless frame**, **every `next` in the campaign chain
-must resolve to a real scene file** (no ghost doors), zero electron-era files
-tracked, and VERSION ↔ CHANGELOG consistency. No Node, no Python — the QA
-lane eats its own dog food.
+The gates are: a zero-warning `-std=c++23` build, the selftest — including a
+**real end-to-end host: the Python SDK spawns a child game that crosses the
+pipe and reports home** — every scene must render one real headless frame,
+every `next` in the campaign chain must resolve to a real scene file (no
+ghost doors), zero electron-era files tracked, and VERSION ↔ CHANGELOG
+consistency.
 
 ## Layout
 
@@ -167,10 +201,18 @@ native/src/fx.hpp           the deterministic per-scene starfield
 native/src/png.hpp          zero-dependency PNG writer (stored deflate)
 native/src/shot.hpp         headless + in-game screenshots
 native/src/json.hpp         recursive-descent JSON with \uXXXX → UTF-8
+native/src/host.hpp         the ScriptHost: child-process games in ANY
+                            language, line-JSON protocol, the IDE frame
+                            applier, language runner table
 native/src/main.cpp         the studio shell: raw-mode input, fixed
-                            timestep, title card, PLAY / INSPECT /
+                            timestep, title card, THE ENGINE IDE (editor +
+                            live viewport + console), PLAY / INSPECT /
                             FILE VIEW / command modes
-native/src/selftest.cpp     engine assertions
+native/src/selftest.cpp     engine assertions, including a live SDK child
+sdk/dxn3.py                 the Python SDK — one import, whole engine
+sdk/dxn3.js                 the JavaScript SDK (NODE_PATH, plain CJS)
+sdk/PROTOCOL.md             the one-page wire contract
+sdk/examples/               background · shooter · bounce · cards
 assets/                     the brand: emblem, banner, social card + SVG src
 scenes/*.dxn1.json          the five-scene campaign — data only
 scripts/install.sh          the curl one-liner
@@ -190,6 +232,14 @@ launch, the HUD counts your coins, and the command bar whispers usage hints
 while you type. v3.0.08 gave the studio somewhere to go: the campaign grew
 from three scenes to five — the climb and the gauntlet — and the gauntlet
 itself moved into CI, where g++, clang++ and the one-liner installer are
-probed on every push.
+probed on every push. v3.0.09 turned the studio into an engine IDE: boot
+into a code editor with your game running beside it, hosted in your own
+language — Python, JavaScript, C++23, or anything that speaks stdio JSON —
+starting from nothing, live while you type. v3.0.09 is the pivot: the studio became an **engine**.
+Bare `dxn3` opens an IDE where you start with nothing, write code in any
+language — Python, JavaScript, C++, anything that speaks the one-page
+protocol — and it runs live beside your editor; the campaign is now the
+demo, the SDKs ship in `sdk/`, and the selftest hosts a real child game
+end to end on every run.
 
 MIT — DXN1-termux

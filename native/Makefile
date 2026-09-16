@@ -11,11 +11,11 @@ BUILD := build
 
 all: $(BUILD)/dxn3-native $(BUILD)/dxn3-selftest
 
-$(BUILD)/dxn3-native: src/main.cpp src/tui.cpp src/spark.cpp src/spark.hpp src/tui.hpp src/json.hpp src/version.hpp src/fx.hpp src/png.hpp src/cmd.hpp src/shot.hpp
+$(BUILD)/dxn3-native: src/main.cpp src/tui.cpp src/spark.cpp src/spark.hpp src/tui.hpp src/json.hpp src/version.hpp src/fx.hpp src/png.hpp src/cmd.hpp src/shot.hpp src/host.hpp
 	@mkdir -p $(BUILD)
 	$(CXX) $(CXXFLAGS) src/main.cpp src/tui.cpp src/spark.cpp -o $@
 
-$(BUILD)/dxn3-selftest: src/selftest.cpp src/spark.cpp src/spark.hpp src/json.hpp src/version.hpp src/fx.hpp src/png.hpp src/cmd.hpp src/shot.hpp
+$(BUILD)/dxn3-selftest: src/selftest.cpp src/spark.cpp src/spark.hpp src/json.hpp src/version.hpp src/fx.hpp src/png.hpp src/cmd.hpp src/shot.hpp src/host.hpp
 	@mkdir -p $(BUILD)
 	$(CXX) $(CXXFLAGS) src/selftest.cpp src/spark.cpp -o $@
 
