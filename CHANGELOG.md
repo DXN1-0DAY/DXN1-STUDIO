@@ -1,3 +1,19 @@
+## v3.0.28 — the guard
+
+- **ESC owns its frame.** A bare ESC is a mode key, and when a busy
+  pty delivers it coalesced with typing (the app stalled past a
+  keypress burst), the text belonged to the next frame — but the
+  editor happily typed it into the live document FIRST. The studio's
+  own gate caught the result: a smoke run once typed `:recent` into
+  bounce.js and the auto-run saved it. Now `ideKey` returns the
+  moment it sees an ESC: nothing that follows an ESC in the same
+  breath may touch the document. The corrupted example was restored
+  from history and the guard keeps every document honest from here
+  on.
+- Selftest: unchanged (344 groups — the guard is a refusal, and the
+  smoke's 94 checks now run clean with the example files byte-pristine
+  through every drag, wheel and ledger step).
+
 ## v3.0.27 — the ledger
 
 - **:recent — the studio remembers.** Every document this studio has

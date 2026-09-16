@@ -924,6 +924,16 @@ inline void ideInsertBlock(IdeState& s, const std::vector<std::string>& block) {
 // lines, enter splits them (and carries the indent down), every edit is
 // undoable
 inline void ideKey(IdeState& ide, const Keys& k) {
+  // ── esc owns its frame. A bare ESC is a MODE key — play, search,
+  // escape — and when a pty delivers it coalesced with typing (the
+  // app stalled past a keypress burst), the text belongs to the NEXT
+  // frame, never to this one. The smoke once typed ":recent" into a
+  // live document exactly this way; the gate caught it. Nothing that
+  // follows an ESC in the same breath may touch the document.
+  if (k.esc) {
+    ide.idle = 0;
+    return;
+  }
   // ── the searchlight is up: the query owns the keyboard, the buffer
   // never changes while you search
   if (ide.findOpen) {
