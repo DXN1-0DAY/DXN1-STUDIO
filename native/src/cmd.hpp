@@ -292,10 +292,11 @@ inline std::string usageHintFor(std::string_view typed) {
     return " :uniq — lines that repeat back-to-back say it once";
   if (verb == "sa")
     return " :sa/old/new — the swap's other face: the WHOLE document "
-           "is the bed";
+           "is the bed; :sa//new borrows the searchlight's query";
   if (verb == "s")
     return " :s/old/new — replace every exact old with new on the "
-           "selection's lines";
+           "selection's lines; an empty old (:s//new) speaks the "
+           "searchlight's query";
   if (verb == "rev")
     return " :rev — flip the selection's line order, no alphabet invited";
   if (verb == "shuffle")

@@ -1,3 +1,24 @@
+## v3.0.86 — the query's tongue (:s//new borrows the find)
+
+- **`:s//new` speaks the searchlight's query.** An empty old that
+  still carries the slash borrows the live find query as the old —
+  the find and the swap share one bed law, so the word you searched
+  is the word you replace (`:s//Y` on the hand's bed, `:sa//Y` across
+  the whole document). A bare `:s` with no slash refuses as always —
+  nothing is guessed, and the receipt says when the query spoke
+  ("the query's old — N replaced...").
+- **The hyphen's law.** The fold now breaks rows after `-` as well as
+  space — code's compound names (left-right-left, self-documenting
+  dashes) part honestly at the dash instead of taking a hard cut
+  mid-word. A compound that fits never breaks.
+- **`:stats` speaks the longest line** ("· longest N") — the fold's
+  companion census: before the fold even speaks, a hand can see
+  whether anything will fold (longest > the pane's width), and by how
+  much the document's worst offender offends. Pure law, selftested.
+- Selftest group 87 grows four laws (795 -> 799); smoke grows the
+  longest-line receipt and the borrow's drive (173 -> 175). Gates ALL
+  GREEN.
+
 ## v3.0.85 — the fold (:wrap — the long line's courtesy)
 
 - **`:wrap` folds long lines into the pane.** The slide chops what the

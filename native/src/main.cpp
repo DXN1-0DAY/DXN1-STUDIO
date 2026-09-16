@@ -2010,8 +2010,18 @@ int main(int argc, char** argv) {
           // may carry more, old may not — old ends at the first '/').
           takeStage();
           const size_t cut = cmd.arg.find('/');
-          const std::string oldStr = cmd.arg.substr(0, cut);
+          std::string oldStr = cmd.arg.substr(0, cut);
           const std::string newStr = cmd.arg.substr(cut + 1);
+          // the query's tongue: an EMPTY old that still carries the
+          // slash speaks the searchlight's live query as the old — the
+          // find and the swap share one bed law (a bare :s with no
+          // slash refuses as always; nothing is guessed)
+          bool borrowed = false;
+          if (oldStr.empty() && cut != std::string::npos &&
+              !ide.findQ.empty()) {
+            oldStr = ide.findQ;
+            borrowed = true;
+          }
           if (oldStr.empty()) {
             cmdErr = "usage: :s/old/new — an empty old replaces nothing";
             cmdErrT = 3.5f;
@@ -2021,7 +2031,10 @@ int main(int argc, char** argv) {
                                                  &linesTouched);
             ide.console.push_back(
                 made > 0
-                    ? "engine: " + std::to_string(made) + " replaced on " +
+                    ? "engine: " +
+                          std::string(borrowed ? "the query's old — "
+                                               : "") +
+                          std::to_string(made) + " replaced on " +
                           std::to_string(linesTouched) + " line" +
                           (linesTouched == 1 ? "" : "s") + " — one undo "
                           "step takes it back"
@@ -2032,23 +2045,33 @@ int main(int argc, char** argv) {
           // the swap's other face: the WHOLE document is the bed —
           // the same exact-match law, ideReplaceAll speaks it.
           takeStage();
-          const size_t cut = cmd.arg.find('/');
-          const std::string oldStr = cmd.arg.substr(0, cut);
-          const std::string newStr = cmd.arg.substr(cut + 1);
-          if (oldStr.empty()) {
+          const size_t cutA = cmd.arg.find('/');
+          std::string oldStrA = cmd.arg.substr(0, cutA);
+          const std::string newStrA = cmd.arg.substr(cutA + 1);
+          // the query's tongue, the whole bed's face — the same borrow
+          bool borrowedA = false;
+          if (oldStrA.empty() && cutA != std::string::npos &&
+              !ide.findQ.empty()) {
+            oldStrA = ide.findQ;
+            borrowedA = true;
+          }
+          if (oldStrA.empty()) {
             cmdErr = "usage: :sa/old/new — an empty old replaces nothing";
             cmdErrT = 3.5f;
           } else {
             int linesTouched = 0;
-            const int made = dxn3::ideReplaceAll(ide, oldStr, newStr,
+            const int made = dxn3::ideReplaceAll(ide, oldStrA, newStrA,
                                                  &linesTouched);
             ide.console.push_back(
                 made > 0
-                    ? "engine: " + std::to_string(made) + " replaced on " +
+                    ? "engine: " +
+                          std::string(borrowedA ? "the query's old — "
+                                                : "") +
+                          std::to_string(made) + " replaced on " +
                           std::to_string(linesTouched) + " line" +
                           (linesTouched == 1 ? "" : "s") +
                           " across the document — one undo step"
-                    : "engine: '" + oldStr +
+                    : "engine: '" + oldStrA +
                           "' is not in this document — nothing replaced");
           }
         } else if (cmd.verb == "rev") {
@@ -2351,7 +2374,8 @@ int main(int argc, char** argv) {
           ide.console.push_back(
               "engine: " + std::to_string(ide.lines.size()) + " lines · " +
               std::to_string(words) + " words · " + std::to_string(chars) +
-              " chars" +
+              " chars · longest " +
+              std::to_string(dxn3::ideLongestLine(ide)) +
               (ide.touched.empty()
                    ? ""
                    : " · " + std::to_string(ide.touched.size()) +

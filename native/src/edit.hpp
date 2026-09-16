@@ -187,11 +187,12 @@ struct IdeState {
   // :relnum toggles; the absolutes always come back.
   bool relnum = false;
   // the fold: soft-wrap — a long line breaks into the pane's width at
-  // the last space that fits (a word longer than the pane takes the
-  // honest cut). :wrap toggles. While the fold speaks, the horizontal
-  // slide sleeps (nothing is left to slide past) and `top` counts
-  // VISUAL rows through the wrap's layout — built fresh every draw,
-  // O(the document's bytes), no stamps, no stale caches.
+  // the last space or hyphen that fits (a word longer than the pane
+  // takes the honest cut; code's compound names part at the dash).
+  // :wrap toggles. While the fold speaks, the horizontal slide sleeps
+  // (nothing is left to slide past) and `top` counts VISUAL rows
+  // through the wrap's layout — built fresh every draw, O(the
+  // document's bytes), no stamps, no stale caches.
   bool wrap = false;
   // the macro register: the verb lines recorded this session (:record
   // toggles the recorder, :macro replays the register through the SAME
@@ -1293,10 +1294,10 @@ inline int ideGutterWidth(int lineCount) {
 // ── the soft wrap: the fold's one geometry table ────────────────────
 // The editor's world is logical lines; the PANE paints visual rows.
 // With the fold on, one logical line becomes one or more rows, broken
-// at the last space that fits; the fold OFF builds the identity — one
-// line, one row — so every geometry law (the pager, the pointer, the
-// wheel, the glows) speaks this ONE table in both worlds and no two
-// laws ever disagree about where a byte lands.
+// at the last space or hyphen that fits; the fold OFF builds the
+// identity — one line, one row — so every geometry law (the pager, the
+// pointer, the wheel, the glows) speaks this ONE table in both worlds
+// and no two laws ever disagree about where a byte lands.
 struct IdeWrap {
   int rows = 0;                    // visual rows in the whole document
   std::vector<int> lineFirst;      // lineFirst[li] = the first visual
@@ -1327,8 +1328,9 @@ inline IdeWrap ideWrapBuild(const IdeState& s, int textW) {
       if (off + textW >= len) break;         // the tail fits: last row
       int next = off + textW;                // the hard cut is the default
       for (int c = off + textW; c > off + 1; --c)
-        if (ln[static_cast<size_t>(c) - 1] == ' ') {
-          next = c;                          // break AFTER the space
+        if (ln[static_cast<size_t>(c) - 1] == ' ' ||
+            ln[static_cast<size_t>(c) - 1] == '-') {
+          next = c;                          // break AFTER the space or dash
           break;
         }
       off = next;
@@ -1357,6 +1359,18 @@ inline int ideWrapRowOf(const IdeWrap& w, int li, int col) {
     else hi = mid - 1;
   }
   return lo;
+}
+
+// ── the longest line: the fold's companion census ───────────────────
+// :stats speaks it so a hand can see, before the fold even speaks,
+// whether anything will fold (longest > the pane's width) — and by
+// how much the document's worst offender offends. 0 for a document
+// of empty lines; the length is BYTES, the same coin the fold spends.
+inline int ideLongestLine(const IdeState& s) {
+  int best = 0;
+  for (const auto& l : s.lines)
+    best = std::max(best, static_cast<int>(l.size()));
+  return best;
 }
 
 // ── horizontal scroll: the cursor is always on screen ───────────────

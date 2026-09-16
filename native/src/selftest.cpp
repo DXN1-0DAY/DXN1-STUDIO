@@ -199,7 +199,7 @@ int main() {
   }
 
   // 9. the version quad rides in the binary too
-  ok(std::string(dxn3::DXN3_VERSION) == "3.0.85",
+  ok(std::string(dxn3::DXN3_VERSION) == "3.0.86",
      "native version constant matches the release quad");
 
   // 10. png writer: checksum vectors, real structure, byte determinism
@@ -4047,6 +4047,27 @@ int main() {
     dxn3::ideScroll(rs, 10, &rw);
     ok(rs.top == 10 && rs.curR == rw.rowLine[10],
        "the wheel's ride lands the hand on the view's top row");
+  }
+
+  // 87. the hyphen's law + the longest line (the fold's companions)
+  {
+    IdeState hs;                              // compound names part at the dash
+    hs.wrap = true;
+    hs.lines = {"left-right-left-right"};     // 21 bytes, the fold at 10
+    const dxn3::IdeWrap h1 = dxn3::ideWrapBuild(hs, 10);
+    ok(h1.rows == 3 && h1.rowOff[1] == 5,
+       "the hyphen breaks the row — compound names part honestly");
+    hs.lines = {"just-one"};                  // 8 bytes fits whole at 10
+    const dxn3::IdeWrap h2 = dxn3::ideWrapBuild(hs, 10);
+    ok(h2.rows == 1,
+       "a compound that fits never breaks");
+    IdeState ls;                              // the longest line's census
+    ls.lines = {"ab", "abcdef", ""};
+    ok(dxn3::ideLongestLine(ls) == 6,
+       "the longest line speaks the worst offender's length");
+    ls.lines = {"", "", ""};
+    ok(dxn3::ideLongestLine(ls) == 0,
+       "a document of empty lines offends by zero");
   }
 
 

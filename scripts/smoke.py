@@ -1171,6 +1171,26 @@ def main():
         check("the slide's return unfolds the row (one line, one row)",
               unfolded, "a continuation gutter survived the slide")
 
+        # ── 13k. the query's tongue — :s//new borrows the find ───────
+        print("── 13k. :s//new — the searchlight's old")
+        scr, _ = s1d.run_verb("stats", "ide")
+        check(":stats speaks the longest line (the fold's companion)",
+              "· longest 59" in scr.text(ROWS - 2) or
+              "· longest 59" in scr.text(ROWS - 1),
+              repr(scr.text(ROWS - 2)[:70]) + " / " +
+              repr(scr.text(ROWS - 1)[:70]))
+        s1d.send("\x06")                       # ctrl+f: the searchlight up
+        time.sleep(0.2)
+        s1d.send("XXXXX")                      # the query the swap will borrow
+        scr = s1d.settle(0.4)
+        s1d.send(ESC)                          # the light sleeps, the query stays
+        time.sleep(0.2)
+        scr, _ = s1d.run_verb("s//Y", "ide")
+        check("an empty old speaks the searchlight's query",
+              "the query's old" in scr.text(ROWS - 2) and
+              "10 replaced on 1 line" in scr.text(ROWS - 2),
+              repr(scr.text(ROWS - 2)[:70]))
+
         s1d.send(ESC)
         time.sleep(0.3)
         s1d.send("q")
