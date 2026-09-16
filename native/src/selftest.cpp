@@ -199,7 +199,7 @@ int main() {
   }
 
   // 9. the version quad rides in the binary too
-  ok(std::string(dxn3::DXN3_VERSION) == "3.0.34",
+  ok(std::string(dxn3::DXN3_VERSION) == "3.0.35",
      "native version constant matches the release quad");
 
   // 10. png writer: checksum vectors, real structure, byte determinism
@@ -2112,6 +2112,30 @@ int main() {
     for (int f = 0; f < 20; ++f) dxn3::ideDragAutoScroll(w3, 1, 0.07);
     dxn3::ideDragAutoScroll(w3, 0, 0.07);  // the hand left the edge
     ok(w3.dragHold == 0, "leaving the edge spends the wind");
+  }
+
+  // 46. the sweep: :trim takes every line's trailing air in one honest
+  // undo step — and refuses to touch a clean document
+  {
+    IdeState t1;
+    t1.lines = {"x = 1   ", "  ", "", "y = 2\t\t", "z = 3"};
+    t1.curR = 0;
+    t1.curC = 8;                       // parked past where the line ends
+    const int swept = dxn3::ideTrimTrailing(t1);
+    ok(swept == 3, "three dirty lines are counted honestly");
+    ok(t1.lines[0] == "x = 1" && t1.lines[1] == "" &&
+           t1.lines[3] == "y = 2" && t1.lines[4] == "z = 3",
+       "tails come off, pure air goes blank, clean lines rest");
+    ok(t1.dirty && !t1.undo.empty() && t1.undo.back().what == "trim",
+       "the sweep is one restore point, named trim");
+    ok(t1.curC == 5, "the cursor clamps to its line's new honest end");
+
+    const int again = dxn3::ideTrimTrailing(t1);
+    ok(again == 0 && t1.undo.size() == 1,
+       "a clean document refuses the sweep — no phantom restore point");
+    ok(dxn3::ideUndo(t1) && t1.lines[0] == "x = 1   " &&
+           t1.lines[1] == "  " && t1.lines[3] == "y = 2\t\t",
+       "undo puts the air back, exactly as it stood");
   }
 
   if (fails == 0) {

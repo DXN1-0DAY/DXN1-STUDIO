@@ -1029,6 +1029,37 @@ inline std::string ideSnippetWhisper(const IdeState& s) {
   return "tab expands '" + w + "'";
 }
 
+// ── the sweep: trailing whitespace is noise ─────────────────────────
+// Every line's tail spaces and tabs come off; a line of pure air goes
+// truly blank. ONE honest restore point named "trim", taken only when
+// something would actually move (a clean document is never given a
+// phantom step); the count of touched lines rides back so the receipt
+// can name the work. The cursor clamps to its line's new honest end.
+inline int ideTrimTrailing(IdeState& s) {
+  int would = 0;                       // count BEFORE the snapshot: the
+  for (const auto& l : s.lines) {      // undo step must hold the air
+    const size_t last = l.find_last_not_of(" \t");
+    if (last == std::string::npos) {
+      if (!l.empty()) ++would;
+    } else if (last + 1 < l.size()) {
+      ++would;
+    }
+  }
+  if (would == 0) return 0;
+  idePushUndo(s, "trim");
+  for (auto& l : s.lines) {
+    const size_t last = l.find_last_not_of(" \t");
+    if (last == std::string::npos)
+      l.clear();
+    else if (last + 1 < l.size())
+      l.resize(last + 1);
+  }
+  ideClamp(s);
+  s.dirty = true;
+  s.idle = 0;
+  return would;
+}
+
 // a snippet lands at the cursor: a blank line is REPLACED (the
 // boilerplate takes the empty stage), else the block slides in AFTER the
 // cursor line. One undo step; the cursor rests at the end of the block.

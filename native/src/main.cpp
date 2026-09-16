@@ -1586,6 +1586,14 @@ int main(int argc, char** argv) {
               ide.minimap ? "engine: minimap on — the document rides the "
                             "pane's right edge"
                           : "engine: minimap off");
+        } else if (cmd.verb == "trim") {
+          if (!ide.open) ide.open = true;      // the studio takes the stage
+          const int swept = dxn3::ideTrimTrailing(ide);
+          ide.console.push_back(
+              swept > 0
+                  ? "engine: trimmed " + std::to_string(swept) + " line" +
+                        (swept == 1 ? "" : "s") + " of trailing air"
+                  : "engine: nothing to trim — the doc is already clean");
         } else if (cmd.verb == "stats") {
           if (!ide.open) ide.open = true;      // the studio takes the stage
           size_t words = 0, chars = 0;
@@ -1626,7 +1634,7 @@ int main(int argc, char** argv) {
           game.scene.gravity = cmd.num;
           game.say("gravity " + std::to_string(static_cast<int>(cmd.num)), 1.2);
         } else if (cmd.verb == "help") {
-          game.say(":scene :open :recent :template :snip :goto :ruler :minimap :stats :zoom "
+          game.say(":scene :open :recent :template :snip :goto :ruler :minimap :trim :stats :zoom "
                     ":fit :reset :new :w :wq :q :screenshot :magnet :gravity", 4.f);
         }
       } else {

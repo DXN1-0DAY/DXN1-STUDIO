@@ -1,3 +1,23 @@
+## v3.0.35 — the sweep
+
+- **`:trim` sweeps every line's trailing whitespace.** Tail spaces
+  and tabs come off every line; a line of pure air goes truly blank;
+  clean lines rest untouched. The whole document is ONE honest
+  restore point named "trim" — undo puts the air back exactly as it
+  stood — and a document with nothing to sweep is refused WITHOUT a
+  phantom step ("nothing to trim — the doc is already clean"). The
+  console receipt names the work: "trimmed N lines of trailing
+  air". Discoverability rides along: the :help card names :trim and
+  the bar's usage hint explains it before enter is ever pressed.
+- The verb's law lives in ONE pure function: `ideTrimTrailing` in
+  edit.hpp counts what would move BEFORE taking the snapshot (the
+  undo step must hold the air), sweeps, clamps the cursor to its
+  line's new honest end, and returns the count.
+- Selftest: group 46 (the honest count, tails off / pure air blank /
+  clean lines rest, one named restore point, the cursor clamp, the
+  clean-document refusal with no phantom step, and undo putting the
+  air back) — 391 → 397 assertion groups, all green.
+
 ## v3.0.34 — the second wind
 
 - **A sustained autoscroll pull doubles its pace.** Drag to the
