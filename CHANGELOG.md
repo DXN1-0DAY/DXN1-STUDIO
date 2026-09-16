@@ -1,3 +1,17 @@
+## v3.0.14 — the block rides down: auto-indent
+
+- **Enter carries the block.** A new line inherits the previous line's
+  indentation; a line ending in `:` (python) or `{` (C-family) bumps
+  one level before the cursor lands, and splitting before a closer
+  (`else`, `elif`, `except`, `finally`, `case`, `default`, the whole
+  `end` family) drops back a level instead of staircasing into the
+  margin. Whole-word matching, so `endless` never dedents.
+- Typed code keeps flowing at the new indent — write `def on_tick(dt):`,
+  press enter, and the body line is already where it belongs.
+- Nine more selftest asserts (113 total): opener/closer units,
+  trailing-space tolerance, mid-line splits, closer dedents, and the
+  proof that auto-indent splits undo like any other edit.
+
 ## v3.0.13 — the second chance: an editor that forgives
 
 **ctrl+z has entered the studio**

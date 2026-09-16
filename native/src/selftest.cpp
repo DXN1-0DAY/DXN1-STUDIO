@@ -199,7 +199,7 @@ int main() {
   }
 
   // 9. the version quad rides in the binary too
-  ok(std::string(dxn3::DXN3_VERSION) == "3.0.13",
+  ok(std::string(dxn3::DXN3_VERSION) == "3.0.14",
      "native version constant matches the release quad");
 
   // 10. png writer: checksum vectors, real structure, byte determinism
@@ -552,6 +552,46 @@ int main() {
     dxn3::ideKey(v, yv);
     ok(v.console.back().find("nothing to redo") != std::string::npos,
        "ctrl+y with no redo branch says so too");
+  }
+
+  // 21. the block rides down: auto-indent on enter
+  {
+    using dxn3::Keys;
+    ok(dxn3::ideOpensBlock("for i in x:  ") && dxn3::ideOpensBlock("x {"),
+       "openers read through trailing space, braces count");
+    ok(!dxn3::ideOpensBlock("pass") && !dxn3::ideOpensBlock("   "),
+       "plain lines and blank lines open nothing");
+    ok(dxn3::ideClosesBlock("  endif") && !dxn3::ideClosesBlock("endless"),
+       "closers match whole words only");
+    ok(dxn3::ideClosesBlock("    default:") && !dxn3::ideClosesBlock(""),
+       "default closes, empty closes nothing");
+
+    IdeState s;
+    Keys t; t.typed = "def on_tick(dt):";
+    dxn3::ideKey(s, t);
+    Keys e; e.enter = true;
+    dxn3::ideKey(s, e);
+    ok(s.lines.size() == 2 && s.lines[1] == "    " && s.curC == 4,
+       "enter after a python opener bumps one level");
+    t.typed = "return 7";
+    dxn3::ideKey(s, t);
+    ok(s.lines[1] == "    return 7", "typing continues at the indent");
+
+    IdeState d;
+    d.lines = {"    if x: pass"};
+    d.curR = 0; d.curC = 10;                 // split right after the colon
+    dxn3::ideKey(d, e);
+    ok(d.lines[1] == "        pass" && d.curC == 8,
+       "a mid-line split keeps its own deeper level");
+
+    IdeState c;
+    c.lines = {"    else: pass"};
+    c.curR = 0; c.curC = 4;                  // split before the closer
+    dxn3::ideKey(c, e);
+    ok(c.lines[1] == "else: pass" && c.curC == 0,
+       "a closer line dedents back one level");
+    ok(dxn3::ideUndo(c) && c.lines.size() == 1,
+       "auto-indent splits undo like any other edit");
   }
 
   if (fails == 0) {

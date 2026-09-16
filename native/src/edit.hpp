@@ -10,6 +10,7 @@
 // you were standing.
 #pragma once
 #include <algorithm>
+#include <cctype>
 #include <string>
 #include <vector>
 
@@ -110,8 +111,36 @@ inline bool ideRedo(IdeState& s) {
   return true;
 }
 
+// does this line OPEN a block (python ':', C-family '{')?
+inline bool ideOpensBlock(const std::string& s) {
+  const size_t a = s.find_first_not_of(" \t");
+  if (a == std::string::npos) return false;
+  const size_t b = s.find_last_not_of(" \t");
+  const std::string t = s.substr(a, b - a + 1);   // trailing ws tolerated
+  return t.back() == ':' || t.back() == '{';
+}
+
+// does this line CLOSE one (else / elif / except / finally / case /
+// default / end…)? Whole-word check, so "endless" never matches — and
+// the end family is spelled out so endif/endwhile/endfor ride along.
+inline bool ideClosesBlock(const std::string& s) {
+  static const char* kw[] = {"else", "elif", "except", "finally", "case",
+                             "default", "end", "endif", "endwhile", "endfor"};
+  size_t a = s.find_first_not_of(" \t");
+  if (a == std::string::npos) return false;
+  const std::string t = s.substr(a);
+  for (const char* k : kw) {
+    const size_t n = std::char_traits<char>::length(k);
+    if (t.rfind(k, 0) == 0 &&
+        (t.size() == n || !std::isalnum(static_cast<unsigned char>(t[n]))))
+      return true;
+  }
+  return false;
+}
+
 // the editor owns typing: chars land at the cursor, backspace joins
-// lines, enter splits them, and every edit is undoable
+// lines, enter splits them (and carries the indent down), every edit is
+// undoable
 inline void ideKey(IdeState& ide, const Keys& k) {
   auto& L = ide.lines;
   if (ide.curR >= static_cast<int>(L.size()))
@@ -154,9 +183,18 @@ inline void ideKey(IdeState& ide, const Keys& k) {
     const int at = std::min(ide.curC, static_cast<int>(cur.size()));
     std::string rest = cur.substr(static_cast<size_t>(at));
     cur.resize(static_cast<size_t>(at));
-    L.insert(L.begin() + ide.curR + 1, rest);
+    // the block rides down: inherit this line's leading whitespace,
+    // bump a level after an opener, drop one before a closer
+    const size_t ws = cur.find_first_not_of(" \t");
+    std::string indent = (ws == std::string::npos) ? cur : cur.substr(0, ws);
+    if (ideOpensBlock(cur)) indent += "    ";
+    if (ideClosesBlock(rest)) {
+      const size_t cut = indent.size() >= 4 ? indent.size() - 4 : 0;
+      indent.resize(cut);
+    }
+    L.insert(L.begin() + ide.curR + 1, indent + rest);
     ++ide.curR;
-    ide.curC = 0;
+    ide.curC = static_cast<int>(indent.size());
   }
   if (k.up) --ide.curR;
   if (k.down) ++ide.curR;

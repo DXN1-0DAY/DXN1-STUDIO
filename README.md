@@ -2,7 +2,7 @@
 
 ![DXN1 STUDIO 3](assets/banner.png)
 
-![version](https://img.shields.io/badge/version-3.0.13-8b5cf6?style=flat-square)
+![version](https://img.shields.io/badge/version-3.0.14-8b5cf6?style=flat-square)
 ![gates](https://github.com/DXN1-termux/DXN1-STUDIO/actions/workflows/ci.yml/badge.svg)
 ![native](https://img.shields.io/badge/native-C%2B%2023-f97316?style=flat-square)
 ![face](https://img.shields.io/badge/face-terminal_truecolor-22d3ee?style=flat-square)
@@ -85,6 +85,9 @@ viewport refreshes — *code a background, and boom, a background.*
   points, and undo restores the document AND the cursor. `ctrl+y`
   walks it forward again; a fresh edit cuts the redo branch, honestly.
   Two hundred steps deep, so you can code without fear.
+- **The block rides down.** Enter auto-indents: openers (`:`, `{`)
+  bump a level, closers (`else`, `end`, …) drop back one, everything
+  else inherits — python and C-family both feel at home.
 
 Keys: `ctrl+r` run · `ctrl+s` save · `ctrl+z` undo · `ctrl+y` redo ·
 `ctrl+n` next template (or `:new`) · `ctrl+g` jump to the error line ·
