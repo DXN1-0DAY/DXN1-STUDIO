@@ -1,3 +1,21 @@
+## v3.0.18 — the forward bite and the talking line
+
+- **`ctrl+delete` eats the word ahead** — the exact sibling of
+  ctrl+w: it bites precisely what ctrl+right would hop over, the gap
+  and the run in one mouthful, punctuation runs included, an honest
+  no-op at the line end, one undo step.
+- **`ctrl+/` makes the line talk** (or hushes it). The comment prefix
+  follows the file's language — `#` for python and shell, `//` for
+  js and C-family, `--` for lua — lands after the leading whitespace,
+  and strips again with the same keystroke, cursor along for the
+  ride. The game hears about it: the live re-run fires like any edit.
+- **`:template <name>`** loads a starter directly — `:template flappy`
+  instead of cycling ctrl+n. Exact name wins, a unique prefix
+  resolves, an ambiguous prefix lists the candidates, a ghost is
+  refused with the full list. The ctrl+n gallery still cycles.
+- Selftest: group 27 (the bite forward + the talking line + grammar)
+  — 191 → 206.
+
 ## v3.0.17 — the long line and the partner
 
 - **`ctrl+←` / `ctrl+→` hop word by word.** The same classification the

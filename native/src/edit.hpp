@@ -46,6 +46,8 @@ struct Keys {
   bool ctrlD = false;                          // IDE: duplicate this line
   bool delWord = false;                        // IDE: ctrl+w — eat the word behind the cursor
   bool wLeft = false, wRight = false;          // IDE: ctrl+←/→ — hop word by word
+  bool delWordFwd = false;                     // IDE: ctrl+del — eat the word ahead
+  bool comment = false;                        // IDE: ctrl+/ — toggle the line's comment
   std::string typed;                           // printable chars this frame
 };
 
@@ -191,6 +193,26 @@ inline bool ideIsCloser(char c) {
 // a word character for delete-word purposes: letters, digits, snake_case
 inline bool ideWordChar(char c) {
   return std::isalnum(static_cast<unsigned char>(c)) || c == '_';
+}
+
+// the comment prefix this FILE speaks — by extension, honestly. A file
+// with no name is shell-ish; every hosted language lands somewhere.
+inline const char* ideCommentFor(const std::string& path) {
+  static const struct {
+    const char* ext;
+    const char* prefix;
+  } table[] = {{".py", "# "},   {".rb", "# "},   {".sh", "# "},
+               {".yml", "# "},  {".yaml", "# "}, {".toml", "# "},
+               {".ini", "# "},  {".js", "// "},  {".mjs", "// "},
+               {".ts", "// "},  {".cpp", "// "}, {".cc", "// "},
+               {".cxx", "// "}, {".cs", "// "},  {".java", "// "},
+               {".json", "// "}, {".lua", "-- "}, {".hs", "-- "}};
+  const size_t dot = path.rfind('.');
+  if (dot == std::string::npos || dot + 1 == path.size()) return "# ";
+  const std::string ext = path.substr(dot);
+  for (const auto& t : table)
+    if (ext == t.ext) return t.prefix;
+  return "# ";
 }
 
 // ── word-wise hops (ctrl+left / ctrl+right) ─────────────────────────
@@ -466,7 +488,8 @@ inline void ideKey(IdeState& ide, const Keys& k) {
     ide.lastBack = true;
     ide.lastTyping = false;
   }
-  if (k.enter || k.del || k.ctrlD || k.delWord) idePushUndo(ide);  // structure stands alone
+  if (k.enter || k.del || k.ctrlD || k.delWord || k.delWordFwd || k.comment)
+    idePushUndo(ide);                          // structure stands alone
 
   for (const char ch : k.typed) {
     // a closer you already have is skipped over, never doubled
@@ -564,7 +587,6 @@ inline void ideKey(IdeState& ide, const Keys& k) {
     ++ide.curR;                              // the copy takes your place
   }
   if (k.delWord) {                           // ctrl+w: eat the word behind you
-    // re-fetch: earlier edits may have reallocated the buffer
     std::string& cur = L[static_cast<size_t>(ide.curR)];
     int from = ide.curC;
     while (from > 0 && (cur[static_cast<size_t>(from) - 1] == ' ' ||
@@ -582,6 +604,53 @@ inline void ideKey(IdeState& ide, const Keys& k) {
                 static_cast<size_t>(ide.curC - from));
       ide.curC = from;
     }
+  }
+  if (k.delWordFwd) {                        // ctrl+del: eat the word ahead
+    // re-fetch: earlier edits may have reallocated the buffer
+    std::string& cur = L[static_cast<size_t>(ide.curR)];
+    int to = ide.curC;
+    while (to < static_cast<int>(cur.size()) &&
+           (cur[static_cast<size_t>(to)] == ' ' ||
+            cur[static_cast<size_t>(to)] == '\t'))
+      ++to;                                  // the gap counts as part of it
+    if (to < static_cast<int>(cur.size()) &&
+        !ideWordChar(cur[static_cast<size_t>(to)]))
+      while (to < static_cast<int>(cur.size()) &&
+             !ideWordChar(cur[static_cast<size_t>(to)]) &&
+             cur[static_cast<size_t>(to)] != ' ' &&
+             cur[static_cast<size_t>(to)] != '\t')
+        ++to;                                // a punctuation run as one bite
+    else
+      while (to < static_cast<int>(cur.size()) &&
+             ideWordChar(cur[static_cast<size_t>(to)]))
+        ++to;
+    if (to > ide.curC)
+      cur.erase(static_cast<size_t>(ide.curC),
+                static_cast<size_t>(to - ide.curC));
+  }
+  if (k.comment) {                           // ctrl+/: the line talks or hushes
+    // re-fetch: earlier edits may have reallocated the buffer
+    std::string& cur = L[static_cast<size_t>(ide.curR)];
+    const std::string pre = ideCommentFor(ide.path);   // e.g. "# " or "// "
+    const std::string bare = pre.substr(0, pre.size() - 1);   // "#"
+    const size_t first = cur.find_first_not_of(" \t");
+    if (first != std::string::npos &&
+        cur.compare(first, bare.size(), bare) == 0) {
+      // already a comment: strip the bare prefix and one space if it follows
+      size_t cut = first + bare.size();
+      if (cut < cur.size() && cur[cut] == ' ') ++cut;
+      const int removed = static_cast<int>(cut - first);
+      cur.erase(first, removed);
+      if (ide.curC > static_cast<int>(first))
+        ide.curC = std::max(static_cast<int>(first), ide.curC - removed);
+    } else {
+      // plain code: the prefix lands after the leading whitespace
+      const size_t at = first == std::string::npos ? cur.size() : first;
+      cur.insert(cur.begin() + static_cast<long>(at), pre.begin(), pre.end());
+      ide.curC += static_cast<int>(pre.size());
+    }
+    ide.dirty = true;                        // the game hears about it
+    ide.idle = 0;
   }
 
   // ── undo / redo: the second chance, one keystroke away

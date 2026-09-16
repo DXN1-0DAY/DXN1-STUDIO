@@ -159,11 +159,21 @@ Keys pollKeys(Mode mode) {
             case '~': {
               if (mode != Mode::Ide) break;
               const int p = std::atoi(params.c_str());
-              if (p == 3) k.del = true;
-              else if (p == 5) k.pageUp = true;
-              else if (p == 6) k.pageDn = true;
-              else if (p == 1 || p == 7) k.home = true;
-              else if (p == 4 || p == 8) k.end = true;
+              // for '~' the params are the KEY NUMBER; a modifier only
+              // exists when a ';' is present (3;5~ = ctrl+delete)
+              const size_t semi = params.rfind(';');
+              const bool ctrl = semi != std::string::npos &&
+                                semi + 1 < params.size() &&
+                                params[semi + 1] == '5';
+              if (p == 3) {
+                if (ctrl) k.delWordFwd = true;
+                else k.del = true;
+              } else if (!ctrl) {
+                if (p == 5) k.pageUp = true;
+                else if (p == 6) k.pageDn = true;
+                else if (p == 1 || p == 7) k.home = true;
+                else if (p == 4 || p == 8) k.end = true;
+              }
               break;
             }
             default:
@@ -189,6 +199,7 @@ Keys pollKeys(Mode mode) {
         else if (c == 0x06) k.ctrlF = true;               // Ctrl+F — find
         else if (c == 0x04) k.ctrlD = true;               // Ctrl+D — dup line
         else if (c == 0x17) k.delWord = true;             // Ctrl+W — delete word
+        else if (c == 0x1f) k.comment = true;             // Ctrl+/ — toggle comment
         else if (c == 0x10) k.shot = true;                // Ctrl+P — screenshot
         else if (static_cast<unsigned char>(c) >= 0x20) k.typed += c;
       } else if (mode == Mode::File) {       // FILE VIEW: every letter is text
@@ -1035,15 +1046,14 @@ int main(int argc, char** argv) {
 
   // the template gallery: ctrl+n or :new — cycle real, working starts
   // across every language the studio hosts (py, js, compiled cpp)
-  auto nextTemplate = [&]() {
-    struct Tpl { const char* name; const char* ext; };
-    static const Tpl tpls[] = {{"blank", "py"},      {"shooter", "py"},
-                               {"cards", "py"},      {"background", "py"},
-                               {"flappy", "py"},     {"bounce", "js"},
-                               {"pong", "cpp"}};
-    constexpr int nTpl = static_cast<int>(sizeof tpls / sizeof tpls[0]);
-    ide.tpl = (ide.tpl + 1) % nTpl;
-    const std::string name = tpls[ide.tpl].name;
+  struct Tpl { const char* name; const char* ext; };
+  static constexpr Tpl tpls[] = {{"blank", "py"},      {"shooter", "py"},
+                                 {"cards", "py"},      {"background", "py"},
+                                 {"flappy", "py"},     {"bounce", "js"},
+                                 {"pong", "cpp"}};
+  constexpr int nTpl = static_cast<int>(sizeof tpls / sizeof tpls[0]);
+  auto loadTemplate = [&](int idx) {
+    const std::string name = tpls[idx].name;
     if (name == "blank") {
       std::string ss = TPL_BLANK;
       ide.lines.clear();
@@ -1056,7 +1066,7 @@ int main(int argc, char** argv) {
       ide.path = "untitled.py";
     } else {
       std::ifstream f(std::string("sdk/examples/") + name + "." +
-                      tpls[ide.tpl].ext);
+                      tpls[idx].ext);
       ide.lines.clear();
       std::string ln;
       while (std::getline(f, ln)) {
@@ -1068,16 +1078,21 @@ int main(int argc, char** argv) {
         ide.console.push_back("engine: template " + name +
                               " not found on this machine");
       }
-      ide.path = std::string("untitled-") + name + "." + tpls[ide.tpl].ext;
+      ide.path = std::string("untitled-") + name + "." + tpls[idx].ext;
     }
     ide.undo.clear();                          // a new document, a fresh history
     ide.redo.clear();
     ide.lastTyping = ide.lastBack = false;
     ide.curR = ide.curC = ide.top = 0;
+    ide.hcol = 0;                              // a fresh page, an unslid view
     ide.dirty = true;
     ide.idle = 0;
     ide.console.push_back("engine: template — " + name + " (" +
-                          tpls[ide.tpl].ext + ", ctrl+n again to cycle)");
+                          tpls[idx].ext + ", ctrl+n again to cycle)");
+  };
+  auto nextTemplate = [&]() {
+    ide.tpl = (ide.tpl + 1) % nTpl;
+    loadTemplate(ide.tpl);
   };
 
   // the scene's own source, for FILE VIEW (e)
@@ -1204,6 +1219,37 @@ int main(int argc, char** argv) {
         } else if (cmd.verb == "new") {
           if (!ide.open) ide.open = true;          // :new opens the studio
           nextTemplate();
+        } else if (cmd.verb == "template") {
+          // direct load: an exact name wins, a unique prefix resolves,
+          // an ambiguous prefix lists, a ghost is refused — like :scene
+          const std::string arg = cmd.arg;
+          int hit = -1, hits = 0;
+          for (int i = 0; i < nTpl; ++i)
+            if (arg == tpls[i].name) { hit = i; hits = 1; break; }
+          if (hit < 0)
+            for (int i = 0; i < nTpl; ++i)
+              if (std::string_view(tpls[i].name).rfind(arg, 0) == 0) {
+                hit = i;
+                ++hits;
+              }
+          if (hits == 0) {
+            cmdErr = "no such template: " + arg + " — try blank, shooter, "
+                     "cards, background, flappy, bounce, pong";
+            cmdErrT = 4.f;
+          } else if (hits > 1) {
+            std::string list;
+            for (const auto& t : tpls)
+              if (std::string_view(t.name).rfind(arg, 0) == 0) {
+                if (!list.empty()) list += " · ";
+                list += t.name;
+              }
+            cmdErr = "ambiguous template '" + arg + "' — " + list;
+            cmdErrT = 4.f;
+          } else {
+            ide.open = true;                       // the studio takes the stage
+            ide.tpl = hit;
+            loadTemplate(hit);
+          }
         } else if (cmd.verb == "open") {
           // any script on this machine becomes the live document
           std::ifstream f(cmd.arg, std::ios::binary);
@@ -1267,7 +1313,7 @@ int main(int argc, char** argv) {
           game.scene.gravity = cmd.num;
           game.say("gravity " + std::to_string(static_cast<int>(cmd.num)), 1.2);
         } else if (cmd.verb == "help") {
-          game.say(":scene :open :goto :zoom :fit :reset :new :w :wq :q :screenshot :magnet :gravity", 4.f);
+          game.say(":scene :open :template :goto :zoom :fit :reset :new :w :wq :q :screenshot :magnet :gravity", 4.f);
         }
       } else {
         cmdBuf += keys.typed;
@@ -1361,7 +1407,7 @@ int main(int argc, char** argv) {
       // find-mode keystrokes feed the query — never the document
       if (!ide.findOpen &&
           (!keys.typed.empty() || keys.back || keys.enter || keys.del ||
-           keys.ctrlD || keys.delWord)) {
+           keys.ctrlD || keys.delWord || keys.delWordFwd || keys.comment)) {
         ide.dirty = true;
         ide.idle = 0;
       }

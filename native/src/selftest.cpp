@@ -199,7 +199,7 @@ int main() {
   }
 
   // 9. the version quad rides in the binary too
-  ok(std::string(dxn3::DXN3_VERSION) == "3.0.17",
+  ok(std::string(dxn3::DXN3_VERSION) == "3.0.18",
      "native version constant matches the release quad");
 
   // 10. png writer: checksum vectors, real structure, byte determinism
@@ -948,6 +948,104 @@ int main() {
     sh.curC = 5;
     dxn3::ideHscroll(sh, 20);
     ok(sh.hcol == 0, "a line that fits never slides");
+  }
+
+  // 27. the forward bite and the line that talks (ctrl+del, ctrl+/)
+  {
+    using dxn3::Keys;
+    ok(std::string(dxn3::ideCommentFor("game.py")) == "# " &&
+           std::string(dxn3::ideCommentFor("script.js")) == "// " &&
+           std::string(dxn3::ideCommentFor("Game.cpp")) == "// " &&
+           std::string(dxn3::ideCommentFor("chip.lua")) == "-- " &&
+           std::string(dxn3::ideCommentFor("Makefile")) == "# ",
+       "the comment prefix follows the file's language");
+
+    IdeState s;                      // comment on
+    s.lines = {"score = 0"};
+    s.path = "game.py";
+    s.curR = 0;
+    s.curC = 0;
+    Keys c;
+    c.comment = true;
+    dxn3::ideKey(s, c);
+    ok(s.lines[0] == "# score = 0" && s.curC == 2 && s.dirty,
+       "ctrl+/ comments the line and the game hears about it");
+    dxn3::ideKey(s, c);              // …and off
+    ok(s.lines[0] == "score = 0" && s.curC == 0,
+       "ctrl+/ twice restores the line exactly");
+    ok(dxn3::ideUndo(s) && s.lines[0] == "# score = 0",
+       "each toggle is its own undo step");
+
+    IdeState i;                      // the indent is respected
+    i.lines = {"    return x"};
+    i.path = "game.py";
+    i.curR = 0;
+    i.curC = 6;
+    dxn3::ideKey(i, c);
+    ok(i.lines[0] == "    # return x" && i.curC == 8,
+       "the prefix lands after the leading whitespace");
+    dxn3::ideKey(i, c);
+    ok(i.lines[0] == "    return x" && i.curC == 6,
+       "untoggling restores indent, text and cursor");
+
+    IdeState n;                      // a no-space comment still strips
+    n.lines = {"#tight"};
+    n.path = "game.py";
+    n.curR = 0;
+    n.curC = 4;
+    dxn3::ideKey(n, c);
+    ok(n.lines[0] == "tight" && n.curC == 3,
+       "a comment without the space strips too, cursor follows");
+
+    IdeState j;                      // js speaks slashes
+    j.lines = {"let x = 1"};
+    j.path = "untitled-bounce.js";
+    j.curR = 0;
+    j.curC = 0;
+    dxn3::ideKey(j, c);
+    ok(j.lines[0] == "// let x = 1", "js lines talk in slashes");
+
+    IdeState f;                      // the forward bite
+    f.lines = {"foo bar baz"};
+    f.curR = 0;
+    f.curC = 0;
+    Keys d;
+    d.delWordFwd = true;
+    dxn3::ideKey(f, d);
+    ok(f.lines[0] == " bar baz" && f.curC == 0,
+       "ctrl+del eats exactly what ctrl+right would hop");
+    dxn3::ideKey(f, d);
+    ok(f.lines[0] == " baz" && f.curC == 0,
+       "the next bite takes the gap and the word");
+
+    IdeState p;                      // punctuation ahead
+    p.lines = {"x = 42"};
+    p.curR = 0;
+    p.curC = 2;
+    dxn3::ideKey(p, d);
+    ok(p.lines[0] == "x  42" && p.curC == 2,
+       "a punctuation run is one bite forward too");
+    IdeState e;                      // honest no-op at the line end
+    e.lines = {"hi"};
+    e.curR = 0;
+    e.curC = 2;
+    dxn3::ideKey(e, d);
+    ok(e.lines[0] == "hi" && e.curC == 2,
+       "ctrl+del at the line end bites nothing");
+
+    IdeState u;                      // one honest undo step
+    u.lines = {"alpha beta"};
+    u.curR = 0;
+    u.curC = 0;
+    dxn3::ideKey(u, d);
+    ok(dxn3::ideUndo(u) && u.lines[0] == "alpha beta",
+       "ctrl+del is one honest undo step");
+
+    ok(dxn3::parseCommand(":template fl").ok() &&
+           dxn3::parseCommand(":template fl").arg == "fl",
+       ":template takes the name you typed");
+    ok(!dxn3::parseCommand(":template").ok(),
+       ":template without a name is refused with usage");
   }
 
   if (fails == 0) {
