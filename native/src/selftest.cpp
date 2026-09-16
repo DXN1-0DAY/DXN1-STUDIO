@@ -199,7 +199,7 @@ int main() {
   }
 
   // 9. the version quad rides in the binary too
-  ok(std::string(dxn3::DXN3_VERSION) == "3.0.19",
+  ok(std::string(dxn3::DXN3_VERSION) == "3.0.20",
      "native version constant matches the release quad");
 
   // 10. png writer: checksum vectors, real structure, byte determinism
@@ -1136,6 +1136,100 @@ int main() {
        "the ruler whisper tells you what it does");
     ok(dxn3::usageHintFor(":stats").find("words") != std::string::npos,
        "the stats whisper tells you what it counts");
+  }
+
+  // 30. the selection: shift extends, edits replace, comments span
+  {
+    using dxn3::Keys;
+    IdeState s;
+    s.lines = {"hello world", "second line", "third"};
+    s.curR = 0;
+    s.curC = 0;
+    s.dirty = false;
+    Keys sr;
+    sr.sRight = true;
+    for (int i = 0; i < 5; ++i) dxn3::ideKey(s, sr);
+    ok(s.anchorR == 0 && s.anchorC == 0 && s.curC == 5,
+       "shift+right extends from a born anchor");
+    auto sel = dxn3::ideSelRange(s);
+    ok(sel.has_value() && (*sel)[0] == 0 && (*sel)[1] == 0 &&
+           (*sel)[2] == 0 && (*sel)[3] == 5,
+       "the range orders anchor before cursor");
+    Keys t;
+    t.typed = "X";
+    dxn3::ideKey(s, t);
+    ok(s.lines[0] == "X world" && s.curR == 0 && s.curC == 1 &&
+           s.anchorR < 0,
+       "typing replaces the selection and clears the anchor");
+    ok(dxn3::ideUndo(s) && s.lines[0] == "hello world",
+       "a selection replacement is one honest undo step");
+
+    IdeState m;                      // shift+down spans lines
+    m.lines = {"# one", "# two", "three"};
+    m.path = "game.py";
+    m.curR = 0;
+    m.curC = 0;
+    Keys sd;
+    sd.sDown = true;
+    dxn3::ideKey(m, sd);
+    auto ms = dxn3::ideSelRange(m);
+    ok(ms.has_value() && (*ms)[0] == 0 && (*ms)[2] == 1,
+       "shift+down spans lines");
+    Keys c;
+    c.comment = true;
+    dxn3::ideKey(m, c);
+    ok(m.lines[0] == "one" && m.lines[1] == "two" && m.lines[2] == "three" &&
+           m.anchorR < 0,
+       "a multi-line toggle strips every comment line the selection touches");
+    ok(dxn3::ideUndo(m) && m.lines[0] == "# one" && m.lines[1] == "# two",
+       "the multi-line toggle is one honest undo step");
+
+    IdeState p;                      // a plain move drops the selection
+    p.lines = {"abc", "def"};
+    p.curR = 0;
+    p.curC = 0;
+    Keys sr2;
+    sr2.sRight = true;
+    dxn3::ideKey(p, sr2);
+    ok(dxn3::ideSelRange(p).has_value(), "a selection exists after shift");
+    Keys down;
+    down.down = true;
+    dxn3::ideKey(p, down);
+    ok(!dxn3::ideSelRange(p).has_value() && p.curR == 1,
+       "a plain move drops the selection");
+
+    IdeState b;                      // backspace eats only the range
+    b.lines = {"hello world"};
+    b.curR = 0;
+    b.curC = 0;
+    Keys sr3;
+    sr3.sRight = true;
+    for (int i = 0; i < 5; ++i) dxn3::ideKey(b, sr3);
+    Keys bs;
+    bs.back = true;
+    dxn3::ideKey(b, bs);
+    ok(b.lines[0] == " world" && b.curC == 0 &&
+           !dxn3::ideSelRange(b).has_value(),
+       "backspace with a selection eats only the range");
+
+    IdeState j;                      // a spanning cut joins the lines
+    j.lines = {"first half", "second half"};
+    j.curR = 0;
+    j.curC = 6;
+    j.anchorR = 1;
+    j.anchorC = 6;
+    ok(dxn3::ideSelDelete(j) && j.lines.size() == 1 &&
+           j.lines[0] == "first  half" && j.curC == 6 && j.anchorR < 0,
+       "a spanning cut joins the lines at the range");
+
+    IdeState e2;                     // anchor == cursor: no selection at all
+    e2.lines = {"x"};
+    e2.curR = 0;
+    e2.curC = 0;
+    e2.anchorR = 0;
+    e2.anchorC = 0;
+    ok(!dxn3::ideSelRange(e2).has_value() && !dxn3::ideSelDelete(e2),
+       "anchor == cursor is no selection at all");
   }
 
   if (fails == 0) {

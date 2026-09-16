@@ -11,6 +11,7 @@
 // lands you exactly where you were standing.
 #pragma once
 #include <algorithm>
+#include <array>
 #include <cctype>
 #include <optional>
 #include <string>
@@ -50,6 +51,8 @@ struct Keys {
   bool delWordFwd = false;                     // IDE: ctrl+del — eat the word ahead
   bool comment = false;                        // IDE: ctrl+/ — toggle the line's comment
   bool docHome = false, docEnd = false;        // IDE: ctrl+home/end — the edges
+  bool sUp = false, sDown = false;             // IDE: shift+↑/↓ — extend the selection
+  bool sLeft = false, sRight = false;          // IDE: shift+←/→ — extend the selection
   std::string typed;                           // printable chars this frame
 };
 
@@ -84,7 +87,46 @@ struct IdeState {
   std::vector<std::pair<int, int>> findHits;   // (row, col), in file order
   int findSel = -1;                            // the hit you're standing on
   bool ruler = true;                           // the 79/99 column guides
+  int anchorR = -1, anchorC = -1;              // selection anchor (-1 = none)
 };
+
+// ── the selection: anchor ↔ cursor, honestly ordered ────────────────
+// The anchor is where the selection was BORN (shift+arrow sets it on
+// first extension); the cursor is its live end. An empty range (anchor
+// == cursor) is no selection at all.
+using SelRange = std::array<int, 4>;           // r0, c0, r1, c1 (inclusive start/end)
+
+inline std::optional<SelRange> ideSelRange(const IdeState& s) {
+  if (s.anchorR < 0) return std::nullopt;
+  if (s.anchorR == s.curR && s.anchorC == s.curC) return std::nullopt;
+  if (s.anchorR < s.curR || (s.anchorR == s.curR && s.anchorC < s.curC))
+    return SelRange{s.anchorR, s.anchorC, s.curR, s.curC};
+  return SelRange{s.curR, s.curC, s.anchorR, s.anchorC};
+}
+
+inline void ideSelClear(IdeState& s) { s.anchorR = -1; s.anchorC = -1; }
+
+// the selection goes first: the range is cut, the cursor collapses to
+// its start, the anchor clears. False when there was nothing selected.
+inline bool ideSelDelete(IdeState& s) {
+  const auto sel = ideSelRange(s);
+  if (!sel) return false;
+  const auto [r0, c0, r1, c1] = *sel;
+  if (r0 == r1) {
+    std::string& l = s.lines[static_cast<size_t>(r0)];
+    l.erase(static_cast<size_t>(c0), static_cast<size_t>(c1 - c0));
+  } else {
+    std::string& first = s.lines[static_cast<size_t>(r0)];
+    const std::string tail = s.lines[static_cast<size_t>(r1)].substr(static_cast<size_t>(c1));
+    first.resize(static_cast<size_t>(c0));
+    first += tail;
+    s.lines.erase(s.lines.begin() + r0 + 1, s.lines.begin() + r1 + 1);
+  }
+  s.curR = r0;
+  s.curC = c0;
+  ideSelClear(s);
+  return true;
+}
 
 // ── snippets: boilerplate that speaks the file's own language ───────
 // The studio hosts three dialects (py, js, cpp) and the snippets do
@@ -180,6 +222,12 @@ inline void ideClamp(IdeState& s) {
   s.curR = std::clamp(s.curR, 0, static_cast<int>(s.lines.size()) - 1);
   s.curC = std::clamp(s.curC, 0,
                       static_cast<int>(s.lines[static_cast<size_t>(s.curR)].size()));
+  if (s.anchorR >= 0) {                        // the anchor clamps too — a
+    if (s.anchorR >= static_cast<int>(s.lines.size()))   // shrunken doc keeps
+      s.anchorR = static_cast<int>(s.lines.size()) - 1;  // its selection honest
+    s.anchorC = std::clamp(s.anchorC, 0,
+                           static_cast<int>(s.lines[static_cast<size_t>(s.anchorR)].size()));
+  }
 }
 
 inline void idePushUndo(IdeState& s) {
@@ -200,6 +248,7 @@ inline bool ideUndo(IdeState& s) {
   s.curC = s.undo.back().curC;
   s.undo.pop_back();
   s.lastTyping = s.lastBack = false;
+  ideSelClear(s);                    // the second chance drops the selection
   ideClamp(s);
   return true;
 }
@@ -213,6 +262,7 @@ inline bool ideRedo(IdeState& s) {
   s.curC = s.redo.back().curC;
   s.redo.pop_back();
   s.lastTyping = s.lastBack = false;
+  ideSelClear(s);
   ideClamp(s);
   return true;
 }
@@ -264,6 +314,7 @@ inline bool ideFindNext(IdeState& s) {
   const auto& [r, c] = s.findHits[static_cast<size_t>(s.findSel)];
   s.curR = r;
   s.curC = c;
+  ideSelClear(s);                    // the walk abandons any selection
   return true;
 }
 
@@ -584,25 +635,42 @@ inline void ideKey(IdeState& ide, const Keys& k) {
   auto& L = ide.lines;
   if (ide.curR >= static_cast<int>(L.size()))
     ide.curR = static_cast<int>(L.size()) - 1;
-  std::string& line = L[static_cast<size_t>(ide.curR)];
+
+  // ── the selection and the edit keys: a typed char, backspace,
+  // forward-delete or enter with a selection live REPLACES the range —
+  // and that replacement is always its own restore point. NOTE: the
+  // range cut may reallocate L, so `line` is fetched AFTER this block.
+  const bool editOp = !k.typed.empty() || k.back || k.del || k.enter;
+  const bool selEdit = editOp && ideSelRange(ide).has_value();
+  if (selEdit) {
+    idePushUndo(ide);
+    ideSelDelete(ide);
+    ide.lastTyping = ide.lastBack = false;
+  }
 
   // ── the second chance: decide whether this frame's edits continue the
   // previous group (quick hands coalesce) or open a new restore point
   const bool quick = ide.idle < 0.8;
   if (!k.typed.empty()) {
-    if (!(ide.lastTyping && quick)) idePushUndo(ide);
-    else ide.redo.clear();
+    if (!selEdit) {
+      if (!(ide.lastTyping && quick)) idePushUndo(ide);
+      else ide.redo.clear();
+    }
     ide.lastTyping = true;
     ide.lastBack = false;
   }
-  if (k.back) {
+  if (k.back && !selEdit) {
     if (!((ide.lastTyping || ide.lastBack) && quick)) idePushUndo(ide);
     else ide.redo.clear();
     ide.lastBack = true;
     ide.lastTyping = false;
   }
-  if (k.enter || k.del || k.ctrlD || k.delWord || k.delWordFwd || k.comment)
-    idePushUndo(ide);                          // structure stands alone
+  if ((k.enter || k.del || k.ctrlD || k.delWord || k.delWordFwd || k.comment) &&
+      !selEdit)
+    idePushUndo(ide);              // structure stands alone — a selection
+                                   // replacement pushed once above already
+
+  std::string& line = L[static_cast<size_t>(ide.curR)];   // AFTER any range cut
 
   for (const char ch : k.typed) {
     // a closer you already have is skipped over, never doubled
@@ -636,7 +704,7 @@ inline void ideKey(IdeState& ide, const Keys& k) {
                     closer);
     }
   }
-  if (k.back) {
+  if (k.back && !selEdit) {
     // backspace between an empty pair removes BOTH halves — the pair
     // was born together, it dies together
     if (ide.curC > 0 && ide.curC < static_cast<int>(line.size()) &&
@@ -673,10 +741,21 @@ inline void ideKey(IdeState& ide, const Keys& k) {
     ++ide.curR;
     ide.curC = static_cast<int>(indent.size());
   }
-  if (k.up) --ide.curR;
-  if (k.down) ++ide.curR;
-  if (k.aLeft) --ide.curC;
-  if (k.aRight) ++ide.curC;
+  // ── movement: shift extends the selection, plain moves drop it.
+  // The anchor is born at the cursor on the FIRST shift-extension.
+  const bool shiftMove = k.sUp || k.sDown || k.sLeft || k.sRight;
+  const bool plainMove = k.up || k.down || k.aLeft || k.aRight || k.home ||
+                         k.end || k.pageUp || k.pageDn || k.docHome ||
+                         k.docEnd || k.wLeft || k.wRight;
+  if (shiftMove && ide.anchorR < 0) {
+    ide.anchorR = ide.curR;
+    ide.anchorC = ide.curC;
+  }
+  if (plainMove && !shiftMove) ideSelClear(ide);
+  if (k.up || k.sUp) --ide.curR;
+  if (k.down || k.sDown) ++ide.curR;
+  if (k.aLeft || k.sLeft) --ide.curC;
+  if (k.aRight || k.sRight) ++ide.curC;
   if (k.wLeft) ideWordBack(ide);             // word hops move the cursor only —
   if (k.wRight) ideWordFwd(ide);             // the document never hears about it
   if (k.home) ide.curC = 0;
@@ -691,7 +770,8 @@ inline void ideKey(IdeState& ide, const Keys& k) {
   }
   if (k.pageUp) ide.curR -= ide.page;
   if (k.pageDn) ide.curR += ide.page;
-  if (k.del) {                               // forward delete
+  if (k.del && !selEdit) {                   // forward delete — with a
+                                             // selection the cut already ran
     // re-fetch: enter may have grown L above and reallocated the buffer
     std::string& cur = L[static_cast<size_t>(ide.curR)];
     if (ide.curC < static_cast<int>(cur.size())) {
@@ -750,25 +830,60 @@ inline void ideKey(IdeState& ide, const Keys& k) {
                 static_cast<size_t>(to - ide.curC));
   }
   if (k.comment) {                           // ctrl+/: the line talks or hushes
-    // re-fetch: earlier edits may have reallocated the buffer
-    std::string& cur = L[static_cast<size_t>(ide.curR)];
-    const std::string pre = ideCommentFor(ide.path);   // e.g. "# " or "// "
-    const std::string bare = pre.substr(0, pre.size() - 1);   // "#"
-    const size_t first = cur.find_first_not_of(" \t");
-    if (first != std::string::npos &&
-        cur.compare(first, bare.size(), bare) == 0) {
-      // already a comment: strip the bare prefix and one space if it follows
-      size_t cut = first + bare.size();
-      if (cut < cur.size() && cur[cut] == ' ') ++cut;
-      const int removed = static_cast<int>(cut - first);
-      cur.erase(first, removed);
-      if (ide.curC > static_cast<int>(first))
-        ide.curC = std::max(static_cast<int>(first), ide.curC - removed);
+                                             // — across a selection, EVERY
+                                             // touched line talks at once
+    const auto sel = ideSelRange(ide);
+    if (sel && (*sel)[2] > (*sel)[0]) {
+      const int r0 = (*sel)[0], r1 = (*sel)[2];
+      const std::string pre = ideCommentFor(ide.path);
+      const std::string bare = pre.substr(0, pre.size() - 1);
+      bool strip = false;                    // the first talking line decides:
+      for (int r = r0; r <= r1 && !strip; ++r) {
+        const size_t first = L[static_cast<size_t>(r)].find_first_not_of(" \t");
+        if (first == std::string::npos) continue;
+        strip = L[static_cast<size_t>(r)].compare(first, bare.size(), bare) == 0;
+        break;
+      }
+      for (int r = r0; r <= r1; ++r) {
+        std::string& l = L[static_cast<size_t>(r)];
+        const size_t first = l.find_first_not_of(" \t");
+        if (strip) {
+          if (first == std::string::npos ||
+              l.compare(first, bare.size(), bare) != 0)
+            continue;                        // only real comments strip
+          size_t cut = first + bare.size();
+          if (cut < l.size() && l[cut] == ' ') ++cut;
+          l.erase(first, cut - first);
+        } else {
+          const size_t at = first == std::string::npos ? l.size() : first;
+          l.insert(l.begin() + static_cast<long>(at), pre.begin(), pre.end());
+        }
+      }
+      ide.curR = (*sel)[2];                  // rest at the range's end
+      ide.curC = static_cast<int>(L[static_cast<size_t>(ide.curR)].size());
+      ideSelClear(ide);
     } else {
-      // plain code: the prefix lands after the leading whitespace
-      const size_t at = first == std::string::npos ? cur.size() : first;
-      cur.insert(cur.begin() + static_cast<long>(at), pre.begin(), pre.end());
-      ide.curC += static_cast<int>(pre.size());
+      ideSelClear(ide);
+      // re-fetch: earlier edits may have reallocated the buffer
+      std::string& cur = L[static_cast<size_t>(ide.curR)];
+      const std::string pre = ideCommentFor(ide.path);   // e.g. "# " or "// "
+      const std::string bare = pre.substr(0, pre.size() - 1);   // "#"
+      const size_t first = cur.find_first_not_of(" \t");
+      if (first != std::string::npos &&
+          cur.compare(first, bare.size(), bare) == 0) {
+        // already a comment: strip the bare prefix and one space if it follows
+        size_t cut = first + bare.size();
+        if (cut < cur.size() && cur[cut] == ' ') ++cut;
+        const int removed = static_cast<int>(cut - first);
+        cur.erase(first, removed);
+        if (ide.curC > static_cast<int>(first))
+          ide.curC = std::max(static_cast<int>(first), ide.curC - removed);
+      } else {
+        // plain code: the prefix lands after the leading whitespace
+        const size_t at = first == std::string::npos ? cur.size() : first;
+        cur.insert(cur.begin() + static_cast<long>(at), pre.begin(), pre.end());
+        ide.curC += static_cast<int>(pre.size());
+      }
     }
     ide.dirty = true;                        // the game hears about it
     ide.idle = 0;

@@ -2,7 +2,7 @@
 
 ![DXN1 STUDIO 3](assets/banner.png)
 
-![version](https://img.shields.io/badge/version-3.0.19-8b5cf6?style=flat-square)
+![version](https://img.shields.io/badge/version-3.0.20-8b5cf6?style=flat-square)
 ![gates](https://github.com/DXN1-termux/DXN1-STUDIO/actions/workflows/ci.yml/badge.svg)
 ![native](https://img.shields.io/badge/native-C%2B%2023-f97316?style=flat-square)
 ![face](https://img.shields.io/badge/face-terminal_truecolor-22d3ee?style=flat-square)
@@ -120,11 +120,16 @@ viewport refreshes — *code a background, and boom, a background.*
   back. Dim guides at columns 79 and 99 keep the margins visible
   (`:ruler` toggles), `:stats` counts what you're holding, and
   `ctrl+home`/`ctrl+end` jump the edges of the document.
+- **The selection is real.** `shift+arrows` extend a glowing
+  anchor↔cursor range across lines; typing, backspace, delete or
+  enter replaces it in one undo step; `ctrl+/` comments or strips
+  EVERY line the selection covers; a plain move drops it.
 
 Keys: `ctrl+r` run · `ctrl+s` save · `ctrl+z` undo · `ctrl+y` redo ·
 `ctrl+f` find · `enter` next hit · `ctrl+d` duplicate line ·
 `ctrl+w` delete word · `ctrl+del` delete word ahead · `ctrl+/`
-comment toggle · `ctrl+←`/`ctrl+→` word hops ·
+comment toggle (multi-line with a selection) ·
+`shift+arrows` select · `ctrl+←`/`ctrl+→` word hops ·
 `ctrl+↑`/`ctrl+↓` nudge the view ·
 `ctrl+n` next template (or `:new`) · `ctrl+g` jump to the error line ·
 `ctrl+p` screenshot of your live game · `pgup/pgdn` page · `home/end`

@@ -1,3 +1,23 @@
+## v3.0.20 — the selection
+
+- **`shift+arrows` select.** The anchor is born at the cursor on the
+  first shift-extension and the selection glows cell by cell as it
+  grows — across lines, backward, whatever shape you draw. A plain
+  move drops it; undo/redo drop it too; jumps (`:goto`, find-walk,
+  template loads, `:open`) never drag a stale selection along.
+- **Edits replace the range.** A typed character, backspace,
+  forward-delete or enter with a selection live replaces the range —
+  VS Code's contract — and the whole replacement is ONE honest undo
+  step. A spanning cut joins the lines at the range's edges; an
+  anchor equal to the cursor is no selection at all.
+- **`ctrl+/` speaks multi-line.** With a selection spanning lines,
+  the comment toggle touches EVERY line the selection covers — the
+  first talking line decides whether the range gets stripped or
+  dressed, blank lines are skipped, and the whole toggle is one
+  undo step.
+- Selftest: group 30 (extend/replace/span/cut/undo semantics)
+  — 229 → 241.
+
 ## v3.0.19 — the ruler, the snippets and the edges
 
 - **`:snip <name>` drops boilerplate from a shelf that speaks your

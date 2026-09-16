@@ -121,6 +121,7 @@ Keys pollKeys(Mode mode) {
           switch (fin) {
             case 'A':
               if (mode == Mode::Ide && mod == 5) k.scroll -= 1;  // nudge the view
+              else if (mode == Mode::Ide && mod == 2) k.sUp = true;
               else if (mod == 0) {
                 if (mode == Mode::Ide) k.up = true;
                 else if (mode == Mode::File) k.scroll -= 1;
@@ -129,6 +130,7 @@ Keys pollKeys(Mode mode) {
               break;
             case 'B':
               if (mode == Mode::Ide && mod == 5) k.scroll += 1;
+              else if (mode == Mode::Ide && mod == 2) k.sDown = true;
               else if (mod == 0) {
                 if (mode == Mode::Ide) k.down = true;
                 else if (mode == Mode::File) k.scroll += 1;
@@ -136,6 +138,7 @@ Keys pollKeys(Mode mode) {
               break;
             case 'C':
               if (mode == Mode::Ide && mod == 5) k.wRight = true;
+              else if (mode == Mode::Ide && mod == 2) k.sRight = true;
               else if (mod == 0) {
                 if (mode == Mode::Ide) k.aRight = true;
                 else if (mode == Mode::File) k.scroll += 10;
@@ -144,6 +147,7 @@ Keys pollKeys(Mode mode) {
               break;
             case 'D':
               if (mode == Mode::Ide && mod == 5) k.wLeft = true;
+              else if (mode == Mode::Ide && mod == 2) k.sLeft = true;
               else if (mod == 0) {
                 if (mode == Mode::Ide) k.aLeft = true;
                 else if (mode == Mode::File) k.scroll -= 10;
@@ -761,6 +765,25 @@ void drawIDE(dxn3::Screen& scr, IdeState& ide, const dxn3::Game& g, bool hostUp)
       }
     }
   }
+  // the selection glows: every cell of the anchor↔cursor range burns
+  // softly (drawn before the cursor, after the code)
+  if (const auto sel = dxn3::ideSelRange(ide)) {
+    const auto [r0, c0, r1, c1] = *sel;
+    const RGB selGlow = dxn3::rgb(56, 42, 98);
+    for (int r = r0; r <= r1; ++r) {
+      if (r < ide.top || r >= ide.top + bodyRows) continue;
+      const std::string& l = ide.lines[static_cast<size_t>(r)];
+      const int from = (r == r0) ? c0 : 0;
+      const int to = (r == r1) ? std::min<int>(c1, static_cast<int>(l.size()))
+                               : static_cast<int>(l.size());
+      for (int c = from; c < to; ++c) {
+        const int col = 4 + c - ide.hcol;
+        if (col < 4 || col >= 4 + textW) continue;    // out of the pane
+        scr.textBg(col, bodyTop + (r - ide.top),
+                   std::string(1, l[static_cast<size_t>(c)]), paneBg, selGlow);
+      }
+    }
+  }
   // the cursor: inverse video on the exact cell
   if (ide.curR >= ide.top && ide.curR < ide.top + bodyRows) {
     const int row = bodyTop + (ide.curR - ide.top);
@@ -1121,6 +1144,7 @@ int main(int argc, char** argv) {
     ide.lastTyping = ide.lastBack = false;
     ide.curR = ide.curC = ide.top = 0;
     ide.hcol = 0;                              // a fresh page, an unslid view
+    dxn3::ideSelClear(ide);                    // and no stale selection
     ide.dirty = true;
     ide.idle = 0;
     ide.console.push_back("engine: template — " + name + " (" +
@@ -1307,6 +1331,8 @@ int main(int argc, char** argv) {
             ide.redo.clear();
             ide.lastTyping = ide.lastBack = false;
             ide.curR = ide.curC = ide.top = 0;
+            dxn3::ideSelClear(ide);          // no stale selection rides along
+            ide.hcol = 0;
             ide.tpl = -1;
             ide.findOpen = false;            // the searchlight rests
             ide.findQ.clear();
@@ -1327,6 +1353,7 @@ int main(int argc, char** argv) {
           ide.curC = 0;
           ide.top = std::max(0, ide.curR - 4);   // the jump lands mid-screen
           ide.lastTyping = ide.lastBack = false;
+          dxn3::ideSelClear(ide);                // the jump drops the selection
           ide.console.push_back("engine: jumped to line " +
                                 std::to_string(ide.curR + 1));
         } else if (cmd.verb == "snip") {
@@ -1509,7 +1536,8 @@ int main(int argc, char** argv) {
         ide.idle = 0;
       }
       if (keys.up || keys.down || keys.aLeft || keys.aRight ||
-          keys.wLeft || keys.wRight || keys.docHome || keys.docEnd)
+          keys.wLeft || keys.wRight || keys.docHome || keys.docEnd ||
+          keys.sUp || keys.sDown || keys.sLeft || keys.sRight)
         ide.idle = 0;
       if (keys.scroll != 0) ide.top += keys.scroll;   // ctrl+↑/↓ nudge the view
       if (keys.ctrlS) {
