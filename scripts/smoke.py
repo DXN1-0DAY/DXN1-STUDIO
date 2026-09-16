@@ -373,6 +373,8 @@ def main():
         check("a pin plants its diamond in the gutter",
               scr.cell(ROWS - 3, GUTTER - 1)[0] == "◆",
               repr(scr.cell(ROWS - 3, GUTTER - 1)))
+        check("the header counts the pin at a glance",
+              "pins 1" in scr.text(0), repr(scr.text(0)[-30:]))
         check("the pinned gutter number burns amber",
               scr.fg_at(ROWS - 3, 1) == AMBER, repr(scr.fg_at(ROWS - 3, 1)))
         for _ in range(3):                # the hand walks up — one arrow
@@ -384,6 +386,8 @@ def main():
         check("a second pin plants where the hand stands",
               scr.cell(ROWS - 6, GUTTER - 1)[0] == "◆",
               repr(scr.cell(ROWS - 6, GUTTER - 1)))
+        check("the header counts both pins",
+              "pins 2" in scr.text(0), repr(scr.text(0)[-30:]))
         # the pins whisper: the bar completes :bm as you type
         bar = s.open_bar("ide")
         s.send("bm ")
@@ -397,6 +401,21 @@ def main():
               "2) Ln 40" in scr.text(ROWS - 1) and
               "1) Ln 37" not in scr.text(ROWS - 1),
               repr(scr.text(ROWS - 1)[:50]))
+        s.send(ESC)                               # the bar rests
+        s.settle(0.3)                             # stage: play
+        # the gallery whispers: the bar knows the starters before you do
+        bar = s.open_bar("play")
+        s.send("template ")
+        scr = s.settle(0.3)
+        check("a bare :template whispers the whole gallery",
+              "blank · shooter · cards" in scr.text(ROWS - 1),
+              repr(scr.text(ROWS - 1)[:60]))
+        s.send("b")
+        scr = s.settle(0.3)
+        check("a typed prefix narrows the gallery",
+              "blank · background · bounce" in scr.text(ROWS - 1) and
+              "shooter" not in scr.text(ROWS - 1),
+              repr(scr.text(ROWS - 1)[:60]))
         s.send(ESC)                               # the bar rests
         s.settle(0.3)                             # stage: play
         scr, _ = s.run_verb("marks", "play")

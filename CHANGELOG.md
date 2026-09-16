@@ -1,3 +1,18 @@
+## v3.0.44 — the gallery
+
+- **`:template` whispers the gallery.** The bar's eighth whisper
+  source — type `:template ` and every starter's name speaks
+  (`blank · shooter · cards · background · flappy · bounce · pong`),
+  the typed prefix narrowing the list by the SAME law the verb's
+  resolution follows: an exact name wins, a unique prefix resolves,
+  and the whisper shows you all three outcomes before enter does.
+- **The header counts the pins.** Next to `· zen` and `· sel N`, a
+  document carrying pins now carries `· pins N` — the ledger's size
+  at a glance, no `:marks` needed in big files.
+- Smoke grew the gallery checks (bare whisper + narrowed prefix,
+  through the real bar) and the pin-count header checks — 39 → 43
+  checks. 455 selftest groups stand.
+
 ## v3.0.43 — the choir
 
 - **The pins whisper: `:bm` completes itself as you type.** The bar's

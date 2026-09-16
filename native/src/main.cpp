@@ -791,6 +791,9 @@ void drawIDE(dxn3::Screen& scr, IdeState& ide, const dxn3::Game& g, bool hostUp)
   std::string pos = "  Ln " + std::to_string(ide.curR + 1) + " · Col " +
                     std::to_string(ide.curC + 1);
   if (ide.zen) pos += " · zen";               // the quiet says its name
+  if (!ide.marks.empty())
+    pos += " · pins " + std::to_string(ide.marks.size());  // the pins count,
+                                                // at a glance in big files
   if (const int selN = dxn3::ideSelCount(ide); selN > 0)
     pos += " · sel " + std::to_string(selN);
   if (24 + static_cast<int>(file.size() + pos.size()) + 2 < scol)
@@ -2044,7 +2047,7 @@ int main(int argc, char** argv) {
         } qs[] = {{"scene ", 6, false},      {"open ", 5, true},
                   {"screenshot ", 11, true}, {"w ", 2, false},
                   {"snip ", 5, false},       {"recent ", 7, true},
-                  {"bm ", 3, true}};
+                  {"bm ", 3, true},          {"template ", 9, true}};
         for (const auto& q : qs) {
           if (cmdBuf.rfind(q.pre, 0) != 0 ||
               cmdBuf.size() < q.len + (q.bare ? 0 : 1))
@@ -2114,6 +2117,16 @@ int main(int argc, char** argv) {
             w = dxn3::ideMarkWhisper(
                 ide, part,
                 static_cast<size_t>(std::max(0, cols - 1 - hcolW)));
+          } else if (std::strcmp(q.pre, "template ") == 0) {
+            // the gallery whispers: every starter's name, the typed
+            // prefix narrowing — the SAME law the verb's resolution
+            // speaks, one row earlier in the story
+            for (int i = 0; i < nTpl; ++i) {
+              if (std::string_view(tpls[i].name).rfind(part, 0) != 0)
+                continue;
+              if (!w.empty()) w += " · ";
+              w += tpls[i].name;
+            }
           } else {                           // "snip " — the shelf whispers
             for (const auto& nm : dxn3::ideSnippetNames(ide.path)) {
               if (nm.rfind(part, 0) != 0) continue;
