@@ -2043,7 +2043,8 @@ int main(int argc, char** argv) {
           bool bare;             // whispers even with nothing typed after it
         } qs[] = {{"scene ", 6, false},      {"open ", 5, true},
                   {"screenshot ", 11, true}, {"w ", 2, false},
-                  {"snip ", 5, false},       {"recent ", 7, true}};
+                  {"snip ", 5, false},       {"recent ", 7, true},
+                  {"bm ", 3, true}};
         for (const auto& q : qs) {
           if (cmdBuf.rfind(q.pre, 0) != 0 ||
               cmdBuf.size() < q.len + (q.bare ? 0 : 1))
@@ -2105,6 +2106,13 @@ int main(int argc, char** argv) {
             const int hcolW = 2 + static_cast<int>(cmdBuf.size());
             w = dxn3::ideRecentWhisper(
                 ide.recent, part,
+                static_cast<size_t>(std::max(0, cols - 1 - hcolW)));
+          } else if (std::strcmp(q.pre, "bm ") == 0) {
+            // the pins whisper: the :marks order speaks its lines, the
+            // typed number narrows the choir, the bar's width ends it
+            const int hcolW = 2 + static_cast<int>(cmdBuf.size());
+            w = dxn3::ideMarkWhisper(
+                ide, part,
                 static_cast<size_t>(std::max(0, cols - 1 - hcolW)));
           } else {                           // "snip " — the shelf whispers
             for (const auto& nm : dxn3::ideSnippetNames(ide.path)) {

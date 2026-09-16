@@ -992,6 +992,29 @@ inline std::string ideRecentWhisper(const std::vector<std::string>& recent,
   return w;
 }
 
+// the pins whisper in the bar: ":bm" completes itself as you type.
+// The ledger's entries speak "N) Ln L" — the :marks order, top of the
+// file first — only the pins whose NUMBER carries the typed prefix,
+// only as many as the bar honestly holds (the SAME clipping law as
+// the ledger's whisper: the first entry that does not fit ends the
+// line). An empty ledger stays silent — bare :bm already refuses
+// with the way out, so the quiet is the honest answer.
+inline std::string ideMarkWhisper(const IdeState& s, const std::string& part,
+                                  size_t maxW) {
+  if (s.marks.empty()) return "";
+  std::string w;
+  for (size_t i = 0; i < s.marks.size(); ++i) {
+    const std::string entry =
+        std::to_string(i + 1) + ") Ln " + std::to_string(s.marks[i] + 1);
+    if (!part.empty() && entry.rfind(part, 0) != 0) continue;
+    const size_t need =
+        w.empty() ? entry.size() : w.size() + 3 + entry.size();
+    if (need > maxW) break;
+    w += w.empty() ? entry : " · " + entry;
+  }
+  return w;
+}
+
 // what ":recent <arg>" meant: an exact name wins, a UNIQUE prefix
 // resolves, an ambiguous prefix returns "" (the caller lists the
 // matches), and a ghost passes through unchanged — refused upstream,

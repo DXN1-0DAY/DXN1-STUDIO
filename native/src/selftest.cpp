@@ -199,7 +199,7 @@ int main() {
   }
 
   // 9. the version quad rides in the binary too
-  ok(std::string(dxn3::DXN3_VERSION) == "3.0.42",
+  ok(std::string(dxn3::DXN3_VERSION) == "3.0.43",
      "native version constant matches the release quad");
 
   // 10. png writer: checksum vectors, real structure, byte determinism
@@ -2368,6 +2368,33 @@ int main() {
     ok(dxn3::usageHintFor(":rsort").find("Z before A") != std::string::npos,
        "the bar whispers the descending law");
   }
+
+  // 53. the pins whisper: ":bm" completes itself as you type - the
+  // ledger speaks "N) Ln L", the typed number narrows the choir, the
+  // bar's width ends the line, an empty ledger stays silent
+  {
+    IdeState w1;
+    w1.lines = {"a", "b", "c", "d", "e", "f", "g", "h", "i", "j"};
+    dxn3::ideMarkToggle(w1, 3);        // 1) Ln 4
+    dxn3::ideMarkToggle(w1, 8);        // 2) Ln 9
+    ok(dxn3::ideMarkWhisper(w1, "", 200) == "1) Ln 4 · 2) Ln 9",
+       "a bare :bm whispers every pin, the :marks order");
+    ok(dxn3::ideMarkWhisper(w1, "2", 200) == "2) Ln 9",
+       "a typed number narrows the choir to the pins it names");
+    ok(dxn3::ideMarkWhisper(w1, "1", 200) == "1) Ln 4",
+       "a prefix matches by the entry's head, nothing else");
+    ok(dxn3::ideMarkWhisper(w1, "9", 200) == "",
+       "a prefix no pin speaks stays silent");
+    ok(dxn3::ideMarkWhisper(w1, "", 6) == "",
+       "a bar too narrow for even one pin holds its tongue");
+    ok(dxn3::ideMarkWhisper(w1, "", 12) == "1) Ln 4",
+       "one honest entry fits a small bar - the next would not");
+    IdeState w2;                       // the pinless ledger is quiet
+    w2.lines = {"solo"};
+    ok(dxn3::ideMarkWhisper(w2, "", 200) == "",
+       "an empty ledger whispers nothing - bare :bm refuses instead");
+  }
+
 
 
   if (fails == 0) {

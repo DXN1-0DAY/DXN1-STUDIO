@@ -1,3 +1,21 @@
+## v3.0.43 — the choir
+
+- **The pins whisper: `:bm` completes itself as you type.** The bar's
+  seventh whisper source — type `:bm ` and the ledger speaks
+  `1) Ln 37 · 2) Ln 40` in the `:marks` order; the typed number
+  narrows the choir to the pins it names, and the bar's honest width
+  ends the line (the SAME clipping law as the ledger's whisper: the
+  first entry that does not fit stops the line). An empty ledger
+  stays silent — bare `:bm` already refuses with the way out.
+- The leap verbs were already honest; now they are discoverable
+  BEFORE you know the numbers — the whisper is the `:marks` list,
+  one row earlier in the story.
+- Selftest group 53 (7 asserts: the full choir, the narrowing
+  prefix, prefix-by-head, the silent misses, the narrow bar, the
+  one-entry fit, the pinless silence) — 448 → 455 groups. The smoke
+  grew the whisper checks (bare + narrowed, through the real bar) —
+  37 → 39 checks.
+
 ## v3.0.42 — the mirror
 
 - **`:rsort` — the selection's lines land Z before A.** The sort's

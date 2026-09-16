@@ -384,7 +384,22 @@ def main():
         check("a second pin plants where the hand stands",
               scr.cell(ROWS - 6, GUTTER - 1)[0] == "◆",
               repr(scr.cell(ROWS - 6, GUTTER - 1)))
-        scr, _ = s.run_verb("marks", "ide")
+        # the pins whisper: the bar completes :bm as you type
+        bar = s.open_bar("ide")
+        s.send("bm ")
+        scr = s.settle(0.3)
+        check("a bare :bm whispers every pin as you type",
+              "1) Ln 37 · 2) Ln 40" in scr.text(ROWS - 1),
+              repr(scr.text(ROWS - 1)[:50]))
+        s.send("2")
+        scr = s.settle(0.3)
+        check("a typed number narrows the choir",
+              "2) Ln 40" in scr.text(ROWS - 1) and
+              "1) Ln 37" not in scr.text(ROWS - 1),
+              repr(scr.text(ROWS - 1)[:50]))
+        s.send(ESC)                               # the bar rests
+        s.settle(0.3)                             # stage: play
+        scr, _ = s.run_verb("marks", "play")
         check(":marks lists both pins by line (sorted, not planted)",
               "1) Ln 37" in scr.text(ROWS - 2) and "2) Ln 40" in
               scr.text(ROWS - 2), repr(scr.text(ROWS - 2)[:60]))
