@@ -1,3 +1,20 @@
+## v3.0.87 — the eye's walk (up/down ride the fold's rows)
+
+- **↑/↓ walk VISUAL rows under the fold.** From a line's continuation
+  row, up lands on the line's OWN head — not the line above — and the
+  eye's column is kept, clamped to the landing row's honest width
+  (a row boundary the cursor cannot occupy resolves to the row's last
+  true cell). The fold asleep (or a walk off the document's edge)
+  hands the move back to the logical law — the identity is untouched.
+- The walk rebuilds the fold's layout from `lastTextW` — the width
+  the last draw just painted — one frame stale at worst, so the keys
+  speak the SAME geometry the paint spoke. shift+up/down extend the
+  selection through rows exactly as they extended it through lines.
+- Selftest group 88 grows five walk laws (799 -> 804); smoke grows
+  the walk's three-step drive (175 -> 178): the hand rides the
+  continuation row, up lands on the line's own head (Ln holds), the
+  next up climbs to the line above. Gates ALL GREEN.
+
 ## v3.0.86 — the query's tongue (:s//new borrows the find)
 
 - **`:s//new` speaks the searchlight's query.** An empty old that

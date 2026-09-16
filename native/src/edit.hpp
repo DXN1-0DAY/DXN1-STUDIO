@@ -194,6 +194,11 @@ struct IdeState {
   // through the wrap's layout — built fresh every draw, O(the
   // document's bytes), no stamps, no stale caches.
   bool wrap = false;
+  // the pane's width the last draw built the fold's layout for (0 =
+  // never drawn) — the eye's walk (visual ↑/↓) rebuilds the layout
+  // from it, one frame stale at worst, so the keys speak the SAME
+  // geometry the paint just spoke.
+  int lastTextW = 0;
   // the macro register: the verb lines recorded this session (:record
   // toggles the recorder, :macro replays the register through the SAME
   // dispatch the bar speaks). A session fact like the census — the
@@ -1371,6 +1376,35 @@ inline int ideLongestLine(const IdeState& s) {
   for (const auto& l : s.lines)
     best = std::max(best, static_cast<int>(l.size()));
   return best;
+}
+
+// ── the eye's walk: visual ↑/↓ under the fold ───────────────────────
+// With the fold speaking, up/down walk VISUAL rows — from a line's
+// continuation row, up lands on the line's OWN head, not the line
+// above — and the eye's column is kept, clamped to the landing row's
+// honest width. Returns true when the visual law took the hand;
+// false hands the move back to the caller's logical law (the fold
+// asleep, a sliver of a pane, or a walk that would leave the
+// document — the clamp rides the caller as always).
+inline bool ideVisualMove(IdeState& s, int delta) {
+  if (delta == 0 || !s.wrap || s.lastTextW < 8) return false;
+  const IdeWrap w = ideWrapBuild(s, s.lastTextW);
+  const int v = ideWrapRowOf(w, s.curR, s.curC);
+  const int target = v + delta;
+  if (target < 0 || target >= w.rows) return false;
+  const int li = w.rowLine[static_cast<size_t>(target)];
+  const int off = w.rowOff[static_cast<size_t>(target)];
+  const int lineLen =
+      static_cast<int>(s.lines[static_cast<size_t>(li)].size());
+  const int lineLast = w.lineFirst[static_cast<size_t>(li) + 1] - 1;
+  const int rowEnd = target < lineLast
+                         ? w.rowOff[static_cast<size_t>(target) + 1]
+                         : lineLen;          // the row's end (exclusive)
+  const int maxCol = rowEnd >= lineLen ? lineLen : rowEnd - 1;
+  const int want = off + (s.curC - w.rowOff[static_cast<size_t>(v)]);
+  s.curR = li;
+  s.curC = std::clamp(want, off, std::max(off, maxCol));
+  return true;
 }
 
 // ── horizontal scroll: the cursor is always on screen ───────────────
@@ -3078,8 +3112,13 @@ inline void ideKey(IdeState& ide, const Keys& k) {
     ide.anchorC = ide.curC;
   }
   if (plainMove && !shiftMove) ideSelClear(ide);
-  if (k.up || k.sUp) --ide.curR;
-  if (k.down || k.sDown) ++ide.curR;
+  if (k.up || k.sUp) {
+    // the fold walks rows (the eye's law); the identity walks lines
+    if (!ideVisualMove(ide, -1)) --ide.curR;
+  }
+  if (k.down || k.sDown) {
+    if (!ideVisualMove(ide, +1)) ++ide.curR;
+  }
   if (k.aLeft || k.sLeft) --ide.curC;
   if (k.aRight || k.sRight) ++ide.curC;
   if (k.wLeft) ideWordBack(ide);             // word hops move the cursor only —

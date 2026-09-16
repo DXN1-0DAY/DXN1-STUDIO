@@ -1191,6 +1191,26 @@ def main():
               "10 replaced on 1 line" in scr.text(ROWS - 2),
               repr(scr.text(ROWS - 2)[:70]))
 
+        # ── 13l. the eye's walk — up/down ride the fold's rows ───────
+        print("── 13l. the eye's walk")
+        s1d.run_verb("wrap", "ide")            # the fold speaks again
+        s1d.run_verb("goto 60", "ide")         # the folded line
+        time.sleep(0.2)
+        s1d.send("X" * 30)                     # 19 + 30 = 49 > 41: it folds
+        s1d.settle(0.4)
+        s1d.send("\x1b[F")                     # end: the tail row
+        scr = s1d.settle(0.3)
+        check("the fold speaks (the hand rides the continuation row)",
+              "Ln 60" in scr.text(0), repr(scr.text(0)[:60]))
+        s1d.send("\x1b[A")                     # up: the ROW above, not the line
+        scr = s1d.settle(0.3)
+        check("up from a continuation lands on the line's own head",
+              "Ln 60" in scr.text(0), repr(scr.text(0)[:60]))
+        s1d.send("\x1b[A")                     # up again: now the line above
+        scr = s1d.settle(0.3)
+        check("up from the line's head climbs to the line above",
+              "Ln 59" in scr.text(0), repr(scr.text(0)[:60]))
+
         s1d.send(ESC)
         time.sleep(0.3)
         s1d.send("q")

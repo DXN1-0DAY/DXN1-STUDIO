@@ -871,6 +871,7 @@ void drawIDE(dxn3::Screen& scr, IdeState& ide, const dxn3::Game& g, bool hostUp)
   const int G = dxn3::ideGutterWidth(static_cast<int>(ide.lines.size()));
   const int mapX = editW - 1 - mapW;         // map cols [mapX, mapX + mapW)
   const int textW = editW - 1 - G - (mapOn ? mapW + 1 : 0);   // code after gutter
+  ide.lastTextW = textW;               // the eye's walk speaks this width
   // the fold's layout: built fresh EVERY draw — rows, owners, offsets
   // — O(the document's bytes), no stamps, no stale caches. Wrap OFF
   // builds the identity (one line, one row), so every geometry law

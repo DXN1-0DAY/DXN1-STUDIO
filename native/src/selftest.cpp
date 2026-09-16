@@ -199,7 +199,7 @@ int main() {
   }
 
   // 9. the version quad rides in the binary too
-  ok(std::string(dxn3::DXN3_VERSION) == "3.0.86",
+  ok(std::string(dxn3::DXN3_VERSION) == "3.0.87",
      "native version constant matches the release quad");
 
   // 10. png writer: checksum vectors, real structure, byte determinism
@@ -4068,6 +4068,34 @@ int main() {
     ls.lines = {"", "", ""};
     ok(dxn3::ideLongestLine(ls) == 0,
        "a document of empty lines offends by zero");
+  }
+
+  // 88. the eye's walk: visual up/down under the fold
+  {
+    IdeState es;
+    es.wrap = true;
+    es.lastTextW = 10;
+    es.lines = {"short", "alpha beta gamma", "tail"};
+    es.curR = 0;
+    es.curC = 3;                          // "sh|ort" — the eye at col 3
+    ok(dxn3::ideVisualMove(es, +1) && es.curR == 1 && es.curC == 3,
+       "down keeps the eye's column on the row below");
+    es.curR = 1;
+    es.curC = 16;                         // the folded line's tail row
+    ok(dxn3::ideVisualMove(es, -1) && es.curR == 1 && es.curC == 5,
+       "up from the tail row keeps the line, the eye clamped to the row's end");
+    es.curR = 1;
+    es.curC = 6;                          // the continuation's own head
+    ok(dxn3::ideVisualMove(es, -1) && es.curR == 1 && es.curC == 0,
+       "up from a continuation lands on the line's OWN head");
+    es.wrap = false;
+    ok(!dxn3::ideVisualMove(es, +1),
+       "the fold asleep hands the move to the caller's law");
+    es.wrap = true;
+    es.curR = 0;
+    es.curC = 0;
+    ok(!dxn3::ideVisualMove(es, -1),
+       "a walk off the document's head is the caller's law too");
   }
 
 
