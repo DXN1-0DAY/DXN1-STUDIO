@@ -199,7 +199,7 @@ int main() {
   }
 
   // 9. the version quad rides in the binary too
-  ok(std::string(dxn3::DXN3_VERSION) == "3.0.72",
+  ok(std::string(dxn3::DXN3_VERSION) == "3.0.73",
      "native version constant matches the release quad");
 
   // 10. png writer: checksum vectors, real structure, byte determinism
@@ -3699,6 +3699,44 @@ int main() {
     dxn3::ideTouchClear(tr);
     ok(tr.touched.empty(),
        "a page just opened is a clean page — the census restarts");
+  }
+
+  // 79. the cross-marks and the census's leap: :jumps wears the pin's
+  // diamond on a leapt line (">" prefixes the walker's entry, "◆"
+  // suffixes every pinned one — both can ride one entry), and
+  // :changes <n> leaps to the Nth touched line — a REAL leap, planted.
+  {
+    const std::vector<int> led = {6, 29, 54};
+    const std::vector<int> pins = {29};        // line 30 (0-based 29)
+    ok(dxn3::ideJumpsWhisper(led, -1, pins) == "now 55 · 30◆ · 7",
+       "a pin in the ledger wears the diamond in the listing");
+    ok(dxn3::ideJumpsWhisper(led, 1, pins) == "now 55 · >30◆ · 7",
+       "the walker's bookmark and the pin ride ONE entry together");
+    ok(dxn3::ideJumpsWhisper(led, -1, {}) == "now 55 · 30 · 7",
+       "no pins, no diamonds — the plain listing");
+    ok(dxn3::ideJumpsWhisper(led, 1, {6, 54}) ==
+           "now 55◆ · >30 · 7◆",
+       "every pinned entry wears its diamond, wherever it stands");
+    const std::vector<int> deep = {1,  2,  3,  4,  5,  6,  7,  8, 9};
+    ok(dxn3::ideJumpsWhisper(deep, -1, {1, 8}) ==
+           "now 10 · 9◆ · 8 · 7 · 6 · 5 · 4 · 3 … +1 deeper",
+       "the visible pin wears its diamond; the pin hidden beyond the "
+       "cap stays unseen");
+
+    // :changes <n> — the leap. The verb's walk lives in main (smoke's
+    // pty drive lands the hand); here the LAWS it obeys: the leap is
+    // planted in the ledger, the census order is ascending, and a wild
+    // index is the caller's refusal. Drive ideJumpPush as the handler
+    // does and check the ledger grew by the leap.
+    IdeState cl;
+    cl.lines = {"a", "b", "c", "d", "e"};
+    dxn3::ideTouch(cl, 3);
+    dxn3::ideTouch(cl, 1);
+    const int to = cl.touched[static_cast<size_t>(1 - 1)];  // :changes 1
+    ok(to == 1, "the census's first line is its smallest");
+    dxn3::ideJumpPush(cl, to);
+    ok(cl.jumps.size() == 1 && cl.jumps.back() == 1 && cl.jumpIx == -1,
+       "the census's leap is a real leap — planted, the walker at now");
   }
 
 

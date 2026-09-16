@@ -1063,6 +1063,39 @@ def main():
               scr.text(ROWS - 2),
               repr(scr.text(ROWS - 2)[:70]))
 
+        # ── 13i. the cross-marks — the ledger and the pins agree ─────
+        print("── 13i. :jumps wears the pins · :changes leaps")
+        s1d.run_verb("goto 55", "ide")
+        s1d.run_verb("mark", "ide")            # a pin where the hand leapt
+        scr, _ = s1d.run_verb("jumps", "ide")
+        check(":jumps wears the pin's diamond on a leapt line",
+              "now 55◆ · 30" in scr.text(ROWS - 2) and
+              "55◆ · 30" in scr.text(ROWS - 2),
+              repr(scr.text(ROWS - 2)[:70]))
+        s1d.send("Xy")                         # an edit under the pin
+        time.sleep(0.25)
+        s1d.run_verb("goto 30", "ide")         # away, so the leap is real
+        scr, _ = s1d.run_verb("changes 1", "ide")
+        check(":changes 1 leaps to the census's first touched line",
+              "the hand leaps to the census's line 1 — line 55" in
+              scr.text(ROWS - 2),
+              repr(scr.text(ROWS - 2)[:70]))
+        scr = s1d.settle(0.3)
+        check("the census's leap landed the hand (the header says Ln 55)",
+              "Ln 55" in scr.text(0),
+              repr(scr.text(0)[:90]))
+        s1d.send("\x0f")                       # ctrl+o: walk into the past
+        scr = s1d.settle(0.35)
+        check("the walker owns the hint rail with its ledger position",
+              "walk " in scr.text(ROWS - 1) and
+              " of the ledger" in scr.text(ROWS - 1),
+              repr(scr.text(ROWS - 1)[:70]))
+        s1d.send("\x1b[1;3C")                  # alt+→: climb back out
+        scr = s1d.settle(0.35)
+        check("the walk out ends the walker's hint rail",
+              " of the ledger" not in scr.text(ROWS - 1),
+              repr(scr.text(ROWS - 1)[:70]))
+
         s1d.send(ESC)
         time.sleep(0.3)
         s1d.send("q")

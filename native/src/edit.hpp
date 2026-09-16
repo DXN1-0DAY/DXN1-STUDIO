@@ -1456,31 +1456,53 @@ inline std::string ideJumpsWhisper(const std::vector<int>& jumps) {
   return out;
 }
 
-// the whisper with the walker's bookmark worn: the entry the hand
-// walks on carries ">" so the listing answers BOTH questions — where
-// the leaps went AND where the walker stands. No bookmark, a wild
-// one, or one sitting on "now": the plain listing. A bookmark hidden
-// beyond the cap simply stays unseen (honest).
+// the cross-marked listing: a leap that lands on a PIN wears the pin's
+// diamond — the ledger and the pins are two ledgers over one document,
+// and :jumps answers "where have I been" AND "which of those places
+// did I nail down" in one breath. The walker's ">" prefixes its entry;
+// the pin's "◆" suffixes every pinned one — both can ride one entry
+// (">30◆": you are walking on a pinned leap). `marks` rides the pins'
+// own invariant: sorted, unique — ide.marks always is.
 inline std::string ideJumpsWhisper(const std::vector<int>& jumps,
-                                   int walkIx) {
-  if (jumps.empty()) return ideJumpsWhisper(jumps);
-  const size_t n = jumps.size();
-  if (walkIx < 0 || static_cast<size_t>(walkIx) >= n)
-    return ideJumpsWhisper(jumps);
-  const size_t markAt = n - 1 - static_cast<size_t>(walkIx);
-  if (markAt == 0) return ideJumpsWhisper(jumps);   // the walker is at now
+                                   int walkIx,
+                                   const std::vector<int>& marks) {
+  if (jumps.empty()) return "";
+  const auto pinned = [&](int line) {
+    return std::binary_search(marks.begin(), marks.end(), line);
+  };
   constexpr size_t kCap = 8;
   std::string out;
   size_t shown = 0;
+  const size_t n = jumps.size();
+  const size_t markAt =
+      (walkIx >= 0 && static_cast<size_t>(walkIx) < n &&
+       static_cast<size_t>(walkIx) != n - 1)
+          ? n - 1 - static_cast<size_t>(walkIx)
+          : static_cast<size_t>(-1);         // a bookmark at "now" marks
+                                             // nothing — the plain listing
   for (size_t i = n; i-- > 0 && shown < kCap;) {
-    if (shown == 0) out += "now " + std::to_string(jumps[i] + 1);
+    if (shown == 0)
+      out += "now " + std::to_string(jumps[i] + 1);
     else if (shown == markAt)
       out += " · >" + std::to_string(jumps[i] + 1);
-    else out += " · " + std::to_string(jumps[i] + 1);
+    else
+      out += " · " + std::to_string(jumps[i] + 1);
+    if (pinned(jumps[i])) out += "◆";
     ++shown;
   }
   if (n > kCap) out += " … +" + std::to_string(n - kCap) + " deeper";
   return out;
+}
+
+// the whisper with the walker's bookmark worn (no pins to cross-mark):
+// the entry the hand walks on carries ">" so the listing answers BOTH
+// questions — where the leaps went AND where the walker stands. No
+// bookmark, a wild one, or one sitting on "now": the plain listing. A
+// bookmark hidden beyond the cap simply stays unseen (honest).
+inline std::string ideJumpsWhisper(const std::vector<int>& jumps,
+                                   int walkIx) {
+  static const std::vector<int> noPins;
+  return ideJumpsWhisper(jumps, walkIx, noPins);
 }
 
 // the ledger whispers: what ":recent <part>" is about to resolve to,

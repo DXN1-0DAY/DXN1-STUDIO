@@ -112,6 +112,12 @@ inline Cmd parseCommand(std::string_view line) {
     if (!c.arg.empty())
       number(1.f, 99999.f,
              "usage: :bm <pin number> — a bare :bm leaps to the next pin");
+  } else if (c.verb == "changes") {
+    // a bare :changes lists the census; a number leaps to the Nth touch
+    if (!c.arg.empty())
+      number(1.f, 99999.f,
+             "usage: :changes [n] — a bare :changes lists the touched lines; "
+             "a number leaps to the Nth");
   } else if (c.verb == "q" || c.verb == "wq" || c.verb == "fit" ||
              c.verb == "reset" || c.verb == "help" || c.verb == "new" ||
              c.verb == "ruler" || c.verb == "stats" || c.verb == "minimap" ||
@@ -125,7 +131,6 @@ inline Cmd parseCommand(std::string_view line) {
              c.verb == "hist" || c.verb == "undo" || c.verb == "redo" ||
              c.verb == "words" || c.verb == "todo" ||
              c.verb == "jumps" || c.verb == "relnum" ||
-             c.verb == "changes" ||
              c.verb == "fresh") {
     if (!c.arg.empty())
       c.error = ":" + c.verb + " takes no argument";
@@ -254,7 +259,8 @@ inline std::string usageHintFor(std::string_view typed) {
   if (verb == "jumps")
     return " :jumps — the lines the hand leapt to, newest first";
   if (verb == "changes")
-    return " :changes — the lines this session has written, top first";
+    return " :changes [n] — the lines this session wrote; a bare verb "
+           "lists, a number leaps";
   if (verb == "fresh")
     return " :fresh — the disk's truth wins the page back; the hand "
            "returns where it left";

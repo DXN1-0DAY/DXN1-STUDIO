@@ -1,3 +1,33 @@
+## v3.0.73 — the cross-marks (the ledger and the pins agree)
+
+- **`:jumps` wears the pins.** A leap that lands on a PIN now wears
+  the pin's diamond in the listing ("now 55◆ · 30 · 7") — the ledger
+  and the pins are two ledgers over one document, and the listing
+  answers "where have I been" AND "which of those places did I nail
+  down" in one breath. The walker's ">" prefixes its entry, the
+  pin's "◆" suffixes every pinned one, and both can ride ONE entry
+  (">30◆": you are walking on a pinned leap).
+- **`:changes` learned to leap.** A bare `:changes` lists the census;
+  a NUMBER leaps to the Nth touched line ("the hand leaps to the
+  census's line 1 — line 55") — the census is not just a mirror, it
+  is a set of addresses. The leap is a REAL one: planted in the
+  ledger, the selection dropped, the landing mid-screen — the same
+  laws the pins' `:bm` obeys. A wild index refuses honestly ("no
+  such touch — :changes lists 2"), a clean page says so.
+- **The walker owns the hint rail.** While the walker stands in the
+  ledger's past, the IDE's hint row becomes the walk's teacher —
+  "walk 2/6 of the ledger · alt+→ climbs out · ctrl+o deeper" —
+  context that teaches the mode you are IN, the way the find bar
+  counts its hits. A bookmark on the newest entry is the walker at
+  now: the plain hints come back (the same law the listing's ">"
+  speaks).
+- The pure law is a third `ideJumpsWhisper(jumps, walkIx, marks)`
+  overload (the 2-arg delegate keeps the old callers honest; `marks`
+  rides the pins' own sorted-unique invariant). Selftest group 79
+  (7 asserts) 724 -> 731; smoke 13i (5 checks) 145 -> 150, driving
+  the cross-mark, the census's leap, the landing, and both hint
+  rails through the real pty.
+
 ## v3.0.72 — the census (:changes — the lines the session wrote)
 
 - **`:changes` reads the census of your session.** Every line the

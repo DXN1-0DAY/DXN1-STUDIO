@@ -1083,14 +1083,29 @@ void drawIDE(dxn3::Screen& scr, IdeState& ide, const dxn3::Game& g, bool hostUp)
     } else {
       // a traceback in the console? offer the one-keystroke jump to the line
       const int errLine = dxn3::consoleErrorLine(ide.console);
-      const std::string hint = errLine > 0
-          ? " ctrl+g jumps to line " + std::to_string(errLine) +
-            " · ctrl+z undo · ctrl+f find · esc play "
-          : " ctrl+r run · ctrl+z undo · ctrl+f find · ctrl+\\ leap · F2 pins · "
-            "ctrl+c/x/v clipboard · esc play ";
       const bool errorUp = errLine > 0;
+      // the walker owns the hint while it stands in the PAST: where it
+      // is in the ledger (1-based, oldest first — the same order the
+      // ">" bookmark counts in), and the two ways home. Context that
+      // teaches the mode you are IN. A bookmark on the newest entry is
+      // the walker at now — the plain hints come back, the same law
+      // the :jumps listing's ">" speaks.
+      const int ledgerN = static_cast<int>(ide.jumps.size());
+      const bool walking =
+          ide.jumpIx >= 0 && ide.jumpIx < ledgerN - 1;
+      const std::string hint =
+          walking
+              ? " walk " + std::to_string(ide.jumpIx + 1) + "/" +
+                std::to_string(ledgerN) +
+                " of the ledger · alt+→ climbs out · ctrl+o deeper "
+              : (errorUp
+                     ? " ctrl+g jumps to line " + std::to_string(errLine) +
+                       " · ctrl+z undo · ctrl+f find · esc play "
+                     : " ctrl+r run · ctrl+z undo · ctrl+f find · ctrl+\\ leap · F2 pins · "
+                       "ctrl+c/x/v clipboard · esc play ");
       scr.text(1, c0 + 1, hint.substr(0, static_cast<size_t>(cols - 3)),
-               errorUp ? dxn3::rgb(248, 113, 113) : dxn3::rgb(84, 72, 120));
+               errorUp && !walking ? dxn3::rgb(248, 113, 113)
+                                   : dxn3::rgb(84, 72, 120));
       // the whisper outranks the echo: a shelf word under the hand names
       // its boilerplate, otherwise the console's second-newest line rests
       // in the rail's right seat
@@ -2017,29 +2032,53 @@ int main(int argc, char** argv) {
         } else if (cmd.verb == "jumps") {
           // the leaps, listed: the lines the hand changed by LEAPING —
           // :goto, the pins' F2, the welcome back — newest first, the
-          // "now" leading. A memory of where you have been.
+          // "now" leading, a leap that is ALSO a pin wearing the pin's
+          // diamond. A memory of where you have been — and which of
+          // those places you nailed down.
           takeStage();
           const std::string j =
-              dxn3::ideJumpsWhisper(ide.jumps, ide.jumpIx);
+              dxn3::ideJumpsWhisper(ide.jumps, ide.jumpIx, ide.marks);
           ide.console.push_back(
               j.empty()
                   ? "engine: no jumps yet — :goto, F2 and the welcome "
                     "back plant them"
                   : "engine: the jumps, newest first — " + j);
         } else if (cmd.verb == "changes") {
-          // the touched lines, listed: every line the hand CHANGED since
-          // the page opened — the census of this session's work, top of
-          // the file first, structure-aware (a landing above slides a
-          // touch down; a cut carries its touches out). Undo does not
-          // un-touch: the session's history is a fact.
+          // the census: a bare :changes LISTS the touched lines; a
+          // number LEAPS to the Nth — the census is not just a mirror,
+          // it is a set of addresses. The leap is a real one: planted
+          // in the ledger, the selection dropped, the landing
+          // mid-screen — the same laws the pins' :bm obeys.
           takeStage();
-          const std::string t = dxn3::ideTouchWhisper(ide);
-          ide.console.push_back(
-              t.empty()
-                  ? "engine: a clean page — nothing touched since it opened"
-                  : "engine: " + std::to_string(ide.touched.size()) +
-                        " line" + (ide.touched.size() == 1 ? "" : "s") +
-                        " touched since the page opened — " + t);
+          if (ide.touched.empty()) {
+            ide.console.push_back(
+                "engine: a clean page — nothing touched since it opened");
+          } else if (cmd.arg.empty()) {
+            const std::string t = dxn3::ideTouchWhisper(ide);
+            ide.console.push_back(
+                "engine: " + std::to_string(ide.touched.size()) +
+                " line" + (ide.touched.size() == 1 ? "" : "s") +
+                " touched since the page opened — " + t);
+          } else if (static_cast<int>(cmd.num) >= 1 &&
+                     static_cast<int>(cmd.num) <=
+                         static_cast<int>(ide.touched.size())) {
+            const int to = ide.touched[static_cast<size_t>(
+                static_cast<int>(cmd.num) - 1)];
+            ide.findOpen = false;              // the searchlight rests
+            ide.curR = to;
+            ide.curC = 0;
+            ide.top = std::max(0, ide.curR - 4);   // the leap lands mid-screen
+            dxn3::ideSelClear(ide);                // the leap drops the selection
+            dxn3::ideJumpPush(ide, to);            // a real leap, planted
+            ide.console.push_back(
+                "engine: the hand leaps to the census's line " +
+                std::to_string(static_cast<int>(cmd.num)) + " — line " +
+                std::to_string(to + 1));
+          } else {
+            ide.console.push_back(
+                "engine: no such touch — :changes lists " +
+                std::to_string(ide.touched.size()));
+          }
         } else if (cmd.verb == "fresh") {
           // the disk's truth wins the page back — :e!'s twin. A reload
           // is a REOPEN: it walks the one openScript path, so the
