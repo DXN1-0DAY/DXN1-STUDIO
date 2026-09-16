@@ -1,3 +1,16 @@
+## v3.0.60 — one law for every whisper
+
+- **`whisperOffer` — the completion clip law, written once.** Four
+  whispers (:recent, :bm's pins, :snip's shelf and :open's ledger)
+  carried the same eleven lines: join with " · ", end the line at the
+  FIRST entry that does not fit the bar's honest width, never a cut
+  word, never a half description. Now they all call one function, and
+  the law has its own selftest target — a bar too narrow for even one
+  entry holds its tongue, an entry fits a bar of exactly its width,
+  and a full whisper leaves the line untouched.
+- Selftest group 68 (5 asserts) — 621 → 626 groups. Smoke stays at
+  99 (every whisper's outward word is byte-identical).
+
 ## v3.0.59 — the counting sort
 
 - **`:sort` and `:rsort` grew numeric awareness.** When EVERY line of

@@ -199,7 +199,7 @@ int main() {
   }
 
   // 9. the version quad rides in the binary too
-  ok(std::string(dxn3::DXN3_VERSION) == "3.0.59",
+  ok(std::string(dxn3::DXN3_VERSION) == "3.0.60",
      "native version constant matches the release quad");
 
   // 10. png writer: checksum vectors, real structure, byte determinism
@@ -3195,6 +3195,23 @@ int main() {
 
     ok(dxn3::usageHintFor(":sort").find("number") != std::string::npos,
        "the bar whispers the counting law");
+  }
+
+  // 68. the whisper's clip law, once: whisperOffer joins with " · "
+  // and ends the line at the first entry that does not fit
+  {
+    std::string w;
+    ok(dxn3::whisperOffer(w, "abc", 3) && w == "abc",
+       "the first entry fits at its own width");
+    ok(dxn3::whisperOffer(w, "de", 8) && w == "abc · de",
+       "the next entry joins with the separator");
+    ok(!dxn3::whisperOffer(w, "f", 8) && w == "abc · de",
+       "the first entry that does not fit ends the line, untouched");
+    std::string w2;
+    ok(!dxn3::whisperOffer(w2, "xy", 1) && w2.empty(),
+       "a bar too narrow for even one entry holds its tongue");
+    ok(dxn3::whisperOffer(w2, "xy", 2) && w2 == "xy",
+       "an entry fits a bar of exactly its width");
   }
 
 

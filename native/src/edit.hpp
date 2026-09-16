@@ -540,6 +540,21 @@ inline std::string ideSnippetDescribe(const std::string& name) {
   return "";
 }
 
+// ── the whisper's clip law, ONE law for every completion ────────────
+// recent, bm, the shelf and :open all join their entries with " · "
+// and all end the line at the FIRST entry that does not fit the bar's
+// honest width — never a cut word, never a half description. This is
+// that law, once: returns true when the entry fit (and joins it),
+// false when the whisper is full (and leaves it untouched).
+inline bool whisperOffer(std::string& w, const std::string& entry,
+                         size_t maxW) {
+  const size_t need =
+      w.empty() ? entry.size() : w.size() + 3 + entry.size();
+  if (need > maxW) return false;
+  w += w.empty() ? entry : " · " + entry;
+  return true;
+}
+
 // the shelf whispers with its descriptions: "fn — a named function",
 // the typed prefix narrowing by NAME (the verb's own resolution law),
 // the ledger's clipping law — the first entry that does not fit ends
@@ -553,10 +568,7 @@ inline std::string ideSnippetShelfWhisper(const std::string& path,
     std::string entry = nm;
     const std::string what = ideSnippetDescribe(nm);
     if (!what.empty()) entry += " — " + what;
-    const size_t need =
-        w.empty() ? entry.size() : w.size() + 3 + entry.size();
-    if (need > maxW) break;
-    w += w.empty() ? entry : " · " + entry;
+    if (!whisperOffer(w, entry, maxW)) break;
   }
   return w;
 }
@@ -1088,9 +1100,7 @@ inline std::string ideRecentWhisper(const std::vector<std::string>& recent,
     const std::string base =
         slash == std::string::npos ? p : p.substr(slash + 1);
     if (p.rfind(part, 0) != 0 && base.rfind(part, 0) != 0) continue;
-    const size_t need = w.empty() ? p.size() : w.size() + 3 + p.size();
-    if (need > maxW) break;
-    w += w.empty() ? p : " · " + p;
+    if (!whisperOffer(w, p, maxW)) break;
   }
   return w;
 }
@@ -1110,10 +1120,7 @@ inline std::string ideMarkWhisper(const IdeState& s, const std::string& part,
     const std::string entry =
         std::to_string(i + 1) + ") Ln " + std::to_string(s.marks[i] + 1);
     if (!part.empty() && entry.rfind(part, 0) != 0) continue;
-    const size_t need =
-        w.empty() ? entry.size() : w.size() + 3 + entry.size();
-    if (need > maxW) break;
-    w += w.empty() ? entry : " · " + entry;
+    if (!whisperOffer(w, entry, maxW)) break;
   }
   return w;
 }
@@ -1169,13 +1176,11 @@ inline std::string ideOpenWhisper(const std::vector<std::string>& recent,
     for (const auto& s : seen)
       if (s == p) return;
     seen.push_back(p);
-    const size_t need = w.empty() ? p.size() : w.size() + 3 + p.size();
-    if (need > maxW) {
+    if (!whisperOffer(w, p, maxW))
       full = true;                      // the FIRST name that does not
-      return;                           // fit ends the whisper — the
-    }                                   // same honest law as :recent's
-    w += w.empty() ? p : " \xc2\xb7 " + p;
-  };
+  };                                    // fit ends the whisper — one
+                                        // law for every completion
+
   for (const auto& p : recent) offer(p);
   for (const auto& p : files) offer(p);
   return w;
