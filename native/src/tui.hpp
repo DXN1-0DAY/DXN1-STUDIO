@@ -52,6 +52,14 @@ public:
 
   void resize(int c, int r);
   void clear(RGB bg);                   // fill the whole grid
+  // braille mode: the world renders at 2×2 dots per half-block pixel and
+  // flush() composes U+2800.. braille cells — 4× the dots, smooth edges
+  void setBraille(bool on) {
+    if (braille_ == on) return;
+    braille_ = on;
+    resize(cols, rows);                 // re-derive the buffer
+  }
+  bool braille() const { return braille_; }
   // render INTO a sub-region: all px/rect/text writes translate and clamp
   // to the pane — the IDE hosts the live game view beside the editor.
   void setView(int x0, int y0, int x1, int y1) {  // x in cols; y in text rows
@@ -73,9 +81,13 @@ public:
   std::string flush();                  // whole frame as one ANSI string
 
 private:
-  std::vector<RGB> grid_;               // cols * halfRows
+  std::vector<RGB> grid_;               // cols*dots × halfRows*dots
   std::vector<Span> spans_;
+  bool braille_ = false;
+  RGB bg_ = 0;                          // the last cleared background
   int vx0_ = 0, vy0_ = 0, vx1_ = -1, vy1_ = -1;   // view region (off = full)
+  int dotX() const;                     // dots per world px (braille: 2)
+  int dotY() const;
   static void emitColor(std::string& out, RGB fg, RGB bg, RGB& lastFg, RGB& lastBg);
   static std::string codepointAt(std::string_view s, size_t& i);
 };

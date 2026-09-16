@@ -84,6 +84,7 @@ struct Keys {
   bool up = false, down = false;               // IDE: cursor rows
   bool aLeft = false, aRight = false;          // IDE: cursor cols
   bool toPlay = false;                         // IDE: tab — play your game
+  bool braille = false;                        // b — toggle the dot renderer
   std::string typed;                           // printable chars this frame
 };
 
@@ -162,6 +163,7 @@ Keys pollKeys(Mode mode) {
         else if (c == '-' || c == '_') k.zoomOut = true;
         else if (c == '\t') k.inspect = true;
         else if (c == 'e' || c == 'E') k.viewFile = true;
+        else if (c == 'b' || c == 'B') k.braille = true;
         else if (c == ':') k.cmd = true;
         else if (c == 'p' || c == 'P') k.shot = true;
         else if (c == 'q' || c == 'Q') k.quit = true;
@@ -951,6 +953,7 @@ int main(int argc, char** argv) {
   // the launch moment: the emblem, the version, the scene. Any key —
   // or ~1.6 seconds — and the studio takes over.
   termSize(cols, rows);
+  scr.setBraille(true);                        // dots, not chunks — b toggles
   if (g_raw && cols >= 44 && rows >= 18) {
     scr.resize(cols, rows);
     drawSplash(scr, game);
@@ -1063,6 +1066,10 @@ int main(int argc, char** argv) {
       if (keys.zoomIn) game.scene.camera.zoom = std::clamp(game.scene.camera.zoom * 1.15f, 0.3f, 4.f);
       if (keys.zoomOut) game.scene.camera.zoom = std::clamp(game.scene.camera.zoom / 1.15f, 0.3f, 4.f);
       if (keys.fit) doFit();
+      if (keys.braille) {
+        scr.setBraille(!scr.braille());
+        game.say(scr.braille() ? "braille dots — 4x the pixels" : "half blocks", 1.4);
+      }
     } else {
       if (keys.quit) break;                    // q still quits the studio
       if (keys.esc) {                          // ESC leaves the view/search
@@ -1230,9 +1237,9 @@ int main(int argc, char** argv) {
       } else if (fileView) {
         scr.help(" j/k scroll · / find · enter run · esc back · q quit");
       } else if (inspect) {
-        scr.help(" a/d move · w jump · r reset · +/- zoom · f fit · tab resume · q quit");
+        scr.help(" a/d move · w jump · r reset · +/- zoom · f fit · b dots · q quit");
       } else {
-        scr.help(" a/d move · w jump · r reset · tab inspect · e file · : cmds · q quit");
+        scr.help(" a/d move · w jump · r reset · b dots · e file · : cmds · q quit");
       }
       std::fputs(scr.flush().c_str(), stdout);
       std::fflush(stdout);

@@ -1,3 +1,18 @@
+## v3.0.10 — the de-pixel: braille dots
+
+**Four times the pixels, zero new dependencies**
+- The world renderer composes **braille cells** (U+2800..) now: every
+  terminal cell carries a 2×4 dot block, so the world renders at 2×2 dots
+  per half-block pixel — four times the resolution of the chunky old
+  face. Platforms, ships, gradients and the starfield all gain real
+  edges; the "pixelated terminal game" look is gone.
+- `b` toggles between braille dots and half blocks in play — the old
+  face is still there if you want it (or if your font can't do braille).
+- The IDE viewport, the splash card and the HUD all render through the
+  same dot pipeline; text overlays stay crisp text.
+- Engine selftest grew to 81 assertion groups (protocol, resolution,
+  scene-name resolution, shapes).
+
 ## v3.0.09 — the engine: your code, our canvas
 
 **The studio becomes an engine IDE**

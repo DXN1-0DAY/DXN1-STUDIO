@@ -1,24 +1,36 @@
 // dxn3 native — truecolor renderer implementation (C++23).
+// Two compositions from one world buffer:
+//   half-block: 1 world px per cell column, 2 per row — the classic face
+//   braille:    2×2 dots per world px, composed into U+2800.. cells —
+//               four times the dots, smooth edges, no more chunky pixels
 // The pure color math (parseHex, lerpColor) lives in tui.hpp so the
 // selftest binary shares it without linking the whole Screen.
 #include "tui.hpp"
 
 #include <algorithm>
 #include <cstdio>
+#include <map>
 
 namespace dxn3 {
 
+int Screen::dotX() const { return braille_ ? 2 : 1; }
+int Screen::dotY() const { return braille_ ? 2 : 1; }
+
 void Screen::resize(int c, int r) {
   cols = c; rows = r;
-  grid_.assign(static_cast<size_t>(cols) * halfRows(), 0);
+  grid_.assign(static_cast<size_t>(cols) * dotX() * halfRows() * dotY(), 0);
   spans_.clear();
 }
 
 void Screen::clear(RGB bg) {
+  bg_ = bg;
   if (vx1_ >= 0) {                          // view mode: clear only the pane
-    for (int y = vy0_; y <= vy1_ && y < halfRows(); ++y) {
-      auto* row = &grid_[static_cast<size_t>(y) * cols];
-      for (int x = vx0_; x <= vx1_ && x < cols; ++x) row[x] = bg;
+    const int x0 = vx0_ * dotX(), x1 = (vx1_ + 1) * dotX();
+    const int y0 = vy0_ * dotY(), y1 = (vy1_ + 1) * dotY();
+    const int bw = cols * dotX();
+    for (int y = y0; y < y1 && y < halfRows() * dotY(); ++y) {
+      auto* row = &grid_[static_cast<size_t>(y) * bw];
+      for (int x = x0; x < x1 && x < bw; ++x) row[x] = bg;
     }
     // drop only the spans INSIDE the pane — the editor's text, drawn
     // earlier this frame outside the view, must survive the game's clear
@@ -39,41 +51,82 @@ void Screen::clear(RGB bg) {
 }
 
 void Screen::px(float sx, float sy, RGB c) {
-  const int x = static_cast<int>(sx), y = static_cast<int>(sy);
-  if (vx1_ >= 0 && (x < vx0_ || x > vx1_ || y < vy0_ || y > vy1_)) return;
-  if (x < 0 || x >= cols || y < 0 || y >= halfRows()) return;
-  grid_[static_cast<size_t>(y) * cols + x] = c;
+  const int wx = static_cast<int>(sx), wy = static_cast<int>(sy);
+  if (vx1_ >= 0 && (wx < vx0_ || wx > vx1_ || wy < vy0_ || wy > vy1_)) return;
+  const int bw = cols * dotX();
+  const int x0 = wx * dotX(), y0 = wy * dotY();
+  for (int dy = 0; dy < dotY(); ++dy) {
+    const int y = y0 + dy;
+    if (y < 0 || y >= halfRows() * dotY()) continue;
+    auto* row = &grid_[static_cast<size_t>(y) * bw];
+    for (int dx = 0; dx < dotX(); ++dx) {
+      const int x = x0 + dx;
+      if (x < 0 || x >= bw) continue;
+      row[x] = c;
+    }
+  }
 }
 
 RGB Screen::at(int gx, int gy) const {
-  if (gx < 0 || gx >= cols || gy < 0 || gy >= halfRows()) return 0;
-  return grid_[static_cast<size_t>(gy) * cols + gx];
+  const int bw = cols * dotX();
+  const int x0 = gx * dotX(), y0 = gy * dotY();
+  unsigned r = 0, g = 0, b = 0;
+  int n = 0;
+  for (int dy = 0; dy < dotY(); ++dy) {
+    const int y = y0 + dy;
+    if (y < 0 || y >= halfRows() * dotY()) continue;
+    for (int dx = 0; dx < dotX(); ++dx) {
+      const int x = x0 + dx;
+      if (x < 0 || x >= bw) continue;
+      const RGB c = grid_[static_cast<size_t>(y) * bw + x];
+      r += c >> 16 & 0xFF; g += c >> 8 & 0xFF; b += c & 0xFF;
+      ++n;
+    }
+  }
+  if (n == 0) return 0;
+  return static_cast<RGB>((r / n) << 16 | (g / n) << 8 | (b / n));
 }
 
 void Screen::rect(float x0, float y0, float x1, float y1, RGB c) {
-  int ax = std::max(0, static_cast<int>(x0));
-  int ay = std::max(0, static_cast<int>(y0));
-  int bx = std::min(vx1_ >= 0 ? vx1_ + 1 : cols, static_cast<int>(x1) + 1);
-  int by = std::min(vy1_ >= 0 ? vy1_ + 1 : halfRows(), static_cast<int>(y1) + 1);
-  ax = std::min(ax, cols); ay = std::min(ay, halfRows());
-  bx = std::min(bx, cols); by = std::min(by, halfRows());
+  const int dsx = dotX(), dsy = dotY();
+  const int bw = cols * dsx, bh = halfRows() * dsy;
+  int ax = std::max(0, static_cast<int>(x0) * dsx);
+  int ay = std::max(0, static_cast<int>(y0) * dsy);
+  int bx = std::min(bw, (static_cast<int>(x1) + 1) * dsx);
+  int by = std::min(bh, (static_cast<int>(y1) + 1) * dsy);
+  if (vx1_ >= 0) {                          // clip to the view pane
+    ax = std::max(ax, vx0_ * dsx);
+    bx = std::min(bx, (vx1_ + 1) * dsx);
+    ay = std::max(ay, vy0_ * dsy);
+    by = std::min(by, (vy1_ + 1) * dsy);
+  }
   for (int y = ay; y < by; ++y) {
-    auto* row = &grid_[static_cast<size_t>(y) * cols];
+    auto* row = &grid_[static_cast<size_t>(y) * bw];
     for (int x = ax; x < bx; ++x) row[x] = c;
   }
 }
 
 void Screen::rectGradient(float x0, float y0, float x1, float y1, RGB top, RGB bottom) {
-  const int ay = std::max(0, static_cast<int>(y0));
-  const int by = std::min(vy1_ >= 0 ? vy1_ + 1 : halfRows(), static_cast<int>(y1) + 1);
+  const int dsx = dotX(), dsy = dotY();
+  const int bw = cols * dsx, bh = halfRows() * dsy;
+  int ay = std::max(0, static_cast<int>(y0) * dsy);
+  int by = std::min(bh, (static_cast<int>(y1) + 1) * dsy);
+  if (vx1_ >= 0) {
+    ay = std::max(ay, vy0_ * dsy);
+    by = std::min(by, (vy1_ + 1) * dsy);
+  }
   const float h = std::max(1.f, y1 - y0);
-  const int ax = std::max(0, static_cast<int>(x0));
-  const int bx = std::min(vx1_ >= 0 ? vx1_ + 1 : cols, static_cast<int>(x1) + 1);
-  const float anchor = static_cast<float>(static_cast<int>(y0));
+  int ax = std::max(0, static_cast<int>(x0) * dsx);
+  int bx = std::min(bw, (static_cast<int>(x1) + 1) * dsx);
+  if (vx1_ >= 0) {
+    ax = std::max(ax, vx0_ * dsx);
+    bx = std::min(bx, (vx1_ + 1) * dsx);
+  }
+  const float anchor = y0;
   for (int y = ay; y < by; ++y) {
-    const float t = (static_cast<float>(y) - anchor) / h;
+    const float t = (static_cast<float>(y) / dsy - anchor) / h;
     const RGB c = lerpColor(top, bottom, t);
-    auto* row = &grid_[static_cast<size_t>(y) * cols];
+    auto* row = &grid_[static_cast<size_t>(y) * bw];
     for (int x = ax; x < bx; ++x) row[x] = c;
   }
 }
@@ -96,7 +149,6 @@ void Screen::text(int col, int row, std::string_view utf8, RGB fg) {
   if (row < 0 || row >= rows) return;
   int c = col;
   const int r = row;
-  if (r < 0 || r >= rows) return;
   for (size_t i = 0; i < utf8.size() && c < cols;) {
     if (vx1_ < 0 || (c >= vx0_ && c <= vx1_))
       spans_.push_back({c, r, codepointAt(utf8, i), fg, 0, false});
@@ -109,7 +161,6 @@ void Screen::textBg(int col, int row, std::string_view utf8, RGB fg, RGB bg) {
   if (row < 0 || row >= rows) return;
   int c = col;
   const int r = row;
-  if (r < 0 || r >= rows) return;
   for (size_t i = 0; i < utf8.size() && c < cols;) {
     if (vx1_ < 0 || (c >= vx0_ && c <= vx1_))
       spans_.push_back({c, r, codepointAt(utf8, i), fg, bg, true});
@@ -122,11 +173,12 @@ void Screen::railBg(int row, RGB c) {
   for (int sub = 0; sub < 2; ++sub) {
     const int gy = row * 2 + sub;
     if (gy >= halfRows()) break;
-    if (vy1_ >= 0 && (gy < vy0_ || gy > vy1_)) continue;
-    auto* line = &grid_[static_cast<size_t>(gy) * cols];
-    const int x0 = vx1_ >= 0 ? vx0_ : 0;
-    const int x1 = vx1_ >= 0 ? vx1_ : cols - 1;
-    for (int x = x0; x <= x1; ++x) line[x] = c;
+    if (vx1_ >= 0 && (gy < vy0_ || gy > vy1_)) continue;
+    const int bw = cols * dotX();
+    auto* line = &grid_[static_cast<size_t>(gy * dotY()) * bw];
+    const int x0 = (vx1_ >= 0 ? vx0_ : 0) * dotX();
+    const int x1 = ((vx1_ >= 0 ? vx1_ : cols - 1) + 1) * dotX();
+    for (int x = x0; x < x1 && x < bw; ++x) line[x] = c;
   }
 }
 
@@ -156,13 +208,75 @@ std::string Screen::flush() {
     over[static_cast<size_t>(s.row) * cols + s.col] = {s.text, s.fg, s.bg, s.bgOn, true};
   }
 
+  if (braille_) {
+    // compose each play cell from its 2×4 dot block. A dot is "on" when
+    // it differs from the scene background; the majority on-color is the
+    // cell's fg, the quiet color is its bg.
+    const int bw = cols * 2;
+    static const unsigned char BIT[4][2] = {
+        {0x01, 0x08}, {0x02, 0x10}, {0x04, 0x20}, {0x40, 0x80}};
+    std::string out = "\x1b[H\x1b[?25l";
+    RGB lastFg = 0xFFFFFFFF, lastBg = 0xFFFFFFFF;
+    auto near = [](RGB a, RGB b) {
+      const int dr = static_cast<int>(a >> 16 & 0xFF) - static_cast<int>(b >> 16 & 0xFF);
+      const int dg = static_cast<int>(a >> 8 & 0xFF) - static_cast<int>(b >> 8 & 0xFF);
+      const int db = static_cast<int>(a & 0xFF) - static_cast<int>(b & 0xFF);
+      return dr * dr + dg * dg + db * db < 900;    // ~30 per channel
+    };
+    for (int row = 0; row < rows; ++row) {
+      if (row > 0) out += "\r\n";
+      for (int col = 0; col < cols; ++col) {
+        const OCell& o = over[static_cast<size_t>(row) * cols + col];
+        if (o.on) {
+          emitColor(out, o.fg, o.bgOn ? o.bg : bg_, lastFg, lastBg);
+          out += o.ch;
+          continue;
+        }
+        if (row == 0 || row == rows - 1) {         // text rails
+          const RGB rail = at(col, std::min(row * 2, halfRows() - 1));
+          emitColor(out, rail, rail, lastFg, lastBg);
+          out += ' ';
+          continue;
+        }
+        unsigned mask = 0;
+        std::map<RGB, int> onColors;
+        RGB bgDot = bg_;
+        for (int dr = 0; dr < 4; ++dr)
+          for (int dc = 0; dc < 2; ++dc) {
+            const int x = col * 2 + dc;
+            const int y = row * 4 + dr;
+            const RGB c = (x < bw && y < halfRows() * 2)
+                              ? grid_[static_cast<size_t>(y) * bw + x]
+                              : bg_;
+            if (near(c, bg_)) { bgDot = c; continue; }
+            mask |= BIT[dr][dc];
+            ++onColors[c];
+          }
+        if (mask == 0) {
+          emitColor(out, bgDot, bgDot, lastFg, lastBg);
+          out += ' ';
+          continue;
+        }
+        RGB fg = bg_;
+        int best = 0;
+        for (const auto& [c, n] : onColors)
+          if (n > best) { best = n; fg = c; }
+        emitColor(out, fg, bg_, lastFg, lastBg);
+        out += static_cast<char>(0xE2);
+        out += static_cast<char>(0xA0 | (mask >> 6));
+        out += static_cast<char>(0x80 | (mask & 0x3F));
+      }
+    }
+    out += "\x1b[0m";
+    return out;
+  }
+
   static const char* BLOCK = "\xe2\x96\x80";   // U+2580 upper half block
   std::string out = "\x1b[H\x1b[?25l";
   RGB lastFg = 0xFFFFFFFF, lastBg = 0xFFFFFFFF;
 
   for (int row = 0; row < rows; ++row) {
     if (row > 0) out += "\r\n";
-    // HUD row and help row are plain text rows (grid rows 0 and last stay bg)
     for (int col = 0; col < cols; ++col) {
       const OCell& o = over[static_cast<size_t>(row) * cols + col];
       const size_t gi = static_cast<size_t>(row) * 2 * cols + col;
