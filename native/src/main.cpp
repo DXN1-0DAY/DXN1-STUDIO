@@ -45,7 +45,7 @@ bool g_raw = false;
 void restoreTerminal() {
   if (g_raw) {
     tcsetattr(STDIN_FILENO, TCSAFLUSH, &g_orig);
-    std::fputs("\x1b[0m\x1b[?25h\x1b[?1049l", stdout);
+    std::fputs("\x1b[0m\x1b[?1006l\x1b[?1000l\x1b[?25h\x1b[?1049l", stdout);
     std::fflush(stdout);
     g_raw = false;
   }
@@ -54,7 +54,7 @@ void restoreTerminal() {
 void onSignal(int) { g_stop = true; }
 
 void enterScreen() {
-  std::fputs("\x1b[?1049h\x1b[2J", stdout);
+  std::fputs("\x1b[?1049h\x1b[?1000;1006h\x1b[2J", stdout);
   std::fflush(stdout);
 }
 
@@ -89,9 +89,10 @@ Keys pollKeys(Mode mode) {
         // the whole sequence in one bite and SWALLOW unknown ones — a
         // sequence that leaks its parameters into the document is
         // corruption (ctrl+arrows used to type "1;5C" into your code).
-        // SS3 (ESC O A) is the same idea in the other dialect.
-        if (i + 1 < n && (buf[i + 1] == '[' || buf[i + 1] == 'O') &&
-            mode != Mode::Cmd) {
+        // SS3 (ESC O A) is the same idea in the other dialect. The bar
+        // parses too: a bare ESC closes it, but an arrow key must never
+        // fake an ESC (it used to slam the bar shut mid-thought).
+        if (i + 1 < n && (buf[i + 1] == '[' || buf[i + 1] == 'O')) {
           const bool csi = buf[i + 1] == '[';
           if (i + 2 >= n) {
             i = static_cast<int>(n) - 1;   // split read: swallow the fragment
@@ -191,6 +192,41 @@ Keys pollKeys(Mode mode) {
             case 'Z':
               if (mode == Mode::Ide) k.backTab = true;   // shift+tab — dedent
               break;
+            case 'M': {
+              // SGR mouse press: ESC[<b;x;yM — button 0 is the left
+              // click, +4 when shift rides along. Releases ('m'), the
+              // other buttons and the wheel stay silent; the terminal
+              // counts cells from 1, the studio from 0.
+              if (mode != Mode::Ide || params.empty() || params[0] != '<')
+                break;
+              int nums[3] = {0, 0, 0};
+              size_t p = 1;
+              bool okNums = true;
+              for (int ni = 0; ni < 3; ++ni) {
+                const size_t semi = params.find(';', p);
+                const std::string part = params.substr(
+                    p, semi == std::string::npos ? std::string::npos
+                                                 : semi - p);
+                if (part.empty() ||
+                    part.find_first_not_of("0123456789") != std::string::npos) {
+                  okNums = false;
+                  break;
+                }
+                nums[ni] = std::atoi(part.c_str());
+                if (semi == std::string::npos) {
+                  if (ni < 2) okNums = false;
+                  break;
+                }
+                p = semi + 1;
+              }
+              if (okNums && (nums[0] == 0 || nums[0] == 4) &&
+                  nums[1] > 0 && nums[2] > 0) {
+                k.clickC = nums[1] - 1;
+                k.clickR = nums[2] - 1;
+                k.clickShift = nums[0] == 4;
+              }
+              break;
+            }
             default:
               break;     // mouse reports, DSR answers, F-keys: swallowed whole
           }
@@ -974,6 +1010,7 @@ int main(int argc, char** argv) {
                    "       ctrl+n template · ctrl+g error line · ctrl+p screenshot\n"
                    "       :minimap the document's map rail · :ruler guides · :stats\n"
                    "       esc play/back · a/d move · w jump\n"
+                   "       mouse: click code to move, click the map to jump, shift+click selects\n"
                    "       tab inspect · e file · : commands (:open loads any script) · q quit\n"
                    "your game is a child process speaking JSON on stdio — see sdk/",
                    dxn3::DXN3_VERSION);
@@ -1293,7 +1330,7 @@ int main(int argc, char** argv) {
     acc += dt;
     if (cmdErrT > 0) cmdErrT -= static_cast<float>(dt);
 
-    const Keys keys = pollKeys(cmdOpen ? Mode::Cmd
+    Keys keys = pollKeys(cmdOpen ? Mode::Cmd
                               : ide.open ? Mode::Ide
                               : fileView ? Mode::File : Mode::Play);
     const bool barOwned = cmdOpen;   // the bar polled this frame — its keys
@@ -1604,6 +1641,45 @@ int main(int argc, char** argv) {
     // but a frame the command bar polled is the bar's alone (:open and
     // :new hand the stage over; the same frame's text must not leak in)
     if (ide.open && !barOwned) {
+      // the pointer: translate the click's CELL into document coords
+      // before the editor hears it — main owns the map rail's geometry.
+      // A map-rail click jumps to the doc line under the hand; a code
+      // click lands at the cell (hscroll included); a gutter click
+      // takes the line start; clicks in the viewport, console, header
+      // or divider are nobody's — swallowed whole.
+      if (keys.clickR >= 0) {
+        const int bodyRowsC = rows0 - 3;
+        const bool splitC = cols0 >= 96;
+        const int editWC = splitC ? 46 : cols0;
+        const bool mapOnC = ide.minimap && splitC && cols0 >= 110;
+        const int textWC = editWC - 5 - (mapOnC ? 7 : 0);
+        const int row = keys.clickR - 1;           // screen row -> body row
+                                                   // (bodyTop is 1)
+        const int col = keys.clickC;
+        int li = -1, ci = 0;
+        if (row >= 0 && row < bodyRowsC) {
+          if (mapOnC && col >= editWC - 7 && col < editWC - 1) {
+            const dxn3::IdeMini mini =
+                dxn3::ideMiniMap(ide, 6, bodyRowsC);
+            if (row < static_cast<int>(mini.rows.size())) {
+              li = mini.top + row;                 // the map jumps whole lines
+              ci = 0;
+            }
+          } else if (col >= 4 && (!mapOnC || col < 4 + textWC)) {
+            li = ide.top + row;
+            ci = col - 4 + ide.hcol;
+          } else if (col < 4) {
+            li = ide.top + row;                    // the gutter: line start
+            ci = 0;
+          }
+        }
+        if (li < 0) {
+          keys.clickR = -1;                        // not ours — swallow
+        } else {
+          keys.clickR = li;
+          keys.clickC = ci;
+        }
+      }
       ideKey(ide, keys);
       // the bridge: copy and cut also ride out to the system clipboard
       // (OSC 52) — terminals that honor it keep the OS's clip in sync

@@ -199,7 +199,7 @@ int main() {
   }
 
   // 9. the version quad rides in the binary too
-  ok(std::string(dxn3::DXN3_VERSION) == "3.0.23",
+  ok(std::string(dxn3::DXN3_VERSION) == "3.0.24",
      "native version constant matches the release quad");
 
   // 10. png writer: checksum vectors, real structure, byte determinism
@@ -1668,6 +1668,68 @@ int main() {
     w.curC = 3;
     ok(dxn3::ideSnippetWhisper(w).empty(),
        "a ghost name never whispers");
+  }
+
+  // 36. the pointer: a click lands the hand, shift+click extends,
+  // looking around never dirties the doc
+  {
+    using dxn3::Keys;
+    IdeState c1;
+    c1.lines = {"first", "second line here", "third"};
+    c1.dirty = false;
+    Keys ck1;
+    ck1.clickR = 1;
+    ck1.clickC = 7;                    // the 'l' of 'line'
+    dxn3::ideKey(c1, ck1);
+    ok(c1.curR == 1 && c1.curC == 7,
+       "a click lands the hand on the clicked cell");
+    ok(!c1.dirty,
+       "looking around never dirties the doc");
+
+    IdeState c2;                       // clicks clamp both ways
+    c2.lines = {"tiny"};
+    Keys ck2;
+    ck2.clickR = 99;
+    ck2.clickC = 99;
+    dxn3::ideKey(c2, ck2);
+    ok(c2.curR == 0 && c2.curC == 4,
+       "a wild click clamps to the honest end of the doc");
+
+    IdeState c3;                       // a bare click lets the selection go
+    c3.lines = {"one", "two"};
+    c3.curR = 0;
+    c3.curC = 0;
+    c3.anchorR = 1;
+    c3.anchorC = 2;
+    Keys ck3;
+    ck3.clickR = 0;
+    ck3.clickC = 1;
+    dxn3::ideKey(c3, ck3);
+    ok(c3.curR == 0 && c3.curC == 1 && !dxn3::ideSelRange(c3).has_value(),
+       "a bare click drops the selection (click to deselect)");
+
+    IdeState c4;                       // shift+click extends, like the arrows
+    c4.lines = {"one", "two", "three"};
+    c4.curR = 0;
+    c4.curC = 0;
+    Keys ck4;
+    ck4.clickR = 2;
+    ck4.clickC = 3;
+    ck4.clickShift = true;
+    dxn3::ideKey(c4, ck4);
+    const auto sel4 = dxn3::ideSelRange(c4);
+    ok(sel4 && (*sel4)[0] == 0 && (*sel4)[1] == 0 && (*sel4)[2] == 2 &&
+           (*sel4)[3] == 3,
+       "shift+click extends the selection from the old hand");
+
+    IdeState c5;                       // no click, no move
+    c5.lines = {"stay"};
+    c5.curR = 0;
+    c5.curC = 2;
+    Keys ck5;
+    dxn3::ideKey(c5, ck5);
+    ok(c5.curR == 0 && c5.curC == 2,
+       "a frame without a click leaves the hand alone");
   }
 
   if (fails == 0) {

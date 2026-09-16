@@ -2,7 +2,7 @@
 
 ![DXN1 STUDIO 3](assets/banner.png)
 
-![version](https://img.shields.io/badge/version-3.0.23-8b5cf6?style=flat-square)
+![version](https://img.shields.io/badge/version-3.0.24-8b5cf6?style=flat-square)
 ![gates](https://github.com/DXN1-termux/DXN1-STUDIO/actions/workflows/ci.yml/badge.svg)
 ![native](https://img.shields.io/badge/native-C%2B%2023-f97316?style=flat-square)
 ![face](https://img.shields.io/badge/face-terminal_truecolor-22d3ee?style=flat-square)
@@ -126,6 +126,12 @@ viewport refreshes — *code a background, and boom, a background.*
   burn brighter, the cursor's row is the brightest bar, comments
   speak gray, find hits glow amber — and `:minimap` sends it home
   when you want the columns back.
+- **The pointer works.** Click the code to move the hand (hscroll
+  included), click the gutter for the line start, click the minimap
+  to jump whole lines; `shift+click` extends a selection like the
+  shift+arrows, a bare click deselects — and looking around never
+  re-runs your game. Clicks in the viewport, console or header belong
+  to nobody and are swallowed whole.
 - **The selection is real.** `shift+arrows` extend a glowing
   anchor↔cursor range across lines; typing, backspace, delete or
   enter replaces it in one undo step; `ctrl+/` comments or strips
@@ -166,6 +172,7 @@ Keys: `ctrl+r` run · `ctrl+s` save · `ctrl+z` undo · `ctrl+y` redo ·
 `ctrl+w` delete word · `ctrl+del` delete word ahead · `ctrl+/`
 comment toggle (multi-line with a selection) ·
 `shift+arrows` select · `shift+ctrl+←`/`→` select words ·
+`mouse` click code/map to move · shift+click selects ·
 `tab` snippet/indent · `shift+tab` dedent ·
 `ctrl+←`/`ctrl+→` word hops ·
 `ctrl+↑`/`ctrl+↓` nudge the view ·

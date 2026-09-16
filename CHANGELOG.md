@@ -1,3 +1,26 @@
+## v3.0.24 — the pointer
+
+- **The studio hears the mouse.** SGR click tracking (`?1000;1006h`,
+  disabled on exit) feeds the parser real clicks: a left click in the
+  code lands the hand on the exact cell (horizontal scroll included),
+  a click on the gutter takes the line start, a click on the minimap
+  jumps to the doc line under the hand, and a click in the game's
+  viewport, console or header is nobody's — swallowed whole.
+  `shift+click` extends a selection from the old hand, exactly like
+  the shift+arrows; a bare click lets the selection go. Looking
+  around never dirties the doc: no re-run of your game follows a
+  click.
+- **A latent bar bug dies with it.** The command bar never parsed CSI
+  sequences, so an arrow key's `ESC[` faked a bare ESC and slammed
+  the bar shut mid-thought. The bar parses now: a BARE esc still
+  closes it, but arrows, mouse reports and DSR answers are swallowed
+  whole, never leaked.
+- Selftest: group 36 (click lands, wild clicks clamp, click
+  deselects, shift+click extends, clickless frames leave the hand) —
+  317 → 323. Smoke: 76 → 80 checks — SGR presses written straight
+  into the pty land Ln/Col deterministically (code, gutter, map) and
+  viewport clicks prove no leak and no dirty.
+
 ## v3.0.23 — the map
 
 - **The minimap rides the right edge.** A six-column map of the whole

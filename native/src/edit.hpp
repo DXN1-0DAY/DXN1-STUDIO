@@ -59,6 +59,9 @@ struct Keys {
   bool sWLeft = false, sWRight = false;        // IDE: shift+ctrl+←/→ — select
                                                // word by word
   bool ctrlC = false, ctrlX = false, ctrlV = false;  // IDE: copy / cut / paste
+  int clickR = -1, clickC = -1;                // mouse press (IDE): doc cell,
+                                               // (-1,-1) = no click this frame
+  bool clickShift = false;                     // shift+click extends
   std::string typed;                           // printable chars this frame
 };
 
@@ -877,6 +880,28 @@ inline void ideKey(IdeState& ide, const Keys& k) {
   auto& L = ide.lines;
   if (ide.curR >= static_cast<int>(L.size()))
     ide.curR = static_cast<int>(L.size()) - 1;
+
+  // ── the pointer: a click lands the hand where you pointed. main
+  // translated the cell into document coords (it owns the map rail's
+  // geometry); here every click is an honest cursor move — clamped,
+  // selection-dropping (or extending with shift), never dirtying the
+  // doc: the game has no reason to re-run because you looked around.
+  if (k.clickR >= 0) {
+    const int oldR = ide.curR, oldC = ide.curC;
+    ide.curR = std::clamp(k.clickR, 0, static_cast<int>(L.size()) - 1);
+    ide.curC = std::clamp(k.clickC, 0,
+                          static_cast<int>(L[static_cast<size_t>(ide.curR)].size()));
+    if (k.clickShift) {                        // shift+click: extend, like
+      if (ide.anchorR < 0) {                   // the shift+arrows do
+        ide.anchorR = oldR;
+        ide.anchorC = oldC;
+      }
+    } else {
+      ideSelClear(ide);                        // a bare click lets the
+    }                                          // selection go — standard
+    ide.lastTyping = ide.lastBack = false;
+    ide.idle = 0;
+  }
 
   // ── the clipboard: when one of these fires it is the frame's whole
   // edit — copy never dirties, cut and paste are one honest step each.
