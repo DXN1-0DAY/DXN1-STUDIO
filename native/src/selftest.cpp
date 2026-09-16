@@ -199,7 +199,7 @@ int main() {
   }
 
   // 9. the version quad rides in the binary too
-  ok(std::string(dxn3::DXN3_VERSION) == "3.0.49",
+  ok(std::string(dxn3::DXN3_VERSION) == "3.0.50",
      "native version constant matches the release quad");
 
   // 10. png writer: checksum vectors, real structure, byte determinism
@@ -2636,6 +2636,51 @@ int main() {
     ok(dxn3::usageHintFor(":indent").find("step right") != std::string::npos &&
        dxn3::usageHintFor(":dedent").find("back") != std::string::npos,
        "the bar whispers the breath's law");
+  }
+
+  // 58. the shelf speaks: ":snip " whispers every name with its
+  // one-line description, the typed prefix narrows by NAME, the
+  // clipping law ends the line before a cut word, an unknown name
+  // describes nothing, and the shelf is the file's own dialect
+  {
+    using std::string;
+    ok(dxn3::ideSnippetDescribe("tick") == "the every-frame hook" &&
+           dxn3::ideSnippetDescribe("main") == "a whole playable scene",
+       "the shelf's words: tick is the every-frame hook");
+    ok(dxn3::ideSnippetDescribe("nope").empty(),
+       "an unknown name describes nothing");
+
+    const string full = dxn3::ideSnippetShelfWhisper("game.py", "", 400);
+    ok(full.rfind("fn — a named function · tick — the every-frame hook",
+                  0) == 0,
+       "a bare :snip whispers the shelf, name then description");
+    ok(full.find("main — a whole playable scene") != string::npos,
+       "the shelf's last word is the whole playable scene");
+
+    const string narrow = dxn3::ideSnippetShelfWhisper("game.py", "ke", 400);
+    ok(narrow == "key — the keypress hook",
+       "a typed prefix narrows by NAME, description riding along");
+
+    const size_t one = string("fn — a named function").size();
+    ok(dxn3::ideSnippetShelfWhisper("game.py", "", one) ==
+           "fn — a named function",
+       "an entry that exactly fits still speaks");
+    ok(dxn3::ideSnippetShelfWhisper("game.py", "", one - 1).empty(),
+       "a bar too narrow for even one entry holds its tongue");
+    const size_t two = one + 3 +
+                       string("tick — the every-frame hook").size();
+    ok(dxn3::ideSnippetShelfWhisper("game.py", "", two) ==
+           "fn — a named function · tick — the every-frame hook",
+       "two entries fit when the bar honestly holds both");
+    ok(dxn3::ideSnippetShelfWhisper("game.py", "", two - 1) ==
+           "fn — a named function",
+       "the first entry that does not fit ends the line - whole words only");
+
+    ok(dxn3::ideSnippetShelfWhisper("game.cpp", "", 400)
+               .find("class") == string::npos &&
+           dxn3::ideSnippetShelfWhisper("game.cpp", "", 400)
+               .find("fn — a named function") == 0,
+       "the shelf is the file's own dialect - cpp speaks five");
   }
 
   // 53. the pins whisper: ":bm" completes itself as you type - the

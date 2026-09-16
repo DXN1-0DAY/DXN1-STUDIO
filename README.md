@@ -2,7 +2,7 @@
 
 ![DXN1 STUDIO 3](assets/banner.png)
 
-![version](https://img.shields.io/badge/version-3.0.49-8b5cf6?style=flat-square)
+![version](https://img.shields.io/badge/version-3.0.50-8b5cf6?style=flat-square)
 ![gates](https://github.com/DXN1-termux/DXN1-STUDIO/actions/workflows/ci.yml/badge.svg)
 ![native](https://img.shields.io/badge/native-C%2B%2023-f97316?style=flat-square)
 ![face](https://img.shields.io/badge/face-terminal_truecolor-22d3ee?style=flat-square)
@@ -122,7 +122,10 @@ viewport refreshes — *code a background, and boom, a background.*
   `def on_tick(dt):` in a .py file, `on.tick(() => { … })` in a .js
   one, `g.onTick = [&](float dt) { … }` in C++ — eleven python
   starters, seven js, five cpp, each one honest to the sdk/ wire
-  contract; prefix-complete with whispers, one undo step to take it
+  contract; prefix-complete with whispers — the shelf itself speaks
+  when you type `:snip `, every name carrying its one-line
+  description ("tick — the every-frame hook"), the typed prefix
+  narrowing by name, one undo step to take it
   back. Dim guides at columns 79 and 99 keep the margins visible
   (`:ruler` toggles), `:stats` counts what you're holding, and
   `ctrl+home`/`ctrl+end` jump the edges of the document.

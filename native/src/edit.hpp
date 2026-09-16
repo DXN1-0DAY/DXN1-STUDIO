@@ -512,6 +512,49 @@ inline std::vector<std::string> ideSnippetNames(const std::string& path) {
   return out;
 }
 
+// the shelf's one-line descriptions: what each snippet IS, in the
+// bar's own words — the same words for every dialect (a "tick" is
+// the every-frame hook whether the file speaks py, js or cpp). An
+// unknown name describes nothing.
+inline std::string ideSnippetDescribe(const std::string& name) {
+  static const struct {
+    const char* name;
+    const char* what;
+  } table[] = {
+      {"fn", "a named function"},       {"tick", "the every-frame hook"},
+      {"key", "the keypress hook"},     {"hit", "the collision hook"},
+      {"start", "the once-at-boot hook"},
+      {"loop", "a counted loop"},       {"ifelse", "a branch"},
+      {"class", "a class"},             {"try", "a guarded block"},
+      {"imports", "the studio's imports"},
+      {"main", "a whole playable scene"},
+      {nullptr, nullptr}};
+  for (const auto* t = table; t->name; ++t)
+    if (name == t->name) return t->what;
+  return "";
+}
+
+// the shelf whispers with its descriptions: "fn — a named function",
+// the typed prefix narrowing by NAME (the verb's own resolution law),
+// the ledger's clipping law — the first entry that does not fit ends
+// the line, never a cut word, never a half description.
+inline std::string ideSnippetShelfWhisper(const std::string& path,
+                                          const std::string& part,
+                                          size_t maxW) {
+  std::string w;
+  for (const auto& nm : ideSnippetNames(path)) {
+    if (nm.rfind(part, 0) != 0) continue;
+    std::string entry = nm;
+    const std::string what = ideSnippetDescribe(nm);
+    if (!what.empty()) entry += " — " + what;
+    const size_t need =
+        w.empty() ? entry.size() : w.size() + 3 + entry.size();
+    if (need > maxW) break;
+    w += w.empty() ? entry : " · " + entry;
+  }
+  return w;
+}
+
 // exact-name lookup: the snippet's lines, or nothing when unknown
 inline std::optional<std::vector<std::string>> ideSnippetFor(
     const std::string& name, const std::string& path) {

@@ -1,3 +1,19 @@
+## v3.0.50 — the shelf that speaks
+
+- **`:snip ` whispers the shelf, described.** Typing `:snip ` in the
+  bar now speaks every snippet name with its one-line description —
+  "fn — a named function · tick — the every-frame hook · … · main —
+  a whole playable scene" — the same words for every dialect (a
+  "tick" is the every-frame hook whether the file speaks py, js or
+  cpp). The typed prefix narrows by NAME with the description riding
+  along; the ledger's clipping law ends the line before a cut word,
+  never a half description; and the shelf is the file's own dialect
+  (cpp speaks five, js seven, py eleven). The shelf also speaks BARE
+  now (the gallery's law) — before this round it waited for a first
+  letter.
+- Selftest group 58 (10 asserts) — 513 → 523 groups. Smoke +2 (the
+  described bare shelf, the narrowed description) — 59 → 61 checks.
+
 ## v3.0.49 — the breath
 
 - **`:indent` and `:dedent` — the selection's lines step one level

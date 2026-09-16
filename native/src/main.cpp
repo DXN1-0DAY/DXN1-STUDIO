@@ -2121,7 +2121,7 @@ int main(int argc, char** argv) {
           bool bare;             // whispers even with nothing typed after it
         } qs[] = {{"scene ", 6, false},      {"open ", 5, true},
                   {"screenshot ", 11, true}, {"w ", 2, false},
-                  {"snip ", 5, false},       {"recent ", 7, true},
+                  {"snip ", 5, true},        {"recent ", 7, true},
                   {"bm ", 3, true},          {"template ", 9, true}};
         for (const auto& q : qs) {
           if (cmdBuf.rfind(q.pre, 0) != 0 ||
@@ -2202,12 +2202,13 @@ int main(int argc, char** argv) {
               if (!w.empty()) w += " · ";
               w += tpls[i].name;
             }
-          } else {                           // "snip " — the shelf whispers
-            for (const auto& nm : dxn3::ideSnippetNames(ide.path)) {
-              if (nm.rfind(part, 0) != 0) continue;
-              if (!w.empty()) w += " · ";
-              w += nm;
-            }
+          } else {                           // "snip " — the shelf whispers,
+                                             // every name carrying its
+                                             // one-line description
+            const int hcolW = 2 + static_cast<int>(cmdBuf.size());
+            w = dxn3::ideSnippetShelfWhisper(
+                ide.path, part,
+                static_cast<size_t>(std::max(0, cols - 1 - hcolW)));
           }
           const int hcol = 2 + static_cast<int>(cmdBuf.size());
           if (!w.empty() && hcol + static_cast<int>(w.size()) < cols - 1)

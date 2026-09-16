@@ -404,6 +404,22 @@ def main():
               repr(scr.text(ROWS - 1)[:50]))
         s.send(ESC)                               # the bar rests
         s.settle(0.3)                             # stage: play
+        # the shelf whispers: :snip's names carry their descriptions
+        bar = s.open_bar("play")
+        s.send("snip ")
+        scr = s.settle(0.3)
+        check("a bare :snip whispers the shelf, described",
+              "fn — a named function" in scr.text(ROWS - 1) and
+              "tick — the every-frame hook" in scr.text(ROWS - 1),
+              repr(scr.text(ROWS - 1)[:60]))
+        s.send("ke")
+        scr = s.settle(0.3)
+        check("a typed prefix narrows the shelf, description riding",
+              scr.text(ROWS - 1).find("key — the keypress hook") > 0 and
+              "fn" not in scr.text(ROWS - 1),
+              repr(scr.text(ROWS - 1)[:60]))
+        s.send(ESC)                               # the bar rests
+        s.settle(0.3)                             # stage: play
         # the gallery whispers: the bar knows the starters before you do
         bar = s.open_bar("play")
         s.send("template ")
