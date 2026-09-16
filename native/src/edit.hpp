@@ -1555,6 +1555,16 @@ inline int ideDupSel(IdeState& s) {
   return count;
 }
 
+// the jump's honest target: an absolute number is the line (1-based),
+// a relative one rides from where the hand stands; both clamp to the
+// document — a jump never lands outside the world
+inline int ideGotoTarget(const IdeState& s, float num, bool rel) {
+  const int N = static_cast<int>(s.lines.size());
+  const int goal = rel ? s.curR + static_cast<int>(num)
+                       : static_cast<int>(num) - 1;
+  return std::clamp(goal, 0, std::max(0, N - 1));
+}
+
 // ── the fold: the selection's lines say it once, in one breath ─────
 // :join folds the bed into a single line — each line trimmed, the
 // pieces separated by one honest space, pure air contributing

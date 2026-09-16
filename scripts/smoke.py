@@ -490,6 +490,21 @@ def main():
               scr.text(ROWS - 3)[GUTTER:GUTTER + 2] == "aa",
               repr(scr.text(ROWS - 4)[:12] + scr.text(ROWS - 3)[:12]))
 
+        # ── 5b. the jump — :goto rides relative to the hand ──────────
+        print("── 5b. the jump — :goto +N rides from where you stand")
+        scr, _ = s.run_verb("goto 5", "ide")
+        check("the absolute jump speaks its line",
+              "jumped to line 5" in scr.text(ROWS - 2),
+              repr(scr.text(ROWS - 2)[:60]))
+        scr, _ = s.run_verb("goto +3", "ide")
+        check("the relative jump rides and names the landing",
+              "jumped down 3 — now at line 8" in scr.text(ROWS - 2),
+              repr(scr.text(ROWS - 2)[:60]))
+        scr, _ = s.run_verb("goto -2", "ide")
+        check("the ride works up too",
+              "jumped up 2 — now at line 6" in scr.text(ROWS - 2),
+              repr(scr.text(ROWS - 2)[:60]))
+
         # ── 6. the case — the selection changes its voice ─────────────
         print("── 6. the case — upper shouts, lower whispers")
         scr, _ = s.run_verb("goto 5", "ide")      # the hand: line 5, col 0

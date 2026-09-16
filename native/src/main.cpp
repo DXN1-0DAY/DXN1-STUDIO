@@ -1566,17 +1566,26 @@ int main(int argc, char** argv) {
           }
         } else if (cmd.verb == "goto") {
           // jump the editor to a line — ctrl+g's sibling for lines
-          // without a traceback. The studio takes the stage.
+          // without a traceback. +N/-N ride from where the hand stands.
+          // The studio takes the stage.
           if (!ide.open) ide.open = true;
           ide.findOpen = false;
-          ide.curR = std::clamp(static_cast<int>(cmd.num) - 1, 0,
-                                static_cast<int>(ide.lines.size()) - 1);
+          const int target = dxn3::ideGotoTarget(
+              ide, cmd.num, cmd.rel);
+          const int step = static_cast<int>(cmd.num);
+          ide.curR = target;
           ide.curC = 0;
           ide.top = std::max(0, ide.curR - 4);   // the jump lands mid-screen
           ide.lastTyping = ide.lastBack = false;
           dxn3::ideSelClear(ide);                // the jump drops the selection
-          ide.console.push_back("engine: jumped to line " +
-                                std::to_string(ide.curR + 1));
+          ide.console.push_back(
+              cmd.rel ? "engine: jumped " +
+                            std::string(step >= 0 ? "down " : "up ") +
+                            std::to_string(std::abs(step)) +
+                            " — now at line " +
+                            std::to_string(ide.curR + 1)
+                      : "engine: jumped to line " +
+                            std::to_string(ide.curR + 1));
         } else if (cmd.verb == "mark") {
           // plant or pull a pin on the hand's line — a bookmark, not an
           // edit: F2 leaps between pins, :marks lists them

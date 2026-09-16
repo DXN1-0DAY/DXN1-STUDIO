@@ -16,6 +16,7 @@ struct Cmd {
   std::string verb;         // "scene", "zoom", "w", …
   std::string arg;          // raw argument ("" if none)
   float num = 0;            // parsed number for numeric verbs
+  bool rel = false;         // the number rides from where you stand (goto +N/-N)
   std::string error;        // "" = the command is well-formed
 
   bool ok() const { return error.empty(); }
@@ -85,7 +86,27 @@ inline Cmd parseCommand(std::string_view line) {
     needsArg("usage: :template <name> — blank, shooter, cards, background, "
              "flappy, bounce, pong");
   } else if (c.verb == "goto") {
-    number(1.f, 99999.f, "usage: :goto <line number>");
+    // a bare number is the absolute line; +N/-N ride from the hand
+    if (!c.arg.empty() && (c.arg[0] == '+' || c.arg[0] == '-')) {
+      const std::string digits = c.arg.substr(1);
+      double d = 0;
+      bool good = false;
+      if (!digits.empty()) {
+        const auto [p, ec] = std::from_chars(digits.data(),
+                                             digits.data() + digits.size(),
+                                             d);
+        good = ec == std::errc{} && p == digits.data() + digits.size() &&
+               d > 0.f && d <= 99999.f;
+      }
+      if (!good)
+        c.error = "usage: :goto <line> | :goto +N | :goto -N";
+      else {
+        c.num = static_cast<float>(c.arg[0] == '-' ? -d : d);
+        c.rel = true;
+      }
+    } else {
+      number(1.f, 99999.f, "usage: :goto <line> | :goto +N | :goto -N");
+    }
   } else if (c.verb == "bm") {
     // a bare :bm leaps to the next pin; a number takes the Nth
     if (!c.arg.empty())
@@ -165,7 +186,8 @@ inline std::string usageHintFor(std::string_view typed) {
     return " :snip <name> — fn tick key hit start loop ifelse class try imports main";
   if (verb == "template")
     return " :template <name> — blank shooter cards background flappy bounce pong";
-  if (verb == "goto") return " :goto <line> — jump the editor to a line";
+  if (verb == "goto")
+    return " :goto <line> — jump the editor to a line; +N/-N ride from the hand";
   if (verb == "mark")
     return " :mark — plant/pull a pin on this line; F2 leaps between pins";
   if (verb == "marks") return " :marks — list every pin in the file";

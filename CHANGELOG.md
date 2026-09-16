@@ -1,3 +1,15 @@
+## v3.0.54 — the ride of the jump
+
+- **`:goto +N` and `:goto -N` — the jump rides from where the hand
+  stands.** The absolute form stays 1-based (`:goto 42` is line 42);
+  the relative form climbs or descends N lines from the hand, both
+  clamping to the document — a jump never lands outside the world.
+  The receipt speaks the ride ("jumped down 3 — now at line 8"), the
+  whisper names the form, and zero rides nothing (refused with the
+  honest usage).
+- Selftest group 62 (9 asserts) — 564 → 573 groups. Smoke grew the
+  jump block (absolute, +3 down, -2 up) — 69 → 72 checks.
+
 ## v3.0.53 — the fold
 
 - **`:join` — the selection's lines say it once, in one breath.**

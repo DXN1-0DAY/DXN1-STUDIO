@@ -2,7 +2,7 @@
 
 ![DXN1 STUDIO 3](assets/banner.png)
 
-![version](https://img.shields.io/badge/version-3.0.53-8b5cf6?style=flat-square)
+![version](https://img.shields.io/badge/version-3.0.54-8b5cf6?style=flat-square)
 ![gates](https://github.com/DXN1-termux/DXN1-STUDIO/actions/workflows/ci.yml/badge.svg)
 ![native](https://img.shields.io/badge/native-C%2B%2023-f97316?style=flat-square)
 ![face](https://img.shields.io/badge/face-terminal_truecolor-22d3ee?style=flat-square)
@@ -213,7 +213,8 @@ viewport refreshes — *code a background, and boom, a background.*
   carries them back); `:dup` says the selection's lines twice, the
   copies landing below while the originals keep their pins; `:join`
   folds the bed into one line at a seam the hand can stand on
-  (vim's J law with no selection); `:goto <line>` jumps the editor;
+  (vim's J law with no selection); `:goto <line>` jumps the editor
+  and `:goto +N`/`-N` ride from where the hand stands;
   `:stats` counts lines, words, chars and dialect. The gutter earns
   its width honestly — four columns to 999 lines, five from 1000,
   six from 10000 — and the pointer, ruler and glows all speak the
@@ -313,7 +314,7 @@ accepted:
 | `:recent [name]` | the ledger — list it, or reopen a prefix match |
 | `:template <name>` | load a starter (blank, shooter, cards, …) |
 | `:snip <name>` | drop language-aware boilerplate at the hand |
-| `:goto <line>` | jump the editor to a line |
+| `:goto <line>` | jump the editor to a line — `+N`/`-N` ride from the hand |
 | `:mark` | plant/pull a pin on this line — F2 leaps; click the gutter's ◆ to pull |
 | `:marks` | list every pin in the file |
 | `:bm [n]` | leap to a pin; bare `:bm` takes the next, wrapping — the pins whisper as you type |

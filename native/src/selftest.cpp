@@ -199,7 +199,7 @@ int main() {
   }
 
   // 9. the version quad rides in the binary too
-  ok(std::string(dxn3::DXN3_VERSION) == "3.0.53",
+  ok(std::string(dxn3::DXN3_VERSION) == "3.0.54",
      "native version constant matches the release quad");
 
   // 10. png writer: checksum vectors, real structure, byte determinism
@@ -2850,6 +2850,41 @@ int main() {
        "parseCommand reads :join and refuses it an argument");
     ok(dxn3::usageHintFor(":join").find("fold") != std::string::npos,
        "the bar whispers the fold's law");
+  }
+
+  // 62. the jump: ":goto +N/-N" — the numbers ride from the hand, the
+  // absolute form stays 1-based, both clamp to the document, zero and
+  // garbage are refused
+  {
+    const auto g1 = dxn3::parseCommand(":goto +5");
+    ok(g1.ok() && g1.rel && g1.num == 5.f,
+       ":+5 rides down, and says so");
+    const auto g2 = dxn3::parseCommand(":goto -3");
+    ok(g2.ok() && g2.rel && g2.num == -3.f,
+       ":-3 rides up, and says so");
+    const auto g3 = dxn3::parseCommand(":goto 42");
+    ok(g3.ok() && !g3.rel && g3.num == 42.f,
+       "a bare number stays the absolute line");
+    ok(!dxn3::parseCommand(":goto +0").ok() &&
+       !dxn3::parseCommand(":goto -").ok() &&
+       !dxn3::parseCommand(":goto +x").ok(),
+       "zero rides nothing, and garbage is refused");
+
+    IdeState s1;
+    s1.lines = {"1", "2", "3", "4", "5"};
+    s1.curR = 1;
+    ok(dxn3::ideGotoTarget(s1, 5.f, false) == 4,
+       "the absolute form is 1-based: line 5 is the doc's tail");
+    ok(dxn3::ideGotoTarget(s1, 3.f, true) == 4,
+       "+3 from the hand rides three lines down");
+    ok(dxn3::ideGotoTarget(s1, -99.f, true) == 0,
+       "a ride past the top clamps to the first line");
+    ok(dxn3::ideGotoTarget(s1, 99.f, true) == 4 &&
+       dxn3::ideGotoTarget(s1, 99.f, false) == 4,
+       "a ride past the bottom clamps to the last line");
+
+    ok(dxn3::usageHintFor(":goto").find("+N") != std::string::npos,
+       "the bar whispers the ride's form");
   }
 
   // 53. the pins whisper: ":bm" completes itself as you type - the
