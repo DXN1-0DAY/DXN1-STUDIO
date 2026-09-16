@@ -1,3 +1,17 @@
+## v3.0.65 — the vim gutter (:relnum)
+
+- **`:relnum` — the gutter counts from the hand.** The vim way:
+  every line shows its DISTANCE from the cursor and the hand's own
+  line keeps its true name — the numbers you navigate by (:goto +N,
+  the rides, the pins) sit right where your eyes already are. The
+  hand's row wears a brighter number so the anchor never hides, a
+  second :relnum wakes the absolutes, :help's verb list and the
+  whisper carry the law. The gutter's width rule is untouched —
+  relative or absolute, the same honest column per extra digit.
+- Smoke section 13a5 (4 checks) — 118 → 122: the hand keeps its name,
+  rows 2-4 count 1 2 3, the absolutes return. Selftest stays at 649
+  groups (the gutter is the shell's brush; the screen is its witness).
+
 ## v3.0.64 — the marker hunt (:todo)
 
 - **`:todo` — the debts the document owes, named where they live.**

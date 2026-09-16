@@ -152,6 +152,10 @@ struct IdeState {
   // of code. The searchlight still gets its row when it is up; receipts
   // gather silently until the quiet ends. :zen toggles.
   bool zen = false;
+  // relative line numbers: the gutter counts the distance from the
+  // hand (the vim way) and the hand's own line keeps its true name.
+  // :relnum toggles; the absolutes always come back.
+  bool relnum = false;
 };
 
 // ── the selection: anchor ↔ cursor, honestly ordered ────────────────

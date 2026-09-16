@@ -865,9 +865,16 @@ void drawIDE(dxn3::Screen& scr, IdeState& ide, const dxn3::Game& g, bool hostUp)
     const bool onCursor = li == ide.curR;
     const bool pinned = dxn3::ideMarkHas(ide, li);
     char gutter[16];
-    std::snprintf(gutter, sizeof gutter, "%*d ", G - 1, li + 1);
+    const int shown = ide.relnum ? [&] {
+      int d = li - ide.curR;               // the vim way: the gutter
+      if (d < 0) d = -d;                   // counts from the hand, and the
+      return d == 0 ? li + 1 : d;          // hand's line keeps its name
+    }() : li + 1;
+    std::snprintf(gutter, sizeof gutter, "%*d ", G - 1, shown);
     scr.text(0, bodyTop + r, gutter,
-             pinned ? dxn3::rgb(250, 204, 21) : dxn3::rgb(84, 72, 120));
+             pinned ? dxn3::rgb(250, 204, 21)
+                    : (onCursor ? dxn3::rgb(196, 181, 253)
+                                : dxn3::rgb(84, 72, 120)));
     if (onCursor) scr.railBg(bodyTop + r, selBg);
     // long lines slide: every row shows the window [hcol, hcol + textW)
     const std::string& ln = ide.lines[static_cast<size_t>(li)];
@@ -1940,6 +1947,17 @@ int main(int argc, char** argv) {
                   ? "engine: no markers in the file — TODO/FIXME/XXX/HACK "
                     "would land here"
                   : "engine: the markers, line-led — " + t);
+        } else if (cmd.verb == "relnum") {
+          // the vim way: the gutter counts from the hand — the hand's
+          // own line keeps its true name, and the toggles always come back
+          takeStage();
+          ide.relnum = !ide.relnum;
+          ide.console.push_back(
+              ide.relnum
+                  ? "engine: the gutter counts from your hand — the "
+                    "hand's line keeps its name"
+                  : "engine: the absolutes return — every line wears its "
+                    "own number");
         } else if (cmd.verb == "stats") {
           takeStage();
           size_t words = 0, chars = 0;
@@ -2016,7 +2034,7 @@ int main(int argc, char** argv) {
           game.scene.gravity = cmd.num;
           game.say("gravity " + std::to_string(static_cast<int>(cmd.num)), 1.2);
         } else if (cmd.verb == "help") {
-          game.say(":scene :open :recent :template :snip :goto :mark :marks :bm :ruler :minimap :zen :trim :cases :sort :rsort :rev :uniq :indent :dedent :lift :drop :dup :join :upper :lower :title :hist :undo :redo :words :todo :stats "
+          game.say(":scene :open :recent :template :snip :goto :mark :marks :bm :ruler :minimap :zen :relnum :trim :cases :sort :rsort :rev :uniq :indent :dedent :lift :drop :dup :join :upper :lower :title :hist :undo :redo :words :todo :stats "
                     ":zoom :fit :reset :new :w :wq :q :screenshot :magnet :gravity", 4.f);
         }
       } else {

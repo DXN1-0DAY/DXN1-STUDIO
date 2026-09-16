@@ -845,6 +845,31 @@ def main():
               ": # TODO" in scr.text(ROWS - 2),
               repr(scr.text(ROWS - 2)[:70]))
 
+        # ── 13a5. the vim gutter — :relnum counts from the hand ──────
+        print("── 13a5. :relnum — the gutter counts from the hand")
+        s.send("\x1b[1;5H")                    # ctrl+home: the hand to line 1
+        time.sleep(0.25)
+        scr, _ = s.run_verb("relnum", "ide")
+        check(":relnum speaks the vim way",
+              "the gutter counts from your hand" in scr.text(ROWS - 2),
+              repr(scr.text(ROWS - 2)[:60]))
+        scr = s.settle(0.25)
+        check("the hand's line keeps its name (row 1 says 1)",
+              scr.text(1)[:GUTTER].strip() == "1",
+              repr(scr.text(1)[:GUTTER]))
+        check("the distance counts (rows 2-4 say 1 2 3)",
+              scr.text(2)[:GUTTER].strip() == "1" and
+              scr.text(3)[:GUTTER].strip() == "2" and
+              scr.text(4)[:GUTTER].strip() == "3",
+              f"{scr.text(2)[:GUTTER]!r} {scr.text(3)[:GUTTER]!r} "
+              f"{scr.text(4)[:GUTTER]!r}")
+        scr, _ = s.run_verb("relnum", "ide")
+        check("the absolutes return on the second :relnum",
+              "the absolutes return" in scr.text(ROWS - 2) and
+              scr.text(2)[:GUTTER].strip() == "2",
+              repr(scr.text(2)[:GUTTER]) + " / " +
+              repr(scr.text(ROWS - 2)[:40]))
+
         # ── 13b. the pen — :w saves the script, the .bak keeps the past
         print("── 13b. the pen — :w writes the doc, a .bak keeps the past")
         scr, _ = s.run_verb("w", "ide")       # the first save: no past yet
