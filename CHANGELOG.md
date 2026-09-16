@@ -1,3 +1,23 @@
+## v3.0.34 — the second wind
+
+- **A sustained autoscroll pull doubles its pace.** Drag to the
+  viewport's edge and hold: for the first 1.2 seconds the pull walks
+  one line every 70ms — careful, precise; past 1.2s the SECOND WIND
+  arrives and the notches come every 35ms — long documents are
+  reached at speed. The law stays honest everywhere: the wind is
+  spent by a release, by a stall (the dt > 0.5s guard), and by the
+  hand leaving the edge — every restart walks slowly again, so short
+  documents can never be skipped past. No new keys, no new state the
+  hand must learn: the meter (`dragHold`) simply remembers how long
+  the pull has been sustained, and the period halves.
+- Selftest: group 45 (24 frames at one period each: 17 slow + 14
+  fast notches with the ride contract intact; release → hold and
+  meter rest; a fresh press walks slowly again — 5, not 10; the
+  stall's honest reset; leaving the edge spends the wind) — 385 →
+  391 assertion groups, all green. The float law rides along: 0.035
+  is exactly half of 0.07 in binary, so the accelerated meter never
+  drifts.
+
 ## v3.0.33 — the bare open
 
 - **A bare `:open` reopens the ledger's head.** The verb you used to

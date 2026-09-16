@@ -117,8 +117,11 @@ struct IdeState {
   // the drag's edge: the hand parked on the viewport's top (−1) or
   // bottom (+1) row while the button is held — the view pulls toward
   // the unseen lines, one notch at a time (dragAcc meters the pull).
+  // dragHold is how long the pull has been SUSTAINED — a long hold
+  // earns the second wind: the notches come twice as fast.
   int dragEdge = 0;
   double dragAcc = 0;
+  double dragHold = 0;
   // the ledger: the files this studio had open, most recent first —
   // :recent lists and reopens them
   std::vector<std::string> recent;
@@ -827,17 +830,23 @@ inline void ideScroll(IdeState& s, int delta) {
 // stationary press never scrolls), each ~0.07s notch slides one line
 // with the SAME ride contract as the wheel: the hand never leaves
 // sight, the doc never dirties. A long gap (the hand was away, the
-// app stalled) is an honest reset, never a catch-up jump.
+// app stalled) is an honest reset, never a catch-up jump. And a pull
+// sustained past 1.2s earns the SECOND WIND: the meter halves and the
+// notches come twice as fast — long documents are reached at speed,
+// short ones never skipped past.
 inline void ideDragAutoScroll(IdeState& s, int edge, double dt) {
   if (edge == 0 || s.pressR < 0 || s.anchorR < 0 || dt < 0 || dt > 0.5) {
     s.dragAcc = 0;
+    s.dragHold = 0;              // the hold is spent with the meter
     return;
   }
+  s.dragHold += dt;
   s.dragAcc += dt;
   constexpr double PERIOD = 0.07;              // one notch every 70ms
+  const double period = s.dragHold > 1.2 ? PERIOD / 2 : PERIOD;
   int steps = 0;
-  while (s.dragAcc >= PERIOD) {
-    s.dragAcc -= PERIOD;
+  while (s.dragAcc >= period) {
+    s.dragAcc -= period;
     ++steps;
   }
   if (steps == 0) return;
@@ -1127,7 +1136,8 @@ inline void ideKey(IdeState& ide, const Keys& k) {
     ide.pressR = -1;                           // the button came up: the
     ide.pressC = -1;                           // drag is over, the selection
     ide.dragEdge = 0;                          // it made simply stays — and
-    ide.dragAcc = 0;                           // the edge pull is spent
+    ide.dragAcc = 0;                           // the edge pull is spent, its
+    ide.dragHold = 0;                          // wind with it
   }
   if (k.dragR >= 0 && ide.pressR >= 0) {       // motion with the button
                                                 // held: drag the selection

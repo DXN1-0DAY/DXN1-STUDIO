@@ -199,7 +199,7 @@ int main() {
   }
 
   // 9. the version quad rides in the binary too
-  ok(std::string(dxn3::DXN3_VERSION) == "3.0.33",
+  ok(std::string(dxn3::DXN3_VERSION) == "3.0.34",
      "native version constant matches the release quad");
 
   // 10. png writer: checksum vectors, real structure, byte determinism
@@ -2060,6 +2060,58 @@ int main() {
        "a narrow bar carries the head and stops before the separator");
     ok(ideOpenWhisper({}, "un", files, 400) == "untitled.py",
        "an empty ledger leaves the floor to the filesystem");
+  }
+
+  // 45. the second wind: a pull sustained past 1.2s doubles its pace;
+  // release, stall, or leaving the edge spends the wind honestly
+  {
+    IdeState w1;                       // 200 lines, page 10, hand at bottom
+    for (int i = 0; i < 200; ++i) w1.lines.push_back("row " + std::to_string(i));
+    w1.page = 10;
+    w1.pressR = 9;
+    w1.anchorR = 9;
+    w1.curR = 9;
+    for (int f = 0; f < 24; ++f)       // 24 frames of exactly one slow
+      dxn3::ideDragAutoScroll(w1, 1, 0.07);   // period: 17 slow notches,
+                                             // then hold > 1.2 → double
+    ok(w1.top == 31 && w1.curR == 40,
+       "a pull sustained past 1.2s earns the second wind (17 + 14 notches)");
+
+    Keys rel;                          // the button comes up: the wind dies
+    rel.clickRelease = true;
+    dxn3::ideKey(w1, rel);
+    ok(w1.dragHold == 0 && w1.dragAcc == 0,
+       "a release spends the wind — hold and meter both rest");
+    w1.pressR = 40;                    // a NEW press parks at the edge —
+    w1.anchorR = 40;                   // the drag's own honest ceremony
+    w1.curR = 40;
+    for (int f = 0; f < 5; ++f)        // five slow frames, NOT accelerated
+      dxn3::ideDragAutoScroll(w1, 1, 0.07);
+    ok(w1.top == 36,
+       "a fresh pull walks at the slow pace again (5 notches, not 10)");
+
+    IdeState w2;                       // a stalled app is an honest reset
+    for (int i = 0; i < 200; ++i) w2.lines.push_back("row " + std::to_string(i));
+    w2.page = 10;
+    w2.pressR = 9;
+    w2.anchorR = 9;
+    w2.curR = 9;
+    for (int f = 0; f < 20; ++f) dxn3::ideDragAutoScroll(w2, 1, 0.07);
+    dxn3::ideDragAutoScroll(w2, 1, 0.6);   // the stall: dt past the guard
+    ok(w2.dragHold == 0, "a stalled frame spends the wind too");
+    for (int f = 0; f < 17; ++f) dxn3::ideDragAutoScroll(w2, 1, 0.07);
+    ok(w2.top == 23 + 17,
+       "after a stall the cadence restarts slow (23 + 17, not doubled)");
+
+    IdeState w3;                       // mid-body: no edge, no hold
+    for (int i = 0; i < 200; ++i) w3.lines.push_back("row " + std::to_string(i));
+    w3.page = 10;
+    w3.pressR = 9;
+    w3.anchorR = 9;
+    w3.curR = 9;
+    for (int f = 0; f < 20; ++f) dxn3::ideDragAutoScroll(w3, 1, 0.07);
+    dxn3::ideDragAutoScroll(w3, 0, 0.07);  // the hand left the edge
+    ok(w3.dragHold == 0, "leaving the edge spends the wind");
   }
 
   if (fails == 0) {
