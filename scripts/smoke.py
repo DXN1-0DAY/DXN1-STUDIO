@@ -454,6 +454,10 @@ def main():
         check(":marks lists both pins by line (sorted, not planted)",
               "1) Ln 37" in scr.text(ROWS - 2) and "2) Ln 40" in
               scr.text(ROWS - 2), repr(scr.text(ROWS - 2)[:60]))
+        scr, _ = s.run_verb("help sort", "ide")
+        check(":help <verb> teaches the verb's law in the console",
+              ":sort — order the selected lines" in scr.text(ROWS - 2),
+              repr(scr.text(ROWS - 2)[:70]))
         scr, _ = s.run_verb("bm", "ide")
         check("a bare :bm leaps to the next pin (wrapping)",
               "leaps to the pin at line 40" in scr.text(ROWS - 2),

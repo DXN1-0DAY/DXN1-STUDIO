@@ -2,7 +2,7 @@
 
 ![DXN1 STUDIO 3](assets/banner.png)
 
-![version](https://img.shields.io/badge/version-3.0.75-8b5cf6?style=flat-square)
+![version](https://img.shields.io/badge/version-3.0.76-8b5cf6?style=flat-square)
 ![gates](https://github.com/DXN1-termux/DXN1-STUDIO/actions/workflows/ci.yml/badge.svg)
 ![native](https://img.shields.io/badge/native-C%2B%2023-f97316?style=flat-square)
 ![face](https://img.shields.io/badge/face-terminal_truecolor-22d3ee?style=flat-square)
@@ -330,6 +330,7 @@ accepted:
 | `:gravity <force>` | gravity, live |
 | `:open [file]` | load any script; bare `:open` reopens the ledger's head |
 | `:recent [name]` | the ledger — list it, or reopen a prefix match |
+| `:help [verb]` | the verbs — or one verb's law, spoken to the console |
 | `:template <name>` | load a starter (blank, shooter, cards, …) |
 | `:snip <name>` | drop language-aware boilerplate at the hand |
 | `:goto <line>` | jump the editor to a line — `+N`/`-N` ride from the hand |

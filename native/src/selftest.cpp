@@ -199,7 +199,7 @@ int main() {
   }
 
   // 9. the version quad rides in the binary too
-  ok(std::string(dxn3::DXN3_VERSION) == "3.0.75",
+  ok(std::string(dxn3::DXN3_VERSION) == "3.0.76",
      "native version constant matches the release quad");
 
   // 10. png writer: checksum vectors, real structure, byte determinism
@@ -3812,6 +3812,23 @@ int main() {
     r.lines = {"solo"};
     ok(dxn3::ideShuffleSel(r, 7, true, nullptr) == 0 && r.undo.empty(),
        "a bed of one refuses — one line has no other order");
+  }
+
+  // 81. :help <verb> — the bar's typing whisper, promoted to the
+  // console where it can be read slowly. The parse takes one verb;
+  // the hint router is the SAME table the bar speaks.
+  {
+    const auto h1 = dxn3::parseCommand(":help sort");
+    ok(h1.ok() && h1.arg == "sort", ":help takes a verb to teach");
+    const auto h2 = dxn3::parseCommand(":help");
+    ok(h2.ok() && h2.arg.empty(), "a bare :help still lists the verbs");
+    const auto h3 = dxn3::parseCommand(":help sort uniq");
+    ok(!h3.ok() && h3.error.find("one verb") != std::string::npos,
+       ":help takes ONE verb at a time");
+    ok(dxn3::usageHintFor("sort").find("selected lines") != std::string::npos,
+       "the verb's hint is the bar's own law, spoken in full");
+    ok(dxn3::usageHintFor("nosuchverb").empty(),
+       "an unknown verb whispers nothing — the caller refuses");
   }
 
 

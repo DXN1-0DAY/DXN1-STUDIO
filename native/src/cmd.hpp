@@ -124,8 +124,12 @@ inline Cmd parseCommand(std::string_view line) {
       number(0.f, 999999999.f,
              "usage: :shuffle [seed] — a bare :shuffle rolls a seed; "
              "the same seed deals the same order");
+  } else if (c.verb == "help") {
+    // a bare :help lists every verb; :help <verb> whispers that verb's law
+    if (!c.arg.empty() && c.arg.find(' ') != std::string::npos)
+      c.error = "usage: :help [verb] — one verb at a time";
   } else if (c.verb == "q" || c.verb == "wq" || c.verb == "fit" ||
-             c.verb == "reset" || c.verb == "help" || c.verb == "new" ||
+             c.verb == "reset" || c.verb == "new" ||
              c.verb == "ruler" || c.verb == "stats" || c.verb == "minimap" ||
              c.verb == "trim" || c.verb == "cases" || c.verb == "sort" ||
              c.verb == "rsort" || c.verb == "upper" || c.verb == "lower" ||
@@ -284,7 +288,7 @@ inline std::string usageHintFor(std::string_view typed) {
   if (verb == "screenshot") return " :screenshot [file.png]";
   if (verb == "magnet") return " :magnet <0-400> px";
   if (verb == "gravity") return " :gravity <-3000-3000>";
-  if (verb == "help") return " :help — list commands";
+  if (verb == "help") return " :help [verb] — the verbs, or one verb's law";
   return "";
 }
 

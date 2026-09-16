@@ -1,3 +1,20 @@
+## v3.0.76 — :help <verb> (the bar's whisper, promoted to the console)
+
+- **`:help <verb>` teaches one verb's law.** `:help sort` speaks
+  ":sort — order the selected lines; all-number beds count (2 before
+  10)" into the console, where it can be read slowly — the SAME hint
+  table the bar whispers while you type, now reachable as a command.
+  A bare `:help` still lists every verb (and now names the new way:
+  "or :help <verb>"); an unknown verb refuses honestly; a two-word
+  argument is refused by the parse ("one verb at a time").
+- **A stage-law bug the gates caught:** the help handler was the
+  only verb that did not takeStage() — typing `:help <verb>` left
+  the studio in play, the receipt pushed into a console nobody was
+  showing, and every later verb's receipt read blank. One line
+  fixed it: every verb takes the stage — a law, not a suggestion.
+- Selftest group 81 (5 asserts) 742 -> 747; smoke grows the
+  help-teaches check (154 -> 155).
+
 ## v3.0.75 — the census wears the pins (one marking law, two listings)
 
 - **`:changes` speaks the pins' diamond.** A touched line that is

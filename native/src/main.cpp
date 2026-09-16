@@ -2217,8 +2217,22 @@ int main(int argc, char** argv) {
           game.scene.gravity = cmd.num;
           game.say("gravity " + std::to_string(static_cast<int>(cmd.num)), 1.2);
         } else if (cmd.verb == "help") {
-          game.say(":scene :open :recent :template :snip :goto :jumps :changes :fresh :mark :marks :bm :ruler :minimap :zen :relnum :trim :cases :sort :rsort :rev :uniq :shuffle :indent :dedent :lift :drop :dup :join :upper :lower :title :hist :undo :redo :words :todo :stats "
-                    ":zoom :fit :reset :new :w :wq :q :screenshot :magnet :gravity", 4.f);
+          takeStage();                         // every verb takes the stage —
+                                               // a law, not a suggestion
+          if (cmd.arg.empty()) {
+            game.say(":scene :open :recent :template :snip :goto :jumps :changes :fresh :mark :marks :bm :ruler :minimap :zen :relnum :trim :cases :sort :rsort :rev :uniq :shuffle :indent :dedent :lift :drop :dup :join :upper :lower :title :hist :undo :redo :words :todo :stats "
+                     ":zoom :fit :reset :new :w :wq :q :screenshot :magnet :gravity — or :help <verb>",
+                     4.f);
+          } else {
+            // one verb's law: the SAME whisper the bar speaks while you
+            // type, promoted to the console where it can be read slowly
+            const std::string hint = dxn3::usageHintFor(cmd.arg);
+            if (hint.empty())
+              cmdErr = "no such command: " + cmd.arg +
+                       " — :help lists them";
+            else
+              ide.console.push_back("engine:" + hint);
+          }
         }
       } else {
         cmdBuf += keys.typed;
