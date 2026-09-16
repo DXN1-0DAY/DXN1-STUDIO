@@ -170,6 +170,8 @@ def parse_frame(b):
     return Screen(grid)
 
 
+SMOKE_CWD = None                # the studio's private dir (saves land here)
+
 class Studio:
     def __init__(self, binary):
         self.pid, self.fd = pty.fork()
@@ -177,6 +179,8 @@ class Studio:
             env = dict(os.environ)
             env["TERM"] = "xterm-256color"
             env["LANG"] = "C.UTF-8"
+            if SMOKE_CWD:
+                os.chdir(SMOKE_CWD)     # saves stay out of the repo
             try:
                 os.execvpe(binary, [binary], env)
             except Exception:
@@ -270,10 +274,15 @@ def main():
     binary = "native/build/dxn3-native"
     if "--bin" in sys.argv:
         binary = sys.argv[sys.argv.index("--bin") + 1]
+    binary = os.path.abspath(binary)   # the child chdirs — the path must not
     if not os.path.exists(binary):
         print(f"smoke: {binary} missing — run make -C native first")
         return 2
 
+    global SMOKE_CWD
+    import tempfile
+    SMOKE_CWD = tempfile.mkdtemp(prefix="dxn3-smoke-")
+    print(f"── the studio saves in {SMOKE_CWD}")
     s = Studio(binary)
     try:
         # ── 0. boot: the studio opens loud ────────────────────────────
@@ -778,15 +787,57 @@ def main():
               scr.text(ROWS - 3)[GUTTER:GUTTER + 5] == "zz aa",
               repr(scr.text(ROWS - 3)[:16]))
 
-        # ── 14. the exit — clean, code 0 ──────────────────────────────
-        print("── 14. the exit — esc to play, q quits")
-        s.send(ESC)
-        time.sleep(0.2)
-        s.send("q")
-        ok = s.wait_exit()
-        check("the studio exits on q (from play)", ok)
-        check("the exit is clean (code 0)", s.exit_code == 0,
+        # ── 13b. the pen — :w saves the script, the .bak keeps the past
+        print("── 13b. the pen — :w writes the doc, a .bak keeps the past")
+        scr, _ = s.run_verb("w", "ide")       # the first save: no past yet
+        check(":w saves the script and says so",
+              "engine: saved untitled.py" in scr.text(ROWS - 2),
+              repr(scr.text(ROWS - 2)[:60]))
+        scr, _ = s.run_verb("w", "ide")       # the second save: the past kept
+        check("the second :w keeps a .bak",
+              ".bak" in scr.text(ROWS - 2), repr(scr.text(ROWS - 2)[:60]))
+        doc = open(os.path.join(SMOKE_CWD, "untitled.py")).read()
+        check("the pen wrote the editor's truth to disk",
+              "zz aa" in doc and doc.endswith("\n"),
+              repr(doc[-40:]))
+        check("the .bak rests beside the doc",
+              os.path.exists(os.path.join(SMOKE_CWD, "untitled.py.bak")))
+        scr, _ = s.run_verb("w smoke-saved.py", "ide")   # save-as
+        scr = s.settle(0.4)
+        check("the header wears the new name",
+              "smoke-saved.py" in scr.text(0), repr(scr.text(0)[-40:]))
+        check("the save-as landed on disk",
+              os.path.exists(os.path.join(SMOKE_CWD, "smoke-saved.py")))
+
+        # ── 13c. :wq — the save is the sleep ─────────────────────────
+        print("── 13c. :wq — the pen saves, the studio sleeps")
+        scr, _ = s.run_verb("wq", "ide")
+        gone = s.wait_exit()
+        check(":wq saves and the studio sleeps", gone)
+        check(":wq's exit is clean (code 0)", s.exit_code == 0,
               repr(s.exit_code))
+        check("the sleep's save landed (the adopted name on disk)",
+              os.path.exists(os.path.join(SMOKE_CWD, "smoke-saved.py")))
+
+        # ── 14. the exit — a fresh studio: esc to play, q quits ──────
+        print("── 14. the exit — esc to play, q quits")
+        s2 = Studio(binary)
+        scr2 = None                           # a fresh boot takes a beat:
+        for _ in range(12):                   # poll until the doc's name
+            scr2 = s2.settle(0.4)             # shows, never assume the beat
+            if scr2 is not None and scr2.find("untitled.py") is not None:
+                break
+        check("the second studio opens loud",
+              scr2 is not None and scr2.find("untitled.py") is not None,
+              "no frame" if scr2 is None else repr(scr2.text(0)[-30:]))
+        s2.send(ESC)
+        time.sleep(0.3)
+        s2.send("q")
+        ok = s2.wait_exit()
+        check("the studio exits on q (from play)", ok)
+        check("the exit is clean (code 0)", s2.exit_code == 0,
+              repr(s2.exit_code))
+        s2.close()
 
         return finish(s)
     except Exception as e:

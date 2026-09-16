@@ -1,3 +1,29 @@
+## v3.0.57 — the pen
+
+- **`:w` and `:wq` follow the session's work.** The pen saves the
+  studio's document when the studio has been on stage (it IS the boot
+  stage for interactive runs) and the scene for play-only sessions —
+  so `:w` in the editor finally means the SCRIPT, not the JSON behind
+  it. A name saves AS that name: `:w other.py` writes the doc there,
+  adopts the path, and the ledger remembers it; a refused write never
+  steals the doc's own name. `:wq` saves and sleeps; a failed pen
+  never quits — the honest error stays on the bar.
+- **The .bak law is every document's now.** The scene always kept a
+  `.bak`; scripts now do too — every save (the bar's pen, ctrl+s,
+  even the auto-run's silent save before hosting) copies the file
+  that exists to `<path>.bak` before writing. A first save has no
+  past to keep; the receipts say "(.bak kept)" only when it is true.
+- **The sdk is found beside the binary, not beside the cwd.** The
+  hosted game's `PYTHONPATH`/`NODE_PATH` now resolve from the
+  studio's own installation (<repo>/native/build → <repo>/sdk, with
+  the cwd as fallback) — a studio launched from any directory hosts
+  `from dxn3 import *` the same way. Found by the smoke's new
+  hermetic harness: it now runs the studio in a private tmp dir, so
+  saves never dirty the repo.
+- Selftest group 65 (2 asserts) — 599 → 601 groups. Smoke grew the
+  pen sections (the save, the .bak, the save-as, the disk truth, the
+  :wq sleep, the fresh-studio exit) — 87 → 97 checks.
+
 ## v3.0.56 — the ride in the hands
 
 - **alt+↑ / alt+↓ — :lift and :drop without opening the bar.** The

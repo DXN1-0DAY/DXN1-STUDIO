@@ -713,7 +713,20 @@ bool isScriptFile(const std::string& p) {
   return false;
 }
 
-bool ideSave(IdeState& ide, std::string* err) {
+bool ideSave(IdeState& ide, std::string* err, bool* bakKept = nullptr) {
+  // the pen's second copy: the file that exists becomes <path>.bak the
+  // moment this save starts — the scene's law (.bak kept), now every
+  // document's. A first save has no past to keep; a failed copy is a
+  // note, never a refusal — the save goes on.
+  std::error_code ec;
+  bool bak = false;
+  if (std::filesystem::exists(ide.path, ec)) {
+    std::filesystem::copy_file(
+        ide.path, ide.path + ".bak",
+        std::filesystem::copy_options::overwrite_existing, ec);
+    bak = !ec;
+  }
+  if (bakKept) *bakKept = bak;
   std::ofstream f(ide.path, std::ios::binary);
   if (!f) { if (err) *err = "cannot write " + ide.path; return false; }
   for (const auto& l : ide.lines) f << l << '\n';   // POSIX: files end in \n
@@ -1135,7 +1148,20 @@ int main(int argc, char** argv) {
   // ─── boot: the engine first. you start with nothing, you code, it runs.
   IdeState ide;
   dxn3::ScriptHost host;
-  const std::string sdkDir = (std::filesystem::current_path() / "sdk").string();
+  // the sdk lives beside the BINARY — the studio's own installation —
+  // not beside the user's cwd: a studio launched from anywhere hosts
+  // games the same way. (<repo>/native/build/dxn3-native → <repo>/sdk;
+  // a flat install keeps the old "sdk beside the cwd" answer.)
+  std::filesystem::path sdkPath = std::filesystem::current_path() / "sdk";
+  {
+    std::error_code ec;
+    const auto exe = std::filesystem::read_symlink("/proc/self/exe", ec);
+    if (!ec) {
+      const auto beside = exe.parent_path().parent_path().parent_path() / "sdk";
+      if (std::filesystem::exists(beside, ec)) sdkPath = beside;
+    }
+  }
+  const std::string sdkDir = sdkPath.string();
   bool ideBoot = false;
   if (isatty(STDIN_FILENO) && !wantShot) {   // interactive? engine first.
     if (argc == 1) {                          // dxn3, no args → the engine IDE
@@ -1165,6 +1191,11 @@ int main(int argc, char** argv) {
     dxn3::ideRecentPush(ide.recent, ide.path);   // the boot doc, remembered
   }
 
+  // the session's stage of work: the pen (:w/:wq) follows it. The
+  // studio IS the boot stage for interactive runs; every verb or key
+  // that takes the stage renews the claim. A play-only session (a
+  // scene argument, no studio yet) keeps :w pointed at the scene.
+  bool ideEver = ideBoot;
   dxn3::Scene bootScene;
   if (ideBoot) {
     bootScene.name = "untitled";
@@ -1341,6 +1372,10 @@ int main(int argc, char** argv) {
 
   // any script becomes the live document — :open and :recent share one
   // honest path: read it, take the stage, remember it in the ledger
+  auto takeStage = [&]() {
+    if (!ide.open) ide.open = true;
+    ideEver = true;
+  };
   auto openScript = [&](const std::string& path) -> std::string {
     std::ifstream f(path, std::ios::binary);
     if (!f.good()) return "no such file: " + path;
@@ -1366,7 +1401,7 @@ int main(int argc, char** argv) {
     ide.findQ.clear();
     ide.findHits.clear();
     ide.findSel = -1;
-    ide.open = true;                 // the studio takes the stage
+    takeStage();
     ide.dirty = true;
     ide.idle = 0;
     dxn3::ideRecentPush(ide.recent, path);
@@ -1501,7 +1536,7 @@ int main(int argc, char** argv) {
         } else if (cmd.verb == "reset") {
           game.reset();
         } else if (cmd.verb == "new") {
-          if (!ide.open) ide.open = true;          // :new opens the studio
+          takeStage();
           nextTemplate();
         } else if (cmd.verb == "template") {
           // direct load: an exact name wins, a unique prefix resolves,
@@ -1530,7 +1565,7 @@ int main(int argc, char** argv) {
             cmdErr = "ambiguous template '" + arg + "' — " + list;
             cmdErrT = 4.f;
           } else {
-            ide.open = true;                       // the studio takes the stage
+            takeStage();
             ide.tpl = hit;
             loadTemplate(hit);
           }
@@ -1551,7 +1586,7 @@ int main(int argc, char** argv) {
           }
         } else if (cmd.verb == "recent") {
           if (cmd.arg.empty()) {
-            if (!ide.open) ide.open = true;  // the stage, for the reading
+            takeStage();
             // the ledger, read aloud: most recent first, six deep
             if (ide.recent.empty()) {
               ide.console.push_back(
@@ -1585,7 +1620,7 @@ int main(int argc, char** argv) {
           // jump the editor to a line — ctrl+g's sibling for lines
           // without a traceback. +N/-N ride from where the hand stands.
           // The studio takes the stage.
-          if (!ide.open) ide.open = true;
+          takeStage();
           ide.findOpen = false;
           const int target = dxn3::ideGotoTarget(
               ide, cmd.num, cmd.rel);
@@ -1606,7 +1641,7 @@ int main(int argc, char** argv) {
         } else if (cmd.verb == "mark") {
           // plant or pull a pin on the hand's line — a bookmark, not an
           // edit: F2 leaps between pins, :marks lists them
-          if (!ide.open) ide.open = true;      // the studio takes the stage
+          takeStage();
           const bool on = dxn3::ideMarkToggle(ide, ide.curR);
           ide.console.push_back(
               on ? "engine: pin planted on line " +
@@ -1615,7 +1650,7 @@ int main(int argc, char** argv) {
                  : "engine: pin pulled from line " +
                        std::to_string(ide.curR + 1));
         } else if (cmd.verb == "marks") {
-          if (!ide.open) ide.open = true;      // the studio takes the stage
+          takeStage();
           if (ide.marks.empty()) {
             ide.console.push_back(
                 "engine: no pins — :mark plants one on the hand's line");
@@ -1629,7 +1664,7 @@ int main(int argc, char** argv) {
         } else if (cmd.verb == "bm") {
           // leap to a pin: a bare :bm takes the next (wrapping), :bm N
           // takes the Nth — the :marks order, top of the file first
-          if (!ide.open) ide.open = true;      // the studio takes the stage
+          takeStage();
           int to = -1;
           if (cmd.arg.empty()) {
             to = dxn3::ideMarkNext(ide, ide.curR);
@@ -1681,7 +1716,7 @@ int main(int argc, char** argv) {
           } else {
             const auto block = dxn3::ideSnippetFor(hit, ide.path);
             if (block) {
-              if (!ide.open) ide.open = true;    // the studio takes the stage
+              takeStage();
               dxn3::ideInsertBlock(ide, *block);
               ide.console.push_back("engine: snippet " + hit + " — " +
                                     std::to_string(block->size()) +
@@ -1693,7 +1728,7 @@ int main(int argc, char** argv) {
           // rows; the searchlight still shows when it is up. Receipts
           // gather silently until the quiet ends — the header carries
           // a small "zen" so the mode never hides ITSELF.
-          if (!ide.open) ide.open = true;      // the studio takes the stage
+          takeStage();
           ide.zen = !ide.zen;
           ide.console.push_back(
               ide.zen ? "engine: zen — the rail rests, the body breathes "
@@ -1701,20 +1736,20 @@ int main(int argc, char** argv) {
                       : "engine: the rail is back — "
                         "everything zen gathered waits below");
         } else if (cmd.verb == "ruler") {
-          if (!ide.open) ide.open = true;      // the studio takes the stage
+          takeStage();
           ide.ruler = !ide.ruler;
           ide.console.push_back(ide.ruler
                                     ? "engine: ruler on — guides at 79 and 99"
                                     : "engine: ruler off");
         } else if (cmd.verb == "minimap") {
-          if (!ide.open) ide.open = true;      // the studio takes the stage
+          takeStage();
           ide.minimap = !ide.minimap;
           ide.console.push_back(
               ide.minimap ? "engine: minimap on — the document rides the "
                             "pane's right edge"
                           : "engine: minimap off");
         } else if (cmd.verb == "trim") {
-          if (!ide.open) ide.open = true;      // the studio takes the stage
+          takeStage();
           const int swept = dxn3::ideTrimTrailing(ide);
           ide.console.push_back(
               swept > 0
@@ -1722,7 +1757,7 @@ int main(int argc, char** argv) {
                         (swept == 1 ? "" : "s") + " of trailing air"
                   : "engine: nothing to trim — the doc is already clean");
         } else if (cmd.verb == "cases") {
-          if (!ide.open) ide.open = true;      // the studio takes the stage
+          takeStage();
           ide.findCase = !ide.findCase;
           if (ide.findOpen) dxn3::ideFindRefresh(ide);   // re-aim the light
           ide.console.push_back(
@@ -1730,7 +1765,7 @@ int main(int argc, char** argv) {
                   ? "engine: find is case-SENSITIVE — Hello only greets Hello"
                   : "engine: find forgives case — hello finds HELLO");
         } else if (cmd.verb == "sort") {
-          if (!ide.open) ide.open = true;      // the studio takes the stage
+          takeStage();
           const int ordered = dxn3::ideSortSel(ide);
           ide.console.push_back(
               ordered > 0
@@ -1740,7 +1775,7 @@ int main(int argc, char** argv) {
                   : "engine: select the lines to sort first "
                     "(shift+arrows, or drag)");
         } else if (cmd.verb == "rsort") {
-          if (!ide.open) ide.open = true;      // the studio takes the stage
+          takeStage();
           const int ordered = dxn3::ideRsortSel(ide);
           ide.console.push_back(
               ordered > 0
@@ -1751,7 +1786,7 @@ int main(int argc, char** argv) {
                     "(shift+arrows, or drag)");
         } else if (cmd.verb == "upper" || cmd.verb == "lower" ||
                    cmd.verb == "title") {
-          if (!ide.open) ide.open = true;      // the studio takes the stage
+          takeStage();
           const int mode =
               cmd.verb == "upper" ? 1 : cmd.verb == "lower" ? 0 : 2;
           const int moved = dxn3::ideCaseSel(ide, mode);
@@ -1764,7 +1799,7 @@ int main(int argc, char** argv) {
                         " — one undo step takes it back"
                   : "engine: select text first (shift+arrows, or drag)");
         } else if (cmd.verb == "uniq") {
-          if (!ide.open) ide.open = true;      // the studio takes the stage
+          takeStage();
           const int gone = dxn3::ideUniqSel(ide);
           ide.console.push_back(
               gone > 0
@@ -1774,7 +1809,7 @@ int main(int argc, char** argv) {
                   : "engine: nothing to collapse — no line repeats "
                     "back-to-back");
         } else if (cmd.verb == "rev") {
-          if (!ide.open) ide.open = true;      // the studio takes the stage
+          takeStage();
           const int flipped = dxn3::ideRevSel(ide);
           ide.console.push_back(
               flipped > 0
@@ -1784,7 +1819,7 @@ int main(int argc, char** argv) {
                   : "engine: select the lines to flip first "
                     "(shift+arrows, or drag)");
         } else if (cmd.verb == "indent" || cmd.verb == "dedent") {
-          if (!ide.open) ide.open = true;      // the studio takes the stage
+          takeStage();
           const bool out = cmd.verb == "dedent";
           const int moved = dxn3::ideDentSel(ide, out);
           ide.console.push_back(
@@ -1799,7 +1834,7 @@ int main(int argc, char** argv) {
                         : "engine: select the lines to indent first "
                           "(shift+arrows, or drag)");
         } else if (cmd.verb == "lift" || cmd.verb == "drop") {
-          if (!ide.open) ide.open = true;      // the studio takes the stage
+          takeStage();
           const bool down = cmd.verb == "drop";
           const int rode = dxn3::ideMoveSel(ide, down);
           ide.console.push_back(
@@ -1811,13 +1846,13 @@ int main(int argc, char** argv) {
                   : down ? "engine: nothing below to drop into"
                          : "engine: nothing above to lift into");
         } else if (cmd.verb == "dup") {
-          if (!ide.open) ide.open = true;      // the studio takes the stage
+          takeStage();
           const int echoed = dxn3::ideDupSel(ide);
           ide.console.push_back(
               "engine: duplicated " + std::to_string(echoed) + " line" +
               (echoed == 1 ? "" : "s") + " — the copies sit below");
         } else if (cmd.verb == "join") {
-          if (!ide.open) ide.open = true;      // the studio takes the stage
+          takeStage();
           const int folded = dxn3::ideJoinSel(ide);
           ide.console.push_back(
               folded > 0
@@ -1826,7 +1861,7 @@ int main(int argc, char** argv) {
                   : "engine: nothing to fold — select the lines, or stand "
                     "on a line with one below");
         } else if (cmd.verb == "stats") {
-          if (!ide.open) ide.open = true;      // the studio takes the stage
+          takeStage();
           size_t words = 0, chars = 0;
           for (const auto& l : ide.lines) {
             chars += l.size() + 1;
@@ -1846,14 +1881,50 @@ int main(int argc, char** argv) {
               std::string(dxn3::ideSnippetFamily(ide.path)) + " dialect · " +
               (ide.hostUp ? "host live" : "host idle"));
         } else if (cmd.verb == "w") {
-          const std::string path = cmd.arg.empty() ? scenePath : cmd.arg;
-          const std::string err = dxn3::Game::saveScene(path, game.scene);
-          if (err.empty()) game.say("saved " + path + "  (.bak kept)", 2.2);
-          else { cmdErr = err; cmdErrT = 3.5f; }
+          if (ideEver) {
+            takeStage();             // the save's receipt speaks in the
+                                     // studio's console
+            // the studio is the stage: :w is the SCRIPT's pen — bare
+            // it saves the doc in place (a .bak keeps the past), a
+            // name saves AS that name and the ledger remembers it.
+            // The scene's :w belongs to play, where the viewport is
+            // the document.
+            std::string err;
+            bool bak = false;
+            if (!cmd.arg.empty()) {
+              const std::string old = ide.path;
+              ide.path = cmd.arg;
+              if (ideSave(ide, &err, &bak)) {
+                dxn3::ideRecentPush(ide.recent, ide.path);
+                ide.console.push_back("engine: saved as " + ide.path +
+                                      (bak ? "  (.bak kept)" : ""));
+                ideRun();
+                ide.idle = 0;
+              } else {
+                ide.path = old;    // the name was refused: the doc
+                cmdErr = err;      // keeps its own
+                cmdErrT = 3.5f;
+              }
+            } else if (ideSave(ide, &err, &bak)) {
+              ide.console.push_back("engine: saved " + ide.path +
+                                    (bak ? "  (.bak kept)" : ""));
+            } else { cmdErr = err; cmdErrT = 3.5f; }
+          } else {
+            const std::string path = cmd.arg.empty() ? scenePath : cmd.arg;
+            const std::string err = dxn3::Game::saveScene(path, game.scene);
+            if (err.empty()) game.say("saved " + path + "  (.bak kept)", 2.2);
+            else { cmdErr = err; cmdErrT = 3.5f; }
+          }
         } else if (cmd.verb == "wq") {
-          const std::string err = dxn3::Game::saveScene(scenePath, game.scene);
-          if (err.empty()) break;
-          cmdErr = err; cmdErrT = 3.5f;
+          if (ideEver) {
+            std::string err;
+            if (ideSave(ide, &err)) break;   // the save is the sleep
+            cmdErr = err; cmdErrT = 3.5f;    // a failed pen never quits
+          } else {
+            const std::string err = dxn3::Game::saveScene(scenePath, game.scene);
+            if (err.empty()) break;
+            cmdErr = err; cmdErrT = 3.5f;
+          }
         } else if (cmd.verb == "q") {
           break;
         } else if (cmd.verb == "screenshot") {
@@ -1877,7 +1948,7 @@ int main(int argc, char** argv) {
       if (keys.cmd) { cmdOpen = true; cmdBuf.clear(); }
       if (keys.inspect) inspect = !inspect;
       if (keys.viewFile) {
-        if (ide.hostUp || isScriptFile(ide.path)) ide.open = true;   // e → the IDE
+        if (ide.hostUp || isScriptFile(ide.path)) takeStage();   // e → the IDE
         else { fileView = true; searching = false; query.clear(); fileTop = 0; }
       }
       if (keys.shot) doShot("");
@@ -2074,7 +2145,10 @@ int main(int argc, char** argv) {
                                                 // parked at an edge pulls
       if (keys.ctrlS) {
         std::string err;
-        if (ideSave(ide, &err)) ide.console.push_back("engine: saved " + ide.path);
+        bool bak = false;
+        if (ideSave(ide, &err, &bak))
+          ide.console.push_back("engine: saved " + ide.path +
+                                (bak ? "  (.bak kept)" : ""));
         else ide.console.push_back("engine: " + err);
         ideRun();
         ide.idle = 0;

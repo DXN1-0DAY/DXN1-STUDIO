@@ -199,7 +199,7 @@ int main() {
   }
 
   // 9. the version quad rides in the binary too
-  ok(std::string(dxn3::DXN3_VERSION) == "3.0.56",
+  ok(std::string(dxn3::DXN3_VERSION) == "3.0.57",
      "native version constant matches the release quad");
 
   // 10. png writer: checksum vectors, real structure, byte determinism
@@ -3065,6 +3065,19 @@ int main() {
     ok(r4.undo.back().what == "drop", "the block's ride is one step too");
     ok(dxn3::usageHintFor(":lift").find("one line up") != std::string::npos,
        "the bar's whisper still names the ride the keys now speak");
+  }
+
+  // 65. the pen: :w/:wq — the doc's save law lives in main (the disk
+  // is the smoke's witness), but the bar's grammar and its whisper
+  // are shared law, selftested here
+  {
+    ok(dxn3::usageHintFor(":w").find(".bak") != std::string::npos,
+       "the bar whispers the .bak law to every save");
+    const auto w1 = dxn3::parseCommand(":w");
+    const auto w2 = dxn3::parseCommand(":w smoke-saved.py");
+    const auto w3 = dxn3::parseCommand(":wq");
+    ok(w1.ok() && w2.ok() && w2.arg == "smoke-saved.py" && w3.ok(),
+       "the pen's names are optional, the verbs well-formed");
   }
 
 

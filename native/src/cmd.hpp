@@ -229,7 +229,8 @@ inline std::string usageHintFor(std::string_view typed) {
   if (verb == "join")
     return " :join — fold the selection's lines into one, single spaces between";
   if (verb == "stats") return " :stats — lines, words, chars, where you stand";
-  if (verb == "w") return " :w [file] — save, a .bak is kept";
+  if (verb == "w")
+    return " :w [file] — save the session's work; a .bak is kept";
   if (verb == "wq") return " :wq — save and quit";
   if (verb == "q") return " :q — quit";
   if (verb == "screenshot") return " :screenshot [file.png]";
