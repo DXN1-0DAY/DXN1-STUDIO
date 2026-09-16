@@ -118,6 +118,12 @@ inline Cmd parseCommand(std::string_view line) {
       number(1.f, 99999.f,
              "usage: :changes [n] — a bare :changes lists the touched lines; "
              "a number leaps to the Nth");
+  } else if (c.verb == "macro") {
+    // a bare :macro plays the take once; :macro N runs it N times
+    if (!c.arg.empty())
+      number(1.f, 99.f,
+             "usage: :macro [n] — a bare :macro plays once; a number "
+             "runs the take N times");
   } else if (c.verb == "shuffle") {
     // a bare :shuffle rolls a seed; a number deals the same order always
     if (!c.arg.empty())
@@ -141,7 +147,7 @@ inline Cmd parseCommand(std::string_view line) {
              c.verb == "hist" || c.verb == "undo" || c.verb == "redo" ||
              c.verb == "words" || c.verb == "todo" ||
              c.verb == "jumps" || c.verb == "relnum" ||
-             c.verb == "record" || c.verb == "macro" ||
+             c.verb == "record" ||
              c.verb == "fresh") {
     if (!c.arg.empty())
       c.error = ":" + c.verb + " takes no argument";
@@ -279,7 +285,8 @@ inline std::string usageHintFor(std::string_view typed) {
     return " :record — the recorder: start, run verbs, :record again to "
            "end; :macro replays";
   if (verb == "macro")
-    return " :macro — replay the register in the order it was recorded";
+    return " :macro [n] — replay the register in recorded order; a "
+           "number runs the take N times";
   if (verb == "fresh")
     return " :fresh — the disk's truth wins the page back; the hand "
            "returns where it left";

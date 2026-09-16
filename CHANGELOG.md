@@ -1,3 +1,21 @@
+## v3.0.78 — the take, listed (:record shows its work; :macro N)
+
+- **The recorder's stop receipt lists the take.** `:record` ends and
+  names the register verbatim — "the recorder rests — 2 verbs in the
+  macro (stats · words) — :macro plays it" — capped at four with the
+  "… +N deeper" tail, so a long take stays one honest line. The
+  answer to "what did I just record?", at a glance.
+- **`:macro N` runs the take N times.** A bare `:macro` plays once;
+  `:macro 3` walks the register three times over (1..99, the parse
+  refuses a wild count). The start receipt speaks the choreography
+  ("playing 2 verbs × 3") and the done receipt lands "the macro ran
+  — 2 verbs × 3, done" — six 60fps verb-frames inside the first
+  one, receipts honest throughout.
+- `:record` keeps its no-arg law (the take IS the typing); the bar's
+  usage hint names the count. Selftest group 82 grows two parse
+  laws (752 -> 754); smoke 13k grows the listed take and the ×3
+  replay (159 -> 161).
+
 ## v3.0.77 — the register (:record captures, :macro replays)
 
 - **`:record` records a macro of verbs.** Start it, run verbs —

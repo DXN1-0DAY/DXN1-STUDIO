@@ -1287,6 +1287,8 @@ int main(int argc, char** argv) {
   std::string cmdBuf, cmdErr;
   bool macroPlaying = false;             // the register's playback is live
   size_t macroIx = 0;                    // the register's walk
+  int macroRuns = 1;                     // :macro N — the take N times
+  int playedRuns = 1;                    // how many runs the receipt names
   float cmdErrT = 0;
   auto defaultShot = [&]() {
     std::string base = game.scene.name.empty() ? "scene" : game.scene.name;
@@ -2108,20 +2110,35 @@ int main(int argc, char** argv) {
             ide.console.push_back(
                 "engine: recording — every verb you run joins the macro "
                 "(:record ends it)");
-          } else {
+          } else if (ide.macro.empty()) {
             ide.console.push_back(
-                ide.macro.empty()
-                    ? "engine: the recorder rests — an empty macro"
-                    : "engine: the recorder rests — " +
-                          std::to_string(ide.macro.size()) +
-                          " verb" +
-                          (ide.macro.size() == 1 ? "" : "s") +
-                          " in the macro — :macro plays it");
+                "engine: the recorder rests — an empty macro");
+          } else {
+            // the take, listed: the register's lines in order, capped —
+            // the receipt answers "what did I just record" at a glance
+            std::string list;
+            size_t shown = 0;
+            for (const auto& l : ide.macro) {
+              if (shown == 4) break;
+              list += (shown == 0 ? "" : " · ") + l;
+              ++shown;
+            }
+            if (ide.macro.size() > 4)
+              list += " … +" + std::to_string(ide.macro.size() - 4) +
+                      " deeper";
+            ide.console.push_back(
+                "engine: the recorder rests — " +
+                std::to_string(ide.macro.size()) + " verb" +
+                (ide.macro.size() == 1 ? "" : "s") + " in the macro (" +
+                list + ") — :macro plays it");
           }
         } else if (cmd.verb == "macro") {
           // the replay: the register's lines walk through the SAME
           // dispatch, one per frame, in the order they were recorded.
+          // :macro N runs the whole take N times — choreography, not
+          // just a sequence.
           takeStage();
+          const int times = cmd.arg.empty() ? 1 : static_cast<int>(cmd.num);
           if (ide.recording) {
             cmdErr = "the recorder is live — :record ends it first";
             cmdErrT = 3.5f;
@@ -2134,9 +2151,12 @@ int main(int argc, char** argv) {
           } else {
             macroPlaying = true;
             macroIx = 0;
+            macroRuns = times;
+            playedRuns = times;
             ide.console.push_back(
                 "engine: playing " + std::to_string(ide.macro.size()) +
                 " verb" + (ide.macro.size() == 1 ? "" : "s") +
+                (times == 1 ? "" : " × " + std::to_string(times)) +
                 " — the register runs in the order it was recorded");
           }
         } else if (cmd.verb == "fresh") {
@@ -2287,10 +2307,18 @@ int main(int argc, char** argv) {
     // frame paces the deal.
     if (macroPlaying && !cmdOpen) {
       if (macroIx >= ide.macro.size()) {
-        macroPlaying = false;
-        ide.console.push_back(
-            "engine: the macro ran — " + std::to_string(ide.macro.size()) +
-            " verb" + (ide.macro.size() == 1 ? "" : "s") + ", done");
+        if (macroRuns > 1) {                   // the take again: :macro N
+          macroRuns -= 1;
+          macroIx = 0;
+        } else {
+          macroPlaying = false;
+          ide.console.push_back(
+              "engine: the macro ran — " +
+              std::to_string(ide.macro.size()) + " verb" +
+              (ide.macro.size() == 1 ? "" : "s") +
+              (playedRuns > 1 ? " × " + std::to_string(playedRuns) : "") +
+              ", done");
+        }
       } else {
         const std::string line = ide.macro[macroIx++];
         if (runCommand(line)) break;

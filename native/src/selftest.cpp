@@ -199,7 +199,7 @@ int main() {
   }
 
   // 9. the version quad rides in the binary too
-  ok(std::string(dxn3::DXN3_VERSION) == "3.0.77",
+  ok(std::string(dxn3::DXN3_VERSION) == "3.0.78",
      "native version constant matches the release quad");
 
   // 10. png writer: checksum vectors, real structure, byte determinism
@@ -3839,8 +3839,13 @@ int main() {
     ok(m1.ok() && m1.arg.empty(), ":record takes no argument");
     const auto m2 = dxn3::parseCommand(":macro");
     ok(m2.ok() && m2.arg.empty(), ":macro takes no argument");
-    const auto m3 = dxn3::parseCommand(":macro play");
-    ok(!m3.ok(), ":macro with an argument is refused — the register IS the play");
+    const auto m3 = dxn3::parseCommand(":macro 3");
+    ok(m3.ok() && m3.num == 3.f,
+       ":macro N takes a run count — the take, N times");
+    const auto m4 = dxn3::parseCommand(":macro 100");
+    ok(!m4.ok(), "a wild run count is refused (1..99)");
+    const auto m5 = dxn3::parseCommand(":record now");
+    ok(!m5.ok(), ":record still takes no argument — the take is the typing");
     ok(dxn3::usageHintFor("record").find("recorder") != std::string::npos,
        "the recorder's law whispers as you type");
     IdeState mr;

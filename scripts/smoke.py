@@ -1178,10 +1178,10 @@ def main():
         s2.run_verb("stats", "ide")            # two verbs join the register
         s2.run_verb("words", "ide")
         scr2, _ = s2.run_verb("record", "ide")
-        check("the second :record ends it and counts the register",
-              "the recorder rests — 2 verbs in the macro" in
-              scr2.text(ROWS - 2),
-              repr(scr2.text(ROWS - 2)[:70]))
+        check("the second :record ends it, counts and lists the take",
+              "the recorder rests — 2 verbs in the macro (stats · words)"
+              in scr2.text(ROWS - 2),
+              repr(scr2.text(ROWS - 2)[:90]))
         scr2, _ = s2.run_verb("macro", "ide")
         check(":macro replays — two 60fps frames land inside the first",
               "the macro ran — 2 verbs, done" in scr2.text(ROWS - 2),
@@ -1190,6 +1190,15 @@ def main():
         scr2 = s2.screen()
         check("the register ran to its end (the replay's last receipt)",
               "the macro ran — 2 verbs, done" in scr2.text(ROWS - 2),
+              repr(scr2.text(ROWS - 2)[:70]))
+        scr2, _ = s2.run_verb("macro 3", "ide")
+        check(":macro 3 runs the whole take thrice inside the first frame",
+              "the macro ran — 2 verbs × 3, done" in scr2.text(ROWS - 2),
+              repr(scr2.text(ROWS - 2)[:70]))
+        s2.settle(1.2)                         # 6 verb-frames + the wrap
+        scr2 = s2.screen()
+        check("three runs land on the × receipt",
+              "the macro ran — 2 verbs × 3, done" in scr2.text(ROWS - 2),
               repr(scr2.text(ROWS - 2)[:70]))
 
         s2.send(ESC)
