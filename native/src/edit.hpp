@@ -1035,6 +1035,28 @@ inline std::string ideSnippetWhisper(const IdeState& s) {
   return "tab expands '" + w + "'";
 }
 
+// ── the ordering: the selection's lines sort, A before B ────────────
+// A multi-line selection is the bed: its whole lines sort
+// lexicographically, byte-honest, the way every editor's sort-line
+// command speaks. ONE honest restore point named "sort"; the hand
+// rests at the head of the ordered block and the selection lets go.
+// 0 when there is no bed (no selection, or a same-line one — a single
+// line is always already in order); else the count of lines ordered.
+inline int ideSortSel(IdeState& s) {
+  const auto sel = ideSelRange(s);
+  if (!sel) return 0;
+  const auto [r0, c0, r1, c1] = *sel;
+  if (r1 <= r0) return 0;
+  idePushUndo(s, "sort");
+  std::sort(s.lines.begin() + r0, s.lines.begin() + r1 + 1);
+  ideSelClear(s);
+  s.curR = r0;
+  s.curC = 0;
+  s.dirty = true;
+  s.idle = 0;
+  return r1 - r0 + 1;
+}
+
 // ── the sweep: trailing whitespace is noise ─────────────────────────
 // Every line's tail spaces and tabs come off; a line of pure air goes
 // truly blank. ONE honest restore point named "trim", taken only when

@@ -199,7 +199,7 @@ int main() {
   }
 
   // 9. the version quad rides in the binary too
-  ok(std::string(dxn3::DXN3_VERSION) == "3.0.36",
+  ok(std::string(dxn3::DXN3_VERSION) == "3.0.37",
      "native version constant matches the release quad");
 
   // 10. png writer: checksum vectors, real structure, byte determinism
@@ -2164,6 +2164,46 @@ int main() {
     dxn3::ideFindRefresh(s1);
     ok(s1.findHits.size() == 3,
        "the forgiving light is deaf to casing in BOTH directions");
+  }
+
+  // 48. the ordering: :sort orders the selection's whole lines, one
+  // honest undo step, and refuses without a real bed
+  {
+    IdeState o1;
+    o1.lines = {"zebra", "mango", "apple", "kiwi", "end"};
+    o1.curR = 1;
+    o1.curC = 2;                       // anchor inside the block
+    o1.anchorR = 3;
+    o1.anchorC = 1;
+    const int ordered = dxn3::ideSortSel(o1);
+    ok(ordered == 3, "three selected lines are counted");
+    ok(o1.lines[0] == "zebra" && o1.lines[1] == "apple" &&
+           o1.lines[2] == "kiwi" && o1.lines[3] == "mango" &&
+           o1.lines[4] == "end",
+       "the selected range orders, the world outside rests");
+    ok(o1.curR == 1 && o1.curC == 0,
+       "the hand rests at the head of the ordered block");
+    ok(!o1.undo.empty() && o1.undo.back().what == "sort" && o1.dirty,
+       "the ordering is one restore point, named sort");
+    ok(dxn3::ideUndo(o1) && o1.lines[1] == "mango" &&
+           o1.lines[3] == "kiwi",
+       "undo unorders, exactly as it stood");
+
+    IdeState o2;                       // no selection: an honest refusal
+    o2.lines = {"b", "a"};
+    o2.curR = 0;
+    o2.curC = 0;
+    ok(dxn3::ideSortSel(o2) == 0 && o2.lines[0] == "b" &&
+           o2.undo.empty(),
+       "no selection, no ordering, no phantom step");
+    IdeState o3;                       // one line selected: already order
+    o3.lines = {"b", "a"};
+    o3.curR = 0;
+    o3.curC = 0;
+    o3.anchorR = 0;
+    o3.anchorC = 1;
+    ok(dxn3::ideSortSel(o3) == 0 && o3.undo.empty(),
+       "a same-line selection is refused too");
   }
 
   if (fails == 0) {

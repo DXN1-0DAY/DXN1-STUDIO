@@ -1,3 +1,22 @@
+## v3.0.37 — the ordering
+
+- **`:sort` orders the selected lines.** Select a block (drag or
+  shift+arrows), speak one word, and its whole lines stand in order,
+  byte-honest A before B — the way every editor's sort-lines command
+  speaks. The world outside the selection rests untouched, the hand
+  lands at the head of the ordered block, the selection lets go, and
+  ONE restore point named "sort" carries the whole ordering back on
+  undo. Without a real bed the verb refuses honestly — no selection,
+  or a same-line one (a single line is always already in order) —
+  with the way out named in the console ("select the lines to sort
+  first — shift+arrows, or drag"), never a phantom step.
+- Discoverability rides along: the :help card names :sort and the
+  bar's usage hint explains it while you type it.
+- Selftest: group 48 (the honest count, the range ordered while the
+  outside rests, the hand's landing, the named restore point, undo
+  unordering exactly, and both refusals without phantom steps) —
+  402 → 409 assertion groups, all green.
+
 ## v3.0.36 — the honest case
 
 - **`:cases` flips the searchlight's sensitivity.** By default the

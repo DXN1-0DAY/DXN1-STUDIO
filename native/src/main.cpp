@@ -1603,6 +1603,16 @@ int main(int argc, char** argv) {
               ide.findCase
                   ? "engine: find is case-SENSITIVE — Hello only greets Hello"
                   : "engine: find forgives case — hello finds HELLO");
+        } else if (cmd.verb == "sort") {
+          if (!ide.open) ide.open = true;      // the studio takes the stage
+          const int ordered = dxn3::ideSortSel(ide);
+          ide.console.push_back(
+              ordered > 0
+                  ? "engine: sorted " + std::to_string(ordered) +
+                        " line" + (ordered == 1 ? "" : "s") +
+                        " — one undo step takes it back"
+                  : "engine: select the lines to sort first "
+                    "(shift+arrows, or drag)");
         } else if (cmd.verb == "stats") {
           if (!ide.open) ide.open = true;      // the studio takes the stage
           size_t words = 0, chars = 0;
@@ -1643,7 +1653,7 @@ int main(int argc, char** argv) {
           game.scene.gravity = cmd.num;
           game.say("gravity " + std::to_string(static_cast<int>(cmd.num)), 1.2);
         } else if (cmd.verb == "help") {
-          game.say(":scene :open :recent :template :snip :goto :ruler :minimap :trim :cases :stats :zoom "
+          game.say(":scene :open :recent :template :snip :goto :ruler :minimap :trim :cases :sort :stats :zoom "
                     ":fit :reset :new :w :wq :q :screenshot :magnet :gravity", 4.f);
         }
       } else {
