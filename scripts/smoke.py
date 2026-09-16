@@ -798,6 +798,24 @@ def main():
               "steps back" in scr.text(ROWS - 2),
               repr(scr.text(ROWS - 2)[:60]))
 
+        # ── 13a2. the twins — :undo/:redo walk from the bar ─────────
+        print("── 13a2. the twins — :undo and :redo speak the second chance")
+        scr, _ = s.run_verb("undo", "ide")
+        check(":undo walks the ledger back and speaks the keys' receipt",
+              "engine: undo — " in scr.text(ROWS - 2),
+              repr(scr.text(ROWS - 2)[:60]))
+        scr, _ = s.run_verb("redo", "ide")
+        check(":redo steps forward again",
+              "engine: redo — " in scr.text(ROWS - 2),
+              repr(scr.text(ROWS - 2)[:60]))
+        scr, _ = s.run_verb("redo", "ide")
+        check("a second :redo is refused honestly",
+              "engine: nothing to redo" in scr.text(ROWS - 2),
+              repr(scr.text(ROWS - 2)[:60]))
+        check("the fold survived the walk there and back",
+              scr.text(ROWS - 3)[GUTTER:GUTTER + 5] == "zz aa",
+              repr(scr.text(ROWS - 3)[:16]))
+
         # ── 13b. the pen — :w saves the script, the .bak keeps the past
         print("── 13b. the pen — :w writes the doc, a .bak keeps the past")
         scr, _ = s.run_verb("w", "ide")       # the first save: no past yet

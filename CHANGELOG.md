@@ -1,3 +1,18 @@
+## v3.0.61 — the second chance, spoken (:undo/:redo)
+
+- **`:undo` / `:redo` — the ledger's twins, spoken from the bar.**
+  ctrl+z and ctrl+y had the second chance to themselves; the bar now
+  speaks it too. ONE law with the keys: the same walk, the same
+  receipts ("engine: undo — typing · 4 steps left"), the same honest
+  refusals ("nothing to undo", "nothing to redo"). The grammar puts
+  them in the no-argument family (`:redo now` is refused with the
+  family's usage), the whisper names the twins ("ctrl+z's twin",
+  "ctrl+y's twin"), and :help's verb list finally carries :hist beside
+  them (it shipped v3.0.58 without its name in the list — a word owed).
+- Selftest group 69 (9 asserts) — 626 → 635 groups. Smoke section
+  13a2 (4 checks) — 99 → 103: the walk there and back, the honest
+  refusal, and the fold surviving the round trip on the real screen.
+
 ## v3.0.60 — one law for every whisper
 
 - **`whisperOffer` — the completion clip law, written once.** Four

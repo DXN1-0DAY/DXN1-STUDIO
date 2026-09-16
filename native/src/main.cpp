@@ -1876,6 +1876,26 @@ int main(int argc, char** argv) {
                   ? "engine: the ledger is empty — every edit you make "
                     "lands here (ctrl+z walks it back)"
                   : "engine: the ledger, newest first — " + h);
+        } else if (cmd.verb == "undo") {
+          // the second chance, spoken from the bar — the keys' walk,
+          // ONE law: the same step, the same receipt, the same refusal
+          takeStage();
+          if (dxn3::ideUndo(ide)) {
+            ide.dirty = true;          // the game re-runs on the restored code
+            ide.idle = 0;
+            ide.console.push_back(dxn3::ideUndoReceipt(ide));
+          } else {
+            ide.console.push_back("engine: nothing to undo");
+          }
+        } else if (cmd.verb == "redo") {
+          takeStage();
+          if (dxn3::ideRedo(ide)) {
+            ide.dirty = true;
+            ide.idle = 0;
+            ide.console.push_back(dxn3::ideRedoReceipt(ide));
+          } else {
+            ide.console.push_back("engine: nothing to redo");
+          }
         } else if (cmd.verb == "stats") {
           takeStage();
           size_t words = 0, chars = 0;
@@ -1952,7 +1972,7 @@ int main(int argc, char** argv) {
           game.scene.gravity = cmd.num;
           game.say("gravity " + std::to_string(static_cast<int>(cmd.num)), 1.2);
         } else if (cmd.verb == "help") {
-          game.say(":scene :open :recent :template :snip :goto :mark :marks :bm :ruler :minimap :zen :trim :cases :sort :rsort :rev :uniq :indent :dedent :lift :drop :dup :join :upper :lower :title :stats "
+          game.say(":scene :open :recent :template :snip :goto :mark :marks :bm :ruler :minimap :zen :trim :cases :sort :rsort :rev :uniq :indent :dedent :lift :drop :dup :join :upper :lower :title :hist :undo :redo :stats "
                     ":zoom :fit :reset :new :w :wq :q :screenshot :magnet :gravity", 4.f);
         }
       } else {

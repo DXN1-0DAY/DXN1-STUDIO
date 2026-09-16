@@ -199,7 +199,7 @@ int main() {
   }
 
   // 9. the version quad rides in the binary too
-  ok(std::string(dxn3::DXN3_VERSION) == "3.0.60",
+  ok(std::string(dxn3::DXN3_VERSION) == "3.0.61",
      "native version constant matches the release quad");
 
   // 10. png writer: checksum vectors, real structure, byte determinism
@@ -3212,6 +3212,43 @@ int main() {
        "a bar too narrow for even one entry holds its tongue");
     ok(dxn3::whisperOffer(w2, "xy", 2) && w2 == "xy",
        "an entry fits a bar of exactly its width");
+  }
+
+  // 69. :undo/:redo — the second chance, spoken from the bar: the
+  // grammar knows the twins, the walk they name is real, the future
+  // ends where it ended
+  {
+    Cmd u = dxn3::parseCommand(":undo");
+    ok(u.ok() && u.verb == "undo",
+       ":undo is well-formed, no argument needed");
+    Cmd r = dxn3::parseCommand(":redo");
+    ok(r.ok() && r.verb == "redo",
+       ":redo is well-formed, no argument needed");
+    Cmd rj = dxn3::parseCommand(":redo now");
+    ok(!rj.ok() && rj.error.find("takes no argument") != std::string::npos,
+       ":redo refuses arguments with the family's honest usage");
+    ok(dxn3::usageHintFor(":undo").find("ctrl+z") != std::string::npos &&
+           dxn3::usageHintFor(":redo").find("ctrl+y") != std::string::npos,
+       "the bar whispers the twins it twins");
+
+    IdeState s;                      // the walk the verbs name is REAL
+    s.lines = {"alpha"};
+    s.curR = 0;
+    s.curC = 5;
+    Keys t;
+    t.typed = "beta";
+    dxn3::ideKey(s, t);
+    ok(s.lines[0] == "alphabeta" && !s.undo.empty(),
+       "an edit lands in the ledger");
+    ok(dxn3::ideUndo(s) && s.lines[0] == "alpha",
+       "the walk back restores the past");
+    ok(dxn3::ideRedo(s) && s.lines[0] == "alphabeta",
+       "the walk forward restores the future");
+    ok(!dxn3::ideRedo(s),
+       "the future ends where it ended — a second :redo says no");
+    ok(dxn3::ideUndoReceipt(s).find("engine: undo — ") == 0 &&
+           dxn3::ideRedoReceipt(s).find("engine: redo — ") == 0,
+       "the receipts the bar speaks are the keys' receipts, byte for byte");
   }
 
 
