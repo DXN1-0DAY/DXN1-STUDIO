@@ -1,3 +1,20 @@
+## v3.0.64 — the marker hunt (:todo)
+
+- **`:todo` — the debts the document owes, named where they live.**
+  Every line carrying TODO, FIXME, XXX or HACK is listed LINE-LED
+  ("2: jump()  # TODO make it fair") — the number leads because a long
+  census clips from the right and the line number is the one truth
+  that must survive the clip (the :hist law again). The honest
+  uppercase markers only: lowercase prose is not a promise (a "todo"
+  in a sentence is a thought, not a debt — asserted). Entries trim
+  their line and cap at 32 chars with an ellipsis, the list caps at
+  six with an honest tail ("… +1 deeper in the file"), a clean file
+  refuses with what would have landed there, :help's verb list and
+  the whisper carry the hunt.
+- Selftest group 71 (8 asserts) — 642 → 649 groups. Smoke section
+  13a4 (2 checks) — 116 → 118: a real TODO typed at the doc's tail
+  and hunted by its line.
+
 ## v3.0.63 — the census (:words)
 
 - **`:words` — the document's word census, ranked and counted.** :stats

@@ -827,6 +827,24 @@ def main():
               "×" in scr.text(ROWS - 2) and "·" in scr.text(ROWS - 2),
               repr(scr.text(ROWS - 2)[:60]))
 
+        # ── 13a4. the marker hunt — :todo lists what the doc owes ────
+        print("── 13a4. the marker hunt — :todo lists the markers")
+        s.send(CTRL_END)                       # the doc's tail
+        time.sleep(0.2)
+        s.send("\r")                           # a fresh last line, then the debt
+        time.sleep(0.25)
+        s.send("# TODO make the wall fair")
+        time.sleep(0.3)
+        scr, _ = s.run_verb("todo", "ide")
+        check(":todo hunts the marker and names its line",
+              "engine: the markers, line-led — " in scr.text(ROWS - 2) and
+              "TODO make the wall fair" in scr.text(ROWS - 2),
+              repr(scr.text(ROWS - 2)[:70]))
+        check("the marker's entry is line-led (the number before the debt)",
+              "line-led — " in scr.text(ROWS - 2) and
+              ": # TODO" in scr.text(ROWS - 2),
+              repr(scr.text(ROWS - 2)[:70]))
+
         # ── 13b. the pen — :w saves the script, the .bak keeps the past
         print("── 13b. the pen — :w writes the doc, a .bak keeps the past")
         scr, _ = s.run_verb("w", "ide")       # the first save: no past yet

@@ -797,6 +797,43 @@ inline std::string ideWordsWhisper(const IdeState& s, size_t maxWords = 6) {
   return out;
 }
 
+// ── the marker hunt, listed (:todo) ─────────────────────────────────
+// the debts the document owes, named where they live: every line
+// carrying TODO, FIXME, XXX or HACK (the honest uppercase markers —
+// lowercase prose is not a promise), listed LINE-LED because a long
+// census clips from the right and the line number is the one truth
+// that must survive. Pure and selftested — the bar prints it.
+inline std::string ideTodoWhisper(const IdeState& s, size_t maxTodos = 6) {
+  static const char* markers[] = {"TODO", "FIXME", "XXX", "HACK"};
+  auto trimmed = [](const std::string& l) {
+    size_t a = 0, b = l.size();
+    while (a < b && std::isspace(static_cast<unsigned char>(l[a]))) ++a;
+    while (b > a && std::isspace(static_cast<unsigned char>(l[b - 1]))) --b;
+    return l.substr(a, b - a);
+  };
+  std::vector<std::string> hits;
+  for (int r = 0; r < static_cast<int>(s.lines.size()); ++r) {
+    const std::string& l = s.lines[static_cast<size_t>(r)];
+    bool marked = false;
+    for (const char* m : markers)
+      if (l.find(m) != std::string::npos) { marked = true; break; }
+    if (!marked) continue;
+    std::string what = trimmed(l);
+    if (what.size() > 32) what = what.substr(0, 31) + "…";
+    hits.push_back(std::to_string(r + 1) + ": " + what);
+  }
+  if (hits.empty()) return "";
+  std::string out;
+  for (size_t i = 0; i < hits.size() && i < maxTodos; ++i) {
+    if (i > 0) out += " · ";
+    out += hits[i];
+  }
+  if (hits.size() > maxTodos)
+    out += " · … +" + std::to_string(hits.size() - maxTodos) +
+           " deeper in the file";
+  return out;
+}
+
 // ── pairs that carry their own closers ──────────────────────────────
 inline char ideCloserFor(char open) {
   switch (open) {

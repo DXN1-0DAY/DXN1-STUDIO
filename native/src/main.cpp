@@ -1931,6 +1931,15 @@ int main(int argc, char** argv) {
                   ? "engine: the census is empty — the document has no "
                     "words yet"
                   : "engine: the census, most-said first — " + w);
+        } else if (cmd.verb == "todo") {
+          // the marker hunt: the debts the document owes, line-led
+          takeStage();
+          const std::string t = dxn3::ideTodoWhisper(ide);
+          ide.console.push_back(
+              t.empty()
+                  ? "engine: no markers in the file — TODO/FIXME/XXX/HACK "
+                    "would land here"
+                  : "engine: the markers, line-led — " + t);
         } else if (cmd.verb == "stats") {
           takeStage();
           size_t words = 0, chars = 0;
@@ -2007,7 +2016,7 @@ int main(int argc, char** argv) {
           game.scene.gravity = cmd.num;
           game.say("gravity " + std::to_string(static_cast<int>(cmd.num)), 1.2);
         } else if (cmd.verb == "help") {
-          game.say(":scene :open :recent :template :snip :goto :mark :marks :bm :ruler :minimap :zen :trim :cases :sort :rsort :rev :uniq :indent :dedent :lift :drop :dup :join :upper :lower :title :hist :undo :redo :words :stats "
+          game.say(":scene :open :recent :template :snip :goto :mark :marks :bm :ruler :minimap :zen :trim :cases :sort :rsort :rev :uniq :indent :dedent :lift :drop :dup :join :upper :lower :title :hist :undo :redo :words :todo :stats "
                     ":zoom :fit :reset :new :w :wq :q :screenshot :magnet :gravity", 4.f);
         }
       } else {

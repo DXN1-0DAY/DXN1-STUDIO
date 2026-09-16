@@ -123,7 +123,7 @@ inline Cmd parseCommand(std::string_view line) {
              c.verb == "join" ||
              c.verb == "mark" || c.verb == "marks" || c.verb == "zen" ||
              c.verb == "hist" || c.verb == "undo" || c.verb == "redo" ||
-             c.verb == "words") {
+             c.verb == "words" || c.verb == "todo") {
     if (!c.arg.empty())
       c.error = ":" + c.verb + " takes no argument";
   } else {
@@ -241,6 +241,9 @@ inline std::string usageHintFor(std::string_view typed) {
   if (verb == "words")
     return " :words — the census: the document's most-said words, counted "
            "(case forgiven)";
+  if (verb == "todo")
+    return " :todo — the marker hunt: TODO/FIXME/XXX/HACK, listed with "
+           "their lines";
   if (verb == "stats") return " :stats — lines, words, chars, where you stand";
   if (verb == "w")
     return " :w [file] — save the session's work; a .bak is kept";

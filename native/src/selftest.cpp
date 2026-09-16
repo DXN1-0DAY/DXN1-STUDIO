@@ -199,7 +199,7 @@ int main() {
   }
 
   // 9. the version quad rides in the binary too
-  ok(std::string(dxn3::DXN3_VERSION) == "3.0.63",
+  ok(std::string(dxn3::DXN3_VERSION) == "3.0.64",
      "native version constant matches the release quad");
 
   // 10. png writer: checksum vectors, real structure, byte determinism
@@ -3286,6 +3286,42 @@ int main() {
        "an empty document holds no census");
     ok(dxn3::usageHintFor(":words").find("census") != std::string::npos,
        "the bar whispers the census");
+  }
+
+  // 71. :todo — the marker hunt: the honest uppercase markers, the
+  // line number leading, the tail honest, lowercase prose ignored
+  {
+    IdeState s;
+    s.lines = {"# the plan",
+               "jump()  # TODO make it fair",
+               "# a todo in prose is not a promise",
+               "if x: pass  # FIXME the wall",
+               "",
+               "reach the gem  # XXX trust it"};
+    const std::string t = dxn3::ideTodoWhisper(s, 6);
+    ok(t.rfind("2: ", 0) == 0, "the line number leads the entry");
+    ok(t.find("TODO make it fair") != std::string::npos &&
+           t.find("FIXME the wall") != std::string::npos &&
+           t.find("XXX trust it") != std::string::npos,
+       "the three markers are named with their words");
+    ok(t.find("4: ") != std::string::npos && t.find("6: ") != std::string::npos,
+       "the numbers are the true 1-based lines");
+    ok(t.find("todo in prose") == std::string::npos,
+       "lowercase prose is not a promise");
+
+    IdeState many;
+    many.lines = {"TODO a", "TODO b", "TODO c", "TODO d",
+                  "TODO e", "TODO f", "TODO g"};
+    const std::string t2 = dxn3::ideTodoWhisper(many, 6);
+    ok(t2.find("… +1 deeper in the file") != std::string::npos,
+       "the cap counts the markers it hides");
+
+    IdeState none;
+    none.lines = {"clean as water", ""};
+    ok(dxn3::ideTodoWhisper(none).empty(),
+       "a clean file holds no debts");
+    ok(dxn3::usageHintFor(":todo").find("marker") != std::string::npos,
+       "the bar whispers the hunt");
   }
 
 
