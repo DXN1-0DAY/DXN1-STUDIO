@@ -186,6 +186,13 @@ struct IdeState {
   // hand (the vim way) and the hand's own line keeps its true name.
   // :relnum toggles; the absolutes always come back.
   bool relnum = false;
+  // the fold: soft-wrap — a long line breaks into the pane's width at
+  // the last space that fits (a word longer than the pane takes the
+  // honest cut). :wrap toggles. While the fold speaks, the horizontal
+  // slide sleeps (nothing is left to slide past) and `top` counts
+  // VISUAL rows through the wrap's layout — built fresh every draw,
+  // O(the document's bytes), no stamps, no stale caches.
+  bool wrap = false;
   // the macro register: the verb lines recorded this session (:record
   // toggles the recorder, :macro replays the register through the SAME
   // dispatch the bar speaks). A session fact like the census — the
@@ -1283,11 +1290,84 @@ inline int ideGutterWidth(int lineCount) {
   return w;
 }
 
+// ── the soft wrap: the fold's one geometry table ────────────────────
+// The editor's world is logical lines; the PANE paints visual rows.
+// With the fold on, one logical line becomes one or more rows, broken
+// at the last space that fits; the fold OFF builds the identity — one
+// line, one row — so every geometry law (the pager, the pointer, the
+// wheel, the glows) speaks this ONE table in both worlds and no two
+// laws ever disagree about where a byte lands.
+struct IdeWrap {
+  int rows = 0;                    // visual rows in the whole document
+  std::vector<int> lineFirst;      // lineFirst[li] = the first visual
+                                   // row of line li (size N + 1)
+  std::vector<int> rowLine;        // rowLine[v] = the line row v belongs to
+  std::vector<int> rowOff;         // rowOff[v] = the byte offset row v starts at
+};
+
+inline IdeWrap ideWrapBuild(const IdeState& s, int textW) {
+  IdeWrap w;
+  const int N = static_cast<int>(s.lines.size());
+  w.lineFirst.assign(static_cast<size_t>(N) + 1, 0);
+  const bool fold = s.wrap && textW >= 8;   // a sliver of a pane: identity
+  for (int li = 0; li < N; ++li) {
+    w.lineFirst[static_cast<size_t>(li)] =
+        static_cast<int>(w.rowLine.size());
+    const std::string& ln = s.lines[static_cast<size_t>(li)];
+    const int len = static_cast<int>(ln.size());
+    if (!fold || len <= textW) {
+      w.rowLine.push_back(li);
+      w.rowOff.push_back(0);
+      continue;                              // the line paints one row
+    }
+    int off = 0;
+    while (true) {
+      w.rowLine.push_back(li);
+      w.rowOff.push_back(off);
+      if (off + textW >= len) break;         // the tail fits: last row
+      int next = off + textW;                // the hard cut is the default
+      for (int c = off + textW; c > off + 1; --c)
+        if (ln[static_cast<size_t>(c) - 1] == ' ') {
+          next = c;                          // break AFTER the space
+          break;
+        }
+      off = next;
+    }
+  }
+  w.lineFirst[static_cast<size_t>(N)] =
+      static_cast<int>(w.rowLine.size());
+  w.rows = static_cast<int>(w.rowLine.size());
+  return w;
+}
+
+// the visual row that holds (li, col): the line's first row plus the
+// segment that owns the byte — a binary search, no linear walks. The
+// tail byte lands on the last row, a segment start lands on its own row.
+inline int ideWrapRowOf(const IdeWrap& w, int li, int col) {
+  const int n = static_cast<int>(w.lineFirst.size()) - 1;
+  if (n <= 0) return 0;
+  li = std::clamp(li, 0, n - 1);
+  const int first = w.lineFirst[static_cast<size_t>(li)];
+  const int last = w.lineFirst[static_cast<size_t>(li) + 1] - 1;
+  if (first >= last) return first;           // one row: done
+  int lo = first, hi = last;                 // the last row starting ≤ col
+  while (lo < hi) {
+    const int mid = (lo + hi + 1) / 2;
+    if (w.rowOff[static_cast<size_t>(mid)] <= col) lo = mid;
+    else hi = mid - 1;
+  }
+  return lo;
+}
+
 // ── horizontal scroll: the cursor is always on screen ───────────────
 // Long lines slide under the cursor instead of being chopped off at
 // the pane's edge. hcol is the first visible column; it follows the
 // cursor with a small margin and rests at 0 whenever the line fits.
 inline void ideHscroll(IdeState& s, int textW) {
+  if (s.wrap) {                              // the fold owns the width:
+    s.hcol = 0;                              // nothing is left to slide
+    return;                                  // past — the slide sleeps
+  }
   if (textW < 8) return;                     // a sliver of a pane: leave it be
   const int len =
       static_cast<int>(s.lines[static_cast<size_t>(s.curR)].size());
@@ -1332,15 +1412,29 @@ inline bool ideClosesBlock(const std::string& s) {
 // the honest pager contract holds — the hand is never lost out of
 // sight. The view moves first; a hand that would fall off the edge
 // rides along with it. Looking around never dirties the doc.
-inline void ideScroll(IdeState& s, int delta) {
+inline void ideScroll(IdeState& s, int delta, const IdeWrap* w = nullptr) {
   if (delta == 0) return;
   const int page = s.page > 0 ? s.page : 1;
   // the SAME max the draw clamps to (a full last page) — a disagreeing
-  // max here made the top oscillate and the wheel die after one notch
-  const int maxTop = std::max(0, static_cast<int>(s.lines.size()) - page);
+  // max here made the top oscillate and the wheel die after one notch.
+  // The fold's layout, when the caller hands it over, counts VISUAL
+  // rows; the identity counts lines — one honest max either way.
+  const int rows = w ? w->rows : static_cast<int>(s.lines.size());
+  const int maxTop = std::max(0, rows - page);
   s.top = std::clamp(s.top + delta, 0, maxTop);
-  if (s.curR < s.top) s.curR = s.top;                    // rode past the top
-  if (s.curR >= s.top + page) s.curR = s.top + page - 1; // …or the bottom
+  if (w) {
+    // the ride, in rows: a hand that would fall off the edge lands on
+    // the line the view's edge now shows — the column is kept, the
+    // clamp trims it honestly
+    const int curV = ideWrapRowOf(*w, s.curR, s.curC);
+    if (curV < s.top)
+      s.curR = w->rowLine[static_cast<size_t>(s.top)];
+    else if (curV >= s.top + page)
+      s.curR = w->rowLine[static_cast<size_t>(s.top + page - 1)];
+  } else {
+    if (s.curR < s.top) s.curR = s.top;                    // rode past the top
+    if (s.curR >= s.top + page) s.curR = s.top + page - 1; // …or the bottom
+  }
   ideClamp(s);
   s.idle = 0;
 }
@@ -1441,10 +1535,14 @@ inline int ideReplaceAll(IdeState& s, const std::string& oldStr,
 // honest edges: a hand near the top keeps the top, a hand near the
 // bottom keeps the bottom — the middle is a preference, the document
 // is the law. A look, never an edit: nothing dirties, nothing undoes.
-inline void ideCenter(IdeState& s) {
+inline void ideCenter(IdeState& s, const IdeWrap* w = nullptr) {
   const int page = s.page > 0 ? s.page : 1;
-  const int maxTop = std::max(0, static_cast<int>(s.lines.size()) - page);
-  s.top = std::clamp(s.curR - page / 2, 0, maxTop);
+  // the hand rides the middle of the VISUAL rows under the fold (its
+  // own row, not its line's first) — the identity keeps the line law
+  const int rows = w ? w->rows : static_cast<int>(s.lines.size());
+  const int hand = w ? ideWrapRowOf(*w, s.curR, s.curC) : s.curR;
+  const int maxTop = std::max(0, rows - page);
+  s.top = std::clamp(hand - page / 2, 0, maxTop);
   ideClamp(s);
   s.idle = 0;
 }
@@ -1459,7 +1557,8 @@ inline void ideCenter(IdeState& s) {
 // sustained past 1.2s earns the SECOND WIND: the meter halves and the
 // notches come twice as fast — long documents are reached at speed,
 // short ones never skipped past.
-inline void ideDragAutoScroll(IdeState& s, int edge, double dt) {
+inline void ideDragAutoScroll(IdeState& s, int edge, double dt,
+                              const IdeWrap* w = nullptr) {
   if (edge == 0 || s.pressR < 0 || s.anchorR < 0 || dt < 0 || dt > 0.5) {
     s.dragAcc = 0;
     s.dragHold = 0;              // the hold is spent with the meter
@@ -1475,12 +1574,19 @@ inline void ideDragAutoScroll(IdeState& s, int edge, double dt) {
     ++steps;
   }
   if (steps == 0) return;
-  ideScroll(s, edge * steps);                  // the ride contract applies
+  ideScroll(s, edge * steps, w);               // the ride contract applies
   // the hand IS the edge: parked on the bottom row it takes each line
   // the slide reveals — the selection grows from the anchor, exactly
-  // like every desktop editor's autoscroll
+  // like every desktop editor's autoscroll. The fold speaks rows: the
+  // edge's visual row names its line, the column kept.
   const int page = s.page > 0 ? s.page : 1;
-  s.curR = edge > 0 ? s.top + page - 1 : s.top;
+  if (w) {
+    const int v = std::clamp(edge > 0 ? s.top + page - 1 : s.top,
+                             0, std::max(0, w->rows - 1));
+    s.curR = w->rowLine[static_cast<size_t>(v)];
+  } else {
+    s.curR = edge > 0 ? s.top + page - 1 : s.top;
+  }
   ideClamp(s);
 }
 
@@ -1762,7 +1868,8 @@ struct IdeMini {
   std::vector<IdeMiniRow> rows;
 };
 
-inline IdeMini ideMiniMap(const IdeState& s, int mapW, int bodyRows) {
+inline IdeMini ideMiniMap(const IdeState& s, int mapW, int bodyRows,
+                          const IdeWrap* w = nullptr) {
   IdeMini m;
   const int N = static_cast<int>(s.lines.size());
   if (mapW <= 0 || bodyRows <= 0 || N == 0) return m;
@@ -1797,7 +1904,12 @@ inline IdeMini ideMiniMap(const IdeState& s, int mapW, int bodyRows) {
     for (const auto& [hr, hc] : s.findHits)
       if (hr == li) { row.hit = true; break; }
     row.mark = ideMarkHas(s, li);
-    row.inView = li >= s.top && li < s.top + bodyRows;
+    // under the fold a line is "in view" when ANY of its visual rows
+    // is — the identity keeps the row law (one line, one row)
+    row.inView =
+        w ? (w->lineFirst[static_cast<size_t>(li) + 1] > s.top &&
+             w->lineFirst[static_cast<size_t>(li)] < s.top + bodyRows)
+          : (li >= s.top && li < s.top + bodyRows);
     m.rows.push_back(row);
   }
   return m;

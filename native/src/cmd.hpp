@@ -185,6 +185,7 @@ inline Cmd parseCommand(std::string_view line) {
              c.verb == "hist" || c.verb == "undo" || c.verb == "redo" ||
              c.verb == "words" || c.verb == "todo" ||
              c.verb == "jumps" || c.verb == "relnum" ||
+             c.verb == "wrap" ||
              c.verb == "record" ||
              c.verb == "fresh") {
     if (!c.arg.empty())
@@ -343,6 +344,9 @@ inline std::string usageHintFor(std::string_view typed) {
   if (verb == "relnum")
     return " :relnum — the gutter counts from the hand (the vim way); "
            ":relnum wakes the absolutes";
+  if (verb == "wrap")
+    return " :wrap — the fold: long lines break into the pane at the "
+           "last space that fits; a second :wrap wakes the slide";
   if (verb == "stats") return " :stats — lines, words, chars, where you stand";
   if (verb == "w")
     return " :w [file] — save the session's work; a .bak is kept";

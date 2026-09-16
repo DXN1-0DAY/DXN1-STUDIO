@@ -837,6 +837,7 @@ void drawIDE(dxn3::Screen& scr, IdeState& ide, const dxn3::Game& g, bool hostUp)
   std::string pos = "  Ln " + std::to_string(ide.curR + 1) + " · Col " +
                     std::to_string(ide.curC + 1);
   if (ide.zen) pos += " · zen";               // the quiet says its name
+  if (ide.wrap) pos += " · wrap";             // the fold says its name
   if (!ide.marks.empty())
     pos += " · pins " + std::to_string(ide.marks.size());  // the pins count,
                                                 // at a glance in big files
@@ -870,46 +871,77 @@ void drawIDE(dxn3::Screen& scr, IdeState& ide, const dxn3::Game& g, bool hostUp)
   const int G = dxn3::ideGutterWidth(static_cast<int>(ide.lines.size()));
   const int mapX = editW - 1 - mapW;         // map cols [mapX, mapX + mapW)
   const int textW = editW - 1 - G - (mapOn ? mapW + 1 : 0);   // code after gutter
-  const int maxTop = std::max(0, static_cast<int>(ide.lines.size()) - bodyRows);
+  // the fold's layout: built fresh EVERY draw — rows, owners, offsets
+  // — O(the document's bytes), no stamps, no stale caches. Wrap OFF
+  // builds the identity (one line, one row), so every geometry law
+  // below speaks ONE table either way. hcol only slides when the fold
+  // sleeps (a folded line has nothing left to slide past).
+  const dxn3::IdeWrap wrap = dxn3::ideWrapBuild(ide, textW);
+  const int curV = dxn3::ideWrapRowOf(wrap, ide.curR, ide.curC);
+  const int maxTop = std::max(0, wrap.rows - bodyRows);
   ide.top = std::clamp(ide.top, 0, maxTop);
-  if (ide.curR < ide.top) ide.top = ide.curR;
-  if (ide.curR >= ide.top + bodyRows) ide.top = ide.curR - bodyRows + 1;
-  ideHscroll(ide, textW);              // long lines slide under the cursor
+  if (curV < ide.top) ide.top = curV;
+  if (curV >= ide.top + bodyRows) ide.top = curV - bodyRows + 1;
+  ideHscroll(ide, textW);              // long lines slide (asleep under wrap)
   scr.rect(0, static_cast<float>(bodyTop * 2),
            static_cast<float>(split ? editW - 1 : cols - 1),
            static_cast<float>((bodyTop + bodyRows) * 2), paneBg);
   for (int r = 0; r < bodyRows; ++r) {
-    const int li = ide.top + r;
-    if (li >= static_cast<int>(ide.lines.size())) break;
-    const bool onCursor = li == ide.curR;
+    const int v = ide.top + r;                   // a VISUAL row
+    if (v >= wrap.rows) break;
+    const int li = wrap.rowLine[static_cast<size_t>(v)];
+    const int off = wrap.rowOff[static_cast<size_t>(v)];
+    const bool firstRow = off == 0;              // the line's naming row
+    const bool onCursor = v == curV;
     const bool pinned = dxn3::ideMarkHas(ide, li);
-    char gutter[16];
-    const int shown = ide.relnum ? [&] {
-      int d = li - ide.curR;               // the vim way: the gutter
-      if (d < 0) d = -d;                   // counts from the hand, and the
-      return d == 0 ? li + 1 : d;          // hand's line keeps its name
-    }() : li + 1;
-    std::snprintf(gutter, sizeof gutter, "%*d ", G - 1, shown);
+    std::string gutter;
+    if (firstRow) {
+      const int shown = ide.relnum ? [&] {
+        int d = li - ide.curR;             // the vim way: the gutter
+        if (d < 0) d = -d;                 // counts from the hand, and the
+        return d == 0 ? li + 1 : d;        // hand's line keeps its name
+      }() : li + 1;
+      const std::string num = std::to_string(shown);
+      const int pad = G - 1 - static_cast<int>(num.size());
+      gutter = (pad > 0 ? std::string(static_cast<size_t>(pad), ' ')
+                        : std::string()) +
+               num + " ";
+    } else {
+      // the fold's continuation: a dim ellipsis where the number was —
+      // the line's name sits on its first row only
+      gutter = std::string(static_cast<size_t>(std::max(0, G - 2)), ' ') + "…";
+    }
     scr.text(0, bodyTop + r, gutter,
              pinned ? dxn3::rgb(250, 204, 21)
                     : (onCursor ? dxn3::rgb(196, 181, 253)
                                 : dxn3::rgb(84, 72, 120)));
     if (onCursor) scr.railBg(bodyTop + r, selBg);
-    // long lines slide: every row shows the window [hcol, hcol + textW)
+    // the slide (fold off): every row shows [hcol, hcol + textW);
+    // the fold (wrap on): every row shows its own [off, off + textW)
     const std::string& ln = ide.lines[static_cast<size_t>(li)];
-    if (ide.hcol > 0) scr.text(G - 1, bodyTop + r, "…", dxn3::rgb(96, 104, 126));
+    if (!ide.wrap && ide.hcol > 0)
+      scr.text(G - 1, bodyTop + r, "…", dxn3::rgb(96, 104, 126));
     if (pinned) scr.text(G - 1, bodyTop + r, "◆",
                          dxn3::rgb(250, 204, 21));  // the pin owns the gutter's
                                                     // edge — the … waits
-    const std::string slice =
-        ide.hcol > 0 && static_cast<int>(ln.size()) > ide.hcol
-            ? ln.substr(static_cast<size_t>(ide.hcol))
-            : std::string();
-    drawCodeLine(scr, G, bodyTop + r, ide.hcol > 0 ? slice : ln, textW);
+    std::string slice;
+    if (ide.wrap) {
+      const size_t take = std::min<size_t>(
+          static_cast<size_t>(textW), ln.size() - static_cast<size_t>(off));
+      slice = ln.substr(static_cast<size_t>(off), take);
+    } else if (ide.hcol > 0) {
+      slice = static_cast<int>(ln.size()) > ide.hcol
+                  ? ln.substr(static_cast<size_t>(ide.hcol))
+                  : std::string();
+    } else {
+      slice = ln;
+    }
+    drawCodeLine(scr, G, bodyTop + r, slice, textW);
   }
   // the ruler: honest guides at 79 and 99 — a dim dot only where the
-  // cell is blank, so the guide never paints over your code
-  if (ide.ruler) {
+  // cell is blank, so the guide never paints over your code. The fold
+  // sleeps the guides: a wrapped line has no honest column to name.
+  if (ide.ruler && !ide.wrap) {
     const RGB rulerC = dxn3::rgb(64, 54, 104);
     for (int rc : {79, 99}) {
       const int scol = G + rc - ide.hcol;
@@ -931,26 +963,30 @@ void drawIDE(dxn3::Screen& scr, IdeState& ide, const dxn3::Game& g, bool hostUp)
   if (const auto sel = dxn3::ideSelRange(ide)) {
     const auto [r0, c0, r1, c1] = *sel;
     const RGB selGlow = dxn3::rgb(56, 42, 98);
-    for (int r = r0; r <= r1; ++r) {
-      if (r < ide.top || r >= ide.top + bodyRows) continue;
-      const std::string& l = ide.lines[static_cast<size_t>(r)];
-      const int from = (r == r0) ? c0 : 0;
-      const int to = (r == r1) ? std::min<int>(c1, static_cast<int>(l.size()))
+    for (int v = std::max(ide.top, wrap.lineFirst[static_cast<size_t>(r0)]);
+         v < std::min(ide.top + bodyRows,
+                      wrap.lineFirst[static_cast<size_t>(r1) + 1]); ++v) {
+      const int li = wrap.rowLine[static_cast<size_t>(v)];
+      const int off = wrap.rowOff[static_cast<size_t>(v)];
+      const std::string& l = ide.lines[static_cast<size_t>(li)];
+      const int a = (li == r0) ? c0 : 0;
+      const int b = (li == r1) ? std::min<int>(c1, static_cast<int>(l.size()))
                                : static_cast<int>(l.size());
-      for (int c = from; c < to; ++c) {
-        const int col = G + c - ide.hcol;
-        if (col < G || col >= G + textW) continue;    // out of the pane
-        scr.textBg(col, bodyTop + (r - ide.top),
+      const int cLo = off + (ide.wrap ? 0 : ide.hcol);   // the row's first cell
+      for (int c = std::max(a, cLo); c < std::min(b, cLo + textW); ++c)
+        scr.textBg(G + c - cLo, bodyTop + (v - ide.top),
                    std::string(1, l[static_cast<size_t>(c)]), paneBg, selGlow);
-      }
     }
   }
-  // the cursor: inverse video on the exact cell
-  if (ide.curR >= ide.top && ide.curR < ide.top + bodyRows) {
-    const int row = bodyTop + (ide.curR - ide.top);
+  // the cursor: inverse video on the exact cell — its VISUAL row under
+  // the fold, its line's row under the identity; the same formula speaks
+  if (curV >= ide.top && curV < ide.top + bodyRows) {
+    const int row = bodyTop + (curV - ide.top);
     const std::string& l = ide.lines[static_cast<size_t>(ide.curR)];
     const char ch = ide.curC < static_cast<int>(l.size()) ? l[static_cast<size_t>(ide.curC)] : ' ';
-    scr.textBg(G + ide.curC - ide.hcol, row, std::string(1, ch), paneBg, dxn3::rgb(167, 139, 250));
+    scr.textBg(G + ide.curC - ide.hcol -
+                   wrap.rowOff[static_cast<size_t>(curV)],
+               row, std::string(1, ch), paneBg, dxn3::rgb(167, 139, 250));
   }
   // the bracket's partner glows across the file — the cursor's own cell
   // already burns inverse video, so the glow lands on the partner (and
@@ -960,12 +996,15 @@ void drawIDE(dxn3::Screen& scr, IdeState& ide, const dxn3::Game& g, bool hostUp)
     if (ideMatchBracket(ide, br, bc)) {
       const RGB glowBg = dxn3::rgb(52, 40, 92);
       auto glow = [&](int r2, int c2) {
-        if (r2 < ide.top || r2 >= ide.top + bodyRows) return;
+        if (r2 < 0 || r2 >= static_cast<int>(ide.lines.size())) return;
+        const int v2 = dxn3::ideWrapRowOf(wrap, r2, c2);
+        if (v2 < ide.top || v2 >= ide.top + bodyRows) return;
         const std::string& l2 = ide.lines[static_cast<size_t>(r2)];
         if (c2 < 0 || c2 >= static_cast<int>(l2.size())) return;
-        const int col = G + c2 - ide.hcol;
-        if (col < G || col >= G + textW) return;    // scrolled out of the pane
-        scr.textBg(col, bodyTop + (r2 - ide.top),
+        const int col = G + c2 - ide.hcol -
+                        wrap.rowOff[static_cast<size_t>(v2)];
+        if (col < G || col >= G + textW) return;    // out of the pane
+        scr.textBg(col, bodyTop + (v2 - ide.top),
                    std::string(1, l2[static_cast<size_t>(c2)]), paneBg, glowBg);
       };
       glow(br, bc);
@@ -979,18 +1018,19 @@ void drawIDE(dxn3::Screen& scr, IdeState& ide, const dxn3::Game& g, bool hostUp)
   }
   // the searchlight's wake: every match glows, the current one burns
   if (ide.findOpen && !ide.findHits.empty() && !ide.findQ.empty()) {
-    const int maxW = mapOn ? G + textW : (split ? editW - 1 : cols);
     size_t hi = 0;
     for (int r = 0; r < bodyRows; ++r) {
-      const int li = ide.top + r;
-      if (li >= static_cast<int>(ide.lines.size())) break;
+      const int v = ide.top + r;
+      if (v >= wrap.rows) break;
+      const int li = wrap.rowLine[static_cast<size_t>(v)];
+      const int off = wrap.rowOff[static_cast<size_t>(v)];
       while (hi < ide.findHits.size() && ide.findHits[hi].first < li) ++hi;
       for (size_t i = hi; i < ide.findHits.size() &&
                           ide.findHits[i].first == li; ++i) {
         const int hitC = ide.findHits[i].second;           // the real column
-        const int c = hitC - ide.hcol;                     // the slide applies
-        const int room = maxW - G - c;
-        if (room <= 0 || c < 0) continue;   // past either edge of the pane
+        const int c = hitC - off - ide.hcol;               // fold or slide
+        const int room = textW - c;
+        if (room <= 0 || c < 0) continue;   // past either edge of the row
         std::string slice = ide.lines[static_cast<size_t>(li)].substr(
             static_cast<size_t>(hitC),
             std::min<size_t>(ide.findQ.size(), static_cast<size_t>(room)));
@@ -1007,7 +1047,7 @@ void drawIDE(dxn3::Screen& scr, IdeState& ide, const dxn3::Game& g, bool hostUp)
   // map; comments speak gray, find hits speak amber, blank lines keep
   // one dim dot so the rows stay anchored.
   if (mapOn) {
-    const dxn3::IdeMini mini = dxn3::ideMiniMap(ide, mapW, bodyRows);
+    const dxn3::IdeMini mini = dxn3::ideMiniMap(ide, mapW, bodyRows, &wrap);
     const RGB barView = dxn3::rgb(150, 132, 220);
     const RGB barOut = dxn3::rgb(84, 72, 120);
     const RGB barCmt = dxn3::rgb(96, 104, 126);
@@ -1589,6 +1629,17 @@ int main(int argc, char** argv) {
     const bool barOwned = cmdOpen;   // the bar polled this frame — its keys
                                      // belong to it, never to the IDE
     cols0 = cols; rows0 = rows;
+    // the pane's honest text width — the draw's SAME rule, spoken
+    // wherever a click, a wheel notch, an edge pull or :center needs
+    // the fold's map without rebuilding the draw's whole geometry
+    auto paneTextW = [&]() {
+      const bool sp = cols0 >= 96;
+      const int ew = sp ? 46 : cols0;
+      const bool mo = ide.minimap && sp && cols0 >= 110;
+      return ew - 1 -
+             dxn3::ideGutterWidth(static_cast<int>(ide.lines.size())) -
+             (mo ? 7 : 0);
+    };
 
   // the verb dispatch: ONE law for the bar's enter and the macro's
   // playback — parse the line, walk the chain, take the stage. Returns
@@ -2254,7 +2305,12 @@ int main(int argc, char** argv) {
           // the view rebalances: the hand rides the viewport's middle,
           // clamped to the doc's edges. A look, never an edit.
           takeStage();
-          dxn3::ideCenter(ide);
+          {
+            const dxn3::IdeWrap wrapZ =
+                dxn3::ideWrapBuild(ide, paneTextW());
+            dxn3::ideCenter(ide, &wrapZ);    // the hand rides the middle —
+                                             // in rows under the fold
+          }
           ide.console.push_back(
               "engine: the view centers on line " +
               std::to_string(ide.curR + 1) +
@@ -2270,6 +2326,17 @@ int main(int argc, char** argv) {
                     "hand's line keeps its name"
                   : "engine: the absolutes return — every line wears its "
                     "own number");
+        } else if (cmd.verb == "wrap") {
+          // the long line's courtesy: the pane folds what the slide used
+          // to chop — and a second :wrap wakes the slide again
+          takeStage();
+          ide.wrap = !ide.wrap;
+          ide.console.push_back(
+              ide.wrap
+                  ? "engine: long lines fold into the pane — the slide "
+                    "sleeps while the fold speaks"
+                  : "engine: the slide returns — long lines run past the "
+                    "pane again");
         } else if (cmd.verb == "stats") {
           takeStage();
           size_t words = 0, chars = 0;
@@ -2365,7 +2432,7 @@ int main(int argc, char** argv) {
           takeStage();                         // every verb takes the stage —
                                                // a law, not a suggestion
           if (cmd.arg.empty()) {
-            game.say(":scene :open :recent :template :snip :goto :jumps :changes :fresh :mark :marks :bm :ruler :minimap :zen :center :relnum :s :sa :o :e :trim :cases :sort :rsort :rev :uniq :shuffle :indent :dedent :lift :drop :dup :join :upper :lower :title :hist :undo :redo :words :todo :stats "
+            game.say(":scene :open :recent :template :snip :goto :jumps :changes :fresh :mark :marks :bm :ruler :minimap :zen :wrap :center :relnum :s :sa :o :e :trim :cases :sort :rsort :rev :uniq :shuffle :indent :dedent :lift :drop :dup :join :upper :lower :title :hist :undo :redo :words :todo :stats "
                      ":record :macro :zoom :fit :reset :new :w :wq :q :screenshot :magnet :gravity — or :help <verb>",
                      4.f);
           } else {
@@ -2553,6 +2620,13 @@ int main(int argc, char** argv) {
         const int col = c;
         int li = -1, ci = 0;
         if (row >= 0 && row < bodyRowsC) {
+          // the fold speaks rows: the pressed screen row names its line
+          // through the layout — the identity when the fold sleeps, so
+          // the old law is the same law
+          const dxn3::IdeWrap wrapC =
+              dxn3::ideWrapBuild(ide, paneTextW());
+          const int vC = ide.top + row;
+          const bool inDoc = vC >= 0 && vC < wrapC.rows;
           if (mapOnC && col >= editWC - 7 && col < editWC - 1) {
             const dxn3::IdeMini mini =
                 dxn3::ideMiniMap(ide, 6, bodyRowsC);
@@ -2561,11 +2635,16 @@ int main(int argc, char** argv) {
               ci = 0;
             }
           } else if (col >= GC && (!mapOnC || col < GC + textWC)) {
-            li = ide.top + row;
-            ci = col - GC + ide.hcol;
+            if (inDoc) {
+              li = wrapC.rowLine[static_cast<size_t>(vC)];
+              ci = col - GC + ide.hcol +
+                   wrapC.rowOff[static_cast<size_t>(vC)];
+            }
           } else if (col < GC) {
-            li = ide.top + row;                    // the gutter: line start
-            ci = 0;
+            if (inDoc) {
+              li = wrapC.rowLine[static_cast<size_t>(vC)];  // the gutter: the
+              ci = 0;                              // row's line, its start
+            }
           }
         }
         if (li < 0) {
@@ -2586,7 +2665,12 @@ int main(int argc, char** argv) {
         const int brow = keys.clickR - 1;
         if (!keys.clickShift && brow >= 0 && brow < bodyRowsB &&
             keys.clickC == GC - 1) {
-          const int li = ide.top + brow;
+          const dxn3::IdeWrap wrapB =
+              dxn3::ideWrapBuild(ide, paneTextW());
+          const int vB = ide.top + brow;
+          const int li = vB >= 0 && vB < wrapB.rows
+                             ? wrapB.rowLine[static_cast<size_t>(vB)]
+                             : -1;
           if (li >= 0 && li < static_cast<int>(ide.lines.size()) &&
               dxn3::ideMarkHas(ide, li)) {
             const bool on = dxn3::ideMarkToggle(ide, li);
@@ -2644,10 +2728,16 @@ int main(int argc, char** argv) {
           keys.sUp || keys.sDown || keys.sLeft || keys.sRight ||
           keys.sWLeft || keys.sWRight)
         ide.idle = 0;
-      if (keys.scroll != 0) dxn3::ideScroll(ide, keys.scroll);   // the wheel
-                                                // and the ctrl+↑/↓ nudge
-      dxn3::ideDragAutoScroll(ide, ide.dragEdge, dt);            // the drag
-                                                // parked at an edge pulls
+      if (keys.scroll != 0) {                    // the wheel and the
+        const dxn3::IdeWrap wrapS =              // ctrl+↑/↓ nudge — the
+            dxn3::ideWrapBuild(ide, paneTextW());// ride speaks the fold's
+        dxn3::ideScroll(ide, keys.scroll, &wrapS);   // rows when it speaks
+      }
+      {
+        const dxn3::IdeWrap wrapD =              // the drag parked at an
+            dxn3::ideWrapBuild(ide, paneTextW());// edge pulls — the same
+        dxn3::ideDragAutoScroll(ide, ide.dragEdge, dt, &wrapD);  // rows law
+      }
       if (keys.ctrlS) {
         std::string err;
         bool bak = false;

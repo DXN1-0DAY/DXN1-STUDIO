@@ -1,3 +1,24 @@
+## v3.0.85 — the fold (:wrap — the long line's courtesy)
+
+- **`:wrap` folds long lines into the pane.** The slide chops what the
+  pane cannot show; the fold breaks the line at the last space the row
+  can hold instead (a word longer than the pane takes the honest hard
+  cut), one logical line painting as many rows as it needs. A second
+  `:wrap` wakes the slide again. While the fold speaks, the slide
+  sleeps (hcol rests at zero), the 79/99 guides rest with it (a folded
+  line has no honest column), the gutter names a line on its first row
+  and wears a dim ellipsis on its continuations, and the header
+  carries `· wrap`.
+- ONE geometry law: the fold's layout is built fresh every draw —
+  rows, owners, offsets — and wrap OFF builds the identity (one line,
+  one row), so the pager, the pointer, the wheel, the drag's edge
+  pull, :center and every glow speak visual rows through the same
+  table. No two laws ever disagree about where a byte lands.
+- Selftest group 86 grows eleven fold laws (784 -> 795); smoke grows
+  the fold's drive — the receipt, a typed line past the pane's width
+  painting its continuation gutter, the second toggle, and the slide's
+  honest unfold (169 -> 173). Gates ALL GREEN.
+
 ## v3.0.84 — the vim tongue (:o and :e speak the ledger)
 
 - **`:o` and `:e` ARE `:open`** — two names the hands already know,

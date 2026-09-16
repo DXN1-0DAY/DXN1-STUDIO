@@ -1148,6 +1148,29 @@ def main():
               "opened" in scr.text(ROWS - 2),
               repr(scr.text(ROWS - 2)[:70]))
 
+        # ── 13j. the fold — :wrap, the long line's courtesy ──────────
+        print("── 13j. :wrap — the fold")
+        scr, _ = s1d.run_verb("wrap", "ide")
+        check(":wrap speaks the fold",
+              "long lines fold into the pane" in scr.text(ROWS - 2),
+              repr(scr.text(ROWS - 2)[:70]))
+        s1d.run_verb("goto 60", "ide")     # the file's last line
+        time.sleep(0.2)
+        s1d.send("X" * 50)                 # the line outgrows the pane (41)
+        scr = s1d.settle(0.5)
+        folded = any("  …" in scr.text(r)[:GUTTER] for r in range(1, ROWS - 2))
+        check("a line past the pane's width paints its continuation row",
+              folded, "no continuation gutter anywhere in the body")
+        scr, _ = s1d.run_verb("wrap", "ide")
+        check("a second :wrap wakes the slide",
+              "the slide returns" in scr.text(ROWS - 2),
+              repr(scr.text(ROWS - 2)[:70]))
+        scr = s1d.settle(0.3)
+        unfolded = not any("  …" in scr.text(r)[:GUTTER]
+                           for r in range(1, ROWS - 2))
+        check("the slide's return unfolds the row (one line, one row)",
+              unfolded, "a continuation gutter survived the slide")
+
         s1d.send(ESC)
         time.sleep(0.3)
         s1d.send("q")

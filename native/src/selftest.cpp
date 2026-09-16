@@ -199,7 +199,7 @@ int main() {
   }
 
   // 9. the version quad rides in the binary too
-  ok(std::string(dxn3::DXN3_VERSION) == "3.0.84",
+  ok(std::string(dxn3::DXN3_VERSION) == "3.0.85",
      "native version constant matches the release quad");
 
   // 10. png writer: checksum vectors, real structure, byte determinism
@@ -3994,6 +3994,59 @@ int main() {
     mr.macro.clear();
     ok(mr.recording && mr.macro.empty(),
        "a fresh recording starts from an empty register");
+  }
+
+  // 86. the soft wrap: the fold's layout laws (:wrap)
+  {
+    IdeState ws;                              // the fold OFF: the identity
+    ws.lines = {"short", "a longer line of code", ""};
+    const dxn3::IdeWrap id = dxn3::ideWrapBuild(ws, 20);
+    ok(id.rows == 3 && id.lineFirst[2] == 2 && id.rowOff[1] == 0 &&
+           id.rowLine[1] == 1,
+       "the fold off is the identity: one line, one row");
+    ws.wrap = true;
+    ws.lines = {"short", "a longer line", ""};   // every line fits now
+    const dxn3::IdeWrap w1 = dxn3::ideWrapBuild(ws, 20);
+    ok(w1.rows == 3, "every line that fits paints exactly one row");
+    ok(w1.rowLine[2] == 2 && w1.rowOff[2] == 0,
+       "the empty line keeps its row (nothing is ever lost)");
+    ok(dxn3::ideWrapRowOf(w1, 1, 7) == w1.lineFirst[1],
+       "a fitting line's hand rides its only row");
+    ws.lines = {"alpha beta gamma"};          // 16 bytes, the fold at 10
+    const dxn3::IdeWrap w2 = dxn3::ideWrapBuild(ws, 10);
+    ok(w2.rows == 2 && w2.rowOff[1] == 6,
+       "the fold breaks after the last space the row can hold");
+    ok(dxn3::ideWrapRowOf(w2, 0, 16) == 1 &&
+           dxn3::ideWrapRowOf(w2, 0, 0) == 0,
+       "rowOf lands the tail on the last row, the head on the first");
+    ws.lines = {"aaaaaaaaaaaa"};              // no space in sight
+    const dxn3::IdeWrap w3 = dxn3::ideWrapBuild(ws, 8);
+    ok(w3.rows == 2 && w3.rowOff[1] == 8,
+       "a word longer than the pane takes the honest hard cut");
+    ws.lines = {"one two three four five six"};
+    const dxn3::IdeWrap w4 = dxn3::ideWrapBuild(ws, 9);
+    ok(w4.rows == 4 && w4.rowOff[1] == 8 && w4.rowOff[3] == 19,
+       "a long line folds into exactly the rows it needs");
+    const dxn3::IdeWrap wf = dxn3::ideWrapBuild(ws, 4);   // the sliver law
+    ok(wf.rows == 1 && wf.rowLine[0] == 0,
+       "a sliver of a pane keeps the identity (the fold refuses)");
+    IdeState hs;                              // the slide sleeps under the fold
+    hs.wrap = true;
+    hs.lines = {"a line definitely longer than the pane's width"};
+    hs.curC = 30;
+    dxn3::ideHscroll(hs, 20);
+    ok(hs.hcol == 0,
+       "the fold sleeps the slide — hcol rests at zero");
+    // the ride: a wheel notch under the fold keeps the hand in sight
+    IdeState rs;
+    rs.wrap = true;
+    rs.page = 3;
+    for (int i = 0; i < 40; ++i) rs.lines.push_back("word word word word word");
+    const dxn3::IdeWrap rw = dxn3::ideWrapBuild(rs, 12);
+    rs.top = 0;
+    dxn3::ideScroll(rs, 10, &rw);
+    ok(rs.top == 10 && rs.curR == rw.rowLine[10],
+       "the wheel's ride lands the hand on the view's top row");
   }
 
 
