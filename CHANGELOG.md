@@ -1,3 +1,18 @@
+## v3.0.48 — the diamond button
+
+- **The pin's diamond is a button.** A plain click on the gutter's
+  edge of a pinned line — the exact cell the `◆` rides — pulls that
+  pin. A look, never an edit: the hand stays put (the click is spent
+  on the ledger, not on the cursor), the receipt speaks ("pin pulled
+  from line N"), and shift+click keeps its extend-the-selection law.
+  A click on an unpinned line's gutter edge keeps the old law — the
+  line start.
+- The pointer's three gutter zones now speak cleanly: the diamond
+  pulls, the number takes the line start, the code lands the hand.
+- Smoke grew the diamond section (the ◆ visible, the pull, the
+  stationary hand, the receipt, the sibling pin unharmed) — 49 → 54
+  checks. 494 selftest groups stand.
+
 ## v3.0.47 — the flip
 
 - **`:rev` — the selection's lines walk end for end.** The sort

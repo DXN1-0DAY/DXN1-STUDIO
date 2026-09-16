@@ -1931,7 +1931,33 @@ int main(int argc, char** argv) {
           c = ci;
         }
       };
-      if (keys.clickR >= 0) translateCell(keys.clickR, keys.clickC);
+      if (keys.clickR >= 0) {
+        // the pin's diamond is a BUTTON: a plain click on the gutter's
+        // edge of a pinned line pulls that pin — a look, never an edit
+        // (the hand stays put, the ledger speaks). A click anywhere
+        // else in the gutter keeps its old law: the line start.
+        const int GC =
+            dxn3::ideGutterWidth(static_cast<int>(ide.lines.size()));
+        const int bodyRowsB = rows0 - 3 + (ide.zen ? 2 : 0);
+        const int brow = keys.clickR - 1;
+        if (!keys.clickShift && brow >= 0 && brow < bodyRowsB &&
+            keys.clickC == GC - 1) {
+          const int li = ide.top + brow;
+          if (li >= 0 && li < static_cast<int>(ide.lines.size()) &&
+              dxn3::ideMarkHas(ide, li)) {
+            const bool on = dxn3::ideMarkToggle(ide, li);
+            ide.console.push_back(
+                on ? "engine: pin planted on line " +
+                         std::to_string(li + 1) +
+                         " — F2 leaps, :marks lists"
+                   : "engine: pin pulled from line " +
+                         std::to_string(li + 1));
+            keys.clickR = -1;              // the click is spent on the pin
+            keys.clickC = -1;              // the hand never moves
+          }
+        }
+        if (keys.clickR >= 0) translateCell(keys.clickR, keys.clickC);
+      }
       if (keys.dragR >= 0) {
         // the autoscroll's edge sensor: a drag parked on the viewport's
         // top or bottom row pulls the view toward the unseen lines —

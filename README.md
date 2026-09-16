@@ -2,7 +2,7 @@
 
 ![DXN1 STUDIO 3](assets/banner.png)
 
-![version](https://img.shields.io/badge/version-3.0.47-8b5cf6?style=flat-square)
+![version](https://img.shields.io/badge/version-3.0.48-8b5cf6?style=flat-square)
 ![gates](https://github.com/DXN1-termux/DXN1-STUDIO/actions/workflows/ci.yml/badge.svg)
 ![native](https://img.shields.io/badge/native-C%2B%2023-f97316?style=flat-square)
 ![face](https://img.shields.io/badge/face-terminal_truecolor-22d3ee?style=flat-square)
@@ -180,7 +180,9 @@ viewport refreshes — *code a background, and boom, a background.*
   FOLLOW the document: lines landing above slide them down, a cut
   takes its pin along, and undo/redo prune pins the restored document
   never had. Planting and leaping are a look, never an edit — nothing
-  dirties, nothing undoes.
+  dirties, nothing undoes — and the header counts the pins at a
+  glance. The pin's diamond is a BUTTON: a plain click on the gutter's
+  edge of a pinned line pulls it (the hand stays put).
 - **The quiet (`:zen`).** The console rail hides and the body
   breathes — two more rows of code on every screen. The searchlight
   keeps its own row while it is up (a query you cannot see is a
@@ -298,7 +300,7 @@ accepted:
 | `:template <name>` | load a starter (blank, shooter, cards, …) |
 | `:snip <name>` | drop language-aware boilerplate at the hand |
 | `:goto <line>` | jump the editor to a line |
-| `:mark` | plant/pull a pin on this line — F2 leaps between pins |
+| `:mark` | plant/pull a pin on this line — F2 leaps; click the gutter's ◆ to pull |
 | `:marks` | list every pin in the file |
 | `:bm [n]` | leap to a pin; bare `:bm` takes the next, wrapping — the pins whisper as you type |
 | `:ruler` | toggle the 79/99 column guides |

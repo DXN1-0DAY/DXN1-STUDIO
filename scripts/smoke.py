@@ -530,8 +530,32 @@ def main():
               scr.text(ROWS - 3)[GUTTER:GUTTER + 2] == "aa",
               repr(scr.text(ROWS - 4)[:12] + scr.text(ROWS - 3)[:12]))
 
-        # ── 9. the exit — clean, code 0 ───────────────────────────────
-        print("── 9. the exit — esc to play, q quits")
+        # ── 9. the diamond button — a click on the ◆ pulls the pin ───
+        print("── 9. the diamond button — the gutter's edge answers")
+        s.settle(1.4)                     # the rev's auto-run speaks first:
+                                          # the console quiets before the click
+        # pins ride at lines 37 and 40 (0-based 36/39); top is 14, so
+        # line 36 paints at row 23, its ◆ at col GUTTER-1
+        check("the pin's diamond rides the gutter's edge",
+              scr.cell(23, GUTTER - 1)[0] == "◆",
+              repr(scr.cell(23, GUTTER - 1)))
+        s.send(ESC + "[<0;4;24M" + ESC + "[<0;4;24m")   # click the ◆
+        scr = s.settle(0.4)
+        check("a click on the diamond pulls the pin",
+              scr.cell(23, GUTTER - 1)[0] != "◆",
+              repr(scr.cell(23, GUTTER - 1)))
+        check("the hand never moved (a look, never an edit)",
+              scr.cell(ROWS - 4, GUTTER)[2] == CURSOR_BG,
+              repr(scr.cell(ROWS - 4, GUTTER)))
+        check("the pull speaks in the ledger",
+              "pin pulled from line 37" in scr.text(ROWS - 2),
+              repr(scr.text(ROWS - 2)[:50]))
+        check("the sibling pin is unharmed",
+              scr.cell(26, GUTTER - 1)[0] == "◆",
+              repr(scr.cell(26, GUTTER - 1)))
+
+        # ── 10. the exit — clean, code 0 ──────────────────────────────
+        print("── 10. the exit — esc to play, q quits")
         s.send(ESC)
         time.sleep(0.2)
         s.send("q")
