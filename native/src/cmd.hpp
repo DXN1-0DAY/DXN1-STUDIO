@@ -114,7 +114,8 @@ inline Cmd parseCommand(std::string_view line) {
   } else if (c.verb == "gravity") {
     number(-5000.f, 5000.f, "usage: :gravity <force -5000..5000>");
   } else if (c.verb == "w" || c.verb == "screenshot" ||
-             c.verb == "recent" || c.verb == "open") {
+             c.verb == "recent" || c.verb == "open" ||
+             c.verb == "o" || c.verb == "e") {
     // optional path argument — a bare :open reopens the ledger's head
   } else if (c.verb == "snip") {
     needsArg("usage: :snip <name> — fn tick key hit start loop ifelse class try imports main");
@@ -243,6 +244,10 @@ inline std::string usageHintFor(std::string_view typed) {
   if (verb == "scene") return " :scene <file.dxn1.json>";
   if (verb == "zoom") return " :zoom in | out | <0.3-4>";
   if (verb == "fit") return " :fit — zoom to fit the scene";
+  if (verb == "o")
+    return " :o [file] — :open in the vim tongue; the ledger whispers";
+  if (verb == "e")
+    return " :e [file] — :open in the vim tongue (the disk's page)";
   if (verb == "open")
     return " :open [file] — load a script; the hand returns where it left; "
            "a bare :open reopens the ledger's head";

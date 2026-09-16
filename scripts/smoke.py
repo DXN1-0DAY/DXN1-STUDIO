@@ -1142,6 +1142,11 @@ def main():
         check("a bare number IS a goto (:20 jumps)",
               "jumped to line 20" in scr.text(ROWS - 2),
               repr(scr.text(ROWS - 2)[:70]))
+        scr, _ = s1d.run_verb("e", "ide")
+        check(":e re-reads the page (the disk's truth, the vim tongue)",
+              "the hand returns to line" in scr.text(ROWS - 2) or
+              "opened" in scr.text(ROWS - 2),
+              repr(scr.text(ROWS - 2)[:70]))
 
         s1d.send(ESC)
         time.sleep(0.3)

@@ -199,7 +199,7 @@ int main() {
   }
 
   // 9. the version quad rides in the binary too
-  ok(std::string(dxn3::DXN3_VERSION) == "3.0.83",
+  ok(std::string(dxn3::DXN3_VERSION) == "3.0.84",
      "native version constant matches the release quad");
 
   // 10. png writer: checksum vectors, real structure, byte determinism
@@ -3973,6 +3973,14 @@ int main() {
     const auto s1 = dxn3::parseCommand(":sa/a/b");
     ok(s1.ok() && s1.verb == "sa" && s1.arg == "a/b",
        ":sa/old/new parses — the other face's token");
+    const auto o1 = dxn3::parseCommand(":o game.py");
+    ok(o1.ok() && o1.verb == "o" && o1.arg == "game.py",
+       ":o is :open in the vim tongue (a file rides)");
+    const auto e1 = dxn3::parseCommand(":e");
+    ok(e1.ok() && e1.verb == "e" && e1.arg.empty(),
+       "a bare :e reopens the ledger's head");
+    ok(dxn3::usageHintFor("o").find("vim tongue") != std::string::npos,
+       ":o whispers its vim law as you type");
   }
 
   // 83b. the macro register's session law, restated in the pure world:

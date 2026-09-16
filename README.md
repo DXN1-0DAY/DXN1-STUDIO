@@ -2,7 +2,7 @@
 
 ![DXN1 STUDIO 3](assets/banner.png)
 
-![version](https://img.shields.io/badge/version-3.0.83-8b5cf6?style=flat-square)
+![version](https://img.shields.io/badge/version-3.0.84-8b5cf6?style=flat-square)
 ![gates](https://github.com/DXN1-termux/DXN1-STUDIO/actions/workflows/ci.yml/badge.svg)
 ![native](https://img.shields.io/badge/native-C%2B%2023-f97316?style=flat-square)
 ![face](https://img.shields.io/badge/face-terminal_truecolor-22d3ee?style=flat-square)
@@ -337,6 +337,7 @@ accepted:
 | `:magnet <px>` | coin magnet radius, live |
 | `:gravity <force>` | gravity, live |
 | `:open [file]` | load any script; bare `:open` reopens the ledger's head |
+| `:o [file]` / `:e [file]` | :open in the vim tongue — the ledger resolves a tail |
 | `:recent [name]` | the ledger — list it, or reopen a prefix match |
 | `:help [verb]` | the verbs — or one verb's law, spoken to the console |
 | `:record` | the recorder — run verbs, `:record` again to end the take |

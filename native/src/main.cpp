@@ -1664,6 +1664,32 @@ int main(int argc, char** argv) {
             ide.tpl = hit;
             loadTemplate(hit);
           }
+        } else if (cmd.verb == "o" || cmd.verb == "e") {
+          // the vim tongue: :o and :e ARE :open — one law, two other
+          // names the hands already know. A bare verb reopens the
+          // ledger's head; a tail resolves through the ledger first
+          // (the same courtesy :recent speaks), then opens honestly.
+          takeStage();
+          const std::string want = cmd.arg;
+          if (want.empty()) {
+            if (ide.recent.empty())
+              cmdErr = "the ledger is empty — :open a file first";
+            else
+              cmdErr = openScript(ide.recent.front());   // the head
+          } else {
+            std::string resolved = want;
+            if (!ide.recent.empty()) {
+              for (const auto& r : ide.recent) {
+                const std::string base =
+                    std::filesystem::path(r).filename().string();
+                if (r.rfind(want, 0) == 0 || base.rfind(want, 0) == 0) {
+                  resolved = r;          // the ledger resolves the tail
+                  break;
+                }
+              }
+            }
+            cmdErr = openScript(resolved);
+          }
         } else if (cmd.verb == "open") {
           if (cmd.arg.empty()) {
             // a bare :open: the ledger's head — what you had last, one
@@ -2339,7 +2365,7 @@ int main(int argc, char** argv) {
           takeStage();                         // every verb takes the stage —
                                                // a law, not a suggestion
           if (cmd.arg.empty()) {
-            game.say(":scene :open :recent :template :snip :goto :jumps :changes :fresh :mark :marks :bm :ruler :minimap :zen :center :relnum :s :sa :trim :cases :sort :rsort :rev :uniq :shuffle :indent :dedent :lift :drop :dup :join :upper :lower :title :hist :undo :redo :words :todo :stats "
+            game.say(":scene :open :recent :template :snip :goto :jumps :changes :fresh :mark :marks :bm :ruler :minimap :zen :center :relnum :s :sa :o :e :trim :cases :sort :rsort :rev :uniq :shuffle :indent :dedent :lift :drop :dup :join :upper :lower :title :hist :undo :redo :words :todo :stats "
                      ":record :macro :zoom :fit :reset :new :w :wq :q :screenshot :magnet :gravity — or :help <verb>",
                      4.f);
           } else {

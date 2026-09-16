@@ -1,3 +1,15 @@
+## v3.0.84 — the vim tongue (:o and :e speak the ledger)
+
+- **`:o` and `:e` ARE `:open`** — two names the hands already know,
+  one law: a bare verb reopens the ledger's head, a file name rides
+  (the ledger resolves a tail first — the same courtesy :recent
+  speaks — then the open is honest, the welcome back keeping the
+  hand). `:e` re-reads the current page in one verb; the full help
+  names both.
+- Selftest group 85 grows three parse laws (781 -> 784); smoke
+  grows the :e re-read drive (168 -> 169). The usage hints whisper
+  the vim law as you type.
+
 ## v3.0.83 — the vault's portrait (the README table completes)
 
 - The vault's real headless portrait (960x540, captured by the
