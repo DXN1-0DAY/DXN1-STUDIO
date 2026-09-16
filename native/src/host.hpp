@@ -351,6 +351,8 @@ inline Scene sceneFromHost(const json::Value& v, int worldW, int worldH) {
     en.spin = static_cast<float>(e.at("spin").num_or(0));
     en.tsize = static_cast<float>(e.at("tsize").num_or(20));
     en.color = e.at("color").str_or("#8b5cf6");
+    en.color2 = e.at("color2").str_or("");
+    en.fill = e.at("fill").str_or(en.fill);
     en.alive = e.at("visible").num_or(1) != 0;
     if (!en.name.empty()) s.entities.push_back(en);
   }
@@ -382,6 +384,8 @@ inline void applyFrame(Game& g, const HostFrame& f) {
       e->spin = static_cast<float>(p.at("spin").num_or(e->spin));
       e->tsize = static_cast<float>(p.at("tsize").num_or(e->tsize));
       e->color = p.at("color").str_or(e->color);
+      e->color2 = p.at("color2").str_or(e->color2);
+      e->fill = p.at("fill").str_or(e->fill);
       e->shape = p.at("shape").str_or(e->shape);
       e->tag = p.at("tag").str_or(e->tag);
       e->text = p.at("text").str_or(e->text);

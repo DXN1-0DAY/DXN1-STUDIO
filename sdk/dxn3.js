@@ -1,27 +1,49 @@
 /**
  * dxn3 SDK — write a game in JavaScript (node), the studio renders it.
  *
- *   const { rect, label, vars, on, run } = require("./sdk/dxn3.js");
+ *   const { rect, label, on, run, dt } = require("dxn3");  // NODE_PATH=sdk
  *
  *   const ship = rect("ship", W >> 1, H - 12, 12, 5, "#8b5cf6");
  *   ship.tag = "ship";
  *
- *   on.key(k => { if (k === "left") ship.x -= 1; });
- *   on.tick(dt => { ... });
- *   on.hit((a, b) => { ... });
+ *   on.key(k => { if (k === "left") ship.x -= 340 * dt; });
+ *   on.tick(() => { ... });            // every frame — read dt live
+ *   on.hit((a, b) => { ... });         // two tagged entities just overlapped
  *   run();
  *
  * The engine owns rendering, input and collision; this module speaks the
  * line-JSON protocol on stdio. console.log goes to the studio's console.
+ * (plain CJS on purpose — the studio's gates keep package.json out of the
+ *  tree, and NODE_PATH makes `require('dxn3')` work from anywhere.)
  */
-const readline = require("readline");
+"use strict";
 
-const _hello = JSON.parse(require("fs").readFileSync(0, "utf8").split("\n")[0] || "{}");
-var W = _hello.w | 0 || 100;
-var H = _hello.h | 0 || 46;
+const fs = require("fs");
 
-let dt = 0.0;
-const E = new Map();
+function _readLineSync() {
+  const buf = Buffer.alloc(1);
+  let out = "";
+  for (;;) {
+    const n = fs.readSync(0, buf, 0, 1, null);
+    if (n === 0) return out.length ? out : null;   // EOF — the engine left
+    if (buf[0] === 0x0a) return out;
+    out += String.fromCharCode(buf[0]);
+  }
+}
+
+// the engine says hello before your module finishes — W and H are ready
+// for your very first line of code
+const _hello = _readLineSync();
+if (_hello === null) {
+  console.log("run me from the studio:  dxn3 mygame.js   (not directly)");
+  process.exit(1);
+}
+let W = 100, H = 46;
+try { const h = JSON.parse(_hello); W = h.w | 0 || 100; H = h.h | 0 || 46; }
+catch { /* defaults hold */ }
+
+let dt = 0.0;                                    // read dt live, every frame
+const E = new Map();                             // name -> entity object
 const _scene = { t: "scene", name: "game", bg: "#0b0e1a", gravity: 0, entities: [] };
 let _dels = [];
 let _vars = {};
@@ -31,10 +53,15 @@ const _cb = { tick: [], key: [], hit: [], start: [] };
 function _send(o) { process.stdout.write(JSON.stringify(o) + "\n"); }
 
 function _mk(name, d) {
-  if (E.has(name)) throw new Error("duplicate entity name: " + name);
   d.visible = 1;
+  if (E.has(name)) {
+    // same name again = a redraw: replace the body in place
+    const i = _scene.entities.findIndex((e) => e.name === name);
+    if (i >= 0) _scene.entities[i] = d;
+  } else {
+    _scene.entities.push(d);
+  }
   E.set(name, d);
-  _scene.entities.push(d);
   return d;
 }
 function rect(name, x, y, w, h, color = "#8b5cf6") {
@@ -47,7 +74,9 @@ function tri(name, x, y, w, h, color = "#ef4444") {
   return _mk(name, { name, shape: "tri", x, y, w, h, color });
 }
 function label(name, x, y, text, color = "#e9e5ff") {
-  return _mk(name, { name, shape: "text", x, y, w: Math.max(1, String(text).length), h: 2, text: String(text), color });
+  return _mk(name, { name, shape: "text", x, y,
+                     w: Math.max(1, String(text).length), h: 2,
+                     text: String(text), color });
 }
 function destroy(name) { if (E.has(name)) { E.delete(name); _dels.push(name); } }
 function find(name) { return E.get(name); }
@@ -66,15 +95,18 @@ const on = {
 function run() {
   _send(_scene);
   let started = false;
-  const rl = readline.createInterface({ input: process.stdin, terminal: false });
-  rl.on("line", line => {
+  let pairs = new Set();                 // overlap pairs already reported
+  for (;;) {
+    const line = _readLineSync();
+    if (line === null) break;            // the studio closed the pipe
     let pkt;
-    try { pkt = JSON.parse(line); } catch { console.log(line.slice(0, 200)); return; }
-    if (pkt.t !== "tick") return;
+    try { pkt = JSON.parse(line); }
+    catch { console.log(line.slice(0, 200)); continue; }  // chatter -> console
+    if (pkt.t !== "tick") continue;
     dt = +pkt.dt || 0;
     const keys = pkt.keys || {};
     if (!started) { _cb.start.forEach(f => f()); started = true; }
-    for (const e of E.values()) {           // physics-lite
+    for (const e of E.values()) {        // physics-lite
       if (e.vx) e.x += e.vx * dt;
       if (e.vy) e.y += e.vy * dt;
     }
@@ -82,15 +114,25 @@ function run() {
     const held = ["left", "right", "jump", "space"].filter(k => keys[k]);
     held.push(...String(pkt.chars || "").split("").filter(c => c.trim()));
     for (const k of held) _cb.key.forEach(f => f(k));
-    for (const pair of pkt.hits || []) {
-      const a = E.get(pair[0]), b = E.get(pair[1]);
+    // hits arrive flat: [nameA, nameB, …]. fire on ENTER only — a pair
+    // that separates may fire again; a held overlap never spams
+    const hs = Array.isArray(pkt.hits) ? pkt.hits : [];
+    const seen = new Set();
+    for (let i = 0; i + 1 < hs.length; i += 2) {
+      const na = String(hs[i]), nb = String(hs[i + 1]);
+      const pair = na <= nb ? na + "\u0000" + nb : nb + "\u0000" + na;
+      seen.add(pair);
+      if (pairs.has(pair)) continue;
+      const a = E.get(na), b = E.get(nb);
       if (a && b) _cb.hit.forEach(f => f(a, b));
     }
-    _send({ t: "frame", set: [...E.values()], del: _dels, vars: _vars, camera: _cam });
-    _dels = [];
-    _vars = {};
-  });
+    pairs = seen;
+    _send({ t: "frame", set: [...E.values()], del: _dels,
+            vars: _vars, camera: _cam });
+    _dels = []; _vars = {};
+  }
 }
 
-module.exports = { W, H, rect, circle, tri, label, destroy, find,
+module.exports = { W, H, get dt() { return dt; },
+                   rect, circle, tri, label, destroy, find,
                    background, gravity, magnet, camera, vars, on, run };

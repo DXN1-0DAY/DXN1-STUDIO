@@ -1,7 +1,7 @@
 // bounce.js — pong-alone: a ball, walls, a paddle YOU steer, bricks to break.
 // run it from the studio:   dxn3 sdk/examples/bounce.js
 const dxn3 = require("dxn3");
-const { rect, circle, label, destroy, background, onTick, onKey, onHit, run } = dxn3;
+const { rect, circle, label, destroy, background, on, run } = dxn3;
 const W = dxn3.W, H = dxn3.H;
 
 background("#04101c");
@@ -25,31 +25,34 @@ for (let row = 0; row < 3; ++row)
     ++n;
   }
 
-onKey((k) => {
+on.key((k) => {
   if (k === "left") pad.x = Math.max(4, pad.x - 480 * dxn3.dt);
   if (k === "right") pad.x = Math.min(W - 84, pad.x + 480 * dxn3.dt);
 });
 
-onTick((dt) => {
+on.tick(() => {
   // the ball bounces off three walls; the floor costs a ball
   if (ball.x < 4 || ball.x > W - 16) ball.vx = -ball.vx;
   if (ball.y < 30) ball.vy = -ball.vy;
   if (ball.y > H - 8) {
     balls -= 1;
-    ball.x = W / 2; ball.y = H - 40; ball.vy = -300; ball.vx = 260 * (Math.random() < 0.5 ? -1 : 1);
-    if (balls <= 0) label("over", W / 2 - 60, H / 2 - 10, "GAME OVER — ctrl+r to retry", "#fb7185");
+    ball.x = W / 2; ball.y = H - 40;
+    ball.vy = -300; ball.vx = 260 * (Math.random() < 0.5 ? -1 : 1);
+    if (balls <= 0) label("over", W / 2 - 60, H / 2 - 10,
+                          "GAME OVER — ctrl+r to retry", "#fb7185");
   }
   hud.text = "BRICKS " + (12 - bricks) + " LEFT · BALLS " + balls;
 });
 
-onHit((a, b) => {
-  const other = a.tag === "ball" ? b : a;
+on.hit((a, b) => {
   const me = a.tag === "ball" ? a : b;
+  const other = a.tag === "ball" ? b : a;
   if (other.tag === "brick") {
     destroy(other.name);
     bricks += 1;
     ball.vy = -ball.vy;
-    if (bricks >= 12) label("win", W / 2 - 70, H / 2 - 10, "CLEARED! you built this with code.", "#34d399");
+    if (bricks >= 12) label("win", W / 2 - 70, H / 2 - 10,
+                            "CLEARED! you built this with code.", "#34d399");
   } else if (other.tag === "pad") {
     // steer: hitting the paddle's edge angles the ball
     const off = (me.x - other.x) / other.w - 0.5;
