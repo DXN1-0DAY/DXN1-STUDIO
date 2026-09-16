@@ -199,7 +199,7 @@ int main() {
   }
 
   // 9. the version quad rides in the binary too
-  ok(std::string(dxn3::DXN3_VERSION) == "3.0.69",
+  ok(std::string(dxn3::DXN3_VERSION) == "3.0.70",
      "native version constant matches the release quad");
 
   // 10. png writer: checksum vectors, real structure, byte determinism
@@ -3507,6 +3507,21 @@ int main() {
     ok(dxn3::usageHintFor(":jumps").find("newest first") !=
            std::string::npos,
        "the bar whispers the listing's order");
+  }
+
+  // 76. :fresh — the disk's truth wins the page back. The grammar is
+  // here; the walk itself is openScript's (the smoke drives it on a
+  // real studio) — the law: no argument, an honest whisper, and a
+  // page that was never written is refused with the way out.
+  {
+    const auto fc = dxn3::parseCommand(":fresh");
+    ok(fc.ok() && fc.verb == "fresh",
+       "parseCommand reads :fresh — the reload is a verb");
+    const auto fb = dxn3::parseCommand(":fresh now");
+    ok(!fb.ok() && fb.error.find("takes no argument") != std::string::npos,
+       ":fresh with an argument is refused — the disk needs no hint");
+    ok(dxn3::usageHintFor(":fresh").find("disk") != std::string::npos,
+       "the bar whispers whose truth wins — the disk's");
   }
 
 

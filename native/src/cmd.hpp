@@ -124,7 +124,8 @@ inline Cmd parseCommand(std::string_view line) {
              c.verb == "mark" || c.verb == "marks" || c.verb == "zen" ||
              c.verb == "hist" || c.verb == "undo" || c.verb == "redo" ||
              c.verb == "words" || c.verb == "todo" ||
-             c.verb == "jumps" || c.verb == "relnum") {
+             c.verb == "jumps" || c.verb == "relnum" ||
+             c.verb == "fresh") {
     if (!c.arg.empty())
       c.error = ":" + c.verb + " takes no argument";
   } else {
@@ -251,6 +252,9 @@ inline std::string usageHintFor(std::string_view typed) {
            "their lines";
   if (verb == "jumps")
     return " :jumps — the lines the hand leapt to, newest first";
+  if (verb == "fresh")
+    return " :fresh — the disk's truth wins the page back; the hand "
+           "returns where it left";
   if (verb == "relnum")
     return " :relnum — the gutter counts from the hand (the vim way); "
            ":relnum wakes the absolutes";

@@ -987,6 +987,24 @@ def main():
               "now 55 · 30 · 7" in scr.text(ROWS - 2) and
               "now 55 · 55" not in scr.text(ROWS - 2),
               repr(scr.text(ROWS - 2)[:70]))
+
+        # ── 13f. :fresh — the disk's truth wins the page back ────────
+        print("── 13f. :fresh — the reload keeps the hand, loses the edits")
+        s1d.run_verb("goto 7", "ide")          # the hand to line 7
+        time.sleep(0.2)
+        s1d.send("ZZZ")                        # an edit, then the pen
+        time.sleep(0.25)
+        s1d.run_verb("w", "ide")               # the disk now says ZZZ
+        s1d.send("QQ")                         # an UNsaved edit on top
+        time.sleep(0.25)
+        scr, _ = s1d.run_verb("fresh", "ide")
+        check(":fresh reopens the page and the welcome back keeps the hand",
+              "the hand returns to line 7" in scr.text(ROWS - 2),
+              repr(scr.text(ROWS - 2)[:70]))
+        scr = s1d.settle(0.3)
+        check("the disk's truth is back (QQ gone, ZZZ stays)",
+              "ZZZ" in scr.text(5) and "QQ" not in scr.text(5),
+              repr(scr.text(5)[GUTTER:GUTTER + 14]))
         s1d.send(ESC)
         time.sleep(0.3)
         s1d.send("q")

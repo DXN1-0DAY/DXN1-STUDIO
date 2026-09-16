@@ -1,3 +1,23 @@
+## v3.0.70 — :fresh (the disk's truth wins the page back)
+
+- **`:fresh` reloads the page from its file** — `:e!`'s twin. The
+  editor's truth is negotiable; the disk's is not. A reload walks
+  the ONE `openScript` path, so everything the studio already knows
+  how to do, it does: the welcome back keeps the hand (the receipt
+  says "the hand returns to line 7"), the undo history starts
+  fresh, the pins go home with the document they were planted in,
+  and the ledger remembers the file it re-read.
+- **A page that was never written has no truth to win** — the
+  refusal is honest and names the way out: "nothing on disk to
+  reload — :w writes the page first".
+- The grammar joins the no-arg family, the whisper says whose truth
+  wins ("the disk's"), and `:help` carries the verb. Selftest group
+  76 (3 asserts) — 684 → 687 groups: the verb, the argument refusal,
+  the whisper. Smoke section 13f (2 checks) — 134 → 136: an edit
+  saved (ZZZ), an edit left unsaved (QQ), the reload landing the
+  hand back on line 7 with the disk's line on screen — QQ gone, ZZZ
+  stays.
+
 ## v3.0.69 — the jumps (:jumps — where the hand has been)
 
 - **`:jumps` lists the lines the hand LEAPT to.** Every real leap —
@@ -20,7 +40,7 @@
   sites sharing it: the `:goto` handler, the pins' F2 leap in
   `ideKey`, and the welcome back's landing in the one `openScript`
   path. `:jumps` joins the no-arg family, the whispers and `:help`.
-- Selftest group 75 (14 asserts) — 671 → 685 groups: the plant, the
+- Selftest group 75 (13 asserts) — 671 → 684 groups: the plant, the
   stand's refusal, the wild line, the honest return, the 32-cap, the
   whisper's order/cap/1-based names, the F2 drive through the real
   `ideKey`, the grammar and the hint. Smoke section 13e (2 checks) —

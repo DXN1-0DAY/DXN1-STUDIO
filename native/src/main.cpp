@@ -1996,6 +1996,23 @@ int main(int argc, char** argv) {
                   ? "engine: no jumps yet — :goto, F2 and the welcome "
                     "back plant them"
                   : "engine: the jumps, newest first — " + j);
+        } else if (cmd.verb == "fresh") {
+          // the disk's truth wins the page back — :e!'s twin. A reload
+          // is a REOPEN: it walks the one openScript path, so the
+          // welcome back keeps the hand, the history starts fresh, and
+          // the receipts stay honest. A page that was never written
+          // has no truth to win — refused, with the way out.
+          takeStage();
+          if (ide.path.empty()) {
+            cmdErr = "nothing to reload — the page has no file";
+          } else {
+            std::error_code ec;
+            if (!std::filesystem::exists(ide.path, ec))
+              cmdErr = "nothing on disk to reload — :w writes the "
+                       "page first";
+            else
+              cmdErr = openScript(ide.path);
+          }
         } else if (cmd.verb == "relnum") {
           // the vim way: the gutter counts from the hand — the hand's
           // own line keeps its true name, and the toggles always come back
@@ -2095,7 +2112,7 @@ int main(int argc, char** argv) {
           game.scene.gravity = cmd.num;
           game.say("gravity " + std::to_string(static_cast<int>(cmd.num)), 1.2);
         } else if (cmd.verb == "help") {
-          game.say(":scene :open :recent :template :snip :goto :jumps :mark :marks :bm :ruler :minimap :zen :relnum :trim :cases :sort :rsort :rev :uniq :indent :dedent :lift :drop :dup :join :upper :lower :title :hist :undo :redo :words :todo :stats "
+          game.say(":scene :open :recent :template :snip :goto :jumps :fresh :mark :marks :bm :ruler :minimap :zen :relnum :trim :cases :sort :rsort :rev :uniq :indent :dedent :lift :drop :dup :join :upper :lower :title :hist :undo :redo :words :todo :stats "
                     ":zoom :fit :reset :new :w :wq :q :screenshot :magnet :gravity", 4.f);
         }
       } else {
