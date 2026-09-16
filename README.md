@@ -2,7 +2,7 @@
 
 ![DXN1 STUDIO 3](assets/banner.png)
 
-![version](https://img.shields.io/badge/version-3.0.40-8b5cf6?style=flat-square)
+![version](https://img.shields.io/badge/version-3.0.41-8b5cf6?style=flat-square)
 ![gates](https://github.com/DXN1-termux/DXN1-STUDIO/actions/workflows/ci.yml/badge.svg)
 ![native](https://img.shields.io/badge/native-C%2B%2023-f97316?style=flat-square)
 ![face](https://img.shields.io/badge/face-terminal_truecolor-22d3ee?style=flat-square)
@@ -181,6 +181,14 @@ viewport refreshes — *code a background, and boom, a background.*
   takes its pin along, and undo/redo prune pins the restored document
   never had. Planting and leaping are a look, never an edit — nothing
   dirties, nothing undoes.
+- **The quiet (`:zen`).** The console rail hides and the body
+  breathes — two more rows of code on every screen. The searchlight
+  keeps its own row while it is up (a query you cannot see is a
+  query that cannot end); receipts gather silently until the quiet
+  ends, then speak. The header carries a small `· zen` so the mode
+  never hides ITSELF, the pointer's geometry follows the body's new
+  edge, and a second `:zen` wakes the rail with everything it
+  gathered waiting below.
 - **Housekeeping verbs.** `:trim` sweeps every line's trailing
   whitespace in one undo step (a clean doc is refused without a
   phantom step); `:sort` orders the selected lines, A before B, the
@@ -211,7 +219,8 @@ line ends · `ctrl+home`/`ctrl+end` doc edges · `del` forward-delete ·
 `:open` [file] loads any script — bare, it reopens the ledger's head ·
 `:recent` lists and reopens · `:goto <line>` jumps the editor ·
 `:template <name>` loads a starter · `:snip <name>` drops boilerplate ·
-`:minimap` toggles the map rail · `:trim` sweeps trailing whitespace ·
+`:minimap` toggles the map rail · `:zen` the quiet — the rail rests ·
+`:trim` sweeps trailing whitespace ·
 `:sort` orders the selection · `:cases` find respects case (Aa) ·
 `:mark`/`:marks`/`:bm` pin lines and leap between them ·
 `:scene <name>` loads a demo (with
@@ -282,6 +291,7 @@ accepted:
 | `:bm [n]` | leap to a pin; bare `:bm` takes the next, wrapping |
 | `:ruler` | toggle the 79/99 column guides |
 | `:minimap` | toggle the document's map rail |
+| `:zen` | the quiet — the rail rests, the body breathes; `:zen` wakes it |
 | `:stats` | lines, words, chars, dialect, where you stand |
 | `:trim` | sweep trailing whitespace, one undo step |
 | `:sort` | order the selected lines, one undo step |

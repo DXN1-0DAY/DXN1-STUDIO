@@ -140,6 +140,10 @@ struct IdeState {
   // editor pane's right edge (drawn only when the terminal has room;
   // :minimap toggles it)
   bool minimap = true;
+  // zen: the console rail hides and the body breathes — two more rows
+  // of code. The searchlight still gets its row when it is up; receipts
+  // gather silently until the quiet ends. :zen toggles.
+  bool zen = false;
 };
 
 // ── the selection: anchor ↔ cursor, honestly ordered ────────────────

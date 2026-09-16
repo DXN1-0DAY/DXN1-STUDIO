@@ -199,7 +199,7 @@ int main() {
   }
 
   // 9. the version quad rides in the binary too
-  ok(std::string(dxn3::DXN3_VERSION) == "3.0.40",
+  ok(std::string(dxn3::DXN3_VERSION) == "3.0.41",
      "native version constant matches the release quad");
 
   // 10. png writer: checksum vectors, real structure, byte determinism
@@ -2312,6 +2312,27 @@ int main() {
     f2s.markPrev = true;
     dxn3::ideKey(p5, f2s);
     ok(p5.curR == 2, "shift+F2 walks back to the pin above");
+  }
+
+  // 51. the quiet: :zen — the console rail hides, the body breathes.
+  // The flag is honest furniture: the geometry it moves is the draw's
+  // and the pointer's law (the smoke walks that), the grammar is here.
+  {
+    IdeState z0;                       // the studio boots loud
+    ok(!z0.zen, "zen defaults off — the rail is up on boot");
+    ok(!z0.minimap == false, "zen touches nothing else's defaults");
+
+    const auto z1 = dxn3::parseCommand(":zen");
+    ok(z1.ok() && z1.verb == "zen",
+       "parseCommand reads :zen — the quiet is a verb");
+    const auto z2 = dxn3::parseCommand(":zen please");
+    ok(!z2.ok() && z2.error.find("takes no argument") != std::string::npos,
+       ":zen with an argument is refused — the quiet takes none");
+    ok(dxn3::usageHintFor(":zen").find("zen") != std::string::npos &&
+           dxn3::usageHintFor(":zen").find("zen wakes it") != std::string::npos,
+       "the bar whispers the way back: :zen wakes it");
+    ok(dxn3::usageHintFor(":zen").find("rail") != std::string::npos,
+       "the hint names what rests — the rail");
   }
 
   if (fails == 0) {

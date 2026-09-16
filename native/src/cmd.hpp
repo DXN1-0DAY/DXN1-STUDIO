@@ -95,7 +95,7 @@ inline Cmd parseCommand(std::string_view line) {
              c.verb == "reset" || c.verb == "help" || c.verb == "new" ||
              c.verb == "ruler" || c.verb == "stats" || c.verb == "minimap" ||
              c.verb == "trim" || c.verb == "cases" || c.verb == "sort" ||
-             c.verb == "mark" || c.verb == "marks") {
+             c.verb == "mark" || c.verb == "marks" || c.verb == "zen") {
     if (!c.arg.empty())
       c.error = ":" + c.verb + " takes no argument";
   } else {
@@ -169,6 +169,8 @@ inline std::string usageHintFor(std::string_view typed) {
   if (verb == "reset") return " :reset — back to spawn";
   if (verb == "ruler") return " :ruler — toggle the 79/99 column guides";
   if (verb == "minimap") return " :minimap — toggle the document's map rail";
+  if (verb == "zen")
+    return " :zen — the rail rests, the body breathes; :zen wakes it";
   if (verb == "trim")
     return " :trim — sweep every line's trailing whitespace, one undo step";
   if (verb == "cases")

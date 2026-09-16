@@ -1,3 +1,28 @@
+## v3.0.41 — the quiet
+
+- **`:zen` — the console rail hides and the body breathes.** Two more
+  rows of code on every screen: the rail's rows join the viewport, and
+  the pointer speaks the same geometry (a click on the old rail row
+  now lands in the document, the drag's edge sensor watches the body's
+  new bottom, and pgup/pgdn follow the taller page). The header
+  carries a small `· zen` so the mode never hides ITSELF.
+- **The quiet is honest, not blind.** The searchlight keeps its own
+  row while it is up — a query you cannot see is a query that cannot
+  end. Receipts gather silently until the quiet ends; waking the rail
+  (`:zen` again) speaks "the rail is back — everything zen gathered
+  waits below". The bar whispers the way in and the way out.
+- **The smoke is now a shipped artifact.** `scripts/smoke.py` drives
+  the REAL binary through a real pty — 35 checks across boot, zen
+  (geometry, searchlight, pointer, wake), the live auto-run, the
+  pins, the bar's refusals and `:sort`, ending on a clean exit. It
+  encodes the laws that cost sessions to learn: the SPLASH LAW (the
+  emblem eats the first keypress — wait it out), the MODE LAW (ESC in
+  play quits; the bar opens from play), the COALESCING LAW (ESC and
+  the next key must not share a pty frame; a coalesced arrow burst is
+  one flag, not three), the SGR LAW (text row = doc line + 1; the
+  frame parser walks the renderer's full-repaint protocol), and
+  transition-frame dropping with a trimmed capture tail.
+
 ## v3.0.40 — the pins
 
 - **Bookmarks: lines you pin so the hand can leap back.** `:mark`

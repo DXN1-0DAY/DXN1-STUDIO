@@ -759,7 +759,10 @@ void drawIDE(dxn3::Screen& scr, IdeState& ide, const dxn3::Game& g, bool hostUp)
   const RGB paneBg = dxn3::rgb(16, 12, 30);
   const RGB selBg = dxn3::rgb(30, 22, 52);
 
-  const int consoleRows = 2;
+  // zen: the console rail hides and the body breathes — two more rows
+  // of code on every screen. The searchlight still gets its row when
+  // it is up (a query you cannot see is a query that cannot end).
+  const int consoleRows = ide.zen ? 0 : 2;
   const int bodyTop = 1;
   const int bodyRows = rows - bodyTop - consoleRows;
   ide.page = bodyRows;                       // pgup/pgdn follow the viewport
@@ -787,6 +790,7 @@ void drawIDE(dxn3::Screen& scr, IdeState& ide, const dxn3::Game& g, bool hostUp)
   // and when a selection rides with the hand, how much it holds
   std::string pos = "  Ln " + std::to_string(ide.curR + 1) + " · Col " +
                     std::to_string(ide.curC + 1);
+  if (ide.zen) pos += " · zen";               // the quiet says its name
   if (const int selN = dxn3::ideSelCount(ide); selN > 0)
     pos += " · sel " + std::to_string(selN);
   if (24 + static_cast<int>(file.size() + pos.size()) + 2 < scol)
@@ -975,15 +979,11 @@ void drawIDE(dxn3::Screen& scr, IdeState& ide, const dxn3::Game& g, bool hostUp)
     }
   }
 
-  // the console rail: the game's prints + engine notes, honestly shown
+  // the console rail: the game's prints + engine notes, honestly shown —
+  // unless zen keeps the quiet: the rail hides, receipts gather silently,
+  // and only the searchlight still claims its row while it is up.
   const int c0 = rows - consoleRows;
-  scr.railBg(c0, dxn3::rgb(10, 7, 18));
-  scr.railBg(c0 + 1, dxn3::rgb(10, 7, 18));
-  size_t n = ide.console.size();
-  const std::string l1 = n >= 1 ? ide.console[n - 1] : "";
-  const std::string l2 = n >= 2 ? ide.console[n - 2] : "";
-  scr.text(1, c0, l1.substr(0, static_cast<size_t>(cols - 3)), dxn3::rgb(148, 156, 180));
-  if (ide.findOpen) {
+  auto paintFind = [&](int row) {
     // the searchlight has the rail: query, hits, the way out
     std::string fb = ide.findCase ? " / find(Aa): " : " / find: ";
     fb += ide.findQ + "_ ";
@@ -991,28 +991,42 @@ void drawIDE(dxn3::Screen& scr, IdeState& ide, const dxn3::Game& g, bool hostUp)
     else if (ide.findHits.empty()) fb += "no matches — esc to close";
     else fb += std::to_string(ide.findSel + 1) + "/" +
                std::to_string(ide.findHits.size()) + " · enter next · esc done";
-    scr.text(1, c0 + 1, fb.substr(0, static_cast<size_t>(cols - 3)), dxn3::rgb(250, 204, 21));
-  } else {
-    // a traceback in the console? offer the one-keystroke jump to the line
-    const int errLine = dxn3::consoleErrorLine(ide.console);
-    const std::string hint = errLine > 0
-        ? " ctrl+g jumps to line " + std::to_string(errLine) +
-          " · ctrl+z undo · ctrl+f find · esc play "
-        : " ctrl+r run · ctrl+z undo · ctrl+f find · ctrl+\\ leap · F2 pins · "
-          "ctrl+c/x/v clipboard · esc play ";
-    const bool errorUp = errLine > 0;
-    scr.text(1, c0 + 1, hint.substr(0, static_cast<size_t>(cols - 3)),
-             errorUp ? dxn3::rgb(248, 113, 113) : dxn3::rgb(84, 72, 120));
-    // the whisper outranks the echo: a shelf word under the hand names
-    // its boilerplate, otherwise the console's second-newest line rests
-    // in the rail's right seat
-    const std::string whisper = dxn3::ideSnippetWhisper(ide);
-    const std::string right = whisper.empty() ? l2 : (" ⇥ " + whisper + " ");
-    if (!right.empty())
-      scr.text(cols - std::min(cols - 3, static_cast<int>(right.size())) - 1, c0 + 1,
-               right.substr(0, static_cast<size_t>(std::min(cols - 3, static_cast<int>(right.size())))),
-               whisper.empty() ? dxn3::rgb(84, 72, 120)
-                               : dxn3::rgb(250, 204, 21));
+    scr.text(1, row, fb.substr(0, static_cast<size_t>(cols - 3)), dxn3::rgb(250, 204, 21));
+  };
+  if (ide.zen && ide.findOpen) {
+    scr.railBg(rows - 1, dxn3::rgb(10, 7, 18));
+    paintFind(rows - 1);
+  } else if (!ide.zen) {
+    scr.railBg(c0, dxn3::rgb(10, 7, 18));
+    scr.railBg(c0 + 1, dxn3::rgb(10, 7, 18));
+    size_t n = ide.console.size();
+    const std::string l1 = n >= 1 ? ide.console[n - 1] : "";
+    const std::string l2 = n >= 2 ? ide.console[n - 2] : "";
+    scr.text(1, c0, l1.substr(0, static_cast<size_t>(cols - 3)), dxn3::rgb(148, 156, 180));
+    if (ide.findOpen) {
+      paintFind(c0 + 1);
+    } else {
+      // a traceback in the console? offer the one-keystroke jump to the line
+      const int errLine = dxn3::consoleErrorLine(ide.console);
+      const std::string hint = errLine > 0
+          ? " ctrl+g jumps to line " + std::to_string(errLine) +
+            " · ctrl+z undo · ctrl+f find · esc play "
+          : " ctrl+r run · ctrl+z undo · ctrl+f find · ctrl+\\ leap · F2 pins · "
+            "ctrl+c/x/v clipboard · esc play ";
+      const bool errorUp = errLine > 0;
+      scr.text(1, c0 + 1, hint.substr(0, static_cast<size_t>(cols - 3)),
+               errorUp ? dxn3::rgb(248, 113, 113) : dxn3::rgb(84, 72, 120));
+      // the whisper outranks the echo: a shelf word under the hand names
+      // its boilerplate, otherwise the console's second-newest line rests
+      // in the rail's right seat
+      const std::string whisper = dxn3::ideSnippetWhisper(ide);
+      const std::string right = whisper.empty() ? l2 : (" ⇥ " + whisper + " ");
+      if (!right.empty())
+        scr.text(cols - std::min(cols - 3, static_cast<int>(right.size())) - 1, c0 + 1,
+                 right.substr(0, static_cast<size_t>(std::min(cols - 3, static_cast<int>(right.size())))),
+                 whisper.empty() ? dxn3::rgb(84, 72, 120)
+                                 : dxn3::rgb(250, 204, 21));
+    }
   }
 }
 
@@ -1051,7 +1065,7 @@ int main(int argc, char** argv) {
                    "       shift+arrows select · shift+ctrl+←/→ select words\n"
                    "       ctrl+l clear the console · ctrl+n template · ctrl+g error line · ctrl+p screenshot\n"
                    "       F2 next pin · shift+F2 previous pin · ctrl+F2 plant/pull a pin\n"
-                   "       :minimap the document's map rail · :ruler guides · :stats\n"
+                   "       :minimap the document's map rail · :ruler guides · :stats · :zen the quiet\n"
                    "       esc play/back · a/d move · w jump\n"
                    "       mouse: click to move · drag to select · wheel rolls\n"
                    "       tab inspect · e file · : commands (:open loads any script) · q quit\n"
@@ -1645,6 +1659,18 @@ int main(int argc, char** argv) {
                                     " lines landed");
             }
           }
+        } else if (cmd.verb == "zen") {
+          // the quiet: the console rail hides, the body gains its two
+          // rows; the searchlight still shows when it is up. Receipts
+          // gather silently until the quiet ends — the header carries
+          // a small "zen" so the mode never hides ITSELF.
+          if (!ide.open) ide.open = true;      // the studio takes the stage
+          ide.zen = !ide.zen;
+          ide.console.push_back(
+              ide.zen ? "engine: zen — the rail rests, the body breathes "
+                        "(:zen wakes it)"
+                      : "engine: the rail is back — "
+                        "everything zen gathered waits below");
         } else if (cmd.verb == "ruler") {
           if (!ide.open) ide.open = true;      // the studio takes the stage
           ide.ruler = !ide.ruler;
@@ -1724,7 +1750,7 @@ int main(int argc, char** argv) {
           game.scene.gravity = cmd.num;
           game.say("gravity " + std::to_string(static_cast<int>(cmd.num)), 1.2);
         } else if (cmd.verb == "help") {
-          game.say(":scene :open :recent :template :snip :goto :mark :marks :bm :ruler :minimap :trim :cases :sort :stats "
+          game.say(":scene :open :recent :template :snip :goto :mark :marks :bm :ruler :minimap :zen :trim :cases :sort :stats "
                     ":zoom :fit :reset :new :w :wq :q :screenshot :magnet :gravity", 4.f);
         }
       } else {
@@ -1822,7 +1848,9 @@ int main(int argc, char** argv) {
       // gutter press takes the line start; presses in the viewport,
       // console, header or divider are nobody's — swallowed whole.
       auto translateCell = [&](int& r, int& c) {
-        const int bodyRowsC = rows0 - 3;
+        const int bodyRowsC = rows0 - 3 + (ide.zen ? 2 : 0);   // zen: the
+                                                               // rail's rows
+                                                               // join the body
         const bool splitC = cols0 >= 96;
         const int editWC = splitC ? 46 : cols0;
         const bool mapOnC = ide.minimap && splitC && cols0 >= 110;
@@ -1864,7 +1892,7 @@ int main(int argc, char** argv) {
         // map-rail or gutter drag speaks the same edge law). A hand
         // outside the body (header, rails) is no edge at all.
         const int rawRow = keys.dragR - 1;                 // body row
-        const int bodyRowsC = rows0 - 3;
+        const int bodyRowsC = rows0 - 3 + (ide.zen ? 2 : 0);
         ide.dragEdge =
             rawRow < 0 || rawRow >= bodyRowsC
                 ? 0

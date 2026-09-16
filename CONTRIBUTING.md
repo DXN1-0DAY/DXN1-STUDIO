@@ -48,5 +48,9 @@ hand-edit.
   push with `--tags`. Never tag red.
 - Scenes are data: if a level needs new engine behavior, the engine gets
   a selftest first, then the level uses it.
+- The smoke walks the real binary through a real pty:
+  `python3 scripts/smoke.py` (exit 0 = green). Run it before tagging a
+  UI-facing change — the selftest proves the laws, the smoke proves the
+  SCREEN obeys them.
 
 MIT — DXN1-termux
