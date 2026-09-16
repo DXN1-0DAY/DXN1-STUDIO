@@ -45,7 +45,7 @@ bool g_raw = false;
 void restoreTerminal() {
   if (g_raw) {
     tcsetattr(STDIN_FILENO, TCSAFLUSH, &g_orig);
-    std::fputs("\x1b[0m\x1b[?1006l\x1b[?1000l\x1b[?25h\x1b[?1049l", stdout);
+    std::fputs("\x1b[0m\x1b[?1006l\x1b[?1002l\x1b[?1000l\x1b[?25h\x1b[?1049l", stdout);
     std::fflush(stdout);
     g_raw = false;
   }
@@ -54,7 +54,7 @@ void restoreTerminal() {
 void onSignal(int) { g_stop = true; }
 
 void enterScreen() {
-  std::fputs("\x1b[?1049h\x1b[?1000;1006h\x1b[2J", stdout);
+  std::fputs("\x1b[?1049h\x1b[?1000;1002;1006h\x1b[2J", stdout);
   std::fflush(stdout);
 }
 
@@ -225,11 +225,22 @@ Keys pollKeys(Mode mode) {
                     k.clickR = nums[2] - 1;
                     k.clickShift = nums[0] == 4;
                   }
+                } else if (nums[0] == 32 || nums[0] == 36) {   // motion
+                  if (mode == Mode::Ide) {                 // with the button
+                    k.dragC = nums[1] - 1;                 // held: the drag
+                    k.dragR = nums[2] - 1;
+                    k.clickShift = nums[0] == 36;
+                  }
                 } else if (nums[0] == 64 || nums[0] == 65) {   // the wheel
                   if (mode == Mode::Ide || mode == Mode::File)
                     k.scroll += nums[0] == 64 ? -3 : 3;
                 }
               }
+              break;
+            }
+            case 'm': {                                    // button release
+              if (params.empty() || params[0] != '<') break;
+              if (mode == Mode::Ide) k.clickRelease = true;
               break;
             }
             default:
@@ -1015,7 +1026,7 @@ int main(int argc, char** argv) {
                    "       ctrl+n template · ctrl+g error line · ctrl+p screenshot\n"
                    "       :minimap the document's map rail · :ruler guides · :stats\n"
                    "       esc play/back · a/d move · w jump\n"
-                   "       mouse: click code to move, click the map to jump, shift+click selects\n"
+                   "       mouse: click to move · drag to select · wheel rolls\n"
                    "       tab inspect · e file · : commands (:open loads any script) · q quit\n"
                    "your game is a child process speaking JSON on stdio — see sdk/",
                    dxn3::DXN3_VERSION);
@@ -1646,21 +1657,21 @@ int main(int argc, char** argv) {
     // but a frame the command bar polled is the bar's alone (:open and
     // :new hand the stage over; the same frame's text must not leak in)
     if (ide.open && !barOwned) {
-      // the pointer: translate the click's CELL into document coords
-      // before the editor hears it — main owns the map rail's geometry.
-      // A map-rail click jumps to the doc line under the hand; a code
-      // click lands at the cell (hscroll included); a gutter click
-      // takes the line start; clicks in the viewport, console, header
-      // or divider are nobody's — swallowed whole.
-      if (keys.clickR >= 0) {
+      // the pointer: translate press/drag cells into document coords
+      // before the editor hears them — main owns the map rail's
+      // geometry. A map-rail press jumps to the doc line under the
+      // hand; a code press lands at the cell (hscroll included); a
+      // gutter press takes the line start; presses in the viewport,
+      // console, header or divider are nobody's — swallowed whole.
+      auto translateCell = [&](int& r, int& c) {
         const int bodyRowsC = rows0 - 3;
         const bool splitC = cols0 >= 96;
         const int editWC = splitC ? 46 : cols0;
         const bool mapOnC = ide.minimap && splitC && cols0 >= 110;
         const int textWC = editWC - 5 - (mapOnC ? 7 : 0);
-        const int row = keys.clickR - 1;           // screen row -> body row
+        const int row = r - 1;                     // screen row -> body row
                                                    // (bodyTop is 1)
-        const int col = keys.clickC;
+        const int col = c;
         int li = -1, ci = 0;
         if (row >= 0 && row < bodyRowsC) {
           if (mapOnC && col >= editWC - 7 && col < editWC - 1) {
@@ -1679,12 +1690,14 @@ int main(int argc, char** argv) {
           }
         }
         if (li < 0) {
-          keys.clickR = -1;                        // not ours — swallow
+          r = -1;                                  // not ours — swallow
         } else {
-          keys.clickR = li;
-          keys.clickC = ci;
+          r = li;
+          c = ci;
         }
-      }
+      };
+      if (keys.clickR >= 0) translateCell(keys.clickR, keys.clickC);
+      if (keys.dragR >= 0) translateCell(keys.dragR, keys.dragC);
       ideKey(ide, keys);
       // the bridge: copy and cut also ride out to the system clipboard
       // (OSC 52) — terminals that honor it keep the OS's clip in sync

@@ -1,3 +1,20 @@
+## v3.0.26 — the drag
+
+- **Drag selects.** Button-motion tracking (`?1002h`, off at exit)
+  completes the mouse: press where the selection starts, sweep, and
+  the selection rides the hand cell by cell — across lines, through
+  the horizontal slide, glow and all. Release, and the selection
+  stays exactly where you left it; a plain click-press-release never
+  selects (standard). Motion without the button is hover and moves
+  nothing. The press/drag cells share one translation path with
+  clicks, so the gutter, the map rail and the horizontal slide all
+  speak the same geometry.
+- Selftest: group 38 (press remembers, drag selects from press to
+  hand, never dirty, release keeps the selection, hover moves
+  nothing, plain clicks select nothing) — 330 → 336. Smoke: 85 → 90
+  checks — press lands Ln 2, the drag rides to Ln 3 · Col 4, the
+  release keeps the hand, hover moves nothing, zero leaked bytes.
+
 ## v3.0.25 — the wheel
 
 - **The mouse wheel rolls.** SGR buttons 64/65 (wheel up/down) slide

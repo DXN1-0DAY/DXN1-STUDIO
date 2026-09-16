@@ -62,6 +62,9 @@ struct Keys {
   int clickR = -1, clickC = -1;                // mouse press (IDE): doc cell,
                                                // (-1,-1) = no click this frame
   bool clickShift = false;                     // shift+click extends
+  int dragR = -1, dragC = -1;                  // motion with button held: the
+                                               // drag's live end
+  bool clickRelease = false;                   // left button released
   std::string typed;                           // printable chars this frame
 };
 
@@ -106,6 +109,9 @@ struct IdeState {
   // clip splices in at the cursor, tail text riding behind it.
   std::vector<std::string> clip;
   bool clipLines = false;
+  // the drag: where the left button went DOWN (−1 = up). Motion while
+  // it is set drags the selection from the press to the hand.
+  int pressR = -1, pressC = -1;
   // the minimap: a compressed map of the whole document riding the
   // editor pane's right edge (drawn only when the terminal has room;
   // :minimap toggles it)
@@ -918,6 +924,24 @@ inline void ideKey(IdeState& ide, const Keys& k) {
     } else {
       ideSelClear(ide);                        // a bare click lets the
     }                                          // selection go — standard
+    if (!k.clickShift) {                       // a bare press is where a
+      ide.pressR = ide.curR;                   // drag would start
+      ide.pressC = ide.curC;
+    }
+    ide.lastTyping = ide.lastBack = false;
+    ide.idle = 0;
+  }
+  if (k.clickRelease) {
+    ide.pressR = -1;                           // the button came up: the
+    ide.pressC = -1;                           // drag is over, the selection
+  }                                            // it made simply stays
+  if (k.dragR >= 0 && ide.pressR >= 0) {       // motion with the button
+                                                // held: drag the selection
+    ide.anchorR = ide.pressR;                  // from the press…
+    ide.anchorC = ide.pressC;
+    ide.curR = std::clamp(k.dragR, 0, static_cast<int>(L.size()) - 1);
+    ide.curC = std::clamp(k.dragC, 0,
+                          static_cast<int>(L[static_cast<size_t>(ide.curR)].size()));
     ide.lastTyping = ide.lastBack = false;
     ide.idle = 0;
   }

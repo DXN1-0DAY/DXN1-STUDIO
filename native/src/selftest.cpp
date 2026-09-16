@@ -199,7 +199,7 @@ int main() {
   }
 
   // 9. the version quad rides in the binary too
-  ok(std::string(dxn3::DXN3_VERSION) == "3.0.25",
+  ok(std::string(dxn3::DXN3_VERSION) == "3.0.26",
      "native version constant matches the release quad");
 
   // 10. png writer: checksum vectors, real structure, byte determinism
@@ -1768,6 +1768,58 @@ int main() {
     dxn3::ideScroll(mid, 2);
     ok(mid.top == 7 && mid.curR == 8,
        "a nudge that keeps the hand in view leaves it alone");
+  }
+
+  // 38. the drag: press, motion, release — the selection follows the
+  // hand while the button is down, and stays when it comes up
+  {
+    using dxn3::Keys;
+    IdeState d1;
+    d1.lines = {"alpha", "beta", "gamma"};
+    d1.dirty = false;
+    Keys pk;                           // the press lands the hand
+    pk.clickR = 0;
+    pk.clickC = 1;
+    dxn3::ideKey(d1, pk);
+    ok(d1.curR == 0 && d1.curC == 1 && d1.pressR == 0 && d1.pressC == 1,
+       "a press remembers where the button went down");
+
+    Keys dk;                           // motion with the button held
+    dk.dragR = 2;
+    dk.dragC = 3;
+    dxn3::ideKey(d1, dk);
+    const auto sel1 = dxn3::ideSelRange(d1);
+    ok(sel1 && (*sel1)[0] == 0 && (*sel1)[1] == 1 && (*sel1)[2] == 2 &&
+           (*sel1)[3] == 3,
+       "a drag selects from the press to the hand");
+    ok(d1.curR == 2 && d1.curC == 3 && !d1.dirty,
+       "the drag ends at the hand and never dirties the doc");
+
+    Keys rk;                           // the button comes up
+    rk.clickRelease = true;
+    dxn3::ideKey(d1, rk);
+    ok(d1.pressR == -1 && dxn3::ideSelRange(d1).has_value(),
+       "a release ends the drag but keeps the selection");
+
+    Keys dk2;                          // motion with the button up: hover
+    dk2.dragR = 0;
+    dk2.dragC = 0;
+    dxn3::ideKey(d1, dk2);
+    ok(d1.curR == 2 && d1.curC == 3,
+       "hover motion without a press moves nothing");
+
+    IdeState d2;                       // a press followed by release: a
+    d2.lines = {"one"};               // plain click never selects
+    d2.dirty = false;
+    Keys pk2;
+    pk2.clickR = 0;
+    pk2.clickC = 0;
+    dxn3::ideKey(d2, pk2);
+    Keys rk2;
+    rk2.clickRelease = true;
+    dxn3::ideKey(d2, rk2);
+    ok(!dxn3::ideSelRange(d2).has_value() && d2.pressR == -1,
+       "click-press-release selects nothing (standard)");
   }
 
   if (fails == 0) {
