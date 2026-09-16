@@ -746,6 +746,19 @@ inline bool ideMatchBracket(const IdeState& s, int& mr, int& mc) {
   return probe(s.curR, s.curC - 1);
 }
 
+// ── the gutter: wide enough for the document's honest line numbers ──
+// Three columns carry 999 lines; a bigger document EARNS its extra
+// digit, one notch at a time (1000+, then 10000+). Everything that
+// speaks the body's geometry — the draw, the pointer translation, the
+// ruler, the glows — reads this SAME rule, so no zone ever disagrees
+// about where the code begins.
+inline int ideGutterWidth(int lineCount) {
+  int w = 4;                       // "%3d " — honest to 999
+  if (lineCount > 999) ++w;        // "%4d " — to 9 999
+  if (lineCount > 9999) ++w;       // "%5d " — beyond
+  return w;
+}
+
 // ── horizontal scroll: the cursor is always on screen ───────────────
 // Long lines slide under the cursor instead of being chopped off at
 // the pane's edge. hcol is the first visible column; it follows the

@@ -785,11 +785,14 @@ void drawIDE(dxn3::Screen& scr, IdeState& ide, const dxn3::Game& g, bool hostUp)
 
   // the editor pane — the minimap rents its rail from the code's right
   // edge when the terminal is wide enough to spare it (six map columns,
-  // one gap, one divider); :minimap can always send it home
+  // one gap, one divider); :minimap can always send it home. The gutter
+  // earns a column per extra digit — the SAME rule the pointer's
+  // translation speaks, so a click and a pixel always agree.
   const bool mapOn = ide.minimap && split && cols >= 110;
   const int mapW = 6;
+  const int G = dxn3::ideGutterWidth(static_cast<int>(ide.lines.size()));
   const int mapX = editW - 1 - mapW;         // map cols [mapX, mapX + mapW)
-  const int textW = editW - 5 - (mapOn ? mapW + 1 : 0);   // code after gutter
+  const int textW = editW - 1 - G - (mapOn ? mapW + 1 : 0);   // code after gutter
   const int maxTop = std::max(0, static_cast<int>(ide.lines.size()) - bodyRows);
   ide.top = std::clamp(ide.top, 0, maxTop);
   if (ide.curR < ide.top) ide.top = ide.curR;
@@ -803,25 +806,25 @@ void drawIDE(dxn3::Screen& scr, IdeState& ide, const dxn3::Game& g, bool hostUp)
     if (li >= static_cast<int>(ide.lines.size())) break;
     const bool onCursor = li == ide.curR;
     char gutter[16];
-    std::snprintf(gutter, sizeof gutter, "%3d ", li + 1);
+    std::snprintf(gutter, sizeof gutter, "%*d ", G - 1, li + 1);
     scr.text(0, bodyTop + r, gutter, dxn3::rgb(84, 72, 120));
     if (onCursor) scr.railBg(bodyTop + r, selBg);
     // long lines slide: every row shows the window [hcol, hcol + textW)
     const std::string& ln = ide.lines[static_cast<size_t>(li)];
-    if (ide.hcol > 0) scr.text(3, bodyTop + r, "…", dxn3::rgb(96, 104, 126));
+    if (ide.hcol > 0) scr.text(G - 1, bodyTop + r, "…", dxn3::rgb(96, 104, 126));
     const std::string slice =
         ide.hcol > 0 && static_cast<int>(ln.size()) > ide.hcol
             ? ln.substr(static_cast<size_t>(ide.hcol))
             : std::string();
-    drawCodeLine(scr, 4, bodyTop + r, ide.hcol > 0 ? slice : ln, textW);
+    drawCodeLine(scr, G, bodyTop + r, ide.hcol > 0 ? slice : ln, textW);
   }
   // the ruler: honest guides at 79 and 99 — a dim dot only where the
   // cell is blank, so the guide never paints over your code
   if (ide.ruler) {
     const RGB rulerC = dxn3::rgb(64, 54, 104);
     for (int rc : {79, 99}) {
-      const int scol = 4 + rc - ide.hcol;
-      if (scol < 4 || scol >= 4 + textW) continue;   // out of the pane
+      const int scol = G + rc - ide.hcol;
+      if (scol < G || scol >= G + textW) continue;   // out of the pane
       for (int r = 0; r < bodyRows; ++r) {
         const int li = ide.top + r;
         if (li >= static_cast<int>(ide.lines.size())) break;
@@ -846,8 +849,8 @@ void drawIDE(dxn3::Screen& scr, IdeState& ide, const dxn3::Game& g, bool hostUp)
       const int to = (r == r1) ? std::min<int>(c1, static_cast<int>(l.size()))
                                : static_cast<int>(l.size());
       for (int c = from; c < to; ++c) {
-        const int col = 4 + c - ide.hcol;
-        if (col < 4 || col >= 4 + textW) continue;    // out of the pane
+        const int col = G + c - ide.hcol;
+        if (col < G || col >= G + textW) continue;    // out of the pane
         scr.textBg(col, bodyTop + (r - ide.top),
                    std::string(1, l[static_cast<size_t>(c)]), paneBg, selGlow);
       }
@@ -858,7 +861,7 @@ void drawIDE(dxn3::Screen& scr, IdeState& ide, const dxn3::Game& g, bool hostUp)
     const int row = bodyTop + (ide.curR - ide.top);
     const std::string& l = ide.lines[static_cast<size_t>(ide.curR)];
     const char ch = ide.curC < static_cast<int>(l.size()) ? l[static_cast<size_t>(ide.curC)] : ' ';
-    scr.textBg(4 + ide.curC - ide.hcol, row, std::string(1, ch), paneBg, dxn3::rgb(167, 139, 250));
+    scr.textBg(G + ide.curC - ide.hcol, row, std::string(1, ch), paneBg, dxn3::rgb(167, 139, 250));
   }
   // the bracket's partner glows across the file — the cursor's own cell
   // already burns inverse video, so the glow lands on the partner (and
@@ -871,8 +874,8 @@ void drawIDE(dxn3::Screen& scr, IdeState& ide, const dxn3::Game& g, bool hostUp)
         if (r2 < ide.top || r2 >= ide.top + bodyRows) return;
         const std::string& l2 = ide.lines[static_cast<size_t>(r2)];
         if (c2 < 0 || c2 >= static_cast<int>(l2.size())) return;
-        const int col = 4 + c2 - ide.hcol;
-        if (col < 4 || col >= 4 + textW) return;    // scrolled out of the pane
+        const int col = G + c2 - ide.hcol;
+        if (col < G || col >= G + textW) return;    // scrolled out of the pane
         scr.textBg(col, bodyTop + (r2 - ide.top),
                    std::string(1, l2[static_cast<size_t>(c2)]), paneBg, glowBg);
       };
@@ -887,7 +890,7 @@ void drawIDE(dxn3::Screen& scr, IdeState& ide, const dxn3::Game& g, bool hostUp)
   }
   // the searchlight's wake: every match glows, the current one burns
   if (ide.findOpen && !ide.findHits.empty() && !ide.findQ.empty()) {
-    const int maxW = mapOn ? 4 + textW : (split ? editW - 1 : cols);
+    const int maxW = mapOn ? G + textW : (split ? editW - 1 : cols);
     size_t hi = 0;
     for (int r = 0; r < bodyRows; ++r) {
       const int li = ide.top + r;
@@ -897,12 +900,12 @@ void drawIDE(dxn3::Screen& scr, IdeState& ide, const dxn3::Game& g, bool hostUp)
                           ide.findHits[i].first == li; ++i) {
         const int hitC = ide.findHits[i].second;           // the real column
         const int c = hitC - ide.hcol;                     // the slide applies
-        const int room = maxW - 4 - c;
+        const int room = maxW - G - c;
         if (room <= 0 || c < 0) continue;   // past either edge of the pane
         std::string slice = ide.lines[static_cast<size_t>(li)].substr(
             static_cast<size_t>(hitC),
             std::min<size_t>(ide.findQ.size(), static_cast<size_t>(room)));
-        scr.textBg(4 + c, bodyTop + r, slice, paneBg,
+        scr.textBg(G + c, bodyTop + r, slice, paneBg,
                    static_cast<int>(i) == ide.findSel ? dxn3::rgb(180, 83, 9)
                                                       : dxn3::rgb(66, 50, 14));
       }
@@ -1713,7 +1716,9 @@ int main(int argc, char** argv) {
         const bool splitC = cols0 >= 96;
         const int editWC = splitC ? 46 : cols0;
         const bool mapOnC = ide.minimap && splitC && cols0 >= 110;
-        const int textWC = editWC - 5 - (mapOnC ? 7 : 0);
+        const int GC = dxn3::ideGutterWidth(
+            static_cast<int>(ide.lines.size()));   // the draw's SAME rule
+        const int textWC = editWC - 1 - GC - (mapOnC ? 7 : 0);
         const int row = r - 1;                     // screen row -> body row
                                                    // (bodyTop is 1)
         const int col = c;
@@ -1726,10 +1731,10 @@ int main(int argc, char** argv) {
               li = mini.top + row;                 // the map jumps whole lines
               ci = 0;
             }
-          } else if (col >= 4 && (!mapOnC || col < 4 + textWC)) {
+          } else if (col >= GC && (!mapOnC || col < GC + textWC)) {
             li = ide.top + row;
-            ci = col - 4 + ide.hcol;
-          } else if (col < 4) {
+            ci = col - GC + ide.hcol;
+          } else if (col < GC) {
             li = ide.top + row;                    // the gutter: line start
             ci = 0;
           }

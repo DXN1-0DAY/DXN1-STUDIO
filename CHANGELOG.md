@@ -1,3 +1,21 @@
+## v3.0.32 — the wide gutter
+
+- **The gutter earns its width.** Four columns carried line numbers
+  honestly to 999; now a bigger document EARNS its extra digit, one
+  notch at a time — five columns from line 1000, six from line 10000
+  (the draw speaks the number with `%*d`, so the digits simply fit).
+  The rule lives in ONE place: `ideGutterWidth(lineCount)` in
+  edit.hpp, and everything that speaks the body's geometry reads it —
+  the draw, the pointer's cell translation (a click on a 1200-line
+  doc lands one column further right, and lands TRUE), the 79/99
+  ruler guides, the selection glow, the bracket glow, the cursor and
+  the searchlight's wake. The pane's code window pays for the digit
+  honestly: textW = editW − 1 − G − map rail, so a wide gutter can
+  never push the minimap or the divider out of the pane.
+- Selftest: group 43 (the four boundaries — 999/1000/9999/10000 — the
+  empty and negative counts, and the pane-width arithmetic for a
+  1200-line document) — 371 → 377 assertion groups, all green.
+
 ## v3.0.31 — the leap
 
 - **ctrl+\\ jumps the hand to the partner bracket.** The partner

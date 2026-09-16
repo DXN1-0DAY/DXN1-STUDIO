@@ -2009,6 +2009,29 @@ int main() {
        "a hand off any bracket stays put");
   }
 
+  // 43. the gutter earns its width: four columns carry 999 honest
+  // line numbers; a bigger document earns its digit, one notch at a
+  // time — the ONE rule the draw, the pointer, the ruler and the
+  // glows all speak
+  {
+    using dxn3::ideGutterWidth;
+    ok(ideGutterWidth(1) == 4 && ideGutterWidth(999) == 4,
+       "a small document keeps the classic four-column gutter");
+    ok(ideGutterWidth(1000) == 5, "line 1000 earns the fifth column");
+    ok(ideGutterWidth(9999) == 5, "9 999 lines still fit five");
+    ok(ideGutterWidth(10000) == 6, "line 10000 earns the sixth");
+    ok(ideGutterWidth(0) == 4 && ideGutterWidth(-3) == 4,
+       "an empty or negative count stays honest (four)");
+    IdeState g1;                       // the pane's code window pays for it
+    for (int i = 0; i < 1200; ++i) g1.lines.push_back("x = " + std::to_string(i));
+    const int G = dxn3::ideGutterWidth(static_cast<int>(g1.lines.size()));
+    const bool split = true;
+    const int editW = split ? 46 : 0;
+    const int textW = editW - 1 - G;   // no map: code runs to the divider
+    ok(G == 5 && textW == 40,
+       "a 1000-line doc's pane is one column narrower, honestly");
+  }
+
   if (fails == 0) {
     std::println("native selftest: all green ({} assertion groups)", n);
     return 0;
