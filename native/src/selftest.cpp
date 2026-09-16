@@ -199,7 +199,7 @@ int main() {
   }
 
   // 9. the version quad rides in the binary too
-  ok(std::string(dxn3::DXN3_VERSION) == "3.0.58",
+  ok(std::string(dxn3::DXN3_VERSION) == "3.0.59",
      "native version constant matches the release quad");
 
   // 10. png writer: checksum vectors, real structure, byte determinism
@@ -3108,6 +3108,93 @@ int main() {
        ":hist takes no argument, honestly");
     ok(dxn3::usageHintFor(":hist").find("ledger") != std::string::npos,
        "the bar whispers the ledger's law");
+  }
+
+  // 67. the counting sort: :sort/:rsort grow numeric awareness — a bed
+  // whose every line opens with a number orders the way humans count
+  // (2 before 10); one mixed line and the bytes rule as always
+  {
+    double v = 0;
+    ok(dxn3::ideLeadingNumber("42 the answer", v) && v == 42,
+       "a line that opens with a number speaks it");
+    ok(dxn3::ideLeadingNumber("  7 lean", v) && v == 7,
+       "leading air never hides the number");
+    ok(dxn3::ideLeadingNumber("3.5 half", v) && v == 3.5,
+       "decimals count");
+    ok(!dxn3::ideLeadingNumber("abc", v) &&
+       !dxn3::ideLeadingNumber("", v),
+       "letters and air are no numbers");
+
+    IdeState n1;                     // the classic byte-sort shame, fixed
+    n1.lines = {"10 ten", "2 two", "1 one"};
+    n1.anchorR = 0;
+    n1.anchorC = 0;
+    n1.curR = 2;
+    n1.curC = 5;
+    bool byNum = false;
+    ok(dxn3::ideSortSel(n1, &byNum) == 3 && byNum,
+       "an all-number bed sorts and says so");
+    ok(n1.lines[0] == "1 one" && n1.lines[1] == "2 two" &&
+           n1.lines[2] == "10 ten",
+       "2 sorts before 10 — the way humans count");
+    ok(n1.undo.size() == 1 && n1.undo.back().what == "sort",
+       "one honest restore point named sort");
+
+    IdeState n2;                     // decimals keep their truth
+    n2.lines = {"1.5 a", "1.10 b", "1.2 c"};
+    n2.anchorR = 0;
+    n2.anchorC = 0;
+    n2.curR = 2;
+    n2.curC = 5;
+    ok(dxn3::ideSortSel(n2, &byNum) == 3 && byNum &&
+           n2.lines[0] == "1.10 b" && n2.lines[1] == "1.2 c" &&
+           n2.lines[2] == "1.5 a",
+       "decimals count too (1.10 is 1.1, under 1.2)");
+
+    IdeState n3;                     // one mixed line: the bytes rule
+    n3.lines = {"10 ten", "2 two", "abc"};
+    n3.anchorR = 0;
+    n3.anchorC = 0;
+    n3.curR = 2;
+    n3.curC = 3;
+    ok(dxn3::ideSortSel(n3, &byNum) == 3 && !byNum &&
+           n3.lines[0] == "10 ten" && n3.lines[1] == "2 two" &&
+           n3.lines[2] == "abc",
+       "one mixed line keeps the byte-honest sort");
+
+    IdeState n4;                     // ties keep the byte order
+    n4.lines = {"2 b", "2 a", "1 x"};
+    n4.anchorR = 0;
+    n4.anchorC = 0;
+    n4.curR = 2;
+    n4.curC = 3;
+    ok(dxn3::ideSortSel(n4, &byNum) == 3 &&
+           n4.lines[1] == "2 a" && n4.lines[2] == "2 b",
+       "equal numbers fall back to the byte order");
+
+    IdeState n5;                     // the mirror: numbers land biggest first
+    n5.lines = {"1 one", "10 ten", "2 two"};
+    n5.anchorR = 0;
+    n5.anchorC = 0;
+    n5.curR = 2;
+    n5.curC = 5;
+    ok(dxn3::ideRsortSel(n5, &byNum) == 3 && byNum &&
+           n5.lines[0] == "10 ten" && n5.lines[1] == "2 two" &&
+           n5.lines[2] == "1 one" && n5.undo.back().what == "rsort",
+       "the numeric rsort lands biggest first");
+
+    IdeState n6;                     // negative numbers count too
+    n6.lines = {"5 above", "-1 below"};
+    n6.anchorR = 0;
+    n6.anchorC = 0;
+    n6.curR = 1;
+    n6.curC = 8;
+    ok(dxn3::ideSortSel(n6, &byNum) == 2 &&
+           n6.lines[0] == "-1 below",
+       "a negative opens a number honestly");
+
+    ok(dxn3::usageHintFor(":sort").find("number") != std::string::npos,
+       "the bar whispers the counting law");
   }
 
 

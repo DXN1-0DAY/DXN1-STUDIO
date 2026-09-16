@@ -2,7 +2,7 @@
 
 ![DXN1 STUDIO 3](assets/banner.png)
 
-![version](https://img.shields.io/badge/version-3.0.58-8b5cf6?style=flat-square)
+![version](https://img.shields.io/badge/version-3.0.59-8b5cf6?style=flat-square)
 ![gates](https://github.com/DXN1-termux/DXN1-STUDIO/actions/workflows/ci.yml/badge.svg)
 ![native](https://img.shields.io/badge/native-C%2B%2023-f97316?style=flat-square)
 ![face](https://img.shields.io/badge/face-terminal_truecolor-22d3ee?style=flat-square)
@@ -246,7 +246,8 @@ line ends · `ctrl+home`/`ctrl+end` doc edges · `del` forward-delete ·
 `:template <name>` loads a starter · `:snip <name>` drops boilerplate ·
 `:minimap` toggles the map rail · `:zen` the quiet — the rail rests ·
 `:trim` sweeps trailing whitespace ·
-`:sort` orders the selection · `:rsort` lands it Z-ward ·
+`:sort` orders the selection (all-number beds count: 2 before 10) ·
+`:rsort` lands it last-first ·
 `:upper`/`:lower`/`:title` change the selection's voice ·
 `:uniq` collapses back-to-back repeats · `:rev` flips the order ·
 `:indent`/`:dedent` breathe the selection one level ·

@@ -16,6 +16,7 @@
 #include <cstring>
 #include <functional>
 #include <optional>
+#include <charconv>
 #include <string>
 #include <vector>
 
@@ -1259,13 +1260,46 @@ inline std::string ideSnippetWhisper(const IdeState& s) {
 // rests at the head of the ordered block and the selection lets go.
 // 0 when there is no bed (no selection, or a same-line one — a single
 // line is always already in order); else the count of lines ordered.
-inline int ideSortSel(IdeState& s) {
+// a line "opens with a number" when digits lead it (air may precede):
+// "42 the answer", "  7 lean", "-1 below", "3.5 half". The numeric
+// sort's fuel — from_chars does the honest parsing, no std::stod
+// throwing.
+inline bool ideLeadingNumber(const std::string& s, double& out) {
+  size_t i = 0;
+  while (i < s.size() && (s[i] == ' ' || s[i] == '\t')) ++i;
+  const auto [p, ec] =
+      std::from_chars(s.data() + i, s.data() + s.size(), out);
+  return ec == std::errc{} && p != s.data() + i;
+}
+
+inline int ideSortSel(IdeState& s, bool* numeric = nullptr) {
   const auto sel = ideSelRange(s);
   if (!sel) return 0;
   const auto [r0, c0, r1, c1] = *sel;
   if (r1 <= r0) return 0;
+  // numeric awareness: when EVERY line of the bed opens with a
+  // number, the order is by that number — "2" before "10", the way a
+  // human counts, not the way bytes land. One mixed line and the
+  // whole bed stays byte-honest: the classic sort, no surprises.
+  bool allNum = true;
+  for (int r = r0; r <= r1 && allNum; ++r) {
+    double v;
+    if (!ideLeadingNumber(s.lines[r], v)) allNum = false;
+  }
   idePushUndo(s, "sort");
-  std::sort(s.lines.begin() + r0, s.lines.begin() + r1 + 1);
+  if (allNum) {
+    std::sort(s.lines.begin() + r0, s.lines.begin() + r1 + 1,
+              [](const std::string& a, const std::string& b) {
+                double va = 0, vb = 0;
+                const bool na = ideLeadingNumber(a, va);
+                const bool nb = ideLeadingNumber(b, vb);
+                if (na && nb && va != vb) return va < vb;
+                return a < b;               // ties keep the byte order
+              });
+  } else {
+    std::sort(s.lines.begin() + r0, s.lines.begin() + r1 + 1);
+  }
+  if (numeric) *numeric = allNum;
   ideSelClear(s);
   s.curR = r0;
   s.curC = 0;
@@ -1279,14 +1313,33 @@ inline int ideSortSel(IdeState& s) {
 // honest refusals, ONE restore point named "rsort", the hand at the
 // block's head, the selection let go — the lines land biggest first.
 // 0 when there is no bed; else the count of lines ordered.
-inline int ideRsortSel(IdeState& s) {
+inline int ideRsortSel(IdeState& s, bool* numeric = nullptr) {
   const auto sel = ideSelRange(s);
   if (!sel) return 0;
   const auto [r0, c0, r1, c1] = *sel;
   if (r1 <= r0) return 0;
+  // the sort's mirror law, numbers included: an all-number bed lands
+  // biggest first; one mixed line and the bytes rule (Z before A).
+  bool allNum = true;
+  for (int r = r0; r <= r1 && allNum; ++r) {
+    double v;
+    if (!ideLeadingNumber(s.lines[r], v)) allNum = false;
+  }
   idePushUndo(s, "rsort");
-  std::sort(s.lines.begin() + r0, s.lines.begin() + r1 + 1,
-            std::greater<std::string>());
+  if (allNum) {
+    std::sort(s.lines.begin() + r0, s.lines.begin() + r1 + 1,
+              [](const std::string& a, const std::string& b) {
+                double va = 0, vb = 0;
+                const bool na = ideLeadingNumber(a, va);
+                const bool nb = ideLeadingNumber(b, vb);
+                if (na && nb && va != vb) return va > vb;
+                return a > b;
+              });
+  } else {
+    std::sort(s.lines.begin() + r0, s.lines.begin() + r1 + 1,
+              std::greater<std::string>());
+  }
+  if (numeric) *numeric = allNum;
   ideSelClear(s);
   s.curR = r0;
   s.curC = 0;

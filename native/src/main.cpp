@@ -1766,22 +1766,28 @@ int main(int argc, char** argv) {
                   : "engine: find forgives case — hello finds HELLO");
         } else if (cmd.verb == "sort") {
           takeStage();
-          const int ordered = dxn3::ideSortSel(ide);
+          bool byNum = false;
+          const int ordered = dxn3::ideSortSel(ide, &byNum);
           ide.console.push_back(
               ordered > 0
                   ? "engine: sorted " + std::to_string(ordered) +
                         " line" + (ordered == 1 ? "" : "s") +
-                        " — one undo step takes it back"
+                        (byNum ? " by their numbers — 2 before 10"
+                               : " — A before B") +
+                        ", one undo step takes it back"
                   : "engine: select the lines to sort first "
                     "(shift+arrows, or drag)");
         } else if (cmd.verb == "rsort") {
           takeStage();
-          const int ordered = dxn3::ideRsortSel(ide);
+          bool byNum = false;
+          const int ordered = dxn3::ideRsortSel(ide, &byNum);
           ide.console.push_back(
               ordered > 0
                   ? "engine: sorted " + std::to_string(ordered) +
                         " line" + (ordered == 1 ? "" : "s") +
-                        " land-ward — Z before A, one undo step"
+                        (byNum ? " by their numbers, biggest first"
+                               : " land-ward — Z before A") +
+                        ", one undo step"
                   : "engine: select the lines to rsort first "
                     "(shift+arrows, or drag)");
         } else if (cmd.verb == "upper" || cmd.verb == "lower" ||

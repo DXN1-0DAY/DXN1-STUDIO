@@ -204,9 +204,11 @@ inline std::string usageHintFor(std::string_view typed) {
   if (verb == "cases")
     return " :cases — find respects case exactly (Aa), or forgives (default)";
   if (verb == "sort")
-    return " :sort — order the selected lines, A before B, one undo step";
+    return " :sort — order the selected lines; all-number beds count "
+           "(2 before 10)";
   if (verb == "rsort")
-    return " :rsort — the selected lines land Z before A, one undo step";
+    return " :rsort — the selected lines land Z before A; all-number beds "
+           "count down";
   if (verb == "upper")
     return " :upper — the selection SHOUTS, one undo step";
   if (verb == "lower")

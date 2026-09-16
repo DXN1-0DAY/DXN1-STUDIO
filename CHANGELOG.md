@@ -1,3 +1,17 @@
+## v3.0.59 — the counting sort
+
+- **`:sort` and `:rsort` grew numeric awareness.** When EVERY line of
+  the bed opens with a number (air may lead it; decimals and
+  negatives count), the order is by that number — "2" lands before
+  "10", the way humans count, not the way bytes land, and 1.10 sorts
+  as the 1.1 it truly is. Ties keep the byte order; negative numbers
+  open honestly. One mixed line and the whole bed stays byte-honest —
+  the classic sort, no surprises. The receipts name the law ("sorted
+  3 lines by their numbers — 2 before 10"), and so do the bar's
+  whispers.
+- Selftest group 67 (15 asserts) — 608 → 621 groups. Smoke stays at
+  99 (the letter beds' receipts still speak their law).
+
 ## v3.0.58 — the ledger, listed
 
 - **`:hist` — the second chance, listed.** One honest line in the
