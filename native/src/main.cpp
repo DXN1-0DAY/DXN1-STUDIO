@@ -1416,6 +1416,7 @@ int main(int argc, char** argv) {
     ide.path = path;
     ide.undo.clear();                // a new document, a fresh history
     ide.redo.clear();
+    ide.jumps.clear();               // a jump belongs to the doc it leapt in
     ide.lastTyping = ide.lastBack = false;
     ide.curR = ide.curC = ide.top = 0;
     dxn3::ideSelClear(ide);          // no stale selection rides along
@@ -1436,6 +1437,7 @@ int main(int argc, char** argv) {
       ide.curC = c;
       ide.hcol = c;
       ide.top = std::max(0, r - 4);  // the landing stays mid-screen
+      dxn3::ideJumpPush(ide.jumps, r);   // the welcome back IS a leap
       resumed = true;
     }
     takeStage();
@@ -1676,7 +1678,9 @@ int main(int argc, char** argv) {
           const int target = dxn3::ideGotoTarget(
               ide, cmd.num, cmd.rel);
           const int step = static_cast<int>(cmd.num);
-          ide.curR = target;
+          const int from = ide.curR;     // the jump's law: a CHANGE of
+          ide.curR = target;             // line plants — a stand does not
+          if (target != from) dxn3::ideJumpPush(ide.jumps, target);
           ide.curC = 0;
           ide.top = std::max(0, ide.curR - 4);   // the jump lands mid-screen
           ide.lastTyping = ide.lastBack = false;
@@ -1981,6 +1985,17 @@ int main(int argc, char** argv) {
                   ? "engine: no markers in the file — TODO/FIXME/XXX/HACK "
                     "would land here"
                   : "engine: the markers, line-led — " + t);
+        } else if (cmd.verb == "jumps") {
+          // the leaps, listed: the lines the hand changed by LEAPING —
+          // :goto, the pins' F2, the welcome back — newest first, the
+          // "now" leading. A memory of where you have been.
+          takeStage();
+          const std::string j = dxn3::ideJumpsWhisper(ide.jumps);
+          ide.console.push_back(
+              j.empty()
+                  ? "engine: no jumps yet — :goto, F2 and the welcome "
+                    "back plant them"
+                  : "engine: the jumps, newest first — " + j);
         } else if (cmd.verb == "relnum") {
           // the vim way: the gutter counts from the hand — the hand's
           // own line keeps its true name, and the toggles always come back
@@ -2080,7 +2095,7 @@ int main(int argc, char** argv) {
           game.scene.gravity = cmd.num;
           game.say("gravity " + std::to_string(static_cast<int>(cmd.num)), 1.2);
         } else if (cmd.verb == "help") {
-          game.say(":scene :open :recent :template :snip :goto :mark :marks :bm :ruler :minimap :zen :relnum :trim :cases :sort :rsort :rev :uniq :indent :dedent :lift :drop :dup :join :upper :lower :title :hist :undo :redo :words :todo :stats "
+          game.say(":scene :open :recent :template :snip :goto :jumps :mark :marks :bm :ruler :minimap :zen :relnum :trim :cases :sort :rsort :rev :uniq :indent :dedent :lift :drop :dup :join :upper :lower :title :hist :undo :redo :words :todo :stats "
                     ":zoom :fit :reset :new :w :wq :q :screenshot :magnet :gravity", 4.f);
         }
       } else {

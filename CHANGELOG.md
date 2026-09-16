@@ -1,3 +1,33 @@
+## v3.0.69 — the jumps (:jumps — where the hand has been)
+
+- **`:jumps` lists the lines the hand LEAPT to.** Every real leap —
+  a `:goto`, the pins' F2, the welcome back's landing — plants the
+  line it landed on; the verb reads the ledger NEWEST first with the
+  freshest named "now" ("the jumps, newest first — now 55 · 30 · 7"),
+  capped at 8 with "… +N deeper". An empty ledger refuses honestly
+  and names the three planters.
+- **THE JUMP'S LAW: standing is not jumping.** Only a CHANGE of line
+  plants — a `:goto` onto the line you already stand on and an F2
+  leap whose only pin is the hand's own line change nothing, so they
+  plant nothing. Returning to an old line is an honest leap and is
+  remembered twice (the ledger answers "where have I BEEN", not
+  "which lines exist"). The ledger caps at 32 — the oldest leap
+  falls off — and clears with the document, because a jump belongs
+  to the doc it leapt in.
+- The law lives in pure, selftested helpers in edit.hpp —
+  `ideJumpPush` (the plant: negative lines refused, head-dedupe, the
+  cap) and `ideJumpsWhisper` (the reading) — with the three wiring
+  sites sharing it: the `:goto` handler, the pins' F2 leap in
+  `ideKey`, and the welcome back's landing in the one `openScript`
+  path. `:jumps` joins the no-arg family, the whispers and `:help`.
+- Selftest group 75 (14 asserts) — 671 → 685 groups: the plant, the
+  stand's refusal, the wild line, the honest return, the 32-cap, the
+  whisper's order/cap/1-based names, the F2 drive through the real
+  `ideKey`, the grammar and the hint. Smoke section 13e (2 checks) —
+  132 → 134: goto 30, goto 55, the list speaking "now 55 · 30 · 7"
+  with the welcome back's 7 riding in it, and the stand that plants
+  nothing.
+
 ## v3.0.68 — the welcome back (a reopen is a continuation)
 
 - **`:open` and `:recent` remember where your hand stood.** Leaving a

@@ -971,6 +971,22 @@ def main():
         check("the landing rides mid-screen (four lines of past above)",
               scr.text(1)[:GUTTER].strip() == "3",
               repr(scr.text(1)[:GUTTER]))
+
+        # ── 13e. the jumps — the hand's leaps, listed ────────────────
+        print("── 13e. :jumps — the leaps the hand remembers")
+        s1d.run_verb("goto 30", "ide")
+        s1d.run_verb("goto 55", "ide")
+        scr, _ = s1d.run_verb("jumps", "ide")
+        check(":jumps lists the leaps newest-first, the welcome back in it",
+              "the jumps, newest first — now 55 · 30 · 7" in
+              scr.text(ROWS - 2),
+              repr(scr.text(ROWS - 2)[:70]))
+        s1d.run_verb("goto 55", "ide")         # a stand, not a leap
+        scr, _ = s1d.run_verb("jumps", "ide")
+        check("a :goto onto the line you stand on plants nothing",
+              "now 55 · 30 · 7" in scr.text(ROWS - 2) and
+              "now 55 · 55" not in scr.text(ROWS - 2),
+              repr(scr.text(ROWS - 2)[:70]))
         s1d.send(ESC)
         time.sleep(0.3)
         s1d.send("q")

@@ -199,7 +199,7 @@ int main() {
   }
 
   // 9. the version quad rides in the binary too
-  ok(std::string(dxn3::DXN3_VERSION) == "3.0.68",
+  ok(std::string(dxn3::DXN3_VERSION) == "3.0.69",
      "native version constant matches the release quad");
 
   // 10. png writer: checksum vectors, real structure, byte determinism
@@ -3453,6 +3453,60 @@ int main() {
            dxn3::usageHintFor(":recent").find("returns") !=
                std::string::npos,
        "the bar whispers the welcome back on both doors");
+  }
+
+  // 75. the jumps: the lines the hand LEAPT to — a change of line
+  // plants (goto, the pins' F2, the welcome back's landing), a stand
+  // plants nothing; the ledger is capped, cleared with the document,
+  // and :jumps reads it newest-first with the "now" leading
+  {
+    std::vector<int> j;
+    dxn3::ideJumpPush(j, 6);
+    dxn3::ideJumpPush(j, 29);
+    ok(j.size() == 2 && j.back() == 29,
+       "a change of line plants the leap, newest at the back");
+    dxn3::ideJumpPush(j, 29);
+    ok(j.size() == 2, "a stand on the ledger's own head plants nothing");
+    dxn3::ideJumpPush(j, -4);
+    ok(j.size() == 2, "a wild line is refused — no negative leaps");
+    dxn3::ideJumpPush(j, 6);
+    ok(j.size() == 3 && j[0] == 6 && j[2] == 6,
+       "returning to an old line is an honest leap, remembered twice");
+    for (int i = 0; i < 34; ++i) dxn3::ideJumpPush(j, 100 + i);
+    ok(j.size() == 32 && j.front() == 102,
+       "the ledger caps at 32 — the oldest leap falls off");
+    ok(dxn3::ideJumpsWhisper(j).find("now 134") != std::string::npos &&
+           dxn3::ideJumpsWhisper(j).find("… +24 deeper") !=
+               std::string::npos,
+       "the whisper caps at 8 and counts what it hides");
+
+    const std::vector<int> walk = {6, 29, 54};
+    ok(dxn3::ideJumpsWhisper(walk) == "now 55 · 30 · 7",
+       "the whisper reads newest first, the now leading, 1-based names");
+    ok(dxn3::ideJumpsWhisper({}).empty(),
+       "an empty ledger says nothing — the caller refuses honestly");
+
+    IdeState fz;
+    fz.lines = {"a", "b", "c", "d"};
+    dxn3::ideMarkToggle(fz, 3);            // a pin on line 4
+    dxn3::Keys mk;
+    mk.markNext = true;                    // F2: the leap
+    dxn3::ideKey(fz, mk);
+    ok(fz.curR == 3 && fz.jumps.size() == 1 && fz.jumps.back() == 3,
+       "F2's leap plants the jump — the pins' keyboard rides the ledger");
+    dxn3::ideKey(fz, mk);                  // the only pin IS the hand's line
+    ok(fz.jumps.size() == 1,
+       "a leap that lands where you stand is a stand — nothing plants");
+
+    const auto jc = dxn3::parseCommand(":jumps");
+    ok(jc.ok() && jc.verb == "jumps",
+       "parseCommand reads :jumps — the leaps are a verb");
+    const auto jb = dxn3::parseCommand(":jumps 3");
+    ok(!jb.ok() && jb.error.find("takes no argument") != std::string::npos,
+       ":jumps with an argument is refused — the ledger needs none");
+    ok(dxn3::usageHintFor(":jumps").find("newest first") !=
+           std::string::npos,
+       "the bar whispers the listing's order");
   }
 
 

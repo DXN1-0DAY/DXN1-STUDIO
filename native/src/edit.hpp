@@ -144,6 +144,11 @@ struct IdeState {
   // when you leave it, restored when :open/:recent bring you back —
   // a reopen is a continuation, not a rewind.
   std::map<std::string, std::pair<int, int>> docCur;
+  // the jumps ledger: the lines the hand LEAPT to — :goto, the pins'
+  // F2 leap, the welcome back's landing. Standing is not jumping:
+  // only a change of line plants. Cleared with the document (a jump
+  // belongs to the doc it leapt in), capped, newest at the back.
+  std::vector<int> jumps;
   // the pins: bookmarks — lines you mark so the hand can leap back
   // (:mark plants, F2 leaps). Sorted, unique line positions that follow
   // insertions and cuts; a pin dies with its line.
@@ -1294,6 +1299,36 @@ inline DocCur ideDocCurLand(const std::vector<std::string>& lines,
   return DocCur{r, c};
 }
 
+// ── the jumps ledger: where the hand has leapt ──────────────────────
+// A jump is a CHANGE of line (:goto, the pins' F2 leap, the welcome
+// back's landing) — standing on the line you already stand on plants
+// nothing. Newest at the back, capped at 32: the oldest leap falls
+// off so the ledger stays a memory, not an archive. Pure, selftested.
+inline void ideJumpPush(std::vector<int>& jumps, int line) {
+  if (line < 0) return;                        // no wild lines
+  if (!jumps.empty() && jumps.back() == line) return;  // a stand, not a leap
+  jumps.push_back(line);
+  if (jumps.size() > 32) jumps.erase(jumps.begin());
+}
+
+// the ledger whispers: the leaps, NEWEST first, the freshest named
+// "now" (it answers "where have I been?"), the lines in their
+// 1-based names, capped at 8 with "… +N deeper". Empty says nothing —
+// the caller refuses honestly.
+inline std::string ideJumpsWhisper(const std::vector<int>& jumps) {
+  if (jumps.empty()) return "";
+  constexpr size_t kCap = 8;
+  std::string out;
+  size_t shown = 0;
+  for (size_t i = jumps.size(); i-- > 0 && shown < kCap;) {
+    out += (shown == 0 ? "now " : " · ") + std::to_string(jumps[i] + 1);
+    ++shown;
+  }
+  if (jumps.size() > kCap)
+    out += " … +" + std::to_string(jumps.size() - kCap) + " deeper";
+  return out;
+}
+
 // the ledger whispers: what ":recent <part>" is about to resolve to,
 // spoken while you type — full paths whose path OR basename carries
 // the prefix, ledger order, joined with " · ", clipped to the bar's
@@ -2177,8 +2212,10 @@ inline void ideKey(IdeState& ide, const Keys& k) {
         ide.console.push_back(
             "engine: no pins yet — :mark plants one on this line");
       } else {
-        ide.curR = to;
+        const int from = ide.curR;     // the leap's law: a CHANGE of line
+        ide.curR = to;                 // plants the jump — a stand does not
         ide.curC = 0;
+        if (to != from) ideJumpPush(ide.jumps, to);
         ideSelClear(ide);
         ide.console.push_back("engine: the hand leaps to the pin at line " +
                               std::to_string(to + 1));
