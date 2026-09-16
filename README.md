@@ -2,7 +2,7 @@
 
 ![DXN1 STUDIO 3](assets/banner.png)
 
-![version](https://img.shields.io/badge/version-3.0.15-8b5cf6?style=flat-square)
+![version](https://img.shields.io/badge/version-3.0.16-8b5cf6?style=flat-square)
 ![gates](https://github.com/DXN1-termux/DXN1-STUDIO/actions/workflows/ci.yml/badge.svg)
 ![native](https://img.shields.io/badge/native-C%2B%2023-f97316?style=flat-square)
 ![face](https://img.shields.io/badge/face-terminal_truecolor-22d3ee?style=flat-square)
@@ -103,11 +103,13 @@ viewport refreshes — *code a background, and boom, a background.*
 
 Keys: `ctrl+r` run · `ctrl+s` save · `ctrl+z` undo · `ctrl+y` redo ·
 `ctrl+f` find · `enter` next hit · `ctrl+d` duplicate line ·
+`ctrl+w` delete word ·
 `ctrl+n` next template (or `:new`) · `ctrl+g` jump to the error line ·
 `ctrl+p` screenshot of your live game · `pgup/pgdn` page · `home/end`
 line ends · `del` forward-delete · `esc` play your game fullscreen ·
 `e` back to the editor · `:open <file>` loads any script ·
-`:scene <name>` loads a demo (with completion whispers) · `:q` quit.
+`:goto <line>` jumps the editor · `:scene <name>` loads a demo (with
+completion whispers) · `:q` quit.
 
 ## The built-in demo: a five-scene campaign
 

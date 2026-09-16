@@ -199,7 +199,7 @@ int main() {
   }
 
   // 9. the version quad rides in the binary too
-  ok(std::string(dxn3::DXN3_VERSION) == "3.0.15",
+  ok(std::string(dxn3::DXN3_VERSION) == "3.0.16",
      "native version constant matches the release quad");
 
   // 10. png writer: checksum vectors, real structure, byte determinism
@@ -287,6 +287,12 @@ int main() {
     ok(c.ok() && c.verb == "open" && c.arg == "game.py",
        "parseCommand reads :open with its file");
     ok(!dxn3::parseCommand(":open").ok(), ":open without a file is refused");
+    c = dxn3::parseCommand(":goto 42");
+    ok(c.ok() && c.verb == "goto" && c.num == 42.f,
+       "parseCommand reads :goto with its line");
+    ok(!dxn3::parseCommand(":goto banana").ok(),
+       ":goto with junk is refused");
+    ok(!dxn3::parseCommand(":goto").ok(), ":goto without a line is refused");
   }
 
   // 13. saveScene: the .bak safety net + honest failures + round-trip
@@ -735,6 +741,67 @@ int main() {
        "ctrl+d copies the line under the cursor, column kept");
     ok(dxn3::ideUndo(d) && d.lines.size() == 2,
        "ctrl+d is one honest undo step");
+  }
+
+  // 24. the bite: ctrl+w deletes the word behind the cursor
+  {
+    using dxn3::Keys;
+    ok(dxn3::ideWordChar('a') && dxn3::ideWordChar('_') &&
+           !dxn3::ideWordChar('(') && !dxn3::ideWordChar(' '),
+       "word chars are letters, digits, snake_case — nothing else");
+
+    IdeState s;
+    s.lines = {"foo bar"};
+    s.curR = 0;
+    s.curC = 7;
+    Keys w;
+    w.delWord = true;
+    dxn3::ideKey(s, w);
+    ok(s.lines[0] == "foo " && s.curC == 4,
+       "ctrl+w eats the word and its gap");
+
+    IdeState p;                       // punctuation goes in one bite
+    p.lines = {"x = 42"};
+    p.curR = 0;
+    p.curC = 6;
+    dxn3::ideKey(p, w);
+    ok(p.lines[0] == "x = " && p.curC == 4,
+       "numbers count as words");
+
+    IdeState n;                       // punctuation goes in one bite
+    n.lines = {"foo(bar)"};
+    n.curR = 0;
+    n.curC = 8;
+    dxn3::ideKey(n, w);
+    ok(n.lines[0] == "foo(bar" && n.curC == 7,
+       "a punctuation run is one bite");
+    dxn3::ideKey(n, w);
+    ok(n.lines[0] == "foo(" && n.curC == 4,
+       "the next bite takes the word");
+
+    IdeState i;                       // snake_case stays whole
+    i.lines = {"my_score = 0"};
+    i.curR = 0;
+    i.curC = 8;
+    dxn3::ideKey(i, w);
+    ok(i.lines[0] == " = 0" && i.curC == 0,
+       "an underscore word is one bite");
+
+    IdeState e;                       // honest no-op at the line start
+    e.lines = {"hi"};
+    e.curR = 0;
+    e.curC = 0;
+    dxn3::ideKey(e, w);
+    ok(e.lines[0] == "hi" && e.curC == 0,
+       "ctrl+w at the line start bites nothing");
+
+    IdeState d;                       // undoable, one step
+    d.lines = {"alpha beta"};
+    d.curR = 0;
+    d.curC = 10;
+    dxn3::ideKey(d, w);
+    ok(dxn3::ideUndo(d) && d.lines[0] == "alpha beta",
+       "ctrl+w is one honest undo step");
   }
 
   if (fails == 0) {

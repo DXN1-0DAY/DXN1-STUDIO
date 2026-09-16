@@ -1,3 +1,15 @@
+## v3.0.16 — the bite and the leap
+
+- **`ctrl+w` eats the word behind the cursor.** The gap counts as part
+  of the bite, punctuation runs go in one mouthful, snake_case names
+  stay whole, and an honest no-op at the line start. One undo step,
+  like every structural edit.
+- **`:goto <line>`** jumps the editor to any line — ctrl+g's sibling
+  for lines without a traceback. The studio takes the stage mid-file
+  (the jump lands four rows down for context) and the console names
+  the line it landed on.
+- Selftest: group 24 (the bite) + `:goto` grammar asserts — 146 → 157.
+
 ## v3.0.15 — the searchlight: find, pairs, the copy machine
 
 - **`ctrl+f` finds in your file.** The searchlight is case-insensitive

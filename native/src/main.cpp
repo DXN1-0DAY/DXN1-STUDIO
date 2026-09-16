@@ -152,6 +152,7 @@ Keys pollKeys(Mode mode) {
         else if (c == 0x19) k.ctrlY = true;               // Ctrl+Y — redo
         else if (c == 0x06) k.ctrlF = true;               // Ctrl+F — find
         else if (c == 0x04) k.ctrlD = true;               // Ctrl+D — dup line
+        else if (c == 0x17) k.delWord = true;             // Ctrl+W — delete word
         else if (c == 0x10) k.shot = true;                // Ctrl+P — screenshot
         else if (static_cast<unsigned char>(c) >= 0x20) k.typed += c;
       } else if (mode == Mode::File) {       // FILE VIEW: every letter is text
@@ -1164,6 +1165,18 @@ int main(int argc, char** argv) {
             ide.idle = 0;
             game.say("open " + cmd.arg, 1.6);
           }
+        } else if (cmd.verb == "goto") {
+          // jump the editor to a line — ctrl+g's sibling for lines
+          // without a traceback. The studio takes the stage.
+          if (!ide.open) ide.open = true;
+          ide.findOpen = false;
+          ide.curR = std::clamp(static_cast<int>(cmd.num) - 1, 0,
+                                static_cast<int>(ide.lines.size()) - 1);
+          ide.curC = 0;
+          ide.top = std::max(0, ide.curR - 4);   // the jump lands mid-screen
+          ide.lastTyping = ide.lastBack = false;
+          ide.console.push_back("engine: jumped to line " +
+                                std::to_string(ide.curR + 1));
         } else if (cmd.verb == "w") {
           const std::string path = cmd.arg.empty() ? scenePath : cmd.arg;
           const std::string err = dxn3::Game::saveScene(path, game.scene);
@@ -1184,7 +1197,7 @@ int main(int argc, char** argv) {
           game.scene.gravity = cmd.num;
           game.say("gravity " + std::to_string(static_cast<int>(cmd.num)), 1.2);
         } else if (cmd.verb == "help") {
-          game.say(":scene :open :zoom :fit :reset :new :w :wq :q :screenshot :magnet :gravity", 4.f);
+          game.say(":scene :open :goto :zoom :fit :reset :new :w :wq :q :screenshot :magnet :gravity", 4.f);
         }
       } else {
         cmdBuf += keys.typed;
@@ -1278,7 +1291,7 @@ int main(int argc, char** argv) {
       // find-mode keystrokes feed the query — never the document
       if (!ide.findOpen &&
           (!keys.typed.empty() || keys.back || keys.enter || keys.del ||
-           keys.ctrlD)) {
+           keys.ctrlD || keys.delWord)) {
         ide.dirty = true;
         ide.idle = 0;
       }

@@ -44,6 +44,7 @@ struct Keys {
   bool ctrlZ = false, ctrlY = false;           // IDE: undo / redo
   bool ctrlF = false;                          // IDE: find in the file
   bool ctrlD = false;                          // IDE: duplicate this line
+  bool delWord = false;                        // IDE: ctrl+w — eat the word behind the cursor
   std::string typed;                           // printable chars this frame
 };
 
@@ -185,6 +186,11 @@ inline bool ideIsCloser(char c) {
   return c == ')' || c == ']' || c == '}' || c == '"' || c == '\'';
 }
 
+// a word character for delete-word purposes: letters, digits, snake_case
+inline bool ideWordChar(char c) {
+  return std::isalnum(static_cast<unsigned char>(c)) || c == '_';
+}
+
 // does this line OPEN a block (python ':', C-family '{')?
 inline bool ideOpensBlock(const std::string& s) {
   const size_t a = s.find_first_not_of(" \t");
@@ -259,7 +265,7 @@ inline void ideKey(IdeState& ide, const Keys& k) {
     ide.lastBack = true;
     ide.lastTyping = false;
   }
-  if (k.enter || k.del || k.ctrlD) idePushUndo(ide);   // structure stands alone
+  if (k.enter || k.del || k.ctrlD || k.delWord) idePushUndo(ide);  // structure stands alone
 
   for (const char ch : k.typed) {
     // a closer you already have is skipped over, never doubled
@@ -353,6 +359,26 @@ inline void ideKey(IdeState& ide, const Keys& k) {
     const std::string cur = L[static_cast<size_t>(ide.curR)];
     L.insert(L.begin() + ide.curR + 1, cur);
     ++ide.curR;                              // the copy takes your place
+  }
+  if (k.delWord) {                           // ctrl+w: eat the word behind you
+    // re-fetch: earlier edits may have reallocated the buffer
+    std::string& cur = L[static_cast<size_t>(ide.curR)];
+    int from = ide.curC;
+    while (from > 0 && (cur[static_cast<size_t>(from) - 1] == ' ' ||
+                        cur[static_cast<size_t>(from) - 1] == '\t'))
+      --from;                                // the gap counts as part of it
+    if (from > 0 && !ideWordChar(cur[static_cast<size_t>(from) - 1]))
+      while (from > 0 && !ideWordChar(cur[static_cast<size_t>(from) - 1]) &&
+             cur[static_cast<size_t>(from) - 1] != ' ' &&
+             cur[static_cast<size_t>(from) - 1] != '\t')
+        --from;                              // punctuation runs as one bite
+    else
+      while (from > 0 && ideWordChar(cur[static_cast<size_t>(from) - 1])) --from;
+    if (from < ide.curC) {
+      cur.erase(static_cast<size_t>(from),
+                static_cast<size_t>(ide.curC - from));
+      ide.curC = from;
+    }
   }
 
   // ── undo / redo: the second chance, one keystroke away

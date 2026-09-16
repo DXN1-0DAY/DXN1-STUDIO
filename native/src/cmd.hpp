@@ -80,6 +80,8 @@ inline Cmd parseCommand(std::string_view line) {
     // optional path argument — both fine
   } else if (c.verb == "open") {
     needsArg("usage: :open <script file> — py, js, cpp, any language you have");
+  } else if (c.verb == "goto") {
+    number(1.f, 99999.f, "usage: :goto <line number>");
   } else if (c.verb == "q" || c.verb == "wq" || c.verb == "fit" ||
              c.verb == "reset" || c.verb == "help" || c.verb == "new") {
     if (!c.arg.empty())
@@ -132,7 +134,7 @@ inline std::string usageHintFor(std::string_view typed) {
   if (!typed.empty() && typed.front() == ':') typed.remove_prefix(1);
   while (!typed.empty() && typed.front() == ' ') typed.remove_prefix(1);
   if (typed.empty())
-    return " verbs: scene open zoom fit reset w wq q screenshot magnet gravity help";
+    return " verbs: scene open goto zoom fit reset w wq q screenshot magnet gravity help";
   const size_t sp = typed.find(' ');
   const std::string verb(sp == std::string_view::npos ? typed
                                                       : typed.substr(0, sp));
@@ -140,6 +142,7 @@ inline std::string usageHintFor(std::string_view typed) {
   if (verb == "zoom") return " :zoom in | out | <0.3-4>";
   if (verb == "fit") return " :fit — zoom to fit the scene";
   if (verb == "open") return " :open <file> — load a script into the studio";
+  if (verb == "goto") return " :goto <line> — jump the editor to a line";
   if (verb == "reset") return " :reset — back to spawn";
   if (verb == "w") return " :w [file] — save, a .bak is kept";
   if (verb == "wq") return " :wq — save and quit";
