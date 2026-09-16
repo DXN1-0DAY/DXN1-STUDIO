@@ -151,10 +151,16 @@ Keys pollKeys(Mode mode) {
               }
               break;
             case 'H':
-              if (mode == Mode::Ide) k.home = true;
+              if (mode == Mode::Ide) {
+                if (mod == 5) k.docHome = true;      // ctrl+home: the top
+                else if (mod == 0) k.home = true;
+              }
               break;
             case 'F':
-              if (mode == Mode::Ide) k.end = true;
+              if (mode == Mode::Ide) {
+                if (mod == 5) k.docEnd = true;       // ctrl+end: the bottom
+                else if (mod == 0) k.end = true;
+              }
               break;
             case '~': {
               if (mode != Mode::Ide) break;
@@ -736,6 +742,25 @@ void drawIDE(dxn3::Screen& scr, IdeState& ide, const dxn3::Game& g, bool hostUp)
             : std::string();
     drawCodeLine(scr, 4, bodyTop + r, ide.hcol > 0 ? slice : ln, textW);
   }
+  // the ruler: honest guides at 79 and 99 — a dim dot only where the
+  // cell is blank, so the guide never paints over your code
+  if (ide.ruler) {
+    const RGB rulerC = dxn3::rgb(64, 54, 104);
+    for (int rc : {79, 99}) {
+      const int scol = 4 + rc - ide.hcol;
+      if (scol < 4 || scol >= 4 + textW) continue;   // out of the pane
+      for (int r = 0; r < bodyRows; ++r) {
+        const int li = ide.top + r;
+        if (li >= static_cast<int>(ide.lines.size())) break;
+        const std::string& ln = ide.lines[static_cast<size_t>(li)];
+        if (rc < static_cast<int>(ln.size()) &&
+            ln[static_cast<size_t>(rc)] != ' ' &&
+            ln[static_cast<size_t>(rc)] != '\t')
+          continue;                                  // code owns the cell
+        scr.text(scol, bodyTop + r, "·", rulerC);
+      }
+    }
+  }
   // the cursor: inverse video on the exact cell
   if (ide.curR >= ide.top && ide.curR < ide.top + bodyRows) {
     const int row = bodyTop + (ide.curR - ide.top);
@@ -1011,6 +1036,17 @@ int main(int argc, char** argv) {
     for (const auto& de : std::filesystem::directory_iterator("sdk/examples", ec))
       if (de.is_regular_file(ec))
         out.push_back("sdk/examples/" + de.path().filename().string());
+    std::sort(out.begin(), out.end());
+    return out;
+  };
+
+  // the shots already in exports/ — :screenshot's completion fuel
+  auto shotCandidates = []() {
+    std::vector<std::string> out;
+    std::error_code ec;
+    for (const auto& de : std::filesystem::directory_iterator("exports", ec))
+      if (de.is_regular_file(ec))
+        out.push_back("exports/" + de.path().filename().string());
     std::sort(out.begin(), out.end());
     return out;
   };
@@ -1293,6 +1329,66 @@ int main(int argc, char** argv) {
           ide.lastTyping = ide.lastBack = false;
           ide.console.push_back("engine: jumped to line " +
                                 std::to_string(ide.curR + 1));
+        } else if (cmd.verb == "snip") {
+          // boilerplate from the shelf: an exact name wins, a unique
+          // prefix resolves, an ambiguous prefix lists — like :template
+          const std::string arg = cmd.arg;
+          const auto names = dxn3::ideSnippetNames(ide.path);
+          std::string hit;
+          int hits = 0;
+          for (const auto& nm : names)
+            if (nm == arg) { hit = nm; hits = 1; break; }
+          if (hit.empty())
+            for (const auto& nm : names)
+              if (nm.rfind(arg, 0) == 0) { hit = nm; ++hits; }
+          if (hits == 0) {
+            std::string list;
+            for (const auto& nm : names) list += (list.empty() ? "" : " ") + nm;
+            cmdErr = "no such snippet: " + arg + " — try " + list;
+            cmdErrT = 4.f;
+          } else if (hits > 1) {
+            std::string list;
+            for (const auto& nm : names)
+              if (nm.rfind(arg, 0) == 0)
+                list += (list.empty() ? "" : " · ") + nm;
+            cmdErr = "ambiguous snippet '" + arg + "' — " + list;
+            cmdErrT = 4.f;
+          } else {
+            const auto block = dxn3::ideSnippetFor(hit, ide.path);
+            if (block) {
+              if (!ide.open) ide.open = true;    // the studio takes the stage
+              dxn3::ideInsertBlock(ide, *block);
+              ide.console.push_back("engine: snippet " + hit + " — " +
+                                    std::to_string(block->size()) +
+                                    " lines landed");
+            }
+          }
+        } else if (cmd.verb == "ruler") {
+          if (!ide.open) ide.open = true;      // the studio takes the stage
+          ide.ruler = !ide.ruler;
+          ide.console.push_back(ide.ruler
+                                    ? "engine: ruler on — guides at 79 and 99"
+                                    : "engine: ruler off");
+        } else if (cmd.verb == "stats") {
+          if (!ide.open) ide.open = true;      // the studio takes the stage
+          size_t words = 0, chars = 0;
+          for (const auto& l : ide.lines) {
+            chars += l.size() + 1;
+            bool inWord = false;
+            for (char ch : l) {
+              if (std::isspace(static_cast<unsigned char>(ch))) inWord = false;
+              else { if (!inWord) ++words; inWord = true; }
+            }
+          }
+          ide.console.push_back(
+              "engine: " + std::to_string(ide.lines.size()) + " lines · " +
+              std::to_string(words) + " words · " + std::to_string(chars) +
+              " chars");
+          ide.console.push_back(
+              "engine: at Ln " + std::to_string(ide.curR + 1) + " · Col " +
+              std::to_string(ide.curC + 1) + " · " +
+              std::string(dxn3::ideSnippetFamily(ide.path)) + " dialect · " +
+              (ide.hostUp ? "host live" : "host idle"));
         } else if (cmd.verb == "w") {
           const std::string path = cmd.arg.empty() ? scenePath : cmd.arg;
           const std::string err = dxn3::Game::saveScene(path, game.scene);
@@ -1313,7 +1409,8 @@ int main(int argc, char** argv) {
           game.scene.gravity = cmd.num;
           game.say("gravity " + std::to_string(static_cast<int>(cmd.num)), 1.2);
         } else if (cmd.verb == "help") {
-          game.say(":scene :open :template :goto :zoom :fit :reset :new :w :wq :q :screenshot :magnet :gravity", 4.f);
+          game.say(":scene :open :template :snip :goto :ruler :stats :zoom :fit "
+                    ":reset :new :w :wq :q :screenshot :magnet :gravity", 4.f);
         }
       } else {
         cmdBuf += keys.typed;
@@ -1412,7 +1509,8 @@ int main(int argc, char** argv) {
         ide.idle = 0;
       }
       if (keys.up || keys.down || keys.aLeft || keys.aRight ||
-          keys.wLeft || keys.wRight) ide.idle = 0;
+          keys.wLeft || keys.wRight || keys.docHome || keys.docEnd)
+        ide.idle = 0;
       if (keys.scroll != 0) ide.top += keys.scroll;   // ctrl+↑/↓ nudge the view
       if (keys.ctrlS) {
         std::string err;
@@ -1509,21 +1607,25 @@ int main(int argc, char** argv) {
           if (hcol + static_cast<int>(hint.size()) < cols - 1)
             scr.text(hcol, rows - 1, hint, dxn3::rgb(124, 58, 237));
         }
-        // command-bar whispers: scene names and script files complete
-        // themselves as you type — the campaign and the cwd speak up.
+        // command-bar whispers: scenes, scripts, screenshots, :w scene
+        // targets and snippet names complete themselves as you type —
+        // the campaign, the cwd and the exports dir speak up.
         // (cmdBuf never carries the leading ':' — the bar paints that.)
-        const bool sceneQ = cmdBuf.rfind("scene ", 0) == 0;
-        const bool openQ = cmdBuf.rfind("open ", 0) == 0;
-        const size_t skip = sceneQ ? 6 : 5;
-        if ((sceneQ || openQ) && cmdBuf.size() > skip) {
-          const std::string part = cmdBuf.substr(skip);
+        const struct {
+          const char* pre;
+          size_t len;
+        } qs[] = {{"scene ", 6},      {"open ", 5},  {"screenshot ", 11},
+                  {"w ", 2},          {"snip ", 5}};
+        for (const auto& q : qs) {
+          if (cmdBuf.rfind(q.pre, 0) != 0 || cmdBuf.size() <= q.len) continue;
+          const std::string part = cmdBuf.substr(q.len);
           std::string w;
-          if (sceneQ) {
+          if (std::strcmp(q.pre, "scene ") == 0) {
             for (const auto& m : dxn3::sceneMatches(part, sceneStems())) {
               if (!w.empty()) w += " · ";
               w += m;
             }
-          } else {
+          } else if (std::strcmp(q.pre, "open ") == 0) {
             // scripts match on their FILE name, but whisper the full
             // path — "f" finds sdk/examples/flappy.py
             for (const auto& p : scriptCandidates()) {
@@ -1533,10 +1635,32 @@ int main(int argc, char** argv) {
               if (!w.empty()) w += " · ";
               w += p;
             }
+          } else if (std::strcmp(q.pre, "screenshot ") == 0) {
+            // the exports dir speaks: existing shots complete by name
+            for (const auto& p : shotCandidates()) {
+              const std::string base =
+                  std::filesystem::path(p).filename().string();
+              if (base.rfind(part, 0) != 0) continue;
+              if (!w.empty()) w += " · ";
+              w += p;
+            }
+          } else if (std::strcmp(q.pre, "w ") == 0) {
+            // :w writes scene json — the campaign's stems whisper
+            for (const auto& m : dxn3::sceneMatches(part, sceneStems())) {
+              if (!w.empty()) w += " · ";
+              w += "scenes/" + m + ".dxn1.json";
+            }
+          } else {                           // "snip " — the shelf whispers
+            for (const auto& nm : dxn3::ideSnippetNames(ide.path)) {
+              if (nm.rfind(part, 0) != 0) continue;
+              if (!w.empty()) w += " · ";
+              w += nm;
+            }
           }
           const int hcol = 2 + static_cast<int>(cmdBuf.size());
           if (!w.empty() && hcol + static_cast<int>(w.size()) < cols - 1)
             scr.text(hcol, rows - 1, w, dxn3::rgb(168, 85, 247));
+          break;                 // one whisper per frame — first match wins
         }
       } else if (cmdErrT > 0) {
         scr.text(0, rows - 1, " dxn3: " + cmdErr, dxn3::rgb(248, 113, 113));

@@ -199,7 +199,7 @@ int main() {
   }
 
   // 9. the version quad rides in the binary too
-  ok(std::string(dxn3::DXN3_VERSION) == "3.0.18",
+  ok(std::string(dxn3::DXN3_VERSION) == "3.0.19",
      "native version constant matches the release quad");
 
   // 10. png writer: checksum vectors, real structure, byte determinism
@@ -1046,6 +1046,96 @@ int main() {
        ":template takes the name you typed");
     ok(!dxn3::parseCommand(":template").ok(),
        ":template without a name is refused with usage");
+  }
+
+  // 28. the snippet shelf: boilerplate that speaks the file's language
+  {
+    std::vector<std::string> block;
+    auto get = [&](const char* nm, const char* path) {
+      auto b = dxn3::ideSnippetFor(nm, path);
+      if (b) block = *b;
+      return b.has_value();
+    };
+    ok(get("fn", "game.py") && block[0] == "def name(arg):",
+       "a py file speaks def-style snippets");
+    ok(get("tick", "game.py") && block[0] == "def on_tick(dt):" &&
+           block.size() == 2,
+       "the tick snippet is the engine's own contract");
+    ok(get("tick", "game.js") && block[0] == "on.tick(() => {" &&
+           block.back() == "});",
+       "a js file speaks on.tick snippets");
+    ok(get("tick", "game.cpp") && block[0].rfind("g.onTick", 0) == 0,
+       "a cpp file speaks g.onTick snippets");
+    ok(!dxn3::ideSnippetFor("nope", "game.py").has_value(),
+       "a ghost snippet is refused honestly");
+    const auto names = dxn3::ideSnippetNames("game.py");
+    ok(names.size() >= 8, "the py shelf is stocked");
+    ok(dxn3::ideSnippetNames("game.js").size() >= 5 &&
+           dxn3::ideSnippetNames("game.cpp").size() >= 4,
+       "the js and cpp shelves are stocked too");
+    ok(dxn3::ideSnippetFamily("Makefile") == std::string("py"),
+       "an extensionless file defaults to the py shelf");
+
+    IdeState s;                      // a blank line is the stage
+    s.lines = {""};
+    s.path = "game.py";
+    s.curR = 0;
+    s.curC = 0;
+    block = *dxn3::ideSnippetFor("key", "game.py");
+    dxn3::ideInsertBlock(s, block);
+    ok(s.lines.size() == 2 && s.lines[0] == "def on_key(k):" &&
+           s.lines[1] == "    pass" && s.curR == 1 && s.curC == 8 && s.dirty,
+       "a snippet replaces the blank line, cursor rests at its end");
+    ok(dxn3::ideUndo(s) && s.lines.size() == 1 && s.lines[0] == "",
+       "a snippet insert is one honest undo step");
+
+    IdeState n;                      // code below: the block slides after
+    n.lines = {"score = 0", "run()"};
+    n.path = "game.py";
+    n.curR = 0;
+    n.curC = 9;
+    block = *dxn3::ideSnippetFor("loop", "game.py");
+    dxn3::ideInsertBlock(n, block);
+    ok(n.lines.size() == 4 && n.lines[1] == "for i in range(10):" &&
+           n.lines[2] == "    print(i)" && n.curR == 2 && n.curC == 12,
+       "a snippet slides in after the cursor line");
+    ok(dxn3::ideUndo(n) && n.lines.size() == 2,
+       "the slide-in undoes whole");
+  }
+
+  // 29. the edges: ctrl+home / ctrl+end, and the new verbs' grammar
+  {
+    using dxn3::Keys;
+    IdeState s;
+    s.lines = {"first", "second line here", "last"};
+    s.curR = 1;
+    s.curC = 5;
+    s.dirty = false;                 // a settled doc: jumps must keep it so
+    Keys h;
+    h.docHome = true;
+    dxn3::ideKey(s, h);
+    ok(s.curR == 0 && s.curC == 0, "ctrl+home jumps to the very top");
+    Keys e;
+    e.docEnd = true;
+    dxn3::ideKey(s, e);
+    ok(s.curR == 2 && s.curC == 4, "ctrl+end jumps to the very bottom");
+    ok(!s.dirty, "jumping the edges never dirties the doc");
+
+    ok(dxn3::parseCommand(":snip fn").ok() &&
+           dxn3::parseCommand(":snip fn").arg == "fn",
+       ":snip takes a name");
+    ok(!dxn3::parseCommand(":snip").ok(),
+       ":snip without a name is refused with usage");
+    ok(dxn3::parseCommand(":ruler").ok(), ":ruler is well-formed bare");
+    ok(!dxn3::parseCommand(":ruler 80").ok(),
+       ":ruler with an argument is refused");
+    ok(dxn3::parseCommand(":stats").ok(), ":stats is well-formed");
+    ok(dxn3::usageHintFor(":snip").find("fn tick") != std::string::npos,
+       "the snip whisper names the shelf");
+    ok(dxn3::usageHintFor(":ruler").find("79") != std::string::npos,
+       "the ruler whisper tells you what it does");
+    ok(dxn3::usageHintFor(":stats").find("words") != std::string::npos,
+       "the stats whisper tells you what it counts");
   }
 
   if (fails == 0) {

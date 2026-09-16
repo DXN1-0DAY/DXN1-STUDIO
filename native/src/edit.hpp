@@ -12,6 +12,7 @@
 #pragma once
 #include <algorithm>
 #include <cctype>
+#include <optional>
 #include <string>
 #include <vector>
 
@@ -48,6 +49,7 @@ struct Keys {
   bool wLeft = false, wRight = false;          // IDE: ctrl+←/→ — hop word by word
   bool delWordFwd = false;                     // IDE: ctrl+del — eat the word ahead
   bool comment = false;                        // IDE: ctrl+/ — toggle the line's comment
+  bool docHome = false, docEnd = false;        // IDE: ctrl+home/end — the edges
   std::string typed;                           // printable chars this frame
 };
 
@@ -81,7 +83,97 @@ struct IdeState {
   std::string findQ;                           // the live query
   std::vector<std::pair<int, int>> findHits;   // (row, col), in file order
   int findSel = -1;                            // the hit you're standing on
+  bool ruler = true;                           // the 79/99 column guides
 };
+
+// ── snippets: boilerplate that speaks the file's own language ───────
+// The studio hosts three dialects (py, js, cpp) and the snippets do
+// too — a "tick" snippet in game.py is `def on_tick(dt):`, in game.js
+// it's `on.tick(() => { … })`, in game.cpp it's `g.onTick = …`. Every
+// template here is checked against the real sdk/ contracts.
+struct Snip {
+  const char* name;
+  const char* text;                            // \n-separated lines
+};
+
+inline const char* ideSnippetFamily(const std::string& path) {
+  static const struct {
+    const char* ext;
+    const char* fam;
+  } table[] = {{".js", "js"},   {".mjs", "js"},   {".ts", "js"},
+               {".cpp", "cpp"}, {".cc", "cpp"},   {".cxx", "cpp"}};
+  const size_t dot = path.rfind('.');
+  if (dot == std::string::npos || dot + 1 == path.size()) return "py";
+  const std::string ext = path.substr(dot);
+  for (const auto& t : table)
+    if (ext == t.ext) return t.fam;
+  return "py";
+}
+
+inline const Snip* ideSnippetTable(const char* fam) {
+  static const Snip py[] = {
+      {"fn", "def name(arg):\n    pass"},
+      {"tick", "def on_tick(dt):\n    pass"},
+      {"key", "def on_key(k):\n    pass"},
+      {"hit", "def on_hit(a, b):\n    pass"},
+      {"start", "def on_start():\n    pass"},
+      {"loop", "for i in range(10):\n    print(i)"},
+      {"ifelse", "if cond:\n    pass\nelse:\n    pass"},
+      {"class", "class Name:\n    def __init__(self):\n        pass"},
+      {"try", "try:\n    pass\nexcept Exception as e:\n    print(e)"},
+      {"imports", "from dxn3 import *\nimport random"},
+      {"main",
+       "from dxn3 import *\n\nplayer = rect(\"player\", W // 2, H // 2, 12, 5, "
+       "\"#8b5cf6\")\nplayer.tag = \"player\"\n\ndef on_key(k):\n    if k == "
+       "\"left\":  player.x = player.x - 2\n    if k == \"right\": player.x = "
+       "player.x + 2\n\nrun()"},
+      {nullptr, nullptr}};
+  static const Snip js[] = {
+      {"fn", "function name(arg) {\n  return arg;\n}"},
+      {"tick", "on.tick(() => {\n});"},
+      {"key", "on.key((k) => {\n});"},
+      {"hit", "on.hit((a, b) => {\n});"},
+      {"loop", "for (let i = 0; i < 10; ++i) {\n  console.log(i);\n}"},
+      {"ifelse", "if (cond) {\n} else {\n}"},
+      {"class", "class Name {\n  constructor() {\n  }\n}"},
+      {nullptr, nullptr}};
+  static const Snip cpp[] = {
+      {"fn", "void name() {\n}"},
+      {"tick", "g.onTick = [&](float dt) {\n};"},
+      {"key", "g.onKey = [&](const std::string& k) {\n};"},
+      {"hit", "g.onHit = [&](dxn3::Ent& a, dxn3::Ent& b) {\n};"},
+      {"loop", "for (int i = 0; i < 10; ++i) {\n}"},
+      {nullptr, nullptr}};
+  if (fam[0] == 'j') return js;
+  if (fam[0] == 'c') return cpp;
+  return py;
+}
+
+// the snippet names this file's language speaks, in shelf order
+inline std::vector<std::string> ideSnippetNames(const std::string& path) {
+  std::vector<std::string> out;
+  for (const Snip* t = ideSnippetTable(ideSnippetFamily(path)); t->name; ++t)
+    out.push_back(t->name);
+  return out;
+}
+
+// exact-name lookup: the snippet's lines, or nothing when unknown
+inline std::optional<std::vector<std::string>> ideSnippetFor(
+    const std::string& name, const std::string& path) {
+  for (const Snip* t = ideSnippetTable(ideSnippetFamily(path)); t->name; ++t)
+    if (name == t->name) {
+      std::vector<std::string> lines;
+      std::string_view s = t->text;
+      size_t pos;
+      while ((pos = s.find('\n')) != std::string_view::npos) {
+        lines.emplace_back(s.substr(0, pos));
+        s.remove_prefix(pos + 1);
+      }
+      lines.emplace_back(s);
+      return lines;
+    }
+  return std::nullopt;
+}
 
 // the cursor clamps to whatever document it lands on
 inline void ideClamp(IdeState& s) {
@@ -441,6 +533,27 @@ inline bool ideClosesBlock(const std::string& s) {
   return false;
 }
 
+// a snippet lands at the cursor: a blank line is REPLACED (the
+// boilerplate takes the empty stage), else the block slides in AFTER the
+// cursor line. One undo step; the cursor rests at the end of the block.
+inline void ideInsertBlock(IdeState& s, const std::vector<std::string>& block) {
+  if (block.empty()) return;
+  if (s.curR >= static_cast<int>(s.lines.size()))
+    s.curR = static_cast<int>(s.lines.size()) - 1;
+  idePushUndo(s);
+  const bool blank =
+      s.lines[static_cast<size_t>(s.curR)].find_first_not_of(" \t") ==
+      std::string::npos;
+  auto at = s.lines.begin() + (blank ? s.curR : s.curR + 1);
+  if (blank) at = s.lines.erase(at);         // the empty line steps aside
+  s.lines.insert(at, block.begin(), block.end());
+  s.curR += blank ? static_cast<int>(block.size()) - 1
+                  : static_cast<int>(block.size());
+  s.curC = static_cast<int>(s.lines[static_cast<size_t>(s.curR)].size());
+  s.dirty = true;                            // the game hears about it
+  s.idle = 0;
+}
+
 // the editor owns typing: chars land at the cursor, backspace joins
 // lines, enter splits them (and carries the indent down), every edit is
 // undoable
@@ -568,6 +681,14 @@ inline void ideKey(IdeState& ide, const Keys& k) {
   if (k.wRight) ideWordFwd(ide);             // the document never hears about it
   if (k.home) ide.curC = 0;
   if (k.end) ide.curC = static_cast<int>(L[static_cast<size_t>(ide.curR)].size());
+  if (k.docHome) {                           // ctrl+home: the very top
+    ide.curR = 0;
+    ide.curC = 0;
+  }
+  if (k.docEnd) {                            // ctrl+end: the very bottom
+    ide.curR = static_cast<int>(L.size()) - 1;
+    ide.curC = static_cast<int>(L.back().size());
+  }
   if (k.pageUp) ide.curR -= ide.page;
   if (k.pageDn) ide.curR += ide.page;
   if (k.del) {                               // forward delete

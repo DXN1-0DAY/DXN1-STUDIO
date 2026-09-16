@@ -1,3 +1,32 @@
+## v3.0.19 — the ruler, the snippets and the edges
+
+- **`:snip <name>` drops boilerplate from a shelf that speaks your
+  file's language.** `tick` in game.py is `def on_tick(dt):`, in
+  game.js it's `on.tick(() => { … })`, in game.cpp it's
+  `g.onTick = [&](float dt) { … }` — every template checked against
+  the real sdk/ contracts. The py shelf stocks eleven (fn tick key
+  hit start loop ifelse class try imports main), js and cpp speak
+  their own seven and five. An exact name wins, a unique prefix
+  resolves (`:snip im` → imports), an ambiguous prefix lists, a
+  ghost is refused with the full list — and the shelf whispers its
+  names as you type. A blank line is the stage (the snippet takes
+  it over), otherwise the block slides in after the cursor line,
+  cursor resting at its end, one honest undo step.
+- **The ruler: honest guides at columns 79 and 99.** Dim dots mark
+  the classic margins in the editor pane — but only where the cell
+  is blank, so the guide never paints over your code. `:ruler`
+  toggles them off and back on.
+- **`:stats` tells you what you're holding**: lines, words, chars,
+  where you stand, which dialect the file speaks, whether the host
+  is live.
+- **`ctrl+home` / `ctrl+end` jump the edges** — the very top, the
+  very bottom, cursor honest, the document never dirtied.
+- **More whispers**: `:screenshot <part>` completes from the shots
+  already in exports/, `:w <part>` completes the campaign's scene
+  paths, `:snip <part>` completes the shelf.
+- Selftest: groups 28–29 (the snippet shelf + the edges + grammar)
+  — 206 → 229.
+
 ## v3.0.18 — the forward bite and the talking line
 
 - **`ctrl+delete` eats the word ahead** — the exact sibling of

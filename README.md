@@ -2,7 +2,7 @@
 
 ![DXN1 STUDIO 3](assets/banner.png)
 
-![version](https://img.shields.io/badge/version-3.0.18-8b5cf6?style=flat-square)
+![version](https://img.shields.io/badge/version-3.0.19-8b5cf6?style=flat-square)
 ![gates](https://github.com/DXN1-termux/DXN1-STUDIO/actions/workflows/ci.yml/badge.svg)
 ![native](https://img.shields.io/badge/native-C%2B%2023-f97316?style=flat-square)
 ![face](https://img.shields.io/badge/face-terminal_truecolor-22d3ee?style=flat-square)
@@ -112,6 +112,14 @@ viewport refreshes — *code a background, and boom, a background.*
   reports, modifier-keyed arrows, split reads) can never leak into
   your code as text again. `ctrl+↑`/`ctrl+↓` nudge the view without
   moving the cursor.
+- **The snippet shelf speaks your language.** `:snip tick` lands
+  `def on_tick(dt):` in a .py file, `on.tick(() => { … })` in a .js
+  one, `g.onTick = [&](float dt) { … }` in C++ — eleven python
+  starters, seven js, five cpp, each one honest to the sdk/ wire
+  contract; prefix-complete with whispers, one undo step to take it
+  back. Dim guides at columns 79 and 99 keep the margins visible
+  (`:ruler` toggles), `:stats` counts what you're holding, and
+  `ctrl+home`/`ctrl+end` jump the edges of the document.
 
 Keys: `ctrl+r` run · `ctrl+s` save · `ctrl+z` undo · `ctrl+y` redo ·
 `ctrl+f` find · `enter` next hit · `ctrl+d` duplicate line ·
@@ -120,9 +128,10 @@ comment toggle · `ctrl+←`/`ctrl+→` word hops ·
 `ctrl+↑`/`ctrl+↓` nudge the view ·
 `ctrl+n` next template (or `:new`) · `ctrl+g` jump to the error line ·
 `ctrl+p` screenshot of your live game · `pgup/pgdn` page · `home/end`
-line ends · `del` forward-delete · `esc` play your game fullscreen ·
-`e` back to the editor · `:open <file>` loads any script ·
-`:goto <line>` jumps the editor · `:template <name>` loads a starter ·
+line ends · `ctrl+home`/`ctrl+end` doc edges · `del` forward-delete ·
+`esc` play your game fullscreen · `e` back to the editor ·
+`:open <file>` loads any script · `:goto <line>` jumps the editor ·
+`:template <name>` loads a starter · `:snip <name>` drops boilerplate ·
 `:scene <name>` loads a demo (with
 completion whispers) · `:q` quit.
 
