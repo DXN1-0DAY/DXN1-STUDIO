@@ -28,10 +28,13 @@
 #include "shot.hpp"
 #include "logo32.hpp"
 #include "host.hpp"
+#include "edit.hpp"
 
 #include <sstream>
 
 using dxn3::RGB;
+using dxn3::Keys;          // the editor heart lives in edit.hpp
+using dxn3::IdeState;
 
 namespace {
 
@@ -69,30 +72,6 @@ bool termSize(int& cols, int& rows) {
 enum class Mode { Play, File, Cmd, Ide };
 
 // drain stdin; return the keys seen this frame
-struct Keys {
-  bool left = false, right = false, jump = false;
-  bool reset = false, fit = false, zoomIn = false, zoomOut = false;
-  bool inspect = false, quit = false;
-  bool esc = false;                            // bare ESC (mode-dependent)
-  bool viewFile = false;                       // e — open the scene source
-  bool cmd = false;                            // : — open the command bar
-  bool shot = false;                           // p — screenshot to exports/
-  int scroll = 0;                              // file view: ±1 lines (arrows ±10)
-  bool slash = false;                          // / — start a search
-  bool enter = false, back = false;
-  bool ctrlS = false, ctrlR = false;           // IDE: save / run
-  bool up = false, down = false;               // IDE: cursor rows
-  bool aLeft = false, aRight = false;          // IDE: cursor cols
-  bool toPlay = false;                         // IDE: tab — play your game
-  bool braille = false;                        // b — toggle the dot renderer
-  bool ctrlN = false;                          // IDE: next template
-  bool pageUp = false, pageDn = false;         // IDE: page through the file
-  bool del = false;                            // IDE: forward delete
-  bool home = false, end = false;              // IDE: line ends
-  bool ctrlG = false;                          // IDE: jump to the error line
-  std::string typed;                           // printable chars this frame
-};
-
 Keys pollKeys(Mode mode) {
   Keys k;
   char buf[256];
@@ -169,6 +148,9 @@ Keys pollKeys(Mode mode) {
         else if (c == 0x12) k.ctrlR = true;               // Ctrl+R — run
         else if (c == 0x0e) k.ctrlN = true;               // Ctrl+N — template
         else if (c == 0x07) k.ctrlG = true;               // Ctrl+G — error line
+        else if (c == 0x1a) k.ctrlZ = true;               // Ctrl+Z — undo
+        else if (c == 0x19) k.ctrlY = true;               // Ctrl+Y — redo
+        else if (c == 0x10) k.shot = true;                // Ctrl+P — screenshot
         else if (static_cast<unsigned char>(c) >= 0x20) k.typed += c;
       } else if (mode == Mode::File) {       // FILE VIEW: every letter is text
         if (c == '\r' || c == '\n') k.enter = true;
@@ -512,20 +494,6 @@ void drawInspect(dxn3::Screen& scr, const dxn3::Game& g) {
 // Ctrl+R runs it, and the viewport refreshes while you type. The engine
 // renders, feeds input, detects hits; your code IS the game.
 
-struct IdeState {
-  bool open = false;
-  std::vector<std::string> lines{" "};
-  int curR = 0, curC = 0, top = 0;
-  int page = 14;                             // visible rows (drawIDE refreshes)
-  std::string path;                          // the script file
-  bool dirty = true;                         // needs a (re)run
-  double idle = 0;                           // typing pause → auto-run
-  std::vector<std::string> console;          // engine notes + game prints
-  std::string state = "new file — write code, Ctrl+R runs it";
-  bool hostUp = false;
-  int tpl = -1;                                // Ctrl+N gallery index
-};
-
 // the Ctrl+N gallery: cycle real, working starting points
 const char* TPL_BLANK =
     "# blank canvas — W and H are the world size.\n"
@@ -608,50 +576,6 @@ bool ideSave(IdeState& ide, std::string* err) {
     if (i + 1 < ide.lines.size()) f << '\n';
   }
   return true;
-}
-
-void ideKey(IdeState& ide, const Keys& k) {
-  auto& L = ide.lines;
-  if (ide.curR >= static_cast<int>(L.size())) ide.curR = static_cast<int>(L.size()) - 1;
-  std::string& line = L[static_cast<size_t>(ide.curR)];
-  for (const char ch : k.typed) {
-    line.insert(line.begin() + std::min(ide.curC, static_cast<int>(line.size())), ch);
-    ++ide.curC;
-  }
-  if (k.back) {
-    if (ide.curC > 0) { line.erase(line.begin() + ide.curC - 1); --ide.curC; }
-    else if (ide.curR > 0) {                       // join with previous line
-      ide.curC = static_cast<int>(L[static_cast<size_t>(ide.curR - 1)].size());
-      L[static_cast<size_t>(ide.curR - 1)] += line;
-      L.erase(L.begin() + ide.curR);
-      --ide.curR;
-    }
-  }
-  if (k.enter) {
-    std::string rest = line.substr(static_cast<size_t>(std::min(ide.curC, static_cast<int>(line.size()))));
-    line.resize(static_cast<size_t>(std::min(ide.curC, static_cast<int>(line.size()))));
-    L.insert(L.begin() + ide.curR + 1, rest);
-    ++ide.curR;
-    ide.curC = 0;
-  }
-  if (k.up) --ide.curR;
-  if (k.down) ++ide.curR;
-  if (k.aLeft) --ide.curC;
-  if (k.aRight) ++ide.curC;
-  if (k.home) ide.curC = 0;
-  if (k.end) ide.curC = static_cast<int>(line.size());
-  if (k.pageUp) ide.curR -= ide.page;
-  if (k.pageDn) ide.curR += ide.page;
-  if (k.del) {                               // forward delete
-    if (ide.curC < static_cast<int>(line.size())) {
-      line.erase(line.begin() + ide.curC);
-    } else if (ide.curR + 1 < static_cast<int>(L.size())) {
-      L[ide.curR] += L[static_cast<size_t>(ide.curR) + 1];
-      L.erase(L.begin() + ide.curR + 1);     // join the next line up
-    }
-  }
-  ide.curR = std::clamp(ide.curR, 0, static_cast<int>(L.size()) - 1);
-  ide.curC = std::clamp(ide.curC, 0, static_cast<int>(L[static_cast<size_t>(ide.curR)].size()));
 }
 
 // syntax tint: keywords purple, strings amber, comments gray — stamped
@@ -772,8 +696,8 @@ void drawIDE(dxn3::Screen& scr, IdeState& ide, const dxn3::Game& g, bool hostUp)
   const int errLine = dxn3::consoleErrorLine(ide.console);
   const std::string hint = errLine > 0
       ? " ctrl+g jumps to line " + std::to_string(errLine) +
-        " · ctrl+r run · ctrl+n template · esc play "
-      : " ctrl+r run · ctrl+n template · ctrl+s save · esc play · q quits from play ";
+        " · ctrl+z undo · ctrl+p shot · esc play "
+      : " ctrl+r run · ctrl+z undo · ctrl+p shot · ctrl+n template · esc play ";
   const bool errorUp = errLine > 0;
   scr.text(1, c0 + 1, hint.substr(0, static_cast<size_t>(cols - 3)),
            errorUp ? dxn3::rgb(248, 113, 113) : dxn3::rgb(84, 72, 120));
@@ -810,7 +734,9 @@ int main(int argc, char** argv) {
                    "       dxn3-native --scene scenes/playground.dxn1.json    the demo campaign\n"
                    "       dxn3-native --host-cmd 'ruby game.rb'   any interpreter you have\n"
                    "       dxn3-native --list-scenes | --screenshot out.png | --version\n"
-                   "keys:  ctrl+r run · ctrl+s save · esc play/back · a/d move · w jump\n"
+                   "keys:  ctrl+r run · ctrl+s save · ctrl+z undo · ctrl+y redo\n"
+                   "       ctrl+n template · ctrl+g error line · ctrl+p screenshot\n"
+                   "       esc play/back · a/d move · w jump\n"
                    "       tab inspect · e file · : commands · p screenshot · q quit\n"
                    "your game is a child process speaking JSON on stdio — see sdk/",
                    dxn3::DXN3_VERSION);
@@ -876,7 +802,7 @@ int main(int argc, char** argv) {
           if (!ln.empty() && ln.back() == '\r') ln.pop_back();
           ide.lines.push_back(ln);
         }
-        if (ide.lines.empty()) ide.lines.push_back(" ");
+        if (ide.lines.empty()) ide.lines.push_back("");
         ide.console.push_back("engine: loaded " + scenePath);
       } else {
         ide.lines = starterLines();
@@ -925,8 +851,11 @@ int main(int argc, char** argv) {
   auto doShot = [&](std::string path) {
     if (path.empty()) path = defaultShot();
     const std::string err = dxn3::shootPNG(path, game);
-    if (err.empty()) game.say("saved " + path, 2.2);
-    else { cmdErr = err; cmdErrT = 3.5f; }
+    if (err.empty()) {
+      game.say("saved " + path, 2.2);
+      ide.console.push_back("engine: saved " + path +
+                            " — a real PNG of your frame");   // the receipt stays
+    } else { cmdErr = err; cmdErrT = 3.5f; }
   };
   ide.open = ideBoot;
   int cols0 = 100, rows0 = 24;                // world size hint, refined live
@@ -973,10 +902,16 @@ int main(int argc, char** argv) {
   };
 
   // the template gallery: ctrl+n or :new — cycle real, working starts
+  // across every language the studio hosts (py, js, compiled cpp)
   auto nextTemplate = [&]() {
-    static const char* names[] = {"blank", "shooter", "cards", "background"};
-    ide.tpl = (ide.tpl + 1) % 4;
-    const std::string name = names[ide.tpl];
+    struct Tpl { const char* name; const char* ext; };
+    static const Tpl tpls[] = {{"blank", "py"},      {"shooter", "py"},
+                               {"cards", "py"},      {"background", "py"},
+                               {"flappy", "py"},     {"bounce", "js"},
+                               {"pong", "cpp"}};
+    constexpr int nTpl = static_cast<int>(sizeof tpls / sizeof tpls[0]);
+    ide.tpl = (ide.tpl + 1) % nTpl;
+    const std::string name = tpls[ide.tpl].name;
     if (name == "blank") {
       std::string ss = TPL_BLANK;
       ide.lines.clear();
@@ -988,7 +923,8 @@ int main(int argc, char** argv) {
       if (!ss.empty()) ide.lines.push_back(ss);
       ide.path = "untitled.py";
     } else {
-      std::ifstream f(std::string("sdk/examples/") + name + ".py");
+      std::ifstream f(std::string("sdk/examples/") + name + "." +
+                      tpls[ide.tpl].ext);
       ide.lines.clear();
       std::string ln;
       while (std::getline(f, ln)) {
@@ -996,17 +932,20 @@ int main(int argc, char** argv) {
         ide.lines.push_back(ln);
       }
       if (ide.lines.empty()) {
-        ide.lines.push_back(" ");
+        ide.lines.push_back("");
         ide.console.push_back("engine: template " + name +
                               " not found on this machine");
       }
-      ide.path = std::string("untitled-") + name + ".py";
+      ide.path = std::string("untitled-") + name + "." + tpls[ide.tpl].ext;
     }
+    ide.undo.clear();                          // a new document, a fresh history
+    ide.redo.clear();
+    ide.lastTyping = ide.lastBack = false;
     ide.curR = ide.curC = ide.top = 0;
     ide.dirty = true;
     ide.idle = 0;
-    ide.console.push_back("engine: template — " + name +
-                          " (ctrl+n again to cycle)");
+    ide.console.push_back("engine: template — " + name + " (" +
+                          tpls[ide.tpl].ext + ", ctrl+n again to cycle)");
   };
 
   // the scene's own source, for FILE VIEW (e)

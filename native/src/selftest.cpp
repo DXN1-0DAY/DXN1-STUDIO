@@ -13,6 +13,7 @@
 #include "cmd.hpp"
 #include "shot.hpp"
 #include "host.hpp"
+#include "edit.hpp"
 
 using namespace dxn3;
 
@@ -198,7 +199,8 @@ int main() {
   }
 
   // 9. the version quad rides in the binary too
-  ok(std::string(dxn3::DXN3_VERSION) == "3.0.12", "native version constant is 3.0.11");
+  ok(std::string(dxn3::DXN3_VERSION) == "3.0.13",
+     "native version constant matches the release quad");
 
   // 10. png writer: checksum vectors, real structure, byte determinism
   {
@@ -466,6 +468,90 @@ int main() {
            {"  File \"a.py\", line 3, in <module>",
             "  File \"b.py\", line 44, in run"}) == 44,
        "the LAST traceback line wins — closest to the crash");
+  }
+
+  // 20. the second chance: undo/redo in the editor heart
+  {
+    using dxn3::Keys;
+    // A. typing bursts coalesce while the hand is quick
+    IdeState s;
+    Keys t; t.typed = "hello";
+    dxn3::ideKey(s, t);
+    ok(s.lines[0] == "hello", "typing lands in the buffer");
+    ok(s.undo.size() == 1, "a typing burst makes ONE undo step");
+    t.typed = " world";
+    s.idle = 0.2;                            // a quick hand: same burst
+    dxn3::ideKey(s, t);
+    ok(s.lines[0] == "hello world" && s.undo.size() == 1,
+       "quick typing coalesces into the same step");
+    s.idle = 2.0;                            // …but a pause opens a new one
+    t.typed = "!";
+    dxn3::ideKey(s, t);
+    ok(s.lines[0] == "hello world!" && s.undo.size() == 2,
+       "a pause starts a fresh undo step");
+
+    // B. walking back and forward through time
+    ok(dxn3::ideUndo(s) && s.lines[0] == "hello world",
+       "undo rewinds the last burst");
+    ok(dxn3::ideRedo(s) && s.lines[0] == "hello world!",
+       "redo walks it forward again");
+    Keys z; z.ctrlZ = true;
+    dxn3::ideKey(s, z);
+    ok(s.lines[0] == "hello world" && s.dirty,
+       "ctrl+z rewinds through the editor and re-runs the game");
+    dxn3::ideKey(s, z);
+    ok(s.lines[0] == "" && s.undo.empty(),
+       "ctrl+z walks all the way home");
+    ok(!dxn3::ideUndo(s), "undo on an empty history says no");
+
+    // C. a fresh edit after undo cuts the redo branch
+    t.typed = "x";
+    s.idle = 0.0;
+    dxn3::ideKey(s, t);
+    ok(s.lines[0] == "x" && s.redo.empty(),
+       "a fresh edit after undo clears the redo branch");
+
+    // D. enter splits, undo rejoins, backspace joins again
+    IdeState d;
+    Keys w; w.typed = "hello world";
+    dxn3::ideKey(d, w);
+    d.curC = 5;
+    Keys e; e.enter = true;
+    dxn3::ideKey(d, e);
+    ok(d.lines.size() == 2 && d.lines[0] == "hello" && d.lines[1] == " world",
+       "enter splits the line at the cursor");
+    Keys b2; b2.back = true;
+    d.idle = 0.1;
+    dxn3::ideKey(d, b2);                     // backspace at the line start
+    ok(d.lines.size() == 1 && d.lines[0] == "hello world" && d.curR == 0,
+       "backspace at the line start joins the lines back");
+    ok(dxn3::ideUndo(d) && d.lines.size() == 2 && d.curR == 1 && d.curC == 0,
+       "undo restores the split AND the cursor");
+    ok(dxn3::ideUndo(d) && d.lines.size() == 1 && d.lines[0] == "hello world",
+       "undo rejoins what enter split");
+
+    // E. forward-delete joins the next line up, undoable
+    IdeState f;
+    f.lines = {"ab", "cd"};
+    f.curR = 0; f.curC = 2;
+    Keys del; del.del = true;
+    dxn3::ideKey(f, del);
+    ok(f.lines.size() == 1 && f.lines[0] == "abcd",
+       "del at end-of-line joins the next line up");
+    ok(dxn3::ideUndo(f) && f.lines.size() == 2 && f.lines[0] == "ab",
+       "undo restores the joined line");
+
+    // F. an honest no-op on a virgin document
+    IdeState v;
+    Keys zv; zv.ctrlZ = true;
+    dxn3::ideKey(v, zv);
+    ok(v.lines.size() == 1 && v.console.back().find("nothing to undo") !=
+           std::string::npos,
+       "ctrl+z on a virgin doc says so, honestly");
+    Keys yv; yv.ctrlY = true;
+    dxn3::ideKey(v, yv);
+    ok(v.console.back().find("nothing to redo") != std::string::npos,
+       "ctrl+y with no redo branch says so too");
   }
 
   if (fails == 0) {

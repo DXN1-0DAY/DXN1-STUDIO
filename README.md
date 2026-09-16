@@ -2,7 +2,7 @@
 
 ![DXN1 STUDIO 3](assets/banner.png)
 
-![version](https://img.shields.io/badge/version-3.0.12-8b5cf6?style=flat-square)
+![version](https://img.shields.io/badge/version-3.0.13-8b5cf6?style=flat-square)
 ![gates](https://github.com/DXN1-termux/DXN1-STUDIO/actions/workflows/ci.yml/badge.svg)
 ![native](https://img.shields.io/badge/native-C%2B%2023-f97316?style=flat-square)
 ![face](https://img.shields.io/badge/face-terminal_truecolor-22d3ee?style=flat-square)
@@ -75,14 +75,21 @@ viewport refreshes — *code a background, and boom, a background.*
   and the engine sees it. C++ games `#include "dxn3.hpp"` and compile
   to a binary the studio hosts — see `sdk/examples/pong.cpp`.
 - **Examples in `sdk/examples/`:** `background.py` (the hello world),
-  `shooter.py` (bullets, score, respawning enemy), `bounce.js`
+  `shooter.py` (bullets, score, respawning enemy), `flappy.py`
+  (gravity, pipes, one-key flying), `bounce.js`
   (breakout with a steering paddle), `cards.py` (balatro-lite poker
   hands vs the blind), `pong.cpp` (a compiled C++ pong with an AI that
   caps its speed — the hardest SDK proof in the set).
+- **The editor forgives.** `ctrl+z` undoes — typing bursts coalesce the
+  way real editors group them, `enter`/`del` are their own restore
+  points, and undo restores the document AND the cursor. `ctrl+y`
+  walks it forward again; a fresh edit cuts the redo branch, honestly.
+  Two hundred steps deep, so you can code without fear.
 
-Keys: `ctrl+r` run · `ctrl+s` save · `ctrl+n` next template (or `:new`)
-· `ctrl+g` jump to the error line · `pgup/pgdn` page · `home/end` line
-ends · `del` forward-delete · `esc` play your game fullscreen ·
+Keys: `ctrl+r` run · `ctrl+s` save · `ctrl+z` undo · `ctrl+y` redo ·
+`ctrl+n` next template (or `:new`) · `ctrl+g` jump to the error line ·
+`ctrl+p` screenshot of your live game · `pgup/pgdn` page · `home/end`
+line ends · `del` forward-delete · `esc` play your game fullscreen ·
 `e` back to the editor · `:scene <name>` loads a demo (with
 completion whispers) · `:q` quit.
 
@@ -218,7 +225,8 @@ sdk/dxn3.js                 the JavaScript SDK (NODE_PATH, plain CJS)
 sdk/dxn3.hpp                the C++ SDK — compiled games, deque-stable
                             entity pointers
 sdk/PROTOCOL.md             the one-page wire contract
-sdk/examples/               background · shooter · bounce · cards · pong
+sdk/examples/               background · shooter · flappy · bounce ·
+                            cards · pong
 assets/                     the brand: emblem, banner, social card + SVG src
 scenes/*.dxn1.json          the five-scene campaign — data only
 scripts/install.sh          the curl one-liner

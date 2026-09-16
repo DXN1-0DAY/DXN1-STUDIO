@@ -85,6 +85,7 @@ def main():
 
     py_games = [("background.py", ["python3", f"{EX}/background.py"], 3),
                 ("shooter.py", ["python3", f"{EX}/shooter.py"], 3),
+                ("flappy.py", ["python3", f"{EX}/flappy.py"], 9),
                 ("cards.py", ["python3", f"{EX}/cards.py"], 12)]
     if have("python3"):
         for name, cmd, ents in py_games:

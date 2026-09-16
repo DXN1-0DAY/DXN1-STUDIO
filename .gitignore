@@ -7,3 +7,6 @@ dist/
 exports/
 native/build/
 untitled.py
+untitled-*.py
+untitled-*.js
+untitled-*.cpp

@@ -1,3 +1,41 @@
+## v3.0.13 — the second chance: an editor that forgives
+
+**ctrl+z has entered the studio**
+- **Real undo/redo.** `ctrl+z` rewinds, `ctrl+y` walks it forward
+  again — and both restore the document AND the cursor, so the second
+  chance lands you exactly where you were standing. Two hundred steps
+  deep, snapshots capped honestly, and a fresh edit after an undo cuts
+  the redo branch the way every editor you trust does.
+- **Undo groups like humans type.** A burst of typing coalesces into
+  one step while the hand is quick (the same 0.8s pause timer that
+  drives the live auto-run); a pause opens a new step; `enter`,
+  forward-delete and template loads are always their own restore
+  point. Fifteen new selftest asserts walk the whole story: bursts,
+  coalescing, rewind, redo, branch cuts, line splits and joins.
+- **The editor heart moved to `edit.hpp`** — one shared truth for the
+  IDE and the selftest, and a latent dangling-reference hardening on
+  the enter/del paths (the buffer can reallocate mid-gesture; now it
+  re-fetches).
+- **A new file starts truly empty** — no ghost leading space on line 1.
+
+**The gallery goes multilingual**
+- `ctrl+n` now cycles seven templates across every language the studio
+  hosts: `blank`, `shooter`, `cards`, `background`, `flappy` (new),
+  `bounce.js` and `pong.cpp` — the console names the language of each.
+- **`flappy.py`** — gravity, recycled pipe pairs with fresh gaps,
+  one-key flying, honest game-over and restart. The wire contract
+  probes it on every push (9 entities, scene + frames), and a
+  keys/hit/restart playtest rides in the QA kit.
+
+**Polish**
+- **`ctrl+p` screenshots your live game from the editor** — and every
+  screenshot leaves a receipt in the studio console
+  (`engine: saved exports/…png — a real PNG of your frame`).
+- The status-rail hint and `--help` now advertise
+  `ctrl+z`/`ctrl+y`/`ctrl+p`.
+- `.gitignore` covers the template gallery's `untitled-*` files, so
+  ctrl+n + auto-run no longer litters `git status`.
+
 ## v3.0.12 — the typed word: an IDE that fixes with you
 
 **The editor grows up**
