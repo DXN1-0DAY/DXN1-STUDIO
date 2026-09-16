@@ -968,7 +968,8 @@ void drawIDE(dxn3::Screen& scr, IdeState& ide, const dxn3::Game& g, bool hostUp)
   scr.text(1, c0, l1.substr(0, static_cast<size_t>(cols - 3)), dxn3::rgb(148, 156, 180));
   if (ide.findOpen) {
     // the searchlight has the rail: query, hits, the way out
-    std::string fb = " / find: " + ide.findQ + "_ ";
+    std::string fb = ide.findCase ? " / find(Aa): " : " / find: ";
+    fb += ide.findQ + "_ ";
     if (ide.findQ.empty()) fb += "type to search the whole file";
     else if (ide.findHits.empty()) fb += "no matches — esc to close";
     else fb += std::to_string(ide.findSel + 1) + "/" +
@@ -1594,6 +1595,14 @@ int main(int argc, char** argv) {
                   ? "engine: trimmed " + std::to_string(swept) + " line" +
                         (swept == 1 ? "" : "s") + " of trailing air"
                   : "engine: nothing to trim — the doc is already clean");
+        } else if (cmd.verb == "cases") {
+          if (!ide.open) ide.open = true;      // the studio takes the stage
+          ide.findCase = !ide.findCase;
+          if (ide.findOpen) dxn3::ideFindRefresh(ide);   // re-aim the light
+          ide.console.push_back(
+              ide.findCase
+                  ? "engine: find is case-SENSITIVE — Hello only greets Hello"
+                  : "engine: find forgives case — hello finds HELLO");
         } else if (cmd.verb == "stats") {
           if (!ide.open) ide.open = true;      // the studio takes the stage
           size_t words = 0, chars = 0;
@@ -1634,7 +1643,7 @@ int main(int argc, char** argv) {
           game.scene.gravity = cmd.num;
           game.say("gravity " + std::to_string(static_cast<int>(cmd.num)), 1.2);
         } else if (cmd.verb == "help") {
-          game.say(":scene :open :recent :template :snip :goto :ruler :minimap :trim :stats :zoom "
+          game.say(":scene :open :recent :template :snip :goto :ruler :minimap :trim :cases :stats :zoom "
                     ":fit :reset :new :w :wq :q :screenshot :magnet :gravity", 4.f);
         }
       } else {

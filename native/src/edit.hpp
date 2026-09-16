@@ -101,6 +101,9 @@ struct IdeState {
   // drive it with keystrokes, exactly like the editor does
   bool findOpen = false;
   std::string findQ;                           // the live query
+  bool findCase = false;                       // false: the beginner way
+                                               // — "hello" finds HELLO;
+                                               // :cases flips it strict
   std::vector<std::pair<int, int>> findHits;   // (row, col), in file order
   int findSel = -1;                            // the hit you're standing on
   bool ruler = true;                           // the 79/99 column guides
@@ -482,8 +485,9 @@ inline std::string ideRedoReceipt(const IdeState& s) {
 }
 
 // ── the searchlight ─────────────────────────────────────────────────
-// every match of the query, case-insensitively, in file order — the
-// starter IDE searches the way beginners think: "hello" finds HELLO.
+// every match of the query, in file order. The beginner way (the
+// default) is case-insensitive — "hello" finds HELLO; :cases turns
+// the light strict and only the honest exact casing answers.
 inline std::vector<std::pair<int, int>> ideFindAll(const IdeState& s,
                                                    const std::string& q) {
   std::vector<std::pair<int, int>> hits;
@@ -493,9 +497,11 @@ inline std::vector<std::pair<int, int>> ideFindAll(const IdeState& s,
       c = static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
     return x;
   };
-  const std::string needle = lower(q);
+  const std::string needle = s.findCase ? q : lower(q);
   for (int r = 0; r < static_cast<int>(s.lines.size()); ++r) {
-    const std::string hay = lower(s.lines[static_cast<size_t>(r)]);
+    const std::string hay =
+        s.findCase ? s.lines[static_cast<size_t>(r)]
+                   : lower(s.lines[static_cast<size_t>(r)]);
     size_t at = 0;
     while ((at = hay.find(needle, at)) != std::string::npos) {
       hits.emplace_back(r, static_cast<int>(at));

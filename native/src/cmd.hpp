@@ -89,7 +89,7 @@ inline Cmd parseCommand(std::string_view line) {
   } else if (c.verb == "q" || c.verb == "wq" || c.verb == "fit" ||
              c.verb == "reset" || c.verb == "help" || c.verb == "new" ||
              c.verb == "ruler" || c.verb == "stats" || c.verb == "minimap" ||
-             c.verb == "trim") {
+             c.verb == "trim" || c.verb == "cases") {
     if (!c.arg.empty())
       c.error = ":" + c.verb + " takes no argument";
   } else {
@@ -160,6 +160,8 @@ inline std::string usageHintFor(std::string_view typed) {
   if (verb == "minimap") return " :minimap — toggle the document's map rail";
   if (verb == "trim")
     return " :trim — sweep every line's trailing whitespace, one undo step";
+  if (verb == "cases")
+    return " :cases — find respects case exactly (Aa), or forgives (default)";
   if (verb == "stats") return " :stats — lines, words, chars, where you stand";
   if (verb == "w") return " :w [file] — save, a .bak is kept";
   if (verb == "wq") return " :wq — save and quit";

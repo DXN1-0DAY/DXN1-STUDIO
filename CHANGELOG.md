@@ -1,3 +1,24 @@
+## v3.0.36 — the honest case
+
+- **`:cases` flips the searchlight's sensitivity.** By default the
+  light forgives — the beginner way, "hello" finds HELLO — and one
+  command turns it strict: only the honest exact casing answers,
+  with an "(Aa)" marker on the find rail so you always know which
+  law is live. Flipping re-aims the light the INSTANT it turns (the
+  hits and the current one are recomputed mid-search, no reopening,
+  no retyping), and the console receipt names both directions
+  ("find is case-SENSITIVE — Hello only greets Hello" / "find
+  forgives case — hello finds HELLO"). The :help card and the bar's
+  usage hint name the verb before enter is ever pressed.
+- The law stays pure: `ideFindAll` reads `findCase` from the state —
+  sensitive search is a straight substring read, forgiving search is
+  the same lowercase dance as before, and nothing about hit order,
+  the forward-aim, or the wrap changes.
+- Selftest: group 47 (3 hits forgiving, the exact one strict with
+  its row and column, flipping back reopens the net, and the
+  forgiving light is deaf to casing in BOTH directions) — 397 → 402
+  assertion groups, all green.
+
 ## v3.0.35 — the sweep
 
 - **`:trim` sweeps every line's trailing whitespace.** Tail spaces

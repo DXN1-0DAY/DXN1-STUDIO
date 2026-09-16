@@ -199,7 +199,7 @@ int main() {
   }
 
   // 9. the version quad rides in the binary too
-  ok(std::string(dxn3::DXN3_VERSION) == "3.0.35",
+  ok(std::string(dxn3::DXN3_VERSION) == "3.0.36",
      "native version constant matches the release quad");
 
   // 10. png writer: checksum vectors, real structure, byte determinism
@@ -2136,6 +2136,34 @@ int main() {
     ok(dxn3::ideUndo(t1) && t1.lines[0] == "x = 1   " &&
            t1.lines[1] == "  " && t1.lines[3] == "y = 2\t\t",
        "undo puts the air back, exactly as it stood");
+  }
+
+  // 47. the honest case: :cases flips the searchlight's sensitivity
+  // and the hits re-aim the instant it turns
+  {
+    IdeState s1;
+    s1.lines = {"Hello world", "hello there", "HELLO AGAIN", "hi"};
+    s1.curR = 0;
+    s1.curC = 0;
+    s1.findOpen = true;
+    s1.findQ = "hello";
+    dxn3::ideFindRefresh(s1);
+    ok(s1.findHits.size() == 3,
+       "the beginner way: a lowercase query greets every casing");
+    ok(s1.findSel == 0 && s1.findHits[0].first == 0,
+       "the first hit aims forward from the cursor");
+    s1.findCase = true;
+    dxn3::ideFindRefresh(s1);
+    ok(s1.findHits.size() == 1 && s1.findHits[0].first == 1 &&
+           s1.findHits[0].second == 0,
+       "case-sensitive: only the honest exact casing answers");
+    s1.findCase = false;
+    dxn3::ideFindRefresh(s1);
+    ok(s1.findHits.size() == 3, "flipping back reopens the wide net");
+    s1.findQ = "HELLO";
+    dxn3::ideFindRefresh(s1);
+    ok(s1.findHits.size() == 3,
+       "the forgiving light is deaf to casing in BOTH directions");
   }
 
   if (fails == 0) {
