@@ -1,3 +1,18 @@
+## v3.0.82 — the vault (level-5 joins the campaign)
+
+- **The campaign grew a sixth scene: level-5, the vault.** It opens
+  after the gauntlet's last door: two counter-phased lifts trade the
+  first pit, a saw patrols the high deck's airspace, a ferry crosses
+  under a second saw, and a fang-lined last stretch guards the door
+  home. Five gems — one per machine, none free. The chain is
+  playground → the gap → the movers → the climb → the gauntlet → the
+  vault → back home.
+- The gates render the vault headlessly (entities=22) and resolve
+  the extended chain; the campaign field guide and the README's
+  campaign section tell the vault's story.
+- A game-side round: the IDE had nine features in nine releases —
+  the vault keeps the engine's demo campaign honest for authors.
+
 ## v3.0.81 — the other face (:sa; :42 is a goto)
 
 - **`:sa/old/new` — the swap's other face.** The WHOLE document is
