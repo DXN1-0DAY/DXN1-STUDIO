@@ -1758,15 +1758,30 @@ int main(int argc, char** argv) {
         } else if (cmd.verb == "zen") {
           // the quiet: the console rail hides, the body gains its two
           // rows; the searchlight still shows when it is up. Receipts
-          // gather silently until the quiet ends — the header carries
-          // a small "zen" so the mode never hides ITSELF.
+          // gather silently until the quiet ends — and the wake speaks
+          // its ledger: what gathered in the dark, replayed newest
+          // last, so the two-row window never buries the quiet's work.
           takeStage();
           ide.zen = !ide.zen;
-          ide.console.push_back(
-              ide.zen ? "engine: zen — the rail rests, the body breathes "
-                        "(:zen wakes it)"
-                      : "engine: the rail is back — "
-                        "everything zen gathered waits below");
+          if (ide.zen) {
+            ide.zenSince = ide.console.size();  // the ledger's first page
+            ide.console.push_back(
+                "engine: zen — the rail rests, the body breathes "
+                "(:zen wakes it)");
+          } else {
+            size_t kept = 0;
+            const std::string digest =
+                dxn3::ideZenDigest(ide.console, ide.zenSince, &kept);
+            ide.console.push_back(
+                kept == 0
+                    ? "engine: the rail is back — the quiet gathered "
+                      "nothing"
+                    : "engine: the rail is back — zen kept " +
+                          std::to_string(kept) +
+                          (kept == 1 ? " receipt" : " receipts"));
+            if (!digest.empty())
+              ide.console.push_back("engine: zen's ledger — " + digest);
+          }
         } else if (cmd.verb == "ruler") {
           takeStage();
           ide.ruler = !ide.ruler;

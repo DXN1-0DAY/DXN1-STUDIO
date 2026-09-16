@@ -1,3 +1,28 @@
+## v3.0.67 — the quiet's ledger (:zen replays what it gathered)
+
+- **`:zen` wakes with its ledger.** Receipts that gathered while the
+  rail rested used to vanish under the two-row console window — the
+  wake said "everything zen gathered waits below" and showed almost
+  none of it. Now the wake COUNTS what it kept ("zen kept 3
+  receipts") and replays the newest three in one digest line,
+  oldest first so the ledger reads chronologically, long receipts
+  trimmed honestly, the cap counting what it hides
+  ("… +N more in the console"). The entering line itself counts —
+  it was never shown either. A quiet that gathered two or fewer
+  receipts leaves them where they lie (the window already shows
+  them); a quiet that gathered nothing says so plainly.
+- The law lives in a pure, selftested `ideZenDigest(console, since,
+  kept*)` in edit.hpp; the shell only speaks it. `zenSince` rides on
+  IdeState so the selftest can drive the quiet with the same
+  keystrokes the editor uses. The `:zen` whisper now names the
+  replay ("wakes it and replays its ledger").
+- Selftest group 73 (9 asserts) — 651 → 660 groups: the count, the
+  chronological order, the newest-three cap, the 47-bytes-plus-…
+  trim, the short quiet's silence. Smoke section 13a7 (2 checks) —
+  123 → 125: two dark `:ruler` receipts, the wake counts 3 and the
+  digest rides the newest row; the zen wake receipt now asserts the
+  honest count ("zen kept 1 receipt").
+
 ## v3.0.66 — the selection's own census (:stats)
 
 - **`:stats` answers for the selection.** With a selection live, the

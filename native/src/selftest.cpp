@@ -199,7 +199,7 @@ int main() {
   }
 
   // 9. the version quad rides in the binary too
-  ok(std::string(dxn3::DXN3_VERSION) == "3.0.66",
+  ok(std::string(dxn3::DXN3_VERSION) == "3.0.67",
      "native version constant matches the release quad");
 
   // 10. png writer: checksum vectors, real structure, byte determinism
@@ -3341,6 +3341,76 @@ int main() {
     dxn3::IdeSelStats whole = dxn3::ideSelStats(s, {1, 0, 2, 3});
     ok(whole.lines == 2 && whole.words == 3 && whole.chars == 17,
        "a whole-line range counts the full lines");
+  }
+
+  // 73. the quiet's ledger: :zen wakes and replays what it gathered —
+  // the entering line counts (it was never shown either), the newest
+  // three ride the digest oldest-first, the cap counts its hidden
+  {
+    IdeState s;
+    s.console = {"engine: boot noise"};
+    s.zenSince = s.console.size();
+    s.console.push_back("engine: zen — the rail rests");
+    s.console.push_back("engine: trimmed 3 lines of trailing air");
+    s.console.push_back("engine: opened scenes/level-1");
+    size_t kept = 999;
+    const std::string d =
+        dxn3::ideZenDigest(s.console, s.zenSince, &kept);
+    ok(kept == 3, "everything from zenSince counts — even the entering line");
+    ok(d.find("zen — the rail rests") < d.find("trimmed 3 lines") &&
+           d.find("trimmed 3 lines") < d.find("opened scenes/level-1"),
+       "the ledger reads chronologically (oldest first)");
+
+    // the cap: five receipts, the newest three ride, the count is honest
+    IdeState m;
+    m.console = {"engine: boot noise"};
+    m.zenSince = m.console.size();
+    m.console.push_back("engine: r1");
+    m.console.push_back("engine: r2");
+    m.console.push_back("engine: r3");
+    m.console.push_back("engine: r4");
+    m.console.push_back("engine: r5");
+    size_t kept2 = 0;
+    const std::string d2 =
+        dxn3::ideZenDigest(m.console, m.zenSince, &kept2);
+    ok(kept2 == 5, "five receipts, five counted");
+    ok(d2.find("r3") != std::string::npos && d2.find("r4") != std::string::npos &&
+           d2.find("r5") != std::string::npos && d2.find("r1") == std::string::npos &&
+           d2.find("r2") == std::string::npos,
+       "the digest carries the NEWEST three");
+    ok(d2.find("… +2 more in the console") != std::string::npos,
+       "the cap counts what it hides");
+
+    // the trim: a long receipt keeps its head, honestly cut — the
+    // short-quiet law stays out of the way (three receipts ride)
+    IdeState long_;
+    long_.console = {"engine: boot"};
+    long_.zenSince = long_.console.size();
+    long_.console.push_back("engine: r1");
+    long_.console.push_back("engine: r2");
+    long_.console.push_back(std::string(60, 'x'));
+    const std::string d3 =
+        dxn3::ideZenDigest(long_.console, long_.zenSince, nullptr);
+    const std::string tail = d3.substr(d3.size() - 50);
+    ok(d3.rfind("engine: r2 · ") != std::string::npos &&
+           d3.rfind("engine: r2 · ") + std::string("engine: r2 · ").size() ==
+               d3.size() - 50,
+       "the long receipt rides last, after the ledger's " " · ");
+    ok(tail[0] == 'x' && tail[46] == 'x' && tail[47] == '\xe2' &&
+           tail[48] == '\x80' && tail[49] == '\xa6',
+       "a receipt too long is trimmed to 47 bytes + the … tail");
+
+    // a short quiet leaves the window's work where it lies
+    IdeState small;
+    small.console = {"engine: boot"};
+    small.zenSince = small.console.size();
+    small.console.push_back("engine: zen — the rail rests");
+    size_t kept3 = 0;
+    ok(dxn3::ideZenDigest(small.console, small.zenSince, &kept3).empty() &&
+           kept3 == 1,
+       "one gathered receipt needs no digest — the window shows it");
+    ok(dxn3::usageHintFor(":zen").find("replays") != std::string::npos,
+       "the bar whispers the wake's replay");
   }
 
 

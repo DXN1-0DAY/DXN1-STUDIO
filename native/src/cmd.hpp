@@ -200,7 +200,8 @@ inline std::string usageHintFor(std::string_view typed) {
   if (verb == "ruler") return " :ruler — toggle the 79/99 column guides";
   if (verb == "minimap") return " :minimap — toggle the document's map rail";
   if (verb == "zen")
-    return " :zen — the rail rests, the body breathes; :zen wakes it";
+    return " :zen — the rail rests, the body breathes; :zen wakes it and "
+           "replays its ledger";
   if (verb == "trim")
     return " :trim — sweep every line's trailing whitespace, one undo step";
   if (verb == "cases")

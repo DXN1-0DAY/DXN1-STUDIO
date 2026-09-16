@@ -351,9 +351,10 @@ def main():
               repr(scr.cell(ROWS - 2, GUTTER + 1)))
         # wake: :zen again
         scr, _ = s.run_verb("zen", "ide")
-        check("the rail is back — its receipt speaks",
-              "the rail is back" in scr.text(ROWS - 2),
-              repr(scr.text(ROWS - 2)[:40]))
+        check("the rail is back — its receipt speaks the count",
+              "the rail is back" in scr.text(ROWS - 2) and
+              "zen kept 1 receipt" in scr.text(ROWS - 2),
+              repr(scr.text(ROWS - 2)[:60]))
         check("the hint rail is back",
               "ctrl+r run" in scr.text(ROWS - 1))
         check("the header no longer says zen",
@@ -880,6 +881,22 @@ def main():
         check(":stats speaks the selection's truth (newest, at the tail)",
               "engine: the selection — 2 lines · " in scr.text(ROWS - 2),
               repr(scr.text(ROWS - 2)[:60]))
+
+        # ── 13a7. the quiet's ledger — zen replays what it gathered ──
+        print("── 13a7. :zen — the wake replays its ledger")
+        s.run_verb("zen", "ide")               # enter the quiet
+        s.run_verb("ruler", "ide")             # a receipt, in the dark
+        s.run_verb("ruler", "ide")             # back — two dark receipts
+        scr, _ = s.run_verb("zen", "ide")      # the wake
+        check("the wake counts what the quiet gathered",
+              "zen kept 3 receipts" in scr.text(ROWS - 2) or
+              "zen kept 3 receipts" in scr.text(ROWS - 1),
+              repr(scr.text(ROWS - 2)[:60]) + " / " +
+              repr(scr.text(ROWS - 1)[-40:]))
+        check("the digest rides the newest row (the ledger line)",
+              "zen's ledger —" in scr.text(ROWS - 2) and
+              "engine: zen — the rail rests" in scr.text(ROWS - 2),
+              repr(scr.text(ROWS - 2)[:70]))
 
         # ── 13b. the pen — :w saves the script, the .bak keeps the past
         print("── 13b. the pen — :w writes the doc, a .bak keeps the past")

@@ -152,6 +152,10 @@ struct IdeState {
   // of code. The searchlight still gets its row when it is up; receipts
   // gather silently until the quiet ends. :zen toggles.
   bool zen = false;
+  // where the quiet began: the console's size when zen entered, so the
+  // wake can count (and replay) everything gathered in the dark. The
+  // entering line itself counts — it was never shown either.
+  size_t zenSince = 0;
   // relative line numbers: the gutter counts the distance from the
   // hand (the vim way) and the hand's own line keeps its true name.
   // :relnum toggles; the absolutes always come back.
@@ -835,6 +839,44 @@ inline std::string ideTodoWhisper(const IdeState& s, size_t maxTodos = 6) {
   if (hits.size() > maxTodos)
     out += " · … +" + std::to_string(hits.size() - maxTodos) +
            " deeper in the file";
+  return out;
+}
+
+// ── the quiet's ledger: what zen gathered while the rail rested ─────
+// When zen wakes, its gathered receipts deserve one honest word. The
+// digest walks the console slice from `since` (where zen entered —
+// the entering line counts, it was never shown either), trims each
+// receipt, and joins the NEWEST three with " · " oldest first so the
+// ledger reads chronologically. Kept is reported back; a quiet that
+// gathered two or fewer leaves them where they lie (the two-row
+// window already shows them). Pure and selftested.
+inline std::string ideZenDigest(const std::vector<std::string>& console,
+                                size_t since, size_t* keptOut = nullptr) {
+  if (keptOut) *keptOut = 0;
+  if (since >= console.size()) return "";
+  const size_t kept = console.size() - since;
+  if (keptOut) *keptOut = kept;
+  if (kept <= 2) return "";    // the two-row window already shows them
+  constexpr size_t kMaxShown = 3;
+  auto trimmed = [](const std::string& l) {
+    size_t a = 0, b = l.size();
+    while (a < b && std::isspace(static_cast<unsigned char>(l[a]))) ++a;
+    while (b > a && std::isspace(static_cast<unsigned char>(l[b - 1]))) --b;
+    std::string out = l.substr(a, b - a);
+    if (out.size() > 48) out = out.substr(0, 47) + "…";
+    return out;
+  };
+  std::string out;
+  size_t taken = 0;
+  for (size_t i = console.size(); i-- > since;) {
+    if (taken == kMaxShown) break;
+    const std::string r = trimmed(console[i]);
+    out = out.empty() ? r : (r + " · " + out);   // the older rides ahead
+    ++taken;
+  }
+  if (kept > kMaxShown)
+    out += " · … +" + std::to_string(kept - kMaxShown) +
+           " more in the console";
   return out;
 }
 
