@@ -123,6 +123,7 @@ Keys pollKeys(Mode mode) {
             case 'A':
               if (mode == Mode::Ide && mod == 5) k.scroll -= 1;  // nudge the view
               else if (mode == Mode::Ide && mod == 2) k.sUp = true;
+              else if (mode == Mode::Ide && mod == 3) k.altUp = true;  // the ride
               else if (mod == 0) {
                 if (mode == Mode::Ide) k.up = true;
                 else if (mode == Mode::File) k.scroll -= 1;
@@ -132,6 +133,7 @@ Keys pollKeys(Mode mode) {
             case 'B':
               if (mode == Mode::Ide && mod == 5) k.scroll += 1;
               else if (mode == Mode::Ide && mod == 2) k.sDown = true;
+              else if (mode == Mode::Ide && mod == 3) k.altDown = true;
               else if (mod == 0) {
                 if (mode == Mode::Ide) k.down = true;
                 else if (mode == Mode::File) k.scroll += 1;

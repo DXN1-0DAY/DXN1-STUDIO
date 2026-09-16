@@ -57,6 +57,8 @@ struct Keys {
   bool comment = false;                        // IDE: ctrl+/ — toggle the line's comment
   bool docHome = false, docEnd = false;        // IDE: ctrl+home/end — the edges
   bool sUp = false, sDown = false;             // IDE: shift+↑/↓ — extend the selection
+  bool altUp = false, altDown = false;         // IDE: alt+↑/↓ — the ride:
+                                               // lift/drop without the bar
   bool sLeft = false, sRight = false;          // IDE: shift+←/→ — extend the selection
   bool sWLeft = false, sWRight = false;        // IDE: shift+ctrl+←/→ — select
                                                // word by word
@@ -1843,6 +1845,27 @@ inline void ideKey(IdeState& ide, const Keys& k) {
   // is the leap's alone.
   if (k.leap) {
     ideLeapToPartner(ide);
+    ide.lastTyping = ide.lastBack = false;
+    ide.idle = 0;
+    return;
+  }
+
+  // ── the ride in the hands: alt+↑/↓ — :lift/:drop without opening
+  // the bar. The bed is the selection's lines, or the hand's line;
+  // the pins ride along; ONE undo step each ("lift"/"drop"); the
+  // edges refuse with the honest receipt, never a phantom step.
+  if (k.altUp || k.altDown) {
+    const bool down = k.altDown;
+    const int rode = ideMoveSel(ide, down);
+    if (rode > 0)
+      ide.console.push_back(
+          "engine: " + std::to_string(rode) + " line" +
+          (rode == 1 ? "" : "s") +
+          (down ? " dropped one line — the pins rode along"
+                : " lifted one line — the pins rode along"));
+    else
+      ide.console.push_back(down ? "engine: nothing below to drop into"
+                                 : "engine: nothing above to lift into");
     ide.lastTyping = ide.lastBack = false;
     ide.idle = 0;
     return;

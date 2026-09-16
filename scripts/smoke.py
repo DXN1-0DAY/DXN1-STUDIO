@@ -52,6 +52,8 @@ F2_CTRL = ESC + "[15;5~"
 F2_SHIFT = ESC + "[15;2~"
 F3 = ESC + "[16~"
 F3_SHIFT = ESC + "[16;2~"
+ALT_UP = ESC + "[1;3A"
+ALT_DOWN = ESC + "[1;3B"
 CTRL_END = ESC + "[1;5F"
 UP = ESC + "[A"
 S_UP = ESC + "[1;2A"
@@ -709,6 +711,43 @@ def main():
               scr.text(ROWS - 4)[GUTTER:GUTTER + 2] == "zz" and
               scr.text(ROWS - 3)[GUTTER:GUTTER + 2] == "aa",
               repr(scr.text(ROWS - 4)[:12] + scr.text(ROWS - 3)[:12]))
+
+        # ── 11b. the ride in the hands — alt+↑/↓ without the bar ───
+        print("── 11b. the ride in the hands — alt+arrows lift and drop")
+        s.send(CTRL_END)                  # the hand: the last line (aa)
+        s.settle(0.25)
+        s.send(ALT_DOWN)                  # the edge refuses
+        scr = s.settle(0.3)
+        check("alt+down at the edge refuses, never guesses",
+              "nothing below to drop into" in scr.text(ROWS - 2),
+              repr(scr.text(ROWS - 2)[:60]))
+        s.send(ALT_UP)                    # the aa line lifts
+        scr = s.settle(0.3)
+        check("alt+up lifts the hand's line (the keys speak the law)",
+              "1 line lifted one line — the pins rode along"
+              in scr.text(ROWS - 2), repr(scr.text(ROWS - 2)[:60]))
+        s.settle(2.5)                     # the burst decays before a
+        scr = s.screen()                  # body-text assert
+        check("the tail shows the lift (aa above zz now)",
+              scr.text(ROWS - 4)[GUTTER:GUTTER + 2] == "aa" and
+              scr.text(ROWS - 3)[GUTTER:GUTTER + 2] == "zz",
+              repr(scr.text(ROWS - 4)[:12] + scr.text(ROWS - 3)[:12]))
+        s.send(ALT_DOWN)                  # the ride home, by keys alone
+        scr = s.settle(0.3)
+        check("alt+down names the ride home",
+              "1 line dropped one line" in scr.text(ROWS - 2),
+              repr(scr.text(ROWS - 2)[:60]))
+        s.settle(2.5)
+        scr = s.screen()
+        check("the tail restored (the round trip by keys is honest)",
+              scr.text(ROWS - 4)[GUTTER:GUTTER + 2] == "zz" and
+              scr.text(ROWS - 3)[GUTTER:GUTTER + 2] == "aa",
+              repr(scr.text(ROWS - 4)[:12] + scr.text(ROWS - 3)[:12]))
+
+        scr, _ = s.run_verb("goto 42", "ide")     # hand the ride's landing
+        check("the keys' landing hands off clean (line 42)",
+              "jumped to line 42" in scr.text(ROWS - 2),
+              repr(scr.text(ROWS - 2)[:60]))
 
         # ── 12. the echo — :dup says the hand's line twice ───────────
         print("── 12. the echo — the hand's line says it twice")

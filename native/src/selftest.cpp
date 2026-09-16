@@ -199,7 +199,7 @@ int main() {
   }
 
   // 9. the version quad rides in the binary too
-  ok(std::string(dxn3::DXN3_VERSION) == "3.0.55",
+  ok(std::string(dxn3::DXN3_VERSION) == "3.0.56",
      "native version constant matches the release quad");
 
   // 10. png writer: checksum vectors, real structure, byte determinism
@@ -3008,6 +3008,63 @@ int main() {
     ok(h6.anchorR < 0, "the walk abandons the selection, like every hop");
     ok(h6.undo.empty() && h6.redo.empty(),
        "nothing to undo — nothing happened");
+  }
+
+  // 64. the ride in the hands: alt+↑/↓ — :lift/:drop without the
+  // bar, the same bed law (selection or the hand's line), the pins
+  // ride, the edges refuse without a phantom step, one undo each
+  {
+    IdeState r1;
+    r1.lines = {"a", "b", "c", "d"};
+    r1.curR = 1;
+    Keys ad;
+    ad.altDown = true;
+    dxn3::ideKey(r1, ad);
+    ok(r1.lines[1] == "c" && r1.lines[2] == "b",
+       "alt+down drops the hand's line below its neighbor");
+    ok(r1.curR == 2, "the hand rides the block's head");
+    ok(r1.undo.size() == 1 && r1.undo.back().what == "drop",
+       "the drop is ONE undo step named drop");
+    ok(r1.dirty, "the ride dirties — the auto-run will host it");
+    Keys au;
+    au.altUp = true;
+    dxn3::ideKey(r1, au);
+    ok(r1.lines[1] == "b" && r1.lines[2] == "c" && r1.curR == 1,
+       "alt+up brings the line home");
+
+    IdeState r2;                     // the edge refuses
+    r2.lines = {"a", "b"};
+    r2.curR = 1;
+    r2.dirty = false;
+    dxn3::ideKey(r2, ad);
+    ok(r2.lines.size() == 2 && r2.lines[1] == "b" && r2.undo.empty() &&
+       !r2.dirty,
+       "nothing below to drop into — no phantom step, no undo");
+    ok(r2.console.back().find("nothing below") != std::string::npos,
+       "the refusal speaks its edge");
+
+    IdeState r3;                     // the pins ride
+    r3.lines = {"a", "b", "c"};
+    r3.curR = 0;
+    dxn3::ideMarkToggle(r3, 0);      // a pin on the bed
+    dxn3::ideMarkToggle(r3, 2);      // a pin far below, unmoved
+    dxn3::ideKey(r3, ad);
+    ok(r3.marks[0] == 1 && r3.marks[1] == 2,
+       "the bed's pin rides down, the far pin stays");
+
+    IdeState r4;                     // a selection bed rides whole
+    r4.lines = {"a", "b", "c", "d"};
+    r4.anchorR = 0;
+    r4.anchorC = 0;
+    r4.curR = 1;
+    r4.curC = 1;                     // the bed: lines 0-1
+    dxn3::ideKey(r4, ad);
+    ok(r4.lines[0] == "c" && r4.lines[1] == "a" && r4.lines[2] == "b" &&
+           r4.lines[3] == "d",
+       "a selected bed drops as one block (the neighbor slides up)");
+    ok(r4.undo.back().what == "drop", "the block's ride is one step too");
+    ok(dxn3::usageHintFor(":lift").find("one line up") != std::string::npos,
+       "the bar's whisper still names the ride the keys now speak");
   }
 
 

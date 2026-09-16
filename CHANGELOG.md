@@ -1,3 +1,19 @@
+## v3.0.56 — the ride in the hands
+
+- **alt+↑ / alt+↓ — :lift and :drop without opening the bar.** The
+  xterm modifier digit 3 joins the arrow grammar (shift=2 selects,
+  ctrl=5 nudges the view, alt=3 now rides). The bed law is the bar's
+  own: the selection's lines move as one block, or the hand's line
+  when nothing is selected; the pins ride along (the displaced
+  neighbor's pin lands where the neighbor went); the hand lands on
+  the block's head; each ride is ONE undo step ("lift"/"drop"); the
+  edges refuse with the honest receipt — "nothing above to lift
+  into" / "nothing below to drop into" — never a phantom step, and
+  the receipts name the ride exactly as the verbs do.
+- Selftest group 64 (11 asserts) — 588 → 599 groups. Smoke grew the
+  ride-in-the-hands section (the edge refusal, the lift, the tail's
+  truth, the drop home, the clean handoff) — 81 → 87 checks.
+
 ## v3.0.55 — the hunt
 
 - **F3 and shift+F3 — the walk that outlives the bar.** Close the
