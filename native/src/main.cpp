@@ -193,12 +193,11 @@ Keys pollKeys(Mode mode) {
               if (mode == Mode::Ide) k.backTab = true;   // shift+tab — dedent
               break;
             case 'M': {
-              // SGR mouse press: ESC[<b;x;yM — button 0 is the left
-              // click, +4 when shift rides along. Releases ('m'), the
-              // other buttons and the wheel stay silent; the terminal
-              // counts cells from 1, the studio from 0.
-              if (mode != Mode::Ide || params.empty() || params[0] != '<')
-                break;
+              // SGR mouse report: ESC[<b;x;yM — button 0 is the left
+              // click (+4 with shift), 64/65 are the wheel up/down.
+              // Releases ('m') and every other button stay silent; the
+              // terminal counts cells from 1, the studio from 0.
+              if (params.empty() || params[0] != '<') break;
               int nums[3] = {0, 0, 0};
               size_t p = 1;
               bool okNums = true;
@@ -219,11 +218,17 @@ Keys pollKeys(Mode mode) {
                 }
                 p = semi + 1;
               }
-              if (okNums && (nums[0] == 0 || nums[0] == 4) &&
-                  nums[1] > 0 && nums[2] > 0) {
-                k.clickC = nums[1] - 1;
-                k.clickR = nums[2] - 1;
-                k.clickShift = nums[0] == 4;
+              if (okNums && nums[1] > 0 && nums[2] > 0) {
+                if (nums[0] == 0 || nums[0] == 4) {      // left press
+                  if (mode == Mode::Ide) {
+                    k.clickC = nums[1] - 1;
+                    k.clickR = nums[2] - 1;
+                    k.clickShift = nums[0] == 4;
+                  }
+                } else if (nums[0] == 64 || nums[0] == 65) {   // the wheel
+                  if (mode == Mode::Ide || mode == Mode::File)
+                    k.scroll += nums[0] == 64 ? -3 : 3;
+                }
               }
               break;
             }
@@ -1707,7 +1712,8 @@ int main(int argc, char** argv) {
           keys.sUp || keys.sDown || keys.sLeft || keys.sRight ||
           keys.sWLeft || keys.sWRight)
         ide.idle = 0;
-      if (keys.scroll != 0) ide.top += keys.scroll;   // ctrl+↑/↓ nudge the view
+      if (keys.scroll != 0) { dxn3::ideScroll(ide, keys.scroll); fprintf(stderr, "[AFTER top=%d cur=%d open=%d]", ide.top, ide.curR, ide.open ? 1 : 0); }   // the wheel
+                                                // and the ctrl+↑/↓ nudge
       if (keys.ctrlS) {
         std::string err;
         if (ideSave(ide, &err)) ide.console.push_back("engine: saved " + ide.path);

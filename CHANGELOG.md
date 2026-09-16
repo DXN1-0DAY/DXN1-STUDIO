@@ -1,3 +1,24 @@
+## v3.0.25 — the wheel
+
+- **The mouse wheel rolls.** SGR buttons 64/65 (wheel up/down) slide
+  the editor's view three lines per notch — and in the file view too.
+  The pager contract holds: the hand is never lost out of sight, so a
+  scroll that would leave the cursor behind carries it along the
+  edge (`ideScroll`, pure and selftest-covered). Looking around —
+  clicks or wheel — never dirties the doc; your game never re-runs
+  because you moved.
+- **A real bug died on the operating table.** `ideScroll`'s first
+  draft clamped the view to `lines − 1` while the draw clamps to
+  `lines − page`; on documents that fit the viewport the two
+  disagreed, the top oscillated, and the wheel died after one notch.
+  The smoke caught it; the fix makes both maxes the same.
+- Selftest: group 37 (ride down, ride home, the void clamp, zero
+  no-op, the hand mid-view stays) — 323 → 330. Smoke: 80 → 85
+  checks — flappy returns for the wheel (the ceremony's 16-line doc
+  honestly has nothing to scroll), 8 down-notches show line-40's
+  gutter with the hand riding to Ln 25, 8 up-notches come home, and
+  no wheel bytes ever leak into the document.
+
 ## v3.0.24 — the pointer
 
 - **The studio hears the mouse.** SGR click tracking (`?1000;1006h`,

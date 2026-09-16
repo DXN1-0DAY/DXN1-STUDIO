@@ -759,6 +759,25 @@ inline bool ideClosesBlock(const std::string& s) {
   return false;
 }
 
+// ── the wheel and the nudge: the view slides, the hand rides ────────
+// ctrl+↑/↓ nudge one line, the mouse wheel slides three; either way
+// the honest pager contract holds — the hand is never lost out of
+// sight. The view moves first; a hand that would fall off the edge
+// rides along with it. Looking around never dirties the doc.
+inline void ideScroll(IdeState& s, int delta) {
+  if (delta == 0) return;
+  fprintf(stderr, "[SCROLL d=%d top=%d cur=%d page=%d lines=%d]", delta, s.top, s.curR, s.page, (int)s.lines.size());
+  const int page = s.page > 0 ? s.page : 1;
+  // the SAME max the draw clamps to (a full last page) — a disagreeing
+  // max here made the top oscillate and the wheel die after one notch
+  const int maxTop = std::max(0, static_cast<int>(s.lines.size()) - page);
+  s.top = std::clamp(s.top + delta, 0, maxTop);
+  if (s.curR < s.top) s.curR = s.top;                    // rode past the top
+  if (s.curR >= s.top + page) s.curR = s.top + page - 1; // …or the bottom
+  ideClamp(s);
+  s.idle = 0;
+}
+
 // ── the minimap: the whole document, compressed, at a glance ────────
 // One doc line becomes one map row; leading whitespace compresses 2:1
 // (deep nests stay inside six columns) and a run of text compresses to

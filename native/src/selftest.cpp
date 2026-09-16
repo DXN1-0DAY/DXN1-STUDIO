@@ -199,7 +199,7 @@ int main() {
   }
 
   // 9. the version quad rides in the binary too
-  ok(std::string(dxn3::DXN3_VERSION) == "3.0.24",
+  ok(std::string(dxn3::DXN3_VERSION) == "3.0.25",
      "native version constant matches the release quad");
 
   // 10. png writer: checksum vectors, real structure, byte determinism
@@ -1730,6 +1730,44 @@ int main() {
     dxn3::ideKey(c5, ck5);
     ok(c5.curR == 0 && c5.curC == 2,
        "a frame without a click leaves the hand alone");
+  }
+
+  // 37. the wheel and the nudge: the view slides, the hand rides the
+  // edge — the honest pager contract
+  {
+    IdeState sc;
+    sc.lines.clear();                  // the fresh-doc empty line steps aside
+    for (int i = 0; i < 100; ++i) sc.lines.push_back("line " + std::to_string(i));
+    sc.page = 10;                      // the viewport the draw paints
+    sc.dirty = false;                  // the wheel must never flip this
+    dxn3::ideScroll(sc, 30);           // a deep wheel down
+    ok(sc.top == 30 && sc.curR == 30,
+       "a scroll past the hand carries it on the top edge");
+    ok(!sc.dirty,
+       "the wheel never dirties the doc");
+    dxn3::ideScroll(sc, -50);          // and back up past it
+    ok(sc.top == 0 && sc.curR == 9,
+       "riding home lands the hand on the viewport's bottom edge");
+    dxn3::ideScroll(sc, 1000);         // the wheel to the void
+    ok(sc.top == 90 && sc.curR == 90,
+       "the view clamps at the last full page, the hand with it");
+    dxn3::ideScroll(sc, -1000);
+    ok(sc.top == 0 && sc.curR == 9,
+       "and coming home, the hand rides the bottom edge");
+    const int rBefore = sc.curR, tBefore = sc.top;
+    dxn3::ideScroll(sc, 0);
+    ok(sc.curR == rBefore && sc.top == tBefore,
+       "a zero slide is a no-op");
+
+    IdeState mid;                      // a hand mid-view is untouched
+    mid.lines.clear();
+    for (int i = 0; i < 100; ++i) mid.lines.push_back("line " + std::to_string(i));
+    mid.page = 10;
+    mid.top = 5;
+    mid.curR = 8;
+    dxn3::ideScroll(mid, 2);
+    ok(mid.top == 7 && mid.curR == 8,
+       "a nudge that keeps the hand in view leaves it alone");
   }
 
   if (fails == 0) {
