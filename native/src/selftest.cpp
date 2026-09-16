@@ -199,7 +199,7 @@ int main() {
   }
 
   // 9. the version quad rides in the binary too
-  ok(std::string(dxn3::DXN3_VERSION) == "3.0.41",
+  ok(std::string(dxn3::DXN3_VERSION) == "3.0.42",
      "native version constant matches the release quad");
 
   // 10. png writer: checksum vectors, real structure, byte determinism
@@ -2334,6 +2334,41 @@ int main() {
     ok(dxn3::usageHintFor(":zen").find("rail") != std::string::npos,
        "the hint names what rests — the rail");
   }
+
+  // 52. the ordering, descending: :rsort is the sort's mirror - the
+  // same bed, the same refusals, the lines land Z before A
+  {
+    IdeState r1s;
+    r1s.lines = {"zebra", "mango", "apple", "kiwi", "end"};
+    r1s.curR = 1;
+    r1s.curC = 2;                      // anchor inside the block
+    r1s.anchorR = 3;
+    r1s.anchorC = 1;
+    const int ordered = dxn3::ideRsortSel(r1s);
+    ok(ordered == 3, "rsort counts the selected lines too");
+    ok(r1s.lines[0] == "zebra" && r1s.lines[1] == "mango" &&
+           r1s.lines[2] == "kiwi" && r1s.lines[3] == "apple" &&
+           r1s.lines[4] == "end",
+       "the selected range lands Z before A, the world outside rests");
+    ok(r1s.curR == 1 && r1s.curC == 0,
+       "the hand rests at the head of the rsorted block");
+    ok(!r1s.undo.empty() && r1s.undo.back().what == "rsort" && r1s.dirty,
+       "the descending order is one restore point, named rsort");
+    ok(dxn3::ideUndo(r1s) && r1s.lines[1] == "mango" &&
+           r1s.lines[3] == "kiwi",
+       "undo unorders the rsort, exactly as it stood");
+    ok(!dxn3::ideSelRange(r1s),
+       "the selection lets go when the lines land");
+
+    const auto rc = dxn3::parseCommand(":rsort");
+    ok(rc.ok() && rc.verb == "rsort",
+       "parseCommand reads :rsort - the mirror is a verb");
+    ok(!dxn3::parseCommand(":rsort now").ok(),
+       ":rsort with an argument is refused - the bed is the selection");
+    ok(dxn3::usageHintFor(":rsort").find("Z before A") != std::string::npos,
+       "the bar whispers the descending law");
+  }
+
 
   if (fails == 0) {
     std::println("native selftest: all green ({} assertion groups)", n);

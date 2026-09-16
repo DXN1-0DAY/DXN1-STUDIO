@@ -95,6 +95,7 @@ inline Cmd parseCommand(std::string_view line) {
              c.verb == "reset" || c.verb == "help" || c.verb == "new" ||
              c.verb == "ruler" || c.verb == "stats" || c.verb == "minimap" ||
              c.verb == "trim" || c.verb == "cases" || c.verb == "sort" ||
+             c.verb == "rsort" ||
              c.verb == "mark" || c.verb == "marks" || c.verb == "zen") {
     if (!c.arg.empty())
       c.error = ":" + c.verb + " takes no argument";
@@ -177,6 +178,8 @@ inline std::string usageHintFor(std::string_view typed) {
     return " :cases — find respects case exactly (Aa), or forgives (default)";
   if (verb == "sort")
     return " :sort — order the selected lines, A before B, one undo step";
+  if (verb == "rsort")
+    return " :rsort — the selected lines land Z before A, one undo step";
   if (verb == "stats") return " :stats — lines, words, chars, where you stand";
   if (verb == "w") return " :w [file] — save, a .bak is kept";
   if (verb == "wq") return " :wq — save and quit";

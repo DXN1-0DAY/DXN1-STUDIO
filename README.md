@@ -2,7 +2,7 @@
 
 ![DXN1 STUDIO 3](assets/banner.png)
 
-![version](https://img.shields.io/badge/version-3.0.41-8b5cf6?style=flat-square)
+![version](https://img.shields.io/badge/version-3.0.42-8b5cf6?style=flat-square)
 ![gates](https://github.com/DXN1-termux/DXN1-STUDIO/actions/workflows/ci.yml/badge.svg)
 ![native](https://img.shields.io/badge/native-C%2B%2023-f97316?style=flat-square)
 ![face](https://img.shields.io/badge/face-terminal_truecolor-22d3ee?style=flat-square)
@@ -192,7 +192,9 @@ viewport refreshes — *code a background, and boom, a background.*
 - **Housekeeping verbs.** `:trim` sweeps every line's trailing
   whitespace in one undo step (a clean doc is refused without a
   phantom step); `:sort` orders the selected lines, A before B, the
-  hand landing at the block's head; `:goto <line>` jumps the editor;
+  hand landing at the block's head; `:rsort` is the mirror — the
+  same bed lands Z before A, one honest restore point of its own;
+  `:goto <line>` jumps the editor;
   `:stats` counts lines, words, chars and dialect. The gutter earns
   its width honestly — four columns to 999 lines, five from 1000,
   six from 10000 — and the pointer, ruler and glows all speak the
@@ -221,7 +223,8 @@ line ends · `ctrl+home`/`ctrl+end` doc edges · `del` forward-delete ·
 `:template <name>` loads a starter · `:snip <name>` drops boilerplate ·
 `:minimap` toggles the map rail · `:zen` the quiet — the rail rests ·
 `:trim` sweeps trailing whitespace ·
-`:sort` orders the selection · `:cases` find respects case (Aa) ·
+`:sort` orders the selection · `:rsort` lands it Z-ward ·
+`:cases` find respects case (Aa) ·
 `:mark`/`:marks`/`:bm` pin lines and leap between them ·
 `:scene <name>` loads a demo (with
 completion whispers) · `:q` quit.
@@ -295,6 +298,7 @@ accepted:
 | `:stats` | lines, words, chars, dialect, where you stand |
 | `:trim` | sweep trailing whitespace, one undo step |
 | `:sort` | order the selected lines, one undo step |
+| `:rsort` | the selected lines land Z before A — the sort's mirror |
 | `:cases` | find respects case exactly (Aa), or forgives |
 | `:help` | list commands |
 

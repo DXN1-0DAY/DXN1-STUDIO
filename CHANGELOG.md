@@ -1,3 +1,19 @@
+## v3.0.42 — the mirror
+
+- **`:rsort` — the selection's lines land Z before A.** The sort's
+  honest mirror: the same bed (a multi-line selection), the same
+  refusals (no selection, a same-line one), the hand resting at the
+  block's head, the selection let go, and ONE restore point of its
+  own named "rsort" — undo unorders exactly as it stood. `:sort`
+  then `:rsort` on the same bed is a clean round trip.
+- The bar whispers the descending law (`:rsort — the selected lines
+  land Z before A, one undo step`), `:help` names the verb, and the
+  README's command table and housekeeping bullet speak it.
+- Selftest group 52 (9 asserts: the descending order, the named
+  restore point, the undo, the released selection, the grammar) —
+  439 → 448 groups. The smoke grew an rsort section (the round trip
+  through the real bar) — 35 → 37 checks.
+
 ## v3.0.41 — the quiet
 
 - **`:zen` — the console rail hides and the body breathes.** Two more

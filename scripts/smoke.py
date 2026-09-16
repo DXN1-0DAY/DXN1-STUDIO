@@ -53,6 +53,7 @@ F2_SHIFT = ESC + "[15;2~"
 CTRL_END = ESC + "[1;5F"
 UP = ESC + "[A"
 S_UP = ESC + "[1;2A"
+S_DOWN = ESC + "[1;2B"
 
 results = []
 
@@ -423,6 +424,19 @@ def main():
         check("the lines landed in order (aa before zz)",
               scr.text(ROWS - 4)[GUTTER:GUTTER + 2] == "aa" and
               scr.text(ROWS - 3)[GUTTER:GUTTER + 2] == "zz",
+              repr(scr.text(ROWS - 4)[:12] + scr.text(ROWS - 3)[:12]))
+        # the mirror: :rsort flips the same bed back, Z before A
+        # (the hand rests at the block's HEAD after a sort — so the
+        # same bed is shift+DOWN, not up)
+        s.send(S_DOWN)
+        s.settle(0.25)
+        scr, _ = s.run_verb("rsort", "ide")
+        check(":rsort speaks its descending law",
+              "Z before A" in scr.text(ROWS - 2),
+              repr(scr.text(ROWS - 2)[:60]))
+        check("the lines landed Z-ward (zz before aa again)",
+              scr.text(ROWS - 4)[GUTTER:GUTTER + 2] == "zz" and
+              scr.text(ROWS - 3)[GUTTER:GUTTER + 2] == "aa",
               repr(scr.text(ROWS - 4)[:12] + scr.text(ROWS - 3)[:12]))
 
         # ── 6. the exit — clean, code 0 ───────────────────────────────

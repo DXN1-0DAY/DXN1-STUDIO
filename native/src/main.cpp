@@ -1710,6 +1710,16 @@ int main(int argc, char** argv) {
                         " — one undo step takes it back"
                   : "engine: select the lines to sort first "
                     "(shift+arrows, or drag)");
+        } else if (cmd.verb == "rsort") {
+          if (!ide.open) ide.open = true;      // the studio takes the stage
+          const int ordered = dxn3::ideRsortSel(ide);
+          ide.console.push_back(
+              ordered > 0
+                  ? "engine: sorted " + std::to_string(ordered) +
+                        " line" + (ordered == 1 ? "" : "s") +
+                        " land-ward — Z before A, one undo step"
+                  : "engine: select the lines to rsort first "
+                    "(shift+arrows, or drag)");
         } else if (cmd.verb == "stats") {
           if (!ide.open) ide.open = true;      // the studio takes the stage
           size_t words = 0, chars = 0;
@@ -1750,7 +1760,7 @@ int main(int argc, char** argv) {
           game.scene.gravity = cmd.num;
           game.say("gravity " + std::to_string(static_cast<int>(cmd.num)), 1.2);
         } else if (cmd.verb == "help") {
-          game.say(":scene :open :recent :template :snip :goto :mark :marks :bm :ruler :minimap :zen :trim :cases :sort :stats "
+          game.say(":scene :open :recent :template :snip :goto :mark :marks :bm :ruler :minimap :zen :trim :cases :sort :rsort :stats "
                     ":zoom :fit :reset :new :w :wq :q :screenshot :magnet :gravity", 4.f);
         }
       } else {

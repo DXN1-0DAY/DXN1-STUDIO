@@ -14,6 +14,7 @@
 #include <array>
 #include <cctype>
 #include <cstring>
+#include <functional>
 #include <optional>
 #include <string>
 #include <vector>
@@ -1140,6 +1141,27 @@ inline int ideSortSel(IdeState& s) {
   if (r1 <= r0) return 0;
   idePushUndo(s, "sort");
   std::sort(s.lines.begin() + r0, s.lines.begin() + r1 + 1);
+  ideSelClear(s);
+  s.curR = r0;
+  s.curC = 0;
+  s.dirty = true;
+  s.idle = 0;
+  return r1 - r0 + 1;
+}
+
+// ── the ordering, descending: the selection's lines sort, Z before A ─
+// The sort's mirror: the SAME bed (a multi-line selection), the SAME
+// honest refusals, ONE restore point named "rsort", the hand at the
+// block's head, the selection let go — the lines land biggest first.
+// 0 when there is no bed; else the count of lines ordered.
+inline int ideRsortSel(IdeState& s) {
+  const auto sel = ideSelRange(s);
+  if (!sel) return 0;
+  const auto [r0, c0, r1, c1] = *sel;
+  if (r1 <= r0) return 0;
+  idePushUndo(s, "rsort");
+  std::sort(s.lines.begin() + r0, s.lines.begin() + r1 + 1,
+            std::greater<std::string>());
   ideSelClear(s);
   s.curR = r0;
   s.curC = 0;
