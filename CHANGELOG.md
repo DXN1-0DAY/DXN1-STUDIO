@@ -1,3 +1,20 @@
+## v3.0.45 — the case
+
+- **`:upper`, `:lower`, `:title` — the selection changes its voice.**
+  One law for three verbs: a selection is the bed (a same-line one
+  counts — case is an in-line edit, unlike the sort family), ONE
+  restore point named for the verb, the hand resting at the
+  selection's head, the selection let go. Title stands each line's
+  word-starts up and quiets the rest (`foo_bar 9lives` →
+  `Foo_Bar 9Lives` — underscore and digits start words).
+- The trim's honest law applies: what would not change is counted
+  BEFORE the snapshot, so a letterless selection takes no phantom
+  undo step. Refusals name the way out.
+- Selftest group 54 (15 asserts: the three voices, the two-line bed,
+  the edges holding, the word-start law, the no-phantom law, the
+  grammar) — 455 → 470 groups. The smoke grew the voice dance
+  (`dxn3` → `DXN3` → `dxn3` through the real bar) — 43 → 45 checks.
+
 ## v3.0.44 — the gallery
 
 - **`:template` whispers the gallery.** The bar's eighth whisper

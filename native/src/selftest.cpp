@@ -199,7 +199,7 @@ int main() {
   }
 
   // 9. the version quad rides in the binary too
-  ok(std::string(dxn3::DXN3_VERSION) == "3.0.44",
+  ok(std::string(dxn3::DXN3_VERSION) == "3.0.45",
      "native version constant matches the release quad");
 
   // 10. png writer: checksum vectors, real structure, byte determinism
@@ -2368,6 +2368,79 @@ int main() {
     ok(dxn3::usageHintFor(":rsort").find("Z before A") != std::string::npos,
        "the bar whispers the descending law");
   }
+
+  // 54. the case: :lower/:upper/:title change the selection's voice -
+  // one restore point per verb, no phantom step on nothing-to-change,
+  // the hand at the selection's head, the selection let go
+  {
+    IdeState c1;
+    c1.lines = {"from dxn3 import *", "SCORE = 0"};
+    c1.curR = 0;
+    c1.curC = 5;
+    c1.anchorR = 0;
+    c1.anchorC = 9;                    // "dxn3" is the bed
+    ok(dxn3::ideCaseSel(c1, 1) == 3, "three letters shout (the 3 stays)");
+    ok(c1.lines[0] == "from DXN3 import *",
+       "the selection shouts, the world outside rests");
+    ok(!c1.undo.empty() && c1.undo.back().what == "upper" && c1.dirty,
+       "the shout is one restore point, named upper");
+    ok(dxn3::ideUndo(c1) && c1.lines[0] == "from dxn3 import *",
+       "undo quiets the shout, exactly as it stood");
+
+    IdeState c2;
+    c2.lines = {"HELLO", "WORLD"};
+    c2.curR = 0;
+    c2.curC = 1;                       // anchor inside HELLO, cursor at
+    c2.anchorR = 1;                    // W's second letter of WORLD:
+    c2.anchorC = 2;                    // a two-line bed
+    ok(dxn3::ideCaseSel(c2, 0) == 6,
+       "a selection across lines counts every letter it moves");
+    ok(c2.lines[0] == "Hello" && c2.lines[1] == "woRLD",
+       "only the range's letters whisper; the edges hold");
+    ok(c2.curR == 0 && c2.curC == 1,
+       "the hand rests at the selection's head");
+    ok(!dxn3::ideSelRange(c2),
+       "the selection lets go when the letters land");
+
+    IdeState c3;
+    c3.lines = {"hello world foo_bar 9lives"};
+    c3.curR = 0;
+    c3.curC = 0;
+    c3.anchorR = 0;
+    c3.anchorC = static_cast<int>(c3.lines[0].size());
+    ok(dxn3::ideCaseSel(c3, 2) == 5,
+       "title stands five word-starts up (underscore and 9 start words)");
+    ok(c3.lines[0] == "Hello World Foo_Bar 9Lives",
+       "title's law: first letters stand, the rest quiet down");
+
+    IdeState c4;                       // nothing to change: no phantom
+    c4.lines = {"1234"};
+    c4.curR = 0;
+    c4.curC = 0;
+    c4.anchorR = 0;
+    c4.anchorC = 4;
+    ok(dxn3::ideCaseSel(c4, 1) == 0 && c4.undo.empty(),
+       "a letterless selection takes no phantom step");
+
+    IdeState c5;                       // no selection at all
+    c5.lines = {"quiet"};
+    c5.curR = 0;
+    c5.curC = 0;
+    ok(dxn3::ideCaseSel(c5, 0) == 0 && c5.undo.empty(),
+       "no selection, no voice, no phantom step");
+
+    const auto cu = dxn3::parseCommand(":upper");
+    const auto cl = dxn3::parseCommand(":lower");
+    const auto ct = dxn3::parseCommand(":title");
+    ok(cu.ok() && cl.ok() && ct.ok() && cu.verb == "upper" &&
+           cl.verb == "lower" && ct.verb == "title",
+       "the three voices are verbs");
+    ok(!dxn3::parseCommand(":upper now").ok(),
+       ":upper with an argument is refused - the bed is the selection");
+    ok(dxn3::usageHintFor(":title").find("word") != std::string::npos,
+       "the bar whispers the title law");
+  }
+
 
   // 53. the pins whisper: ":bm" completes itself as you type - the
   // ledger speaks "N) Ln L", the typed number narrows the choir, the

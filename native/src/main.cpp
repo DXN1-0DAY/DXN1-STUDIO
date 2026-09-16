@@ -1723,6 +1723,20 @@ int main(int argc, char** argv) {
                         " land-ward — Z before A, one undo step"
                   : "engine: select the lines to rsort first "
                     "(shift+arrows, or drag)");
+        } else if (cmd.verb == "upper" || cmd.verb == "lower" ||
+                   cmd.verb == "title") {
+          if (!ide.open) ide.open = true;      // the studio takes the stage
+          const int mode =
+              cmd.verb == "upper" ? 1 : cmd.verb == "lower" ? 0 : 2;
+          const int moved = dxn3::ideCaseSel(ide, mode);
+          ide.console.push_back(
+              moved > 0
+                  ? "engine: " + std::to_string(moved) + " letter" +
+                        (moved == 1 ? "" : "s") + " " +
+                        (mode == 1 ? "shouted"
+                                   : mode == 0 ? "whispered" : "stood up") +
+                        " — one undo step takes it back"
+                  : "engine: select text first (shift+arrows, or drag)");
         } else if (cmd.verb == "stats") {
           if (!ide.open) ide.open = true;      // the studio takes the stage
           size_t words = 0, chars = 0;
@@ -1763,7 +1777,7 @@ int main(int argc, char** argv) {
           game.scene.gravity = cmd.num;
           game.say("gravity " + std::to_string(static_cast<int>(cmd.num)), 1.2);
         } else if (cmd.verb == "help") {
-          game.say(":scene :open :recent :template :snip :goto :mark :marks :bm :ruler :minimap :zen :trim :cases :sort :rsort :stats "
+          game.say(":scene :open :recent :template :snip :goto :mark :marks :bm :ruler :minimap :zen :trim :cases :sort :rsort :upper :lower :title :stats "
                     ":zoom :fit :reset :new :w :wq :q :screenshot :magnet :gravity", 4.f);
         }
       } else {

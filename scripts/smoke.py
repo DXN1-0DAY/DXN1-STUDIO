@@ -54,6 +54,7 @@ CTRL_END = ESC + "[1;5F"
 UP = ESC + "[A"
 S_UP = ESC + "[1;2A"
 S_DOWN = ESC + "[1;2B"
+S_RIGHT = ESC + "[1;2C"
 
 results = []
 
@@ -473,8 +474,33 @@ def main():
               scr.text(ROWS - 3)[GUTTER:GUTTER + 2] == "aa",
               repr(scr.text(ROWS - 4)[:12] + scr.text(ROWS - 3)[:12]))
 
-        # ── 6. the exit — clean, code 0 ───────────────────────────────
-        print("── 6. the exit — esc to play, q quits")
+        # ── 6. the case — the selection changes its voice ─────────────
+        print("── 6. the case — upper shouts, lower whispers")
+        scr, _ = s.run_verb("goto 5", "ide")      # the hand: line 5, col 0
+        s.settle(0.25)
+        for _ in range(5):                        # walk to "dxn3"'s d
+            s.send(ESC + "[C")                    # one arrow per frame
+            time.sleep(0.13)
+        s.settle(0.2)
+        for _ in range(4):                        # select "dxn3"
+            s.send(S_RIGHT)
+            time.sleep(0.13)
+        s.settle(0.25)
+        scr, _ = s.run_verb("upper", "ide")
+        check("the selection shouts (dxn3 -> DXN3)",
+              "from DXN3 import *" in scr.text(5),
+              repr(scr.text(5)[:40]))
+        for _ in range(4):                        # re-select the shout
+            s.send(S_RIGHT)
+            time.sleep(0.13)
+        s.settle(0.25)
+        scr, _ = s.run_verb("lower", "ide")
+        check("the selection whispers it back (DXN3 -> dxn3)",
+              "from dxn3 import *" in scr.text(5),
+              repr(scr.text(5)[:40]))
+
+        # ── 7. the exit — clean, code 0 ───────────────────────────────
+        print("── 7. the exit — esc to play, q quits")
         s.send(ESC)
         time.sleep(0.2)
         s.send("q")

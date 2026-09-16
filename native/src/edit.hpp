@@ -1193,6 +1193,72 @@ inline int ideRsortSel(IdeState& s) {
   return r1 - r0 + 1;
 }
 
+// ── the case: the selection's letters change their voice ──────────
+// :lower, :upper and :title speak one law: a selection is the bed (a
+// same-line one counts — case is an in-line edit), ONE honest restore
+// point named for the verb, the hand resting at the selection's head,
+// the selection let go. Title capitals each line's word-starts and
+// quiets the rest. The trim's law applies: what would not change is
+// counted BEFORE the snapshot, so a selection with no letters takes
+// no phantom undo step. 0 with no selection or nothing to change;
+// else the count of letters that moved.
+inline int ideCaseSel(IdeState& s, int mode) {
+  const auto sel = ideSelRange(s);
+  if (!sel) return 0;
+  const auto [r0, c0, r1, c1] = *sel;
+  auto goal_for = [&](unsigned char ch, bool wordStart) -> char {
+    const unsigned char low = static_cast<unsigned char>(std::tolower(ch));
+    const bool cap = mode == 1 || (mode == 2 && wordStart);
+    return static_cast<char>(cap ? std::toupper(low) : low);
+  };
+  int would = 0;                       // count BEFORE the snapshot
+  {
+    bool wordStart = true;
+    for (int r = r0; r <= r1; ++r) {
+      const std::string& l = s.lines[static_cast<size_t>(r)];
+      const int from = (r == r0) ? c0 : 0;
+      const int to = (r == r1)
+                         ? std::min<int>(c1, static_cast<int>(l.size()))
+                         : static_cast<int>(l.size());
+      if (r > r0) wordStart = true;    // each line's head starts a word
+      for (int c = from; c < to; ++c) {
+        const unsigned char ch = static_cast<unsigned char>(l[static_cast<size_t>(c)]);
+        if (!std::isalpha(ch)) { wordStart = true; continue; }
+        if (l[static_cast<size_t>(c)] != goal_for(ch, wordStart)) ++would;
+        wordStart = false;
+      }
+    }
+  }
+  if (would == 0) return 0;
+  idePushUndo(s, mode == 0 ? "lower" : mode == 1 ? "upper" : "title");
+  int changed = 0;
+  bool wordStart = true;
+  for (int r = r0; r <= r1; ++r) {
+    std::string& l = s.lines[static_cast<size_t>(r)];
+    const int from = (r == r0) ? c0 : 0;
+    const int to = (r == r1)
+                       ? std::min<int>(c1, static_cast<int>(l.size()))
+                       : static_cast<int>(l.size());
+    if (r > r0) wordStart = true;
+    for (int c = from; c < to; ++c) {
+      const unsigned char ch = static_cast<unsigned char>(l[static_cast<size_t>(c)]);
+      if (!std::isalpha(ch)) { wordStart = true; continue; }
+      const char goal = goal_for(ch, wordStart);
+      wordStart = false;
+      if (l[static_cast<size_t>(c)] != goal) {
+        l[static_cast<size_t>(c)] = goal;
+        ++changed;
+      }
+    }
+  }
+  ideSelClear(s);
+  s.curR = r0;
+  s.curC = std::min(c0, static_cast<int>(s.lines[static_cast<size_t>(r0)].size()));
+  s.dirty = true;
+  s.idle = 0;
+  return changed;
+}
+
 // ── the sweep: trailing whitespace is noise ─────────────────────────
 // Every line's tail spaces and tabs come off; a line of pure air goes
 // truly blank. ONE honest restore point named "trim", taken only when
