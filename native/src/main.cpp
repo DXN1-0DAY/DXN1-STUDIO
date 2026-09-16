@@ -1757,6 +1757,21 @@ int main(int argc, char** argv) {
                         " flipped — one undo step takes it back"
                   : "engine: select the lines to flip first "
                     "(shift+arrows, or drag)");
+        } else if (cmd.verb == "indent" || cmd.verb == "dedent") {
+          if (!ide.open) ide.open = true;      // the studio takes the stage
+          const bool out = cmd.verb == "dedent";
+          const int moved = dxn3::ideDentSel(ide, out);
+          ide.console.push_back(
+              moved > 0
+                  ? "engine: " + std::to_string(moved) + " line" +
+                        (moved == 1 ? "" : "s") +
+                        (out ? " stepped back left — one undo step takes "
+                              "it there again"
+                             : " stepped right — one undo step takes it back")
+                  : out ? "engine: select the lines to dedent first "
+                          "(shift+arrows, or drag)"
+                        : "engine: select the lines to indent first "
+                          "(shift+arrows, or drag)");
         } else if (cmd.verb == "stats") {
           if (!ide.open) ide.open = true;      // the studio takes the stage
           size_t words = 0, chars = 0;
@@ -1797,7 +1812,7 @@ int main(int argc, char** argv) {
           game.scene.gravity = cmd.num;
           game.say("gravity " + std::to_string(static_cast<int>(cmd.num)), 1.2);
         } else if (cmd.verb == "help") {
-          game.say(":scene :open :recent :template :snip :goto :mark :marks :bm :ruler :minimap :zen :trim :cases :sort :rsort :rev :uniq :upper :lower :title :stats "
+          game.say(":scene :open :recent :template :snip :goto :mark :marks :bm :ruler :minimap :zen :trim :cases :sort :rsort :rev :uniq :indent :dedent :upper :lower :title :stats "
                     ":zoom :fit :reset :new :w :wq :q :screenshot :magnet :gravity", 4.f);
         }
       } else {

@@ -199,7 +199,7 @@ int main() {
   }
 
   // 9. the version quad rides in the binary too
-  ok(std::string(dxn3::DXN3_VERSION) == "3.0.48",
+  ok(std::string(dxn3::DXN3_VERSION) == "3.0.49",
      "native version constant matches the release quad");
 
   // 10. png writer: checksum vectors, real structure, byte determinism
@@ -2552,6 +2552,91 @@ int main() {
 
 
 
+
+  // 57. the breath: ":indent"/":dedent" — the selection's lines step
+  // right, or back, one level at a time; pure air keeps its silence,
+  // a bed with no work takes no phantom step, the pins hold their
+  // lines, the hand rests at the bed's head riding the shift
+  {
+    IdeState b1;
+    b1.lines = {"def f():", "", "    return 1", "return 2"};
+    b1.anchorR = 0;
+    b1.anchorC = 0;
+    b1.curR = 3;
+    b1.curC = 5;                     // a four-line bed, hand mid-text
+    ok(dxn3::ideDentSel(b1, false) == 3,
+       "three live lines breathe - pure air is never counted");
+    ok(b1.lines[0] == "    def f():",
+       "the head takes four honest spaces");
+    ok(b1.lines[1].empty(), "a line of pure air keeps its silence");
+    ok(b1.lines[2] == "        return 1",
+       "the nested line breathes a level too");
+    ok(b1.anchorR < 0, "the selection lets go");
+    ok(b1.curR == 0 && b1.curC == 4,
+       "the hand rests at the bed's head, riding the shift");
+    ok(!b1.undo.empty() && b1.undo.back().what == "indent",
+       "one honest restore point named indent");
+    ok(dxn3::ideUndo(b1) && b1.lines[0] == "def f():" &&
+       b1.lines[1].empty() && b1.lines[3] == "return 2",
+       "undo breathes the bed back out");
+    ok(b1.curR == 3 && b1.curC == 5,
+       "undo lands the hand where it stood");
+
+    IdeState b2;                     // the breath's mirror: :dedent
+    b2.lines = {"        deep()", "    mid()", "shallow", ""};
+    b2.anchorR = 0;
+    b2.anchorC = 0;
+    b2.curR = 3;
+    b2.curC = 0;
+    ok(dxn3::ideDentSel(b2, true) == 2,
+       "two lines step back - the shallow and the air give nothing");
+    ok(b2.lines[0] == "    deep()" && b2.lines[1] == "mid()",
+       "each line gives up to four spaces, never more");
+    ok(b2.curC == 0,
+       "the hand rides the head's cut, clamped honest");
+    ok(!b2.undo.empty() && b2.undo.back().what == "dedent",
+       "one honest restore point named dedent");
+
+    IdeState b3;                     // refusals, the family's law
+    b3.lines = {"    a", "b"};
+    b3.curR = 0;
+    b3.curC = 0;
+    ok(dxn3::ideDentSel(b3, false) == 0 && b3.undo.empty(),
+       "no selection, no breath, no phantom step");
+    b3.anchorR = 0;
+    b3.anchorC = 2;                  // a same-line bed counts
+    b3.curR = 0;
+    b3.curC = 5;
+    ok(dxn3::ideDentSel(b3, false) == 1 && b3.lines[0] == "        a",
+       "one line is a fine bed for a breath");
+    IdeState b4;
+    b4.lines = {"a", "\tb"};
+    b4.anchorR = 0;
+    b4.anchorC = 0;
+    b4.curR = 1;
+    b4.curC = 2;
+    ok(dxn3::ideDentSel(b4, true) == 0 && b4.undo.empty(),
+       "no leading air, nothing to give - no phantom step");
+
+    IdeState b5;                     // the pins hold their lines
+    b5.lines = {"one", "two", "three"};
+    dxn3::ideMarkToggle(b5, 1);
+    b5.anchorR = 0;
+    b5.anchorC = 0;
+    b5.curR = 2;
+    b5.curC = 1;
+    ok(dxn3::ideDentSel(b5, false) == 3 &&
+       b5.marks.size() == 1 && b5.marks[0] == 1,
+       "a breath moves no line - the pin holds");
+
+    const auto bi = dxn3::parseCommand(":indent");
+    const auto bd = dxn3::parseCommand(":dedent");
+    ok(bi.ok() && bi.verb == "indent" && bd.ok() && bd.verb == "dedent",
+       "parseCommand reads the breath pair");
+    ok(dxn3::usageHintFor(":indent").find("step right") != std::string::npos &&
+       dxn3::usageHintFor(":dedent").find("back") != std::string::npos,
+       "the bar whispers the breath's law");
+  }
 
   // 53. the pins whisper: ":bm" completes itself as you type - the
   // ledger speaks "N) Ln L", the typed number narrows the choir, the

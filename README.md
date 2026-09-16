@@ -2,7 +2,7 @@
 
 ![DXN1 STUDIO 3](assets/banner.png)
 
-![version](https://img.shields.io/badge/version-3.0.48-8b5cf6?style=flat-square)
+![version](https://img.shields.io/badge/version-3.0.49-8b5cf6?style=flat-square)
 ![gates](https://github.com/DXN1-termux/DXN1-STUDIO/actions/workflows/ci.yml/badge.svg)
 ![native](https://img.shields.io/badge/native-C%2B%2023-f97316?style=flat-square)
 ![face](https://img.shields.io/badge/face-terminal_truecolor-22d3ee?style=flat-square)
@@ -202,7 +202,10 @@ viewport refreshes — *code a background, and boom, a background.*
   means the whole document, its difference from the sort family told
   out loud; the pins follow the survivors down); `:rev` flips the
   selection's line order end for end (no alphabet invited — the
-  pins ride to their mirrors); `:goto <line>` jumps the editor;
+  pins ride to their mirrors); `:indent` and `:dedent` breathe the
+  selection's lines one level right or back (a line of pure air
+  keeps its silence, and a bed with no work takes no phantom step);
+  `:goto <line>` jumps the editor;
   `:stats` counts lines, words, chars and dialect. The gutter earns
   its width honestly — four columns to 999 lines, five from 1000,
   six from 10000 — and the pointer, ruler and glows all speak the
@@ -234,6 +237,7 @@ line ends · `ctrl+home`/`ctrl+end` doc edges · `del` forward-delete ·
 `:sort` orders the selection · `:rsort` lands it Z-ward ·
 `:upper`/`:lower`/`:title` change the selection's voice ·
 `:uniq` collapses back-to-back repeats · `:rev` flips the order ·
+`:indent`/`:dedent` breathe the selection one level ·
 `:cases` find respects case (Aa) ·
 `:mark`/`:marks`/`:bm` pin lines and leap between them (the pins
 whisper as you type) ·
@@ -315,6 +319,8 @@ accepted:
 | `:title` | every word's first letter stands up |
 | `:uniq` | collapse lines that repeat back-to-back — whole doc, or the selection |
 | `:rev` | flip the selection's line order, no alphabet invited |
+| `:indent` | the selected lines step right one level, pure air keeps its silence |
+| `:dedent` | the selected lines step back left — up to four spaces each |
 | `:cases` | find respects case exactly (Aa), or forgives |
 | `:help` | list commands |
 

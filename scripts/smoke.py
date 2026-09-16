@@ -554,8 +554,42 @@ def main():
               scr.cell(26, GUTTER - 1)[0] == "◆",
               repr(scr.cell(26, GUTTER - 1)))
 
-        # ── 10. the exit — clean, code 0 ──────────────────────────────
-        print("── 10. the exit — esc to play, q quits")
+        # ── 10. the breath — :indent steps the bed right, :dedent back
+        print("── 10. the breath — :indent and :dedent, one round trip")
+        # the tail reads zz, aa; the hand rests at the rev'd bed's HEAD
+        # (41,0) — so the last two lines are shift+DOWN, not up
+        s.send(S_DOWN)                            # the bed: the last two
+        s.settle(0.25)
+        scr, _ = s.run_verb("indent", "ide")
+        check(":indent names its count",
+              "2 lines stepped right" in scr.text(ROWS - 2),
+              repr(scr.text(ROWS - 2)[:60]))
+        check("the bed stepped right (four honest spaces)",
+              scr.text(ROWS - 4)[GUTTER:GUTTER + 6] == "    zz" and
+              scr.text(ROWS - 3)[GUTTER:GUTTER + 6] == "    aa",
+              repr(scr.text(ROWS - 4)[:12] + scr.text(ROWS - 3)[:12]))
+        # the selection let go and the hand rests at the bed's head —
+        # so the same bed is shift+DOWN again (the sort family's law)
+        s.send(S_DOWN)
+        s.settle(0.25)
+        scr, _ = s.run_verb("dedent", "ide")
+        check(":dedent names its count",
+              "2 lines stepped back left" in scr.text(ROWS - 2),
+              repr(scr.text(ROWS - 2)[:60]))
+        s.settle(2.5)                     # the auto-run's sparks decay:
+                                          # the indent's burst still flies
+        scr = s.screen()                  # a fresh, quiet frame
+        check("the bed stepped back (the round trip is honest)",
+              scr.text(ROWS - 4)[GUTTER:GUTTER + 2] == "zz" and
+              scr.text(ROWS - 3)[GUTTER:GUTTER + 2] == "aa",
+              repr(scr.text(ROWS - 4)[:12] + scr.text(ROWS - 3)[:12]))
+        scr, _ = s.run_verb("dedent", "ide")      # no bed left: refused
+        check(":dedent without a bed is refused, never guessed",
+              "select the lines to dedent" in scr.text(ROWS - 2),
+              repr(scr.text(ROWS - 2)[:60]))
+
+        # ── 11. the exit — clean, code 0 ──────────────────────────────
+        print("── 11. the exit — esc to play, q quits")
         s.send(ESC)
         time.sleep(0.2)
         s.send("q")

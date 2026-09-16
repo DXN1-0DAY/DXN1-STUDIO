@@ -1,3 +1,23 @@
+## v3.0.49 — the breath
+
+- **`:indent` and `:dedent` — the selection's lines step one level
+  right, or back.** The transform family's sibling: the same bed (a
+  selection names lines — and a same-line one counts, because one
+  line is a fine bed for a breath; tab and shift+tab already own the
+  hand's line, the verbs own the selection's), ONE restore point
+  named for the verb, the hand resting at the bed's head and riding
+  the shift, the selection let go. The trim's law honored both ways:
+  a line of pure air keeps its silence (no indent gathers on
+  emptiness), a line with no leading air gives dedent nothing — and
+  what would not move is counted BEFORE the snapshot, so a bed with
+  no work takes no phantom step. The pins hold their lines — a
+  breath moves no line.
+- Selftest group 57 (19 asserts) — 494 → 513 groups. Smoke grew the
+  breath section (the count, the four honest spaces, the round trip,
+  the refusal) — 54 → 59 checks. One timing law recorded: a verb's
+  auto-run spark burst still flies when the NEXT verb's frame is
+  read — quiet-settle 2.5s before asserting body text.
+
 ## v3.0.48 — the diamond button
 
 - **The pin's diamond is a button.** A plain click on the gutter's

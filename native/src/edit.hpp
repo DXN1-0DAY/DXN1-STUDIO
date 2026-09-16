@@ -1355,6 +1355,69 @@ inline int ideRevSel(IdeState& s) {
   return r1 - r0 + 1;
 }
 
+// ── the breath: the selection's lines step right — or back ─────────
+// :indent and :dedent speak the block's law: every line in the bed
+// takes four honest spaces at its head (or gives up to four back).
+// The family's bed — a selection names lines, and a same-line one
+// counts (one line is a fine bed for a breath; tab and shift+tab
+// already own the hand's line, the verbs own the selection's). The
+// trim's law honored both ways: a line of pure air keeps its silence
+// (no indent gathers on emptiness), a line with no leading air gives
+// dedent nothing — and what would not move is counted BEFORE the
+// snapshot, so a bed with no work takes no phantom undo step. ONE
+// restore point named for the verb; the hand rests at the bed's head
+// and rides the shift; the selection lets go. The pins hold their
+// lines — a breath moves no line. 0 with no selection or nothing to
+// shift; else the count of lines that moved.
+inline int ideDentSel(IdeState& s, bool out) {
+  const auto sel = ideSelRange(s);
+  if (!sel) return 0;
+  const auto [r0, c0, r1, c1] = *sel;
+  auto leadingAir = [](const std::string& l) {
+    int n = 0;
+    while (n < 4 && n < static_cast<int>(l.size()) &&
+           l[static_cast<size_t>(n)] == ' ')
+      ++n;
+    return n;
+  };
+  auto keepsSilence = [](const std::string& l) {
+    return l.find_first_not_of(" \t") == std::string::npos;
+  };
+  int would = 0;                       // the dry pass: count BEFORE the
+  for (int r = r0; r <= r1; ++r) {     // snapshot — no phantom steps
+    const std::string& l = s.lines[static_cast<size_t>(r)];
+    if (out ? leadingAir(l) > 0 : !keepsSilence(l)) ++would;
+  }
+  if (would == 0) return 0;
+  idePushUndo(s, out ? "dedent" : "indent");
+  int moved = 0;
+  int headCut = 0;                     // what the head line gave back
+  for (int r = r0; r <= r1; ++r) {
+    std::string& l = s.lines[static_cast<size_t>(r)];
+    if (out) {
+      const int cutn = leadingAir(l);
+      if (cutn > 0) {
+        l.erase(0, static_cast<size_t>(cutn));
+        ++moved;
+        if (r == r0) headCut = cutn;
+      }
+    } else if (!keepsSilence(l)) {
+      l.insert(0, 4, ' ');
+      ++moved;
+    }
+  }
+  ideSelClear(s);
+  s.curR = r0;                         // the hand rests at the bed's head
+  s.curC = out ? std::max(0, std::min(c0, static_cast<int>(
+                                     s.lines[static_cast<size_t>(r0)].size())) -
+                            headCut)
+               : std::min(c0 + 4, static_cast<int>(
+                                      s.lines[static_cast<size_t>(r0)].size()));
+  s.dirty = true;
+  s.idle = 0;
+  return moved;
+}
+
 // ── the sweep: trailing whitespace is noise ─────────────────────────
 // Every line's tail spaces and tabs come off; a line of pure air goes
 // truly blank. ONE honest restore point named "trim", taken only when
