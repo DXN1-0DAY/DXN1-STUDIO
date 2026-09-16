@@ -198,7 +198,7 @@ int main() {
   }
 
   // 9. the version quad rides in the binary too
-  ok(std::string(dxn3::DXN3_VERSION) == "3.0.11", "native version constant is 3.0.11");
+  ok(std::string(dxn3::DXN3_VERSION) == "3.0.12", "native version constant is 3.0.11");
 
   // 10. png writer: checksum vectors, real structure, byte determinism
   {
@@ -445,6 +445,27 @@ int main() {
       std::println("   (skip) python3/sdk unavailable on this machine — "
                    "the e2e sdk group needs both");
     }
+  }
+
+  // 19. the console reads back: error lines from python AND node tracebacks
+  {
+    ok(dxn3::consoleErrorLine({}) == -1, "an empty console has no error line");
+    ok(dxn3::consoleErrorLine({"engine: hosting python3"}) == -1,
+       "engine chatter has no error line");
+    ok(dxn3::consoleErrorLine(
+           {"Traceback (most recent call last):",
+            "  File \"game.py\", line 12, in <module>",
+            "ValueError: boom"}) == 12,
+       "a python traceback gives up its line number");
+    ok(dxn3::consoleErrorLine(
+           {"your game did not compile",
+            "at Object.<anonymous> (/tmp/game.js:28:1)",
+            "at Module._compile (node:internal/modules/cjs/loader:1554:14)"}) == 1554,
+       "a node stack trace gives up its line number");
+    ok(dxn3::consoleErrorLine(
+           {"  File \"a.py\", line 3, in <module>",
+            "  File \"b.py\", line 44, in run"}) == 44,
+       "the LAST traceback line wins — closest to the crash");
   }
 
   if (fails == 0) {

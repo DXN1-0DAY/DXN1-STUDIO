@@ -86,6 +86,10 @@ struct Keys {
   bool toPlay = false;                         // IDE: tab — play your game
   bool braille = false;                        // b — toggle the dot renderer
   bool ctrlN = false;                          // IDE: next template
+  bool pageUp = false, pageDn = false;         // IDE: page through the file
+  bool del = false;                            // IDE: forward delete
+  bool home = false, end = false;              // IDE: line ends
+  bool ctrlG = false;                          // IDE: jump to the error line
   std::string typed;                           // printable chars this frame
 };
 
@@ -102,9 +106,12 @@ Keys pollKeys(Mode mode) {
     for (ssize_t i = 0; i < n; ++i) {
       const char c = buf[i];
       if (c == '\x1b') {
-        // arrow keys arrive as ESC [ A/B/C/D in one read, usually
+        // arrow keys arrive as ESC [ A/B/C/D in one read, usually;
+        // home/end as ESC[H/F, pages and delete as ESC[5~ / 6~ / 3~
         if (i + 2 < n && buf[i + 1] == '[' && mode != Mode::Cmd) {
-          switch (buf[i + 2]) {
+          const char c2 = buf[i + 2];
+          const bool tilde = i + 3 < n && buf[i + 3] == '~';
+          switch (c2) {
             case 'A':
               if (mode == Mode::Ide) k.up = true;
               else if (mode == Mode::File) k.scroll -= 1;
@@ -124,8 +131,30 @@ Keys pollKeys(Mode mode) {
               else if (mode == Mode::File) k.scroll -= 10;
               else k.left = true;
               break;
+            case 'H':
+              if (mode == Mode::Ide) k.home = true;
+              break;
+            case 'F':
+              if (mode == Mode::Ide) k.end = true;
+              break;
+            case '3':
+              if (mode == Mode::Ide && tilde) k.del = true;
+              break;
+            case '5':
+              if (mode == Mode::Ide && tilde) k.pageUp = true;
+              break;
+            case '6':
+              if (mode == Mode::Ide && tilde) k.pageDn = true;
+              break;
+            case '1':
+              if (mode == Mode::Ide && tilde) k.home = true;
+              break;
+            case '4':
+              if (mode == Mode::Ide && tilde) k.end = true;
+              break;
           }
-          i += 2;
+          i += ((c2 == '3' || c2 == '5' || c2 == '6' || c2 == '1' ||
+                c2 == '4') && tilde) ? 3 : 2;
         } else {
           k.esc = true;                     // bare ESC
           if (mode == Mode::Play) k.quit = true;   // …which quits in play/inspect
@@ -139,6 +168,7 @@ Keys pollKeys(Mode mode) {
         else if (c == 0x13) k.ctrlS = true;               // Ctrl+S — save+run
         else if (c == 0x12) k.ctrlR = true;               // Ctrl+R — run
         else if (c == 0x0e) k.ctrlN = true;               // Ctrl+N — template
+        else if (c == 0x07) k.ctrlG = true;               // Ctrl+G — error line
         else if (static_cast<unsigned char>(c) >= 0x20) k.typed += c;
       } else if (mode == Mode::File) {       // FILE VIEW: every letter is text
         if (c == '\r' || c == '\n') k.enter = true;
@@ -486,6 +516,7 @@ struct IdeState {
   bool open = false;
   std::vector<std::string> lines{" "};
   int curR = 0, curC = 0, top = 0;
+  int page = 14;                             // visible rows (drawIDE refreshes)
   std::string path;                          // the script file
   bool dirty = true;                         // needs a (re)run
   double idle = 0;                           // typing pause → auto-run
@@ -607,6 +638,18 @@ void ideKey(IdeState& ide, const Keys& k) {
   if (k.down) ++ide.curR;
   if (k.aLeft) --ide.curC;
   if (k.aRight) ++ide.curC;
+  if (k.home) ide.curC = 0;
+  if (k.end) ide.curC = static_cast<int>(line.size());
+  if (k.pageUp) ide.curR -= ide.page;
+  if (k.pageDn) ide.curR += ide.page;
+  if (k.del) {                               // forward delete
+    if (ide.curC < static_cast<int>(line.size())) {
+      line.erase(line.begin() + ide.curC);
+    } else if (ide.curR + 1 < static_cast<int>(L.size())) {
+      L[ide.curR] += L[static_cast<size_t>(ide.curR) + 1];
+      L.erase(L.begin() + ide.curR + 1);     // join the next line up
+    }
+  }
   ide.curR = std::clamp(ide.curR, 0, static_cast<int>(L.size()) - 1);
   ide.curC = std::clamp(ide.curC, 0, static_cast<int>(L[static_cast<size_t>(ide.curR)].size()));
 }
@@ -668,6 +711,7 @@ void drawIDE(dxn3::Screen& scr, IdeState& ide, const dxn3::Game& g, bool hostUp)
   const int consoleRows = 2;
   const int bodyTop = 1;
   const int bodyRows = rows - bodyTop - consoleRows;
+  ide.page = bodyRows;                       // pgup/pgdn follow the viewport
   const bool split = cols >= 96;
   const int editW = split ? 46 : cols;
 
@@ -724,8 +768,15 @@ void drawIDE(dxn3::Screen& scr, IdeState& ide, const dxn3::Game& g, bool hostUp)
   const std::string l1 = n >= 1 ? ide.console[n - 1] : "";
   const std::string l2 = n >= 2 ? ide.console[n - 2] : "";
   scr.text(1, c0, l1.substr(0, static_cast<size_t>(cols - 3)), dxn3::rgb(148, 156, 180));
-  const std::string hint = " ctrl+r run · ctrl+n template · ctrl+s save · esc play · q quits from play ";
-  scr.text(1, c0 + 1, hint.substr(0, static_cast<size_t>(cols - 3)), dxn3::rgb(84, 72, 120));
+  // a traceback in the console? offer the one-keystroke jump to the line
+  const int errLine = dxn3::consoleErrorLine(ide.console);
+  const std::string hint = errLine > 0
+      ? " ctrl+g jumps to line " + std::to_string(errLine) +
+        " · ctrl+r run · ctrl+n template · esc play "
+      : " ctrl+r run · ctrl+n template · ctrl+s save · esc play · q quits from play ";
+  const bool errorUp = errLine > 0;
+  scr.text(1, c0 + 1, hint.substr(0, static_cast<size_t>(cols - 3)),
+           errorUp ? dxn3::rgb(248, 113, 113) : dxn3::rgb(84, 72, 120));
   if (!l2.empty())
     scr.text(cols - std::min(cols - 3, static_cast<int>(l2.size())) - 1, c0 + 1,
              l2.substr(0, static_cast<size_t>(std::min(cols - 3, static_cast<int>(l2.size())))),
@@ -921,6 +972,43 @@ int main(int argc, char** argv) {
     }
   };
 
+  // the template gallery: ctrl+n or :new — cycle real, working starts
+  auto nextTemplate = [&]() {
+    static const char* names[] = {"blank", "shooter", "cards", "background"};
+    ide.tpl = (ide.tpl + 1) % 4;
+    const std::string name = names[ide.tpl];
+    if (name == "blank") {
+      std::string ss = TPL_BLANK;
+      ide.lines.clear();
+      size_t pos;
+      while ((pos = ss.find('\n')) != std::string::npos) {
+        ide.lines.push_back(ss.substr(0, pos));
+        ss.erase(0, pos + 1);
+      }
+      if (!ss.empty()) ide.lines.push_back(ss);
+      ide.path = "untitled.py";
+    } else {
+      std::ifstream f(std::string("sdk/examples/") + name + ".py");
+      ide.lines.clear();
+      std::string ln;
+      while (std::getline(f, ln)) {
+        if (!ln.empty() && ln.back() == '\r') ln.pop_back();
+        ide.lines.push_back(ln);
+      }
+      if (ide.lines.empty()) {
+        ide.lines.push_back(" ");
+        ide.console.push_back("engine: template " + name +
+                              " not found on this machine");
+      }
+      ide.path = std::string("untitled-") + name + ".py";
+    }
+    ide.curR = ide.curC = ide.top = 0;
+    ide.dirty = true;
+    ide.idle = 0;
+    ide.console.push_back("engine: template — " + name +
+                          " (ctrl+n again to cycle)");
+  };
+
   // the scene's own source, for FILE VIEW (e)
   std::vector<std::string> fileLines;
   {
@@ -1039,6 +1127,9 @@ int main(int argc, char** argv) {
           doFit();
         } else if (cmd.verb == "reset") {
           game.reset();
+        } else if (cmd.verb == "new") {
+          if (!ide.open) ide.open = true;          // :new opens the studio
+          nextTemplate();
         } else if (cmd.verb == "w") {
           const std::string path = cmd.arg.empty() ? scenePath : cmd.arg;
           const std::string err = dxn3::Game::saveScene(path, game.scene);
@@ -1059,7 +1150,7 @@ int main(int argc, char** argv) {
           game.scene.gravity = cmd.num;
           game.say("gravity " + std::to_string(static_cast<int>(cmd.num)), 1.2);
         } else if (cmd.verb == "help") {
-          game.say(":scene :zoom :fit :reset :w :wq :q :screenshot :magnet :gravity", 4.f);
+          game.say(":scene :zoom :fit :reset :new :w :wq :q :screenshot :magnet :gravity", 4.f);
         }
       } else {
         cmdBuf += keys.typed;
@@ -1163,32 +1254,18 @@ int main(int argc, char** argv) {
         ideRun();
         ide.idle = 0;
       } else if (keys.ctrlN) {
-        static const char* names[] = {"blank", "shooter", "cards", "background"};
-        ide.tpl = (ide.tpl + 1) % 4;
-        const std::string name = names[ide.tpl];
-        if (std::string(name) == "blank") {
-          ide.lines = starterLines();          // same tiny shooter, fresh
-          ide.lines = std::vector<std::string>{std::string(TPL_BLANK)};
-          std::string ss = TPL_BLANK;
-          ide.lines.clear();
-          size_t pos;
-          while ((pos = ss.find('\n')) != std::string::npos) {
-            ide.lines.push_back(ss.substr(0, pos));
-            ss.erase(0, pos + 1);
-          }
-          ide.path = "untitled.py";
+        nextTemplate();
+      } else if (keys.ctrlG) {
+        const int errLine = dxn3::consoleErrorLine(ide.console);
+        if (errLine > 0 && ide.lines.size() > 1) {
+          ide.curR = std::clamp(errLine - 1, 0,
+                                static_cast<int>(ide.lines.size()) - 1);
+          ide.curC = 0;
+          ide.console.push_back("engine: jumped to line " +
+                                std::to_string(ide.curR + 1));
         } else {
-          std::ifstream f(std::string("sdk/examples/") + name + ".py");
-          ide.lines.clear();
-          std::string ln;
-          while (std::getline(f, ln)) ide.lines.push_back(ln);
-          ide.path = std::string("untitled-") + name + ".py";
+          ide.console.push_back("engine: no error line in the console yet");
         }
-        ide.curR = ide.curC = ide.top = 0;
-        ide.dirty = true;
-        ide.idle = 0;
-        ide.console.push_back("engine: template — " + name +
-                              " (ctrl+n again to cycle)");
       }
       if (keys.esc) ide.open = false;          // esc → play your game
     }

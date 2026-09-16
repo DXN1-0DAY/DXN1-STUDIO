@@ -68,5 +68,17 @@ else
   FAIL=1
 fi
 
+echo "── gate 6: every shipped example speaks the protocol"
+if command -v python3 >/dev/null 2>&1; then
+  if python3 scripts/sdk_conformance.py; then
+    :
+  else
+    echo "   FAIL an example failed the wire contract"
+    FAIL=1
+  fi
+else
+  echo "   (skip) python3 not on this machine — the wire contract runs in CI"
+fi
+
 echo
 if [ $FAIL -eq 0 ]; then echo "ALL GATES GREEN"; else echo "GATES RED"; exit 1; fi

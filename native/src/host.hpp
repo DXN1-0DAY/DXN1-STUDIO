@@ -410,4 +410,41 @@ inline void applyFrame(Game& g, const HostFrame& f) {
   if (!f.banner.empty()) { g.say(f.banner, 3.f); g.flash = 0.5f; }
 }
 
+// ── the console reads back ───────────────────────────────────────────
+// Tracebacks in the child's output carry line numbers: Python says
+// `File "game.py", line 12, in …`, node says `at run (game.js:28:1)`.
+// Fish the LAST line number out of the console so the IDE can offer
+// ctrl+g — one keystroke from the error to the offending line.
+
+inline int consoleErrorLine(const std::vector<std::string>& console) {
+  int found = -1;
+  for (const auto& l : console) {
+    // python: File "...", line 12, in ...
+    const size_t py = l.find(", line ");
+    if (py != std::string::npos) {
+      size_t d = py + 7;
+      int v = 0;
+      while (d < l.size() && l[d] >= '0' && l[d] <= '9') {
+        v = v * 10 + (l[d] - '0');
+        ++d;
+      }
+      if (v > 0) { found = v; continue; }
+    }
+    // node: at something (/path/file.js:28:1) — scan for ":N:" runs
+    for (size_t i = 1; i + 1 < l.size(); ++i) {
+      if (l[i] != ':' || l[i + 1] < '0' || l[i + 1] > '9') continue;
+      if (i > 0 && (l[i - 1] < '0' || l[i - 1] > '9')) {
+        size_t d = i + 1;
+        int v = 0;
+        while (d < l.size() && l[d] >= '0' && l[d] <= '9') {
+          v = v * 10 + (l[d] - '0');
+          ++d;
+        }
+        if (v > 0 && d < l.size() && l[d] == ':') { found = v; break; }
+      }
+    }
+  }
+  return found;
+}
+
 } // namespace dxn3

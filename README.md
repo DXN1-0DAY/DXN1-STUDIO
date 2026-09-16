@@ -2,7 +2,7 @@
 
 ![DXN1 STUDIO 3](assets/banner.png)
 
-![version](https://img.shields.io/badge/version-3.0.11-8b5cf6?style=flat-square)
+![version](https://img.shields.io/badge/version-3.0.12-8b5cf6?style=flat-square)
 ![gates](https://github.com/DXN1-termux/DXN1-STUDIO/actions/workflows/ci.yml/badge.svg)
 ![native](https://img.shields.io/badge/native-C%2B%2023-f97316?style=flat-square)
 ![face](https://img.shields.io/badge/face-terminal_truecolor-22d3ee?style=flat-square)
@@ -72,15 +72,19 @@ viewport refreshes — *code a background, and boom, a background.*
 - **The SDK is one import.** `from dxn3 import *` gives you `rect`,
   `circle`, `tri`, `label`, `on_key` / `on_tick` / `on_hit`, `destroy`,
   `vars`, `camera` — and `run()`. Entities are plain objects; move them
-  and the engine sees it.
+  and the engine sees it. C++ games `#include "dxn3.hpp"` and compile
+  to a binary the studio hosts — see `sdk/examples/pong.cpp`.
 - **Examples in `sdk/examples/`:** `background.py` (the hello world),
   `shooter.py` (bullets, score, respawning enemy), `bounce.js`
   (breakout with a steering paddle), `cards.py` (balatro-lite poker
-  hands vs the blind).
+  hands vs the blind), `pong.cpp` (a compiled C++ pong with an AI that
+  caps its speed — the hardest SDK proof in the set).
 
-Keys: `ctrl+r` run · `ctrl+s` save · `esc` play your game fullscreen ·
-`e` back to the editor · `:scene <name>` loads a demo (with tab-completion
-whispers) · `:q` quit.
+Keys: `ctrl+r` run · `ctrl+s` save · `ctrl+n` next template (or `:new`)
+· `ctrl+g` jump to the error line · `pgup/pgdn` page · `home/end` line
+ends · `del` forward-delete · `esc` play your game fullscreen ·
+`e` back to the editor · `:scene <name>` loads a demo (with
+completion whispers) · `:q` quit.
 
 ## The built-in demo: a five-scene campaign
 
@@ -211,8 +215,10 @@ native/src/main.cpp         the studio shell: raw-mode input, fixed
 native/src/selftest.cpp     engine assertions, including a live SDK child
 sdk/dxn3.py                 the Python SDK — one import, whole engine
 sdk/dxn3.js                 the JavaScript SDK (NODE_PATH, plain CJS)
+sdk/dxn3.hpp                the C++ SDK — compiled games, deque-stable
+                            entity pointers
 sdk/PROTOCOL.md             the one-page wire contract
-sdk/examples/               background · shooter · bounce · cards
+sdk/examples/               background · shooter · bounce · cards · pong
 assets/                     the brand: emblem, banner, social card + SVG src
 scenes/*.dxn1.json          the five-scene campaign — data only
 scripts/install.sh          the curl one-liner

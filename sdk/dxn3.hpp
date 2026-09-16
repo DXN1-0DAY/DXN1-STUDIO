@@ -1,169 +1,254 @@
-// dxn3 SDK — write a game in C++23, the studio renders it.
+// dxn3.hpp — the C++ SDK: write a game in C++, the studio renders it.
 //
-//   #include "dxn3.hpp"
+//     #include "dxn3.hpp"        // compile: g++ -std=c++23 -O2 game.cpp
+//     int main() {
+//         dxn3::Game g;          // the engine says hello on construction
+//         auto* ship = g.rect("ship", dxn3::W / 2 - 21, dxn3::H - 60, 42, 30, "#8b5cf6");
+//         ship->tag = "ship";
+//         g.onKey = [&](const std::string& k) {
+//             if (k == "left")  ship->x -= 340 * dxn3::dt;
+//             if (k == "right") ship->x += 340 * dxn3::dt;
+//         };
+//         g.onTick = [&](float) { g.hud()->text = "SCORE " + std::to_string(g.score()); };
+//         g.run();               // hands the loop to the studio
+//     }
 //
-//   int main() {
-//     dxn3::Game game;                       // speaks the stdio protocol
-//     auto ship = game.rect("ship", dxn3::W/2-6, dxn3::H-12, 12, 5, "#8b5cf6");
-//     ship->tag = "ship";
-//     game.on_key = [&](const std::string& k) { if (k == "left") ship->x -= 1; };
-//     game.on_tick = [&](float dt) { ... };
-//     game.on_hit = [&](dxn3::Ent a, dxn3::Ent b) { ... };
-//     game.run();                            // hands the loop to the studio
-//   }
-//
-// compile:  g++ -std=c++23 -O2 game.cpp -o game     (the engine hosts ./game)
 // The engine owns rendering, input and collision; this header speaks the
-// line-JSON protocol on stdio.
+// line-JSON protocol on stdio. printf goes to the studio's console.
+// The wire contract lives in sdk/PROTOCOL.md — this file is one honest
+// implementation of it, no dependencies beyond libstdc++.
 #pragma once
 
-#include <functional>
-#include <iostream>
 #include <map>
+#include <charconv>
+#include <cstdio>
+#include <cstdlib>
+#include <deque>
+#include <functional>
+#include <algorithm>
+#include <iostream>
 #include <string>
 #include <vector>
 
 namespace dxn3 {
 
-inline int W = 100, H = 46;
-inline double DT = 0.0;
+inline int W = 100, H = 46;        // the world size, set by the hello packet
+inline float dt = 0.f;             // seconds since the last tick (read live)
 
 struct Ent {
-  std::map<std::string, std::string> s;   // string fields
-  std::map<std::string, double> n;        // numeric fields
-  double& x = n["x"]; double& y = n["y"];
-  double& w = n["w"]; double& h = n["h"];
-  double& vx = n["vx"]; double& vy = n["vy"];
-  std::string& name = s["name"];
-  std::string& tag = s["tag"];
-  std::string& shape = s["shape"];
-  std::string& color = s["color"];
-  std::string& text = s["text"];
-  std::string json() const {
-    std::string o = "{";
-    auto put = [](const std::string& k, const std::string& v) {
-      std::string out = "\"" + k + "\":";
-      bool num = v.find_first_not_of("-.0123456789") == std::string::npos && !v.empty();
-      out += num ? v : "\"" + v + "\"";
-      return out;
-    };
-    bool first = true;
-    for (const auto& [k, v] : n) { if (!first) o += ","; o += put(k, std::to_string(v).erase(std::to_string(v).find_last_not_of('0') + 1, std::string::npos)); first = false; }
-    for (const auto& [k, v] : s) { if (!first) o += ","; o += put(k, v); first = false; }
-    return o + ",\"visible\":1}";
-  }
+  std::string name, tag, color = "#8b5cf6", shape = "rect", text,
+              fill = "solid", color2;
+  float x = 0, y = 0, w = 32, h = 32, vx = 0, vy = 0, rot = 0, spin = 0,
+        tsize = 20;
+  int visible = 1;
 };
+
+inline std::string jesc(const std::string& s) {
+  std::string out;
+  for (const char c : s) {
+    if (c == '"' || c == '\\') out += '\\';
+    if (static_cast<unsigned char>(c) < 0x20) continue;
+    out += c;
+  }
+  return out;
+}
 
 class Game {
 public:
-  std::function<void(const std::string&)> on_key;
-  std::function<void(float)> on_tick;
-  std::function<void(Ent, Ent)> on_hit;
-  std::function<void()> on_start;
+  std::function<void(float)> onTick;                       // every frame
+  std::function<void(const std::string&)> onKey;           // held keys/chars
+  std::function<void(Ent&, Ent&)> onHit;                   // pair ENTERS
+  std::function<void()> onStart;                           // first tick
 
-  Ent& rect(const std::string& name, double x, double y, double w, double h,
-            const std::string& color = "#8b5cf6") { return mk(name, "rect", x, y, w, h, color); }
-  Ent& circle(const std::string& name, double x, double y, double w, double h,
-              const std::string& color = "#facc15") { return mk(name, "circle", x, y, w, h, color); }
-  Ent& label(const std::string& name, double x, double y, const std::string& text,
-             const std::string& color = "#e9e5ff") {
-    auto& e = mk(name, "text", x, y, static_cast<double>(text.size()), 2, color);
-    e.text = text;
+  Game() {
+    std::string line;
+    if (!std::getline(std::cin, line)) {                   // the hello packet
+      std::cout << "run me from the studio:  dxn3 mygame   (not directly)\n";
+      std::exit(1);
+    }
+    auto num = [&](const std::string& key, int fallback) {
+      const size_t p = line.find("\"" + key + "\":");
+      if (p == std::string::npos) return fallback;
+      return std::atoi(line.c_str() + p + key.size() + 3);
+    };
+    W = num("w", 100);
+    H = num("h", 46);
+  }
+
+  Ent* rect(const std::string& name, float x, float y, float w, float h,
+            const std::string& color = "#8b5cf6") {
+    return mk(name, "rect", x, y, w, h, color);
+  }
+  Ent* circle(const std::string& name, float x, float y, float w, float h,
+              const std::string& color = "#facc15") {
+    return mk(name, "circle", x, y, w, h, color);
+  }
+  Ent* tri(const std::string& name, float x, float y, float w, float h,
+           const std::string& color = "#ef4444") {
+    return mk(name, "tri", x, y, w, h, color);
+  }
+  Ent* label(const std::string& name, float x, float y,
+             const std::string& text, const std::string& color = "#e9e5ff") {
+    Ent* e = mk(name, "text", x, y,
+                static_cast<float>(std::max<size_t>(1, text.size())), 2, color);
+    e->text = text;
     return e;
   }
+  Ent* find(const std::string& name) {
+    for (auto& e : ents_) if (e.name == name) return &e;
+    return nullptr;
+  }
   void destroy(const std::string& name) {
-    if (ents_.count(name)) { ents_.erase(name); dels_.push_back(name); }
+    for (auto& e : ents_)
+      if (e.name == name) { e.visible = 0; dels_.push_back(name); }
   }
   void background(const std::string& hex) { bg_ = hex; }
-  void gravity(double g) { gravity_ = g; }
-  void vars(const std::map<std::string, double>& kv) { for (auto& [k, v] : kv) vars_[k] = v; }
+  void gravity(float g) { gravity_ = g; }
+  void camera(float x, float y, float zoom = 1) { cam_ = {x, y, zoom}; }
+  void var(const std::string& key, double value) { vars_[key] = value; }
+  Ent* hud() { return find("hud"); }
 
   void run() {
-    std::string line;
-    std::getline(std::cin, line);                 // hello
-    parseHello(line);
-    std::cout << "{\"t\":\"scene\",\"name\":\"game\",\"bg\":\"" << bg_
-              << "\",\"gravity\":" << gravity_ << ",\"entities\":[";
+    // the scene packet: everything visible at t=0
+    std::cout << "{\"t\":\"scene\",\"name\":\"game\",\"bg\":\"" << jesc(bg_)
+              << "\",\"gravity\":" << (int)gravity_ << ",\"entities\":[";
     bool first = true;
-    for (auto& [_, e] : ents_) { if (!first) std::cout << ","; std::cout << e.json(); first = false; }
-    std::cout << "]}" << std::endl;
-    bool started = false;
-    while (std::getline(std::cin, line)) {
-      if (line.find("\"tick\"") == std::string::npos) continue;
-      DT = numField(line, "dt");
-      if (!started) { if (on_start) on_start(); started = true; }
-      for (auto& [_, e] : ents_) {
-        if (e.vx) e.x += e.vx * DT;
-        if (e.vy) e.y += e.vy * DT;
+    for (const auto& e : ents_) {
+      if (!first) std::cout << ",";
+      first = false;
+      std::cout << entJson(e);
+    }
+    std::cout << "]}\n" << std::flush;
+
+    int started = 0;
+    std::string lastLine;
+    std::vector<std::string> pairs;                       // already reported
+    while (std::getline(std::cin, lastLine)) {
+      if (lastLine.find("\"tick\"") == std::string::npos) continue;
+      dt = numField(lastLine, "dt");
+      if (!started && onStart) { onStart(); started = 1; }
+      for (auto& e : ents_) {                             // physics-lite
+        if (e.visible && e.vx) e.x += e.vx * dt;
+        if (e.visible && e.vy) e.y += e.vy * dt;
       }
-      if (on_tick) on_tick(DT);
-      if (on_key) for (const auto& k : heldKeys(line)) on_key(k);
-      if (on_hit) for (const auto& p : hits(line)) {
-        if (ents_.count(p.first) && ents_.count(p.second)) on_hit(ents_[p.first], ents_[p.second]);
+      if (onTick) onTick(dt);
+      // keys: "left"/"right"/"jump"/"space" booleans + chars substring
+      for (const char* k : {"left", "right", "jump", "space"}) {
+        if (lastLine.find(std::string("\"" ) + k + "\":true") !=
+            std::string::npos && onKey) onKey(k);
       }
+      const size_t ch = lastLine.find("\"chars\":\"");
+      if (ch != std::string::npos && onKey) {
+        size_t i = ch + 9;
+        while (i < lastLine.size() && lastLine[i] != '"') {
+          if (lastLine[i] != ' ') onKey(std::string(1, lastLine[i]));
+          ++i;
+        }
+      }
+      // hits arrive flat: ["a","b",…] — fire on ENTER only
+      const size_t hi = lastLine.find("\"hits\":[");
+      if (hi != std::string::npos && onHit) {
+        std::vector<std::string> names;
+        for (size_t i = hi + 8; i < lastLine.size() && lastLine[i] != ']';) {
+          if (lastLine[i] == '"') {
+            size_t j = i + 1;
+            while (j < lastLine.size() && lastLine[j] != '"') ++j;
+            names.push_back(lastLine.substr(i + 1, j - i - 1));
+            i = j + 1;
+          } else ++i;
+        }
+        std::vector<std::string> seen;
+        for (size_t i = 0; i + 1 < names.size(); i += 2) {
+          std::string key = names[i] < names[i + 1]
+                                ? names[i] + "|" + names[i + 1]
+                                : names[i + 1] + "|" + names[i];
+          seen.push_back(key);
+          bool fresh = true;
+          for (const auto& p : pairs) if (p == key) fresh = false;
+          if (!fresh) continue;
+          Ent* a = find(names[i]);
+          Ent* b = find(names[i + 1]);
+          if (a && b) onHit(*a, *b);
+        }
+        pairs = seen;
+      }
+      // the frame: a full patch of every live entity
       std::cout << "{\"t\":\"frame\",\"set\":[";
       first = true;
-      for (auto& [_, e] : ents_) { if (!first) std::cout << ","; std::cout << e.json(); first = false; }
+      for (const auto& e : ents_) {
+        if (!e.visible) continue;
+        if (!first) std::cout << ",";
+        first = false;
+        std::cout << entJson(e);
+      }
       std::cout << "],\"del\":[";
-      first = true;
-      for (auto& d : dels_) { if (!first) std::cout << ","; std::cout << "\"" << d << "\""; first = false; }
+      for (size_t i = 0; i < dels_.size(); ++i)
+        std::cout << (i ? "," : "") << "\"" << jesc(dels_[i]) << "\"";
       std::cout << "],\"vars\":{";
       first = true;
-      for (auto& [k, v] : vars_) { if (!first) std::cout << ","; std::cout << "\"" << k << "\":" << v; first = false; }
-      std::cout << "}}" << std::endl;
-      dels_.clear();
+      for (const auto& [k, v] : vars_) {
+        if (!first) std::cout << ",";
+        first = false;
+        std::cout << "\"" << jesc(k) << "\":" << v;   // numbers stay numbers
+      }
+      std::cout << "},\"camera\":{}}\n" << std::flush;
+      dels_.clear(); vars_.clear();
     }
   }
 
 private:
-  std::map<std::string, Ent> ents_;
+  // deque on purpose: games hold Ent* across frames (pad, ball, …) and
+  // push_back must NEVER invalidate them — vector would silently dangle
+  std::deque<Ent> ents_;
   std::vector<std::string> dels_;
   std::map<std::string, double> vars_;
   std::string bg_ = "#0b0e1a";
-  double gravity_ = 0;
+  float gravity_ = 0;
+  struct { float x = 0, y = 0, zoom = 1; } cam_;
 
-  Ent& mk(const std::string& name, const std::string& shape, double x, double y,
-          double w, double h, const std::string& color) {
-    Ent e;
-    e.name = name; e.shape = shape; e.color = color;
-    e.x = x; e.y = y; e.w = w; e.h = e.h = h;
-    return ents_.emplace(name, std::move(e)).first->second;
+  static std::string fmtNum(float f) {
+    char b[32];
+    auto [p, ec] = std::to_chars(b, b + sizeof b, f);
+    (void)ec;
+    return std::string(b, p);
   }
-  static double numField(const std::string& line, const std::string& key) {
-    const std::string pat = "\"" + key + "\":";
-    const auto at = line.find(pat);
-    if (at == std::string::npos) return 0;
-    try { return std::stod(line.substr(at + pat.size())); } catch (...) { return 0; }
+
+  static float numField(const std::string& line, const std::string& key) {
+    const size_t p = line.find("\"" + key + "\":");
+    if (p == std::string::npos) return 0.f;
+    return strtof(line.c_str() + p + key.size() + 3, nullptr);
   }
-  static std::vector<std::string> heldKeys(const std::string& line) {
-    std::vector<std::string> out;
-    for (const char* k : {"left", "right", "jump", "space"})
-      if (line.find("\"" + std::string(k) + "\":true") != std::string::npos) out.push_back(k);
-    return out;
-  }
-  static std::vector<std::pair<std::string, std::string>> hits(const std::string& line) {
-    std::vector<std::pair<std::string, std::string>> out;
-    const auto at = line.find("\"hits\":[");
-    if (at == std::string::npos) return out;
-    std::string body = line.substr(at + 8, line.find("]", at) - at - 8);
-    for (size_t i = 0; i + 1 < body.size(); ++i) {
-      if (body[i] == '"') {
-        const auto q1 = body.find('"', i + 1);
-        const std::string a = body.substr(i + 1, q1 - i - 1);
-        size_t j = body.find('"', q1 + 1);
-        if (j == std::string::npos) break;
-        const auto q2 = body.find('"', j + 1);
-        out.emplace_back(a, body.substr(j + 1, q2 - j - 1));
-        i = q2;
+  Ent* mk(const std::string& name, const char* shape, float x, float y,
+          float w, float h, const std::string& color) {
+    for (auto& e : ents_)
+      if (e.name == name) {                       // redraw replaces in place
+        e.shape = shape; e.x = x; e.y = y; e.w = w; e.h = h; e.color = color;
+        e.visible = 1;
+        return &e;
       }
-    }
-    return out;
+    ents_.push_back(Ent{name, "", color, shape, "", "solid", "",
+                        x, y, w, h, 0, 0, 0, 0, 20, 1});
+    return &ents_.back();
   }
-  void parseHello(const std::string& line) {
-    const auto w = line.find("\"w\":");
-    const auto h = line.find("\"h\":");
-    if (w != std::string::npos) try { W = std::stoi(line.substr(w + 4)); } catch (...) {}
-    if (h != std::string::npos) try { H = std::stoi(line.substr(h + 4)); } catch (...) {}
+  static std::string entJson(const Ent& e) {
+    std::string o = "{\"name\":\"" + jesc(e.name) + "\"";
+    auto putS = [&](const char* k, const std::string& v) {
+      o += ",\"" + std::string(k) + "\":\"" + jesc(v) + "\"";
+    };
+    auto putN = [&](const char* k, float f) {
+      o += std::string(",\"") + k + "\":" + fmtNum(f);
+    };
+    putS("tag", e.tag);
+    putS("color", e.color);
+    putS("shape", e.shape);
+    putS("text", e.text);
+    putS("fill", e.fill);
+    putS("color2", e.color2);
+    putN("x", e.x); putN("y", e.y); putN("w", e.w); putN("h", e.h);
+    putN("vx", e.vx); putN("vy", e.vy); putN("rot", e.rot);
+    putN("spin", e.spin); putN("tsize", e.tsize);
+    o += ",\"visible\":" + std::to_string(e.visible);
+    return o + "}";
   }
 };
 

@@ -79,7 +79,7 @@ inline Cmd parseCommand(std::string_view line) {
   } else if (c.verb == "w" || c.verb == "screenshot") {
     // optional path argument — both fine
   } else if (c.verb == "q" || c.verb == "wq" || c.verb == "fit" ||
-             c.verb == "reset" || c.verb == "help") {
+             c.verb == "reset" || c.verb == "help" || c.verb == "new") {
     if (!c.arg.empty())
       c.error = ":" + c.verb + " takes no argument";
   } else {

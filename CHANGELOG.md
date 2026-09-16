@@ -1,3 +1,35 @@
+## v3.0.12 — the typed word: an IDE that fixes with you
+
+**The editor grows up**
+- **Real editor keys**: `pgup`/`pgdn` page through the file,
+  `home`/`end` snap to line ends, `del` forward-deletes and joins the
+  next line up — the IDE finally feels like an editor, not a typewriter.
+- **ctrl+g: the console talks back.** When your game crashes, the
+  console's traceback carries the line number — python
+  (`File "game.py", line 12`) and node (`game.js:28:1`) both — and the
+  status rail turns red with `ctrl+g jumps to line 12`. One keystroke
+  from the stack trace to the offending line.
+- **`:new` joins the command bar** — the template gallery without
+  leaving the keyboard; it even opens the studio from play mode.
+
+**The C++ SDK: compiled games, first-class**
+- `sdk/dxn3.hpp` — a header-only C++ SDK: `g.rect(...)`, `g.onTick`,
+  `g.onKey`, `g.onHit`, `g.var(...)`, `g.run()`. Entity pointers are
+  stable for the life of the game (a `deque`, on purpose — a `vector`
+  silently dangled them and segfaulted real games mid-frame; the gate
+  now proves it doesn't).
+- `sdk/examples/pong.cpp` — a compiled pong with a speed-capped AI,
+  paddle-edge steering and set scoring. `dxn3 sdk/examples/pong.cpp`
+  compiles it on the spot and hosts it.
+- **Gate 6: the wire contract runs on every push.** A fake engine feeds
+  every shipped example — python, node and the compiled C++ game — and
+  checks the scene and frames come back. Broken examples fail the
+  build now, not the user's afternoon.
+
+**The selftest grew to 86 assertion groups** — the new console-readback
+group parses python and node tracebacks for line numbers, last frame
+wins.
+
 ## v3.0.11 — the polish round
 
 - **Discs are genuinely round now**: circles rasterize per dot, so in
