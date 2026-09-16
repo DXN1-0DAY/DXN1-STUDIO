@@ -277,7 +277,7 @@ whisper as you type) ·
 `:scene <name>` loads a demo (with
 completion whispers) · `:q` quit.
 
-## The built-in demo: a five-scene campaign
+## The built-in demo: a six-scene campaign
 
 The Spark engine ships with a chained platformer — real headless renders
 of the shipped scenes, the same frames your terminal draws. It is a demo
@@ -288,15 +288,19 @@ of the renderer; your games are the product:
 | ![playground](docs/img/shot-playground.png) | ![level-1](docs/img/shot-level-1.png) |
 | **the climb (level-3)** | **the gauntlet (level-4)** |
 | ![level-3](docs/img/shot-level-3.png) | ![level-4](docs/img/shot-level-4.png) |
+| **the vault (level-5)** | | 
+| ![level-5](docs/img/shot-level-5.png) | |
 
-Goals chain the scenes into a five-scene campaign: **playground → level-1 (the
+Goals chain the scenes into a six-scene campaign: **playground → level-1 (the
 gap) → level-2 (the movers) → level-3 (the climb) → level-4 (the gauntlet) →
-back home.** Coins score (+10, magnetized inside the scene's radius), spikes
+level-5 (the vault) → back home.** Coins score (+10, magnetized inside the scene's radius), spikes
 respawn you with a camera shake, movers carry you across the gaps — and the
 HUD counts it all: `COINS x/y · SCORE · TIME`, scene name on the right.
 Level-3 goes vertical — two lifts, a springboard shortcut and a gradient
 summit. Level-4 is the exam: nine fangs, three ferries, a saw-guarded island
-and a spinning gate before the last door. The full walkthrough lives in the
+and a spinning gate before the last door. Level-5 is the vault: two
+counter-phased lifts, a saw-patrolled high deck, a ferry under a saw
+and a fang-lined last stretch. The full walkthrough lives in the
 [campaign field guide](docs/CAMPAIGN.md).
 
 ## Play

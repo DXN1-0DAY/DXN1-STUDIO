@@ -1,0 +1,44 @@
+{
+  "name": "the vault (level-5)",
+  "bg": "#0b0f14",
+  "gravity": 1500,
+  "magnet": 150,
+  "next": "scenes/playground.dxn1.json",
+  "camera": { "x": 0, "y": 0, "zoom": 0.7 },
+  "entities": [
+    { "name": "start-ledge", "x": -200, "y": 430, "w": 440, "h": 90, "color": "#1f2937" },
+    { "name": "hero", "tag": "player", "x": 60, "y": 330, "w": 34, "h": 44, "color": "#8b5cf6" },
+
+    { "name": "readme", "tag": "sign", "x": 170, "y": 356, "w": 34, "h": 34, "color": "#94a3b8", "text": "THE VAULT — ride the lifts, mind the saws" },
+
+    { "name": "lift-1", "tag": "mover", "x": 300, "y": 400, "w": 110, "h": 20, "color": "#38bdf8",
+      "path": [ { "x": 300, "y": 400 }, { "x": 300, "y": 200 } ], "pspeed": 80 },
+    { "name": "lift-2", "tag": "mover", "x": 480, "y": 200, "w": 110, "h": 20, "color": "#38bdf8",
+      "path": [ { "x": 480, "y": 200 }, { "x": 480, "y": 420 } ], "pspeed": 95 },
+
+    { "name": "high-deck", "x": 640, "y": 180, "w": 300, "h": 26, "color": "#1f2937" },
+    { "name": "deck-guard", "tag": "hazard", "x": 760, "y": 116, "w": 38, "h": 38, "color": "#fb7185", "rot": 0, "spin": 260 },
+
+    { "name": "drop-ledge", "x": 990, "y": 240, "w": 200, "h": 26, "color": "#1f2937" },
+    { "name": "fang-1", "tag": "spike", "x": 1000, "y": 214, "w": 34, "h": 28, "shape": "triangle", "color": "#ef4444" },
+
+    { "name": "ferry-1", "tag": "mover", "x": 1240, "y": 300, "w": 120, "h": 20, "color": "#38bdf8",
+      "path": [ { "x": 1240, "y": 300 }, { "x": 1480, "y": 300 } ], "pspeed": 110 },
+    { "name": "ferry-guard", "tag": "hazard", "x": 1360, "y": 240, "w": 38, "h": 38, "color": "#fb7185", "rot": 0, "spin": 300 },
+
+    { "name": "isle", "x": 1530, "y": 360, "w": 150, "h": 160, "color": "#1f2937" },
+    { "name": "fang-2", "tag": "spike", "x": 1540, "y": 492, "w": 34, "h": 28, "shape": "triangle", "color": "#ef4444" },
+
+    { "name": "last-stretch", "x": 1730, "y": 420, "w": 240, "h": 100, "color": "#1f2937" },
+    { "name": "fang-3", "tag": "spike", "x": 1790, "y": 392, "w": 34, "h": 28, "shape": "triangle", "color": "#ef4444" },
+    { "name": "fang-4", "tag": "spike", "x": 1860, "y": 392, "w": 34, "h": 28, "shape": "triangle", "color": "#ef4444" },
+
+    { "name": "gem-1", "tag": "coin", "x": 330, "y": 150, "w": 22, "h": 22, "shape": "circle", "color": "#facc15" },
+    { "name": "gem-2", "tag": "coin", "x": 700, "y": 130, "w": 22, "h": 22, "shape": "circle", "color": "#facc15" },
+    { "name": "gem-3", "tag": "coin", "x": 900, "y": 140, "w": 22, "h": 22, "shape": "circle", "color": "#facc15" },
+    { "name": "gem-4", "tag": "coin", "x": 1050, "y": 200, "w": 22, "h": 22, "shape": "circle", "color": "#facc15" },
+    { "name": "gem-5", "tag": "coin", "x": 1400, "y": 250, "w": 22, "h": 22, "shape": "circle", "color": "#facc15" },
+
+    { "name": "out", "tag": "goal", "x": 1900, "y": 356, "w": 30, "h": 64, "color": "#34d399" }
+  ]
+}

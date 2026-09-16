@@ -3,38 +3,306 @@
   "bg": "#120b16",
   "gravity": 1500,
   "magnet": 150,
-  "next": "scenes/playground.dxn1.json",
-  "camera": { "x": 0, "y": 0, "zoom": 0.75 },
+  "next": "scenes/level-5.dxn1.json",
+  "camera": {
+    "x": 0,
+    "y": 0,
+    "zoom": 0.75
+  },
   "entities": [
-    { "name": "hero", "tag": "player", "x": 70, "y": 330, "w": 34, "h": 44, "color": "#8b5cf6" },
-    { "name": "start-ledge", "x": -200, "y": 430, "w": 480, "h": 90, "color": "#1f2937" },
-    { "name": "pit-floor", "x": 280, "y": 500, "w": 900, "h": 30, "color": "#2a1220" },
-    { "name": "fang-1", "tag": "spike", "x": 320, "y": 472, "w": 34, "h": 28, "shape": "triangle", "color": "#ef4444" },
-    { "name": "fang-2", "tag": "spike", "x": 420, "y": 472, "w": 34, "h": 28, "shape": "triangle", "color": "#ef4444" },
-    { "name": "fang-3", "tag": "spike", "x": 520, "y": 472, "w": 34, "h": 28, "shape": "triangle", "color": "#ef4444" },
-    { "name": "fang-4", "tag": "spike", "x": 620, "y": 472, "w": 34, "h": 28, "shape": "triangle", "color": "#ef4444" },
-    { "name": "fang-5", "tag": "spike", "x": 720, "y": 472, "w": 34, "h": 28, "shape": "triangle", "color": "#ef4444" },
-    { "name": "fang-6", "tag": "spike", "x": 820, "y": 472, "w": 34, "h": 28, "shape": "triangle", "color": "#ef4444" },
-    { "name": "fang-7", "tag": "spike", "x": 920, "y": 472, "w": 34, "h": 28, "shape": "triangle", "color": "#ef4444" },
-    { "name": "fang-8", "tag": "spike", "x": 1020, "y": 472, "w": 34, "h": 28, "shape": "triangle", "color": "#ef4444" },
-    { "name": "fang-9", "tag": "spike", "x": 1120, "y": 472, "w": 34, "h": 28, "shape": "triangle", "color": "#ef4444" },
-    { "name": "ferry-1", "tag": "mover", "x": 330, "y": 390, "w": 120, "h": 20, "color": "#38bdf8",
-      "path": [ { "x": 330, "y": 390 }, { "x": 560, "y": 390 } ], "pspeed": 95 },
-    { "name": "ferry-2", "tag": "mover", "x": 660, "y": 330, "w": 110, "h": 20, "color": "#38bdf8",
-      "path": [ { "x": 660, "y": 330 }, { "x": 860, "y": 330 } ], "pspeed": 85 },
-    { "name": "island", "x": 900, "y": 400, "w": 170, "h": 30, "color": "#1f2937" },
-    { "name": "saw-isle", "tag": "hazard", "x": 960, "y": 362, "w": 38, "h": 38, "color": "#fb7185", "rot": 0, "spin": 280 },
-    { "name": "ferry-3", "tag": "mover", "x": 1120, "y": 360, "w": 110, "h": 20, "color": "#38bdf8",
-      "path": [ { "x": 1120, "y": 360 }, { "x": 1260, "y": 300 } ], "pspeed": 75 },
-    { "name": "far-ledge", "x": 1300, "y": 430, "w": 500, "h": 90, "color": "#1f2937" },
-    { "name": "saw-gate", "tag": "hazard", "x": 1420, "y": 330, "w": 38, "h": 38, "color": "#fb7185", "rot": 0, "spin": 220 },
-    { "name": "gem-1", "tag": "coin", "x": 430, "y": 340, "w": 22, "h": 22, "shape": "circle", "color": "#facc15" },
-    { "name": "gem-2", "tag": "coin", "x": 740, "y": 280, "w": 22, "h": 22, "shape": "circle", "color": "#facc15" },
-    { "name": "gem-3", "tag": "coin", "x": 970, "y": 300, "w": 22, "h": 22, "shape": "circle", "color": "#facc15" },
-    { "name": "gem-4", "tag": "coin", "x": 1180, "y": 300, "w": 22, "h": 22, "shape": "circle", "color": "#facc15" },
-    { "name": "gem-5", "tag": "coin", "x": 1560, "y": 350, "w": 22, "h": 22, "shape": "circle", "color": "#facc15" },
-    { "name": "sign-1", "tag": "sign", "x": 100, "y": 360, "w": 180, "h": 20, "color": "#a78bfa", "text": "timed hops only", "tsize": 18 },
-    { "name": "sign-2", "tag": "sign", "x": 1620, "y": 300, "w": 170, "h": 20, "color": "#a78bfa", "text": "the last door →", "tsize": 18 },
-    { "name": "out", "tag": "goal", "x": 1720, "y": 366, "w": 30, "h": 64, "color": "#34d399" }
+    {
+      "name": "hero",
+      "tag": "player",
+      "x": 70,
+      "y": 330,
+      "w": 34,
+      "h": 44,
+      "color": "#8b5cf6"
+    },
+    {
+      "name": "start-ledge",
+      "x": -200,
+      "y": 430,
+      "w": 480,
+      "h": 90,
+      "color": "#1f2937"
+    },
+    {
+      "name": "pit-floor",
+      "x": 280,
+      "y": 500,
+      "w": 900,
+      "h": 30,
+      "color": "#2a1220"
+    },
+    {
+      "name": "fang-1",
+      "tag": "spike",
+      "x": 320,
+      "y": 472,
+      "w": 34,
+      "h": 28,
+      "shape": "triangle",
+      "color": "#ef4444"
+    },
+    {
+      "name": "fang-2",
+      "tag": "spike",
+      "x": 420,
+      "y": 472,
+      "w": 34,
+      "h": 28,
+      "shape": "triangle",
+      "color": "#ef4444"
+    },
+    {
+      "name": "fang-3",
+      "tag": "spike",
+      "x": 520,
+      "y": 472,
+      "w": 34,
+      "h": 28,
+      "shape": "triangle",
+      "color": "#ef4444"
+    },
+    {
+      "name": "fang-4",
+      "tag": "spike",
+      "x": 620,
+      "y": 472,
+      "w": 34,
+      "h": 28,
+      "shape": "triangle",
+      "color": "#ef4444"
+    },
+    {
+      "name": "fang-5",
+      "tag": "spike",
+      "x": 720,
+      "y": 472,
+      "w": 34,
+      "h": 28,
+      "shape": "triangle",
+      "color": "#ef4444"
+    },
+    {
+      "name": "fang-6",
+      "tag": "spike",
+      "x": 820,
+      "y": 472,
+      "w": 34,
+      "h": 28,
+      "shape": "triangle",
+      "color": "#ef4444"
+    },
+    {
+      "name": "fang-7",
+      "tag": "spike",
+      "x": 920,
+      "y": 472,
+      "w": 34,
+      "h": 28,
+      "shape": "triangle",
+      "color": "#ef4444"
+    },
+    {
+      "name": "fang-8",
+      "tag": "spike",
+      "x": 1020,
+      "y": 472,
+      "w": 34,
+      "h": 28,
+      "shape": "triangle",
+      "color": "#ef4444"
+    },
+    {
+      "name": "fang-9",
+      "tag": "spike",
+      "x": 1120,
+      "y": 472,
+      "w": 34,
+      "h": 28,
+      "shape": "triangle",
+      "color": "#ef4444"
+    },
+    {
+      "name": "ferry-1",
+      "tag": "mover",
+      "x": 330,
+      "y": 390,
+      "w": 120,
+      "h": 20,
+      "color": "#38bdf8",
+      "path": [
+        {
+          "x": 330,
+          "y": 390
+        },
+        {
+          "x": 560,
+          "y": 390
+        }
+      ],
+      "pspeed": 95
+    },
+    {
+      "name": "ferry-2",
+      "tag": "mover",
+      "x": 660,
+      "y": 330,
+      "w": 110,
+      "h": 20,
+      "color": "#38bdf8",
+      "path": [
+        {
+          "x": 660,
+          "y": 330
+        },
+        {
+          "x": 860,
+          "y": 330
+        }
+      ],
+      "pspeed": 85
+    },
+    {
+      "name": "island",
+      "x": 900,
+      "y": 400,
+      "w": 170,
+      "h": 30,
+      "color": "#1f2937"
+    },
+    {
+      "name": "saw-isle",
+      "tag": "hazard",
+      "x": 960,
+      "y": 362,
+      "w": 38,
+      "h": 38,
+      "color": "#fb7185",
+      "rot": 0,
+      "spin": 280
+    },
+    {
+      "name": "ferry-3",
+      "tag": "mover",
+      "x": 1120,
+      "y": 360,
+      "w": 110,
+      "h": 20,
+      "color": "#38bdf8",
+      "path": [
+        {
+          "x": 1120,
+          "y": 360
+        },
+        {
+          "x": 1260,
+          "y": 300
+        }
+      ],
+      "pspeed": 75
+    },
+    {
+      "name": "far-ledge",
+      "x": 1300,
+      "y": 430,
+      "w": 500,
+      "h": 90,
+      "color": "#1f2937"
+    },
+    {
+      "name": "saw-gate",
+      "tag": "hazard",
+      "x": 1420,
+      "y": 330,
+      "w": 38,
+      "h": 38,
+      "color": "#fb7185",
+      "rot": 0,
+      "spin": 220
+    },
+    {
+      "name": "gem-1",
+      "tag": "coin",
+      "x": 430,
+      "y": 340,
+      "w": 22,
+      "h": 22,
+      "shape": "circle",
+      "color": "#facc15"
+    },
+    {
+      "name": "gem-2",
+      "tag": "coin",
+      "x": 740,
+      "y": 280,
+      "w": 22,
+      "h": 22,
+      "shape": "circle",
+      "color": "#facc15"
+    },
+    {
+      "name": "gem-3",
+      "tag": "coin",
+      "x": 970,
+      "y": 300,
+      "w": 22,
+      "h": 22,
+      "shape": "circle",
+      "color": "#facc15"
+    },
+    {
+      "name": "gem-4",
+      "tag": "coin",
+      "x": 1180,
+      "y": 300,
+      "w": 22,
+      "h": 22,
+      "shape": "circle",
+      "color": "#facc15"
+    },
+    {
+      "name": "gem-5",
+      "tag": "coin",
+      "x": 1560,
+      "y": 350,
+      "w": 22,
+      "h": 22,
+      "shape": "circle",
+      "color": "#facc15"
+    },
+    {
+      "name": "sign-1",
+      "tag": "sign",
+      "x": 100,
+      "y": 360,
+      "w": 180,
+      "h": 20,
+      "color": "#a78bfa",
+      "text": "timed hops only",
+      "tsize": 18
+    },
+    {
+      "name": "sign-2",
+      "tag": "sign",
+      "x": 1620,
+      "y": 300,
+      "w": 170,
+      "h": 20,
+      "color": "#a78bfa",
+      "text": "the last door \u2192",
+      "tsize": 18
+    },
+    {
+      "name": "out",
+      "tag": "goal",
+      "x": 1720,
+      "y": 366,
+      "w": 30,
+      "h": 64,
+      "color": "#34d399"
+    }
   ]
 }

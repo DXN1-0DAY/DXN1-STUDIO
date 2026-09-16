@@ -1,7 +1,7 @@
 # The Campaign — a field guide
 
-Five scenes, one loop: **playground → the gap → the movers → the climb →
-the gauntlet → back home.** Every scene is a plain `.dxn1.json` file; the
+Six scenes, one loop: **playground → the gap → the movers → the climb →
+the gauntlet → the vault → back home.** Every scene is a plain `.dxn1.json` file; the
 goal door carries you to the next, and the last door brings you home. The
 HUD counts `COINS x/y · SCORE · TIME` the whole way — completionists grab
 every coin before touching a door.
@@ -52,6 +52,16 @@ shifts with every rotation. The far ledge hides a second saw above the
 final stretch: run under it, don't jump. Five gems, the meanest jump
 timing in the campaign, and a last door that brings you home to the
 playground — where the ball is still bouncing.
+
+## level-5 — the vault
+
+The vault opens after the gauntlet's last door and it is MACHINES: two
+counter-phased lifts trade the first pit between them (ride one up as the
+other comes down), a saw patrols the high deck's airspace, and the drop
+ledge's single fang punishes the lazy landing. The ferry under the second
+saw asks for a crouch-run's patience — wait half a rotation, then cross.
+The isle is honest ground; the last stretch is not: two fangs, one gap,
+and the door home. Five gems, one per machine, none free.
 
 ## Design notes (for scene authors)
 
