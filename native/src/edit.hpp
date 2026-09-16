@@ -1326,6 +1326,35 @@ inline int ideUniqSel(IdeState& s) {
   return removed;
 }
 
+// ── the flip: the selection's lines walk end for end ────────────
+// :rev reorders — it does not judge: the bed's first line lands last,
+// the last lands first, and no alphabet has a say. The sort family's
+// bed and refusals; ONE restore point named "rev"; the hand at the
+// block's head; the selection let go. The pins ride the flip to their
+// mirror positions (the content-following law), and the ledger is
+// re-sorted — a flip is the one move that can unsort it.
+inline int ideRevSel(IdeState& s) {
+  const auto sel = ideSelRange(s);
+  if (!sel) return 0;
+  const auto [r0, c0, r1, c1] = *sel;
+  if (r1 <= r0) return 0;
+  idePushUndo(s, "rev");
+  std::reverse(s.lines.begin() + r0, s.lines.begin() + r1 + 1);
+  bool pinsMoved = false;
+  for (int& m : s.marks)
+    if (m >= r0 && m <= r1) {
+      m = r0 + (r1 - m);             // the mirror
+      pinsMoved = true;
+    }
+  if (pinsMoved) std::sort(s.marks.begin(), s.marks.end());
+  ideSelClear(s);
+  s.curR = r0;
+  s.curC = 0;
+  s.dirty = true;
+  s.idle = 0;
+  return r1 - r0 + 1;
+}
+
 // ── the sweep: trailing whitespace is noise ─────────────────────────
 // Every line's tail spaces and tabs come off; a line of pure air goes
 // truly blank. ONE honest restore point named "trim", taken only when

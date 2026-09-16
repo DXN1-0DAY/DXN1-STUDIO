@@ -1,3 +1,18 @@
+## v3.0.47 — the flip
+
+- **`:rev` — the selection's lines walk end for end.** The sort
+  family's bed and refusals, but no alphabet has a say: the first
+  line lands last, the last lands first. ONE restore point named
+  "rev", the hand at the block's head, the selection let go.
+- **The pins ride the flip to their mirrors** — the content-following
+  law the collapse taught, applied to the one move that can unsort
+  the ledger: each pin lands at `r0 + (r1 − m)`, and the ledger is
+  re-sorted so the ":marks order" invariant survives the flip.
+- Selftest group 56 (11 asserts: the flip, the mirrored pins, the
+  refusals, the undo that lands the hand where it stood, the
+  grammar) — 483 → 494 groups. The smoke grew the flip of the
+  sort/rsort round-trip tail — 47 → 49 checks.
+
 ## v3.0.46 — the collapse
 
 - **`:uniq` — lines that repeat back-to-back say it once.** A

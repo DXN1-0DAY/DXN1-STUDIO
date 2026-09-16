@@ -199,7 +199,7 @@ int main() {
   }
 
   // 9. the version quad rides in the binary too
-  ok(std::string(dxn3::DXN3_VERSION) == "3.0.46",
+  ok(std::string(dxn3::DXN3_VERSION) == "3.0.47",
      "native version constant matches the release quad");
 
   // 10. png writer: checksum vectors, real structure, byte determinism
@@ -2503,6 +2503,53 @@ int main() {
     ok(dxn3::usageHintFor(":uniq").find("back-to-back") != std::string::npos,
        "the bar whispers the collapse law");
   }
+
+  // 56. the flip: :rev reorders without judging - the bed's first
+  // line lands last, the pins ride to their mirrors, and the ledger
+  // is re-sorted (a flip is the one move that can unsort it)
+  {
+    IdeState f1;
+    f1.lines = {"one", "two", "three", "four", "end"};
+    dxn3::ideMarkToggle(f1, 1);        // a pin on "two"
+    dxn3::ideMarkToggle(f1, 3);        // a pin on "four"
+    f1.curR = 0;
+    f1.curC = 1;
+    f1.anchorR = 3;
+    f1.anchorC = 0;
+    ok(dxn3::ideRevSel(f1) == 4, "four lines flip");
+    ok(f1.lines == std::vector<std::string>(
+                        {"four", "three", "two", "one", "end"}),
+       "the bed walks end for end, the world outside rests");
+    ok(f1.marks == std::vector<int>({0, 2}),
+       "the pins ride the flip to their mirrors - sorted, unique");
+    ok(f1.lines[1] == "three" && f1.lines[3] == "one" &&
+           !f1.marks.empty(),
+       "each pin still points at its own line's content");
+    ok(!f1.undo.empty() && f1.undo.back().what == "rev" && f1.dirty,
+       "the flip is one restore point, named rev");
+    ok(f1.curR == 0 && f1.curC == 0 && !dxn3::ideSelRange(f1),
+       "the hand rests at the block's head, the selection let go");
+    ok(dxn3::ideUndo(f1) && f1.lines[0] == "one" && f1.lines[3] == "four",
+       "undo walks the bed back - and lands the hand where it stood");
+
+    IdeState f2;                       // refusals, the family's law
+    f2.lines = {"a", "b"};
+    f2.curR = 0;
+    f2.curC = 0;
+    ok(dxn3::ideRevSel(f2) == 0 && f2.undo.empty(),
+       "no selection, no flip, no phantom step");
+    f2.anchorR = 0;
+    f2.anchorC = 1;
+    ok(dxn3::ideRevSel(f2) == 0 && f2.undo.empty(),
+       "a same-line bed has nothing to flip");
+
+    const auto rv = dxn3::parseCommand(":rev");
+    ok(rv.ok() && rv.verb == "rev",
+       "parseCommand reads :rev - the flip is a verb");
+    ok(dxn3::usageHintFor(":rev").find("flip") != std::string::npos,
+       "the bar whispers the flip law");
+  }
+
 
 
 

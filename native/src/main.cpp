@@ -1747,6 +1747,16 @@ int main(int argc, char** argv) {
                         " collapsed — one undo step takes it back"
                   : "engine: nothing to collapse — no line repeats "
                     "back-to-back");
+        } else if (cmd.verb == "rev") {
+          if (!ide.open) ide.open = true;      // the studio takes the stage
+          const int flipped = dxn3::ideRevSel(ide);
+          ide.console.push_back(
+              flipped > 0
+                  ? "engine: " + std::to_string(flipped) + " line" +
+                        (flipped == 1 ? "" : "s") +
+                        " flipped — one undo step takes it back"
+                  : "engine: select the lines to flip first "
+                    "(shift+arrows, or drag)");
         } else if (cmd.verb == "stats") {
           if (!ide.open) ide.open = true;      // the studio takes the stage
           size_t words = 0, chars = 0;
@@ -1787,7 +1797,7 @@ int main(int argc, char** argv) {
           game.scene.gravity = cmd.num;
           game.say("gravity " + std::to_string(static_cast<int>(cmd.num)), 1.2);
         } else if (cmd.verb == "help") {
-          game.say(":scene :open :recent :template :snip :goto :mark :marks :bm :ruler :minimap :zen :trim :cases :sort :rsort :uniq :upper :lower :title :stats "
+          game.say(":scene :open :recent :template :snip :goto :mark :marks :bm :ruler :minimap :zen :trim :cases :sort :rsort :rev :uniq :upper :lower :title :stats "
                     ":zoom :fit :reset :new :w :wq :q :screenshot :magnet :gravity", 4.f);
         }
       } else {

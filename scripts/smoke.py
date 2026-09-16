@@ -516,8 +516,22 @@ def main():
               scr.text(ROWS - 3)[GUTTER:GUTTER + 2] == "zz",
               repr(scr.text(ROWS - 4)[:12] + scr.text(ROWS - 3)[:12]))
 
-        # ── 8. the exit — clean, code 0 ───────────────────────────────
-        print("── 8. the exit — esc to play, q quits")
+        # ── 8. the flip — :rev — the lines walk end for end ──────────
+        print("── 8. the flip — :rev, no alphabet invited")
+        # the tail reads aa, zz; the hand rests on the survivor (42,0)
+        s.send(S_UP)                              # the bed: the last two
+        s.settle(0.25)
+        scr, _ = s.run_verb("rev", "ide")
+        check(":rev names its count",
+              "2 lines flipped" in scr.text(ROWS - 2),
+              repr(scr.text(ROWS - 2)[:60]))
+        check("the bed walked end for end (zz, aa)",
+              scr.text(ROWS - 4)[GUTTER:GUTTER + 2] == "zz" and
+              scr.text(ROWS - 3)[GUTTER:GUTTER + 2] == "aa",
+              repr(scr.text(ROWS - 4)[:12] + scr.text(ROWS - 3)[:12]))
+
+        # ── 9. the exit — clean, code 0 ───────────────────────────────
+        print("── 9. the exit — esc to play, q quits")
         s.send(ESC)
         time.sleep(0.2)
         s.send("q")
