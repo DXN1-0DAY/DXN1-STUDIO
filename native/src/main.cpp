@@ -261,6 +261,7 @@ Keys pollKeys(Mode mode) {
         else if (c == 0x12) k.ctrlR = true;               // Ctrl+R — run
         else if (c == 0x0e) k.ctrlN = true;               // Ctrl+N — template
         else if (c == 0x07) k.ctrlG = true;               // Ctrl+G — error line
+        else if (c == 0x1c) k.leap = true;                // Ctrl+\ — to the partner
         else if (c == 0x1a) k.ctrlZ = true;               // Ctrl+Z — undo
         else if (c == 0x19) k.ctrlY = true;               // Ctrl+Y — redo
         else if (c == 0x06) k.ctrlF = true;               // Ctrl+F — find
@@ -977,7 +978,7 @@ void drawIDE(dxn3::Screen& scr, IdeState& ide, const dxn3::Game& g, bool hostUp)
         ? " ctrl+g jumps to line " + std::to_string(errLine) +
           " · ctrl+z undo · ctrl+f find · esc play "
         : " ctrl+r run · ctrl+z undo · ctrl+c/x/v clipboard · ctrl+f find · "
-          "esc play ";
+          "ctrl+\\ leap · esc play ";
     const bool errorUp = errLine > 0;
     scr.text(1, c0 + 1, hint.substr(0, static_cast<size_t>(cols - 3)),
              errorUp ? dxn3::rgb(248, 113, 113) : dxn3::rgb(84, 72, 120));
@@ -1024,7 +1025,8 @@ int main(int argc, char** argv) {
                    "keys:  ctrl+r run · ctrl+s save · ctrl+z undo · ctrl+y redo\n"
                    "       ctrl+c/x/v copy · cut · paste (a bare cut lifts the line)\n"
                    "       ctrl+f find · enter next hit · ctrl+d duplicate lines\n"
-                   "       tab snippet/indent · shift+tab dedent · ctrl+/ comment\n"
+                   "       ctrl+\\ leap to the partner bracket · tab snippet/indent\n"
+                   "       shift+tab dedent · ctrl+/ comment\n"
                    "       shift+arrows select · shift+ctrl+←/→ select words\n"
                    "       ctrl+n template · ctrl+g error line · ctrl+p screenshot\n"
                    "       :minimap the document's map rail · :ruler guides · :stats\n"

@@ -199,7 +199,7 @@ int main() {
   }
 
   // 9. the version quad rides in the binary too
-  ok(std::string(dxn3::DXN3_VERSION) == "3.0.30",
+  ok(std::string(dxn3::DXN3_VERSION) == "3.0.31",
      "native version constant matches the release quad");
 
   // 10. png writer: checksum vectors, real structure, byte determinism
@@ -1957,6 +1957,56 @@ int main() {
        "a narrow bar carries one name and stops before the separator");
     ok(ideRecentWhisper(ledger, "s", 20) == "",
        "a name wider than the bar is not whispered at all");
+  }
+
+  // 42. the leap: ctrl+\ — the hand jumps to the partner bracket, a
+  // look that never edits
+  {
+    IdeState l1;
+    l1.lines = {"bird = circle(\"x\", 6)",
+                "hud = label(\"hud\", 2)",
+                "tip = label(\"tip\", 4)"};
+    l1.curR = 0;
+    l1.curC = 13;                      // ON the '(' of circle(
+    l1.dirty = false;
+    l1.anchorR = 0;                    // a selection rides along — for now
+    l1.anchorC = 5;
+    ok(dxn3::ideLeapToPartner(l1) && l1.curR == 0 && l1.curC == 20,
+       "a leap from an opener lands on its closer");
+    ok(l1.anchorR < 0, "the leap lets the selection go");
+    ok(!l1.dirty, "the leap never dirties the doc");
+
+    ok(dxn3::ideLeapToPartner(l1) && l1.curR == 0 && l1.curC == 13,
+       "a leap from the closer returns to its opener");
+
+    IdeState l2;                       // across lines: the pair spans three
+    l2.lines = {"def f():", "    g(", "        pass", "    )", ""};
+    l2.curR = 1;
+    l2.curC = 5;                       // the g( opener
+    ok(dxn3::ideLeapToPartner(l2) && l2.curR == 3 && l2.curC == 4,
+       "a leap crosses lines to reach its partner");
+
+    IdeState l3;                       // the cell BEHIND the cursor speaks too
+    l3.lines = {"x = (1 + 2)"};
+    l3.curR = 0;
+    l3.curC = 11;                      // just past the ')' (line end)
+    ok(dxn3::ideLeapToPartner(l3) && l3.curC == 4,
+       "a leap probes the cell behind the hand");
+
+    IdeState l4;                       // no partner: an honest refusal
+    l4.lines = {"broken = (1 + 2"};
+    l4.curR = 0;
+    l4.curC = 9;                       // on the lonely '('
+    const int stayR = l4.curR, stayC = l4.curC;
+    ok(!dxn3::ideLeapToPartner(l4) && l4.curR == stayR && l4.curC == stayC,
+       "a bracket with no partner refuses the leap, hand unmoved");
+
+    IdeState l5;                       // no bracket at all
+    l5.lines = {"plain text only"};
+    l5.curR = 0;
+    l5.curC = 3;
+    ok(!dxn3::ideLeapToPartner(l5) && l5.curC == 3,
+       "a hand off any bracket stays put");
   }
 
   if (fails == 0) {

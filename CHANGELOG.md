@@ -1,3 +1,23 @@
+## v3.0.31 — the leap
+
+- **ctrl+\\ jumps the hand to the partner bracket.** The partner
+  glow's keyboard sibling arrives: with the hand on (or just past) a
+  bracket, ctrl+\\ lands it on the matching ( [ { across any
+  distance — the SAME honest match rule as the glow (the cell at the
+  cursor, then the one behind it; quotes stay out of it). A leap is a
+  look, never an edit: nothing dirties, nothing undoes, and any
+  selection lets go when the hand flies. A bracket with no partner
+  refuses the leap with the hand unmoved — the glow never lies about
+  a pair, and neither does the leap.
+- **Polish — discoverability.** The editor's rail hint names the leap
+  ("ctrl+\\ leap") next to run/undo/clipboard, and the :help keys
+  card gains its own line.
+- Selftest: group 42 (the round trip, the cross-line pair, the
+  behind-the-hand probe, the partnerless refusal, the plain-text
+  refusal, the selection release) — 363 → 371 assertion groups, all
+  green. Smoke: section 12i leaps a live hand across flappy.py
+  (102 → 105 checks).
+
 ## v3.0.30 — the whisper
 
 - **:recent completes itself while you type.** The command bar's

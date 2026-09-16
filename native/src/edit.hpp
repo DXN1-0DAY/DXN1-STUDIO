@@ -59,6 +59,8 @@ struct Keys {
   bool sWLeft = false, sWRight = false;        // IDE: shift+ctrl+←/→ — select
                                                // word by word
   bool ctrlC = false, ctrlX = false, ctrlV = false;  // IDE: copy / cut / paste
+  bool leap = false;                           // IDE: ctrl+\ — jump to the
+                                               // partner bracket
   int clickR = -1, clickC = -1;                // mouse press (IDE): doc cell,
                                                // (-1,-1) = no click this frame
   bool clickShift = false;                     // shift+click extends
@@ -990,6 +992,22 @@ inline void ideInsertBlock(IdeState& s, const std::vector<std::string>& block) {
   s.idle = 0;
 }
 
+// ── the leap: the hand jumps to the partner bracket ───────────────
+// ctrl+\ — the keyboard sibling of the partner glow. The SAME match
+// rule speaks (the cell at the cursor, then the one behind it); the
+// hand lands ON the partner and any selection lets go — a leap is a
+// look, never an edit. False when there is no partner to reach.
+inline bool ideLeapToPartner(IdeState& s) {
+  int mr = -1, mc = -1;
+  if (!ideMatchBracket(s, mr, mc)) return false;
+  s.curR = mr;
+  s.curC = mc;
+  ideSelClear(s);
+  ideClamp(s);
+  s.idle = 0;
+  return true;
+}
+
 // the editor owns typing: chars land at the cursor, backspace joins
 // lines, enter splits them (and carries the indent down), every edit is
 // undoable
@@ -1071,6 +1089,16 @@ inline void ideKey(IdeState& ide, const Keys& k) {
                           static_cast<int>(L[static_cast<size_t>(ide.curR)].size()));
     ide.lastTyping = ide.lastBack = false;
     ide.idle = 0;
+  }
+
+  // ── the leap: ctrl+\ — the hand jumps to the partner bracket. A
+  // look, never an edit: nothing dirties, nothing undoes, the frame
+  // is the leap's alone.
+  if (k.leap) {
+    ideLeapToPartner(ide);
+    ide.lastTyping = ide.lastBack = false;
+    ide.idle = 0;
+    return;
   }
 
   // ── the clipboard: when one of these fires it is the frame's whole
