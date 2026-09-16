@@ -1345,6 +1345,73 @@ inline void ideScroll(IdeState& s, int delta) {
   s.idle = 0;
 }
 
+// ── the swap: :s/old/new — the bed's bytes trade places ───────────
+// Find & replace, the house way: EVERY byte-exact occurrence of old
+// becomes new, on the selection's lines (or the hand's line alone —
+// the sort family's bed law). The match is EXACT — the searchlight
+// forgives case, the swap does not (a replace that guesses case
+// rewrites what it was not asked to touch). new may be empty (a
+// deletion) and may not carry a newline (one line at a time — the
+// bed never grows). Only the lines that actually changed are
+// touched; ONE restore point named "replace", taken only when
+// something matched (a clean bed takes no phantom step); the hand
+// rests at the bed's head; the selection lets go. Returns the count
+// of replacements; 0 with no matches (or no bed).
+inline int ideReplaceSel(IdeState& s, const std::string& oldStr,
+                         const std::string& newStr, int* linesTouched) {
+  if (oldStr.empty() || newStr.find('\n') != std::string::npos) return 0;
+  int r0, r1;
+  if (const auto sel = ideSelRange(s)) {
+    r0 = (*sel)[0];
+    r1 = (*sel)[2];
+  } else {
+    r0 = r1 = s.curR;                    // no selection: the hand's line
+  }
+  if (r1 < r0) return 0;
+  // the dry pass: count BEFORE the snapshot — a clean bed takes no
+  // phantom step (the trim's law)
+  int made = 0, touchedLines = 0;
+  for (int r = r0; r <= r1; ++r) {
+    const std::string& l = s.lines[static_cast<size_t>(r)];
+    for (size_t pos = 0;
+         (pos = l.find(oldStr, pos)) != std::string::npos;
+         pos += oldStr.size())
+      ++made;
+    if (l.find(oldStr) != std::string::npos) ++touchedLines;
+  }
+  if (made == 0) {
+    if (linesTouched) *linesTouched = 0;
+    return 0;                            // nothing matched, nothing moved
+  }
+  idePushUndo(s, "replace");             // the snapshot holds the old bytes
+  for (int r = r0; r <= r1; ++r) {
+    std::string& l = s.lines[static_cast<size_t>(r)];
+    if (l.find(oldStr) == std::string::npos) continue;
+    std::string out;
+    out.reserve(l.size());
+    size_t pos = 0;
+    while (pos <= l.size()) {
+      const size_t hit = l.find(oldStr, pos);
+      if (hit == std::string::npos) {
+        out += l.substr(pos);
+        break;
+      }
+      out += l.substr(pos, hit - pos);
+      out += newStr;
+      pos = hit + oldStr.size();
+    }
+    l = std::move(out);
+    ideTouch(s, r);                      // only the lines that changed
+  }
+  ideSelClear(s);
+  s.curR = r0;                           // the hand rests at the bed's head
+  s.curC = 0;
+  s.dirty = true;
+  s.idle = 0;
+  if (linesTouched) *linesTouched = touchedLines;
+  return made;
+}
+
 // ── the rebalance: the view centers on the hand ────────────────────
 // :center — z. in vim's tongue. The hand rides the viewport's middle
 // (the SAME page the draw and the wheel use), clamped to the doc's

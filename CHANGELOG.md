@@ -1,3 +1,26 @@
+## v3.0.80 — the swap (:s/old/new — the bed's bytes trade places)
+
+- **`:s/old/new` — find & replace, the house way.** Every
+  byte-exact occurrence of old becomes new on the selection's lines
+  (or the hand's line alone — the sort family's bed law). "3
+  replaced on 2 lines — one undo step takes it back"; an empty new
+  is a deletion; a newline in the new is refused (the bed never
+  grows); an empty old is refused by name.
+- **The match is EXACT.** The searchlight forgives case, the swap
+  does not — a replace that guesses case would rewrite what it was
+  not asked to touch. Only the lines that actually changed carry a
+  touch (the census stays honest); ONE restore point named
+  "replace", taken only when something matched (a clean bed takes no
+  phantom step — "'absent' is not on this bed — nothing replaced").
+- **The parse grew one special token.** `:s/old/new` has no space —
+  the slash makes the verb token, so the split-by-space rule steps
+  aside for exactly the "s/" prefix; a bare `:s` without its slashes
+  is no verb at all. The handler splits on the FIRST slash (new may
+  carry more; old may not).
+- Selftest group 84 (12 asserts) 759 -> 771; smoke 13i3 (3 checks)
+  163 -> 166 — the trade, the landing, and the clean-bed refusal,
+  through the real pty.
+
 ## v3.0.79 — the rebalance (:center; the census joins :stats)
 
 - **`:center` — the view centers on your hand.** z. in vim's tongue:

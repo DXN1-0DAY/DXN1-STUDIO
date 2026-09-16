@@ -199,7 +199,7 @@ int main() {
   }
 
   // 9. the version quad rides in the binary too
-  ok(std::string(dxn3::DXN3_VERSION) == "3.0.79",
+  ok(std::string(dxn3::DXN3_VERSION) == "3.0.80",
      "native version constant matches the release quad");
 
   // 10. png writer: checksum vectors, real structure, byte determinism
@@ -3870,6 +3870,72 @@ int main() {
     ok(c.top == 80, "a hand near the bottom keeps the bottom (maxTop wins)");
     const auto cz = dxn3::parseCommand(":center");
     ok(cz.ok() && cz.arg.empty(), ":center takes no argument");
+  }
+
+  // 84. the swap: :s/old/new — every byte-exact occurrence traded on
+  // the bed; the match is EXACT (the searchlight forgives, the swap
+  // does not); only changed lines are touched; one undo step; a clean
+  // bed takes no snapshot.
+  {
+    IdeState r;
+    r.lines = {"aa bb aa", "cc aa", "dd"};
+    r.anchorR = 0; r.anchorC = 0;
+    r.curR = 1; r.curC = 2;                // the bed: lines 1..2
+    int touched = 0;
+    const int made = dxn3::ideReplaceSel(r, "aa", "XX", &touched);
+    ok(made == 3 && touched == 2,
+       "every occurrence traded — three on two lines");
+    ok(r.lines[0] == "XX bb XX" && r.lines[1] == "cc XX" &&
+           r.lines[2] == "dd",
+       "the bed traded exactly; the line below it untouched");
+    ok(r.touched.size() == 2 && r.touched[0] == 0 && r.touched[1] == 1,
+       "only the lines that changed carry a touch");
+    ok(r.marks.empty() && r.lines.size() == 3,
+       "the bed never grows — the pins could not move");
+
+    dxn3::Keys uz;
+    uz.ctrlZ = true;
+    ok(dxn3::ideUndo(r) &&
+           r.lines == std::vector<std::string>{"aa bb aa", "cc aa", "dd"},
+       "one undo step restores the old bytes");
+
+    // the empty new is a deletion; the case is exact
+    IdeState d;
+    d.lines = {"Delete me, delete ME."};
+    dxn3::ideReplaceSel(d, "delete", "", &touched);
+    ok(d.lines[0] == "Delete me,  ME.",
+       "an empty new deletes in place (the space after survives — "
+       "byte-exact work, byte-honest gaps)");
+
+    // a clean bed: no snapshot, no touch, honest zero
+    IdeState n;
+    n.lines = {"nothing here"};
+    const int none = dxn3::ideReplaceSel(n, "zz", "yy", &touched);
+    ok(none == 0 && n.undo.empty() && n.touched.empty() &&
+           n.lines[0] == "nothing here",
+       "no match, no snapshot — the clean bed stays clean");
+
+    // no selection: the hand's line is the bed
+    IdeState h;
+    h.lines = {"one", "two one", "three"};
+    h.curR = 1; h.curC = 0;
+    dxn3::ideReplaceSel(h, "one", "1", &touched);
+    ok(h.lines[0] == "one" && h.lines[1] == "two 1" && h.lines[2] == "three",
+       "no selection: the hand's line trades alone");
+
+    // the refusals: an empty old, a newline in the new
+    IdeState x;
+    x.lines = {"a"};
+    ok(dxn3::ideReplaceSel(x, "", "b", nullptr) == 0 && x.undo.empty(),
+       "an empty old refuses — it matches everywhere and nothing");
+    ok(dxn3::ideReplaceSel(x, "a", "b\nc", nullptr) == 0 && x.undo.empty(),
+       "a newline in the new refuses — the bed never grows");
+    const auto p1 = dxn3::parseCommand(":s/old/new");
+    ok(p1.ok() && p1.verb == "s" && p1.arg == "old/new",
+       ":s/old/new parses — the slash makes the verb token");
+    const auto p2 = dxn3::parseCommand(":s no slash");
+    ok(!p2.ok() && p2.error.find("no such command") != std::string::npos,
+       "a verb s WITHOUT its slashes is no verb at all");
   }
 
   // 83b. the macro register's session law, restated in the pure world:

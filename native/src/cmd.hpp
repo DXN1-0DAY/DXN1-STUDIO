@@ -35,6 +35,19 @@ inline Cmd parseCommand(std::string_view line) {
     return c;
   }
 
+  // the swap's family: :s/old/new — the verb is ONE letter, the pair
+  // rides after it separated by slashes. The '/' makes the verb token,
+  // so the split-by-space rule steps aside for exactly this prefix.
+  if (line.rfind("s/", 0) == 0) {
+    c.verb = "s";
+    c.arg = std::string(line.substr(2));
+    // the old/new pair is validated by its handler (an empty old is a
+    // refusal there); here only the delimiter law: at least one '/'
+    if (c.arg.find('/') == std::string::npos)
+      c.error = "usage: :s/old/new — the pair rides after slashes";
+    return c;
+  }
+
   const size_t sp = line.find(' ');
   if (sp == std::string_view::npos) {
     c.verb = std::string(line);
@@ -248,6 +261,9 @@ inline std::string usageHintFor(std::string_view typed) {
     return " :title — every word's first letter stands up";
   if (verb == "uniq")
     return " :uniq — lines that repeat back-to-back say it once";
+  if (verb == "s")
+    return " :s/old/new — replace every exact old with new on the "
+           "selection's lines";
   if (verb == "rev")
     return " :rev — flip the selection's line order, no alphabet invited";
   if (verb == "shuffle")

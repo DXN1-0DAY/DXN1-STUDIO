@@ -2,7 +2,7 @@
 
 ![DXN1 STUDIO 3](assets/banner.png)
 
-![version](https://img.shields.io/badge/version-3.0.79-8b5cf6?style=flat-square)
+![version](https://img.shields.io/badge/version-3.0.80-8b5cf6?style=flat-square)
 ![gates](https://github.com/DXN1-termux/DXN1-STUDIO/actions/workflows/ci.yml/badge.svg)
 ![native](https://img.shields.io/badge/native-C%2B%2023-f97316?style=flat-square)
 ![face](https://img.shields.io/badge/face-terminal_truecolor-22d3ee?style=flat-square)
@@ -356,6 +356,7 @@ accepted:
 | `:lower` | the selection whispers — one undo step |
 | `:title` | every word's first letter stands up |
 | `:uniq` | collapse lines that repeat back-to-back — whole doc, or the selection |
+| `:s/old/new` | replace every exact old with new on the selection's lines — one undo step |
 | `:rev` | flip the selection's line order, no alphabet invited |
 | `:shuffle [seed]` | deal the selection's lines into random order; the seed replays the deal |
 | `:indent` | the selected lines step right one level, pure air keeps its silence |

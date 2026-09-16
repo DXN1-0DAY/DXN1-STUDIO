@@ -1926,6 +1926,31 @@ int main(int argc, char** argv) {
                         " collapsed — one undo step takes it back"
                   : "engine: nothing to collapse — no line repeats "
                     "back-to-back");
+        } else if (cmd.verb == "s") {
+          // the swap: :s/old/new — every byte-exact occurrence traded
+          // on the selection's lines (or the hand's line). The parse
+          // guaranteed one '/'; the handler splits on the FIRST (new
+          // may carry more, old may not — old ends at the first '/').
+          takeStage();
+          const size_t cut = cmd.arg.find('/');
+          const std::string oldStr = cmd.arg.substr(0, cut);
+          const std::string newStr = cmd.arg.substr(cut + 1);
+          if (oldStr.empty()) {
+            cmdErr = "usage: :s/old/new — an empty old replaces nothing";
+            cmdErrT = 3.5f;
+          } else {
+            int linesTouched = 0;
+            const int made = dxn3::ideReplaceSel(ide, oldStr, newStr,
+                                                 &linesTouched);
+            ide.console.push_back(
+                made > 0
+                    ? "engine: " + std::to_string(made) + " replaced on " +
+                          std::to_string(linesTouched) + " line" +
+                          (linesTouched == 1 ? "" : "s") + " — one undo "
+                          "step takes it back"
+                    : "engine: '" + oldStr +
+                          "' is not on this bed — nothing replaced");
+          }
         } else if (cmd.verb == "rev") {
           takeStage();
           const int flipped = dxn3::ideRevSel(ide);
@@ -2291,7 +2316,7 @@ int main(int argc, char** argv) {
           takeStage();                         // every verb takes the stage —
                                                // a law, not a suggestion
           if (cmd.arg.empty()) {
-            game.say(":scene :open :recent :template :snip :goto :jumps :changes :fresh :mark :marks :bm :ruler :minimap :zen :center :relnum :trim :cases :sort :rsort :rev :uniq :shuffle :indent :dedent :lift :drop :dup :join :upper :lower :title :hist :undo :redo :words :todo :stats "
+            game.say(":scene :open :recent :template :snip :goto :jumps :changes :fresh :mark :marks :bm :ruler :minimap :zen :center :relnum :s :trim :cases :sort :rsort :rev :uniq :shuffle :indent :dedent :lift :drop :dup :join :upper :lower :title :hist :undo :redo :words :todo :stats "
                      ":record :macro :zoom :fit :reset :new :w :wq :q :screenshot :magnet :gravity — or :help <verb>",
                      4.f);
           } else {

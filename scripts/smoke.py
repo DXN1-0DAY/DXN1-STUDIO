@@ -1118,6 +1118,23 @@ def main():
               scr.text(MID)[:GUTTER].strip() == "30",
               repr(scr.text(MID)[:GUTTER]))
 
+        # ── 13i3. the swap — :s/old/new trades the bed's bytes ───────
+        print("── 13i3. :s/old/new — the swap, exact and bed-bound")
+        s1d.send("QQ")                         # a token on the hand's line
+        time.sleep(0.25)
+        scr, _ = s1d.run_verb("s/QQ/KK/", "ide")
+        check(":s trades the hand's line and counts its work",
+              "1 replaced on 1 line" in scr.text(ROWS - 2),
+              repr(scr.text(ROWS - 2)[:70]))
+        scr = s1d.settle(0.3)
+        check("the swap landed (the header says KK's line)",
+              "Ln 30" in scr.text(0),
+              repr(scr.text(0)[:70]))
+        scr, _ = s1d.run_verb("s/absent/KK/", "ide")
+        check("a clean bed is refused, never guessed",
+              "'absent' is not on this bed" in scr.text(ROWS - 2),
+              repr(scr.text(ROWS - 2)[:70]))
+
         s1d.send(ESC)
         time.sleep(0.3)
         s1d.send("q")
