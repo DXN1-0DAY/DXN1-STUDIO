@@ -1,3 +1,23 @@
+## v3.0.51 — the ride
+
+- **`:lift` and `:drop` — the selection's lines step one line up or
+  down.** No alphabet, no mirror: the bed slides one neighbor over
+  and the neighbor walks around it. The bed is the selection's lines
+  — and with no selection, the hand's line (the move's natural
+  home). The pins RIDE their lines and the displaced neighbor's pin
+  lands where the neighbor went, the ledger re-sorted (the move is a
+  cousin of the flip); the hand rides the block's head; a bed
+  pressed against the edge takes no snapshot and no step.
+- **The pins walk back through undo.** A real fix the ride flushed
+  out: the undo snapshot carried the document and the hand but NOT
+  the pins — so undoing a pin-moving operation (uniq, rev, and now
+  lift/drop) left pins pointing where the redo-world had put them.
+  IdeSnap now carries the ledger, and undo/redo restore it: every
+  step back in time takes the pins with it.
+- Selftest group 59 (17 asserts) — 523 → 540 groups. Smoke grew the
+  ride section (the drop, the neighbor's slide, the lift home) —
+  61 → 65 checks.
+
 ## v3.0.50 — the shelf that speaks
 
 - **`:snip ` whispers the shelf, described.** Typing `:snip ` in the

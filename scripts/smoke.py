@@ -604,8 +604,33 @@ def main():
               "select the lines to dedent" in scr.text(ROWS - 2),
               repr(scr.text(ROWS - 2)[:60]))
 
-        # ── 11. the exit — clean, code 0 ──────────────────────────────
-        print("── 11. the exit — esc to play, q quits")
+        # ── 11. the ride — :drop and :lift move the hand's line ──────
+        print("── 11. the ride — the hand's line steps down, then back")
+        # the tail reads zz(41), zz(42), aa(43); the hand rests at the
+        # breath's bed head (0-based 41 = line 42, "zz")
+        scr, _ = s.run_verb("drop", "ide")
+        check(":drop names its ride",
+              "1 line dropped one line" in scr.text(ROWS - 2),
+              repr(scr.text(ROWS - 2)[:60]))
+        s.settle(2.5)                     # the burst decays before a
+        scr = s.screen()                  # body-text assert
+        check("the line landed below (the neighbor slid up)",
+              scr.text(ROWS - 4)[GUTTER:GUTTER + 2] == "aa" and
+              scr.text(ROWS - 3)[GUTTER:GUTTER + 2] == "zz",
+              repr(scr.text(ROWS - 4)[:12] + scr.text(ROWS - 3)[:12]))
+        scr, _ = s.run_verb("lift", "ide")
+        check(":lift names the ride home",
+              "1 line lifted one line" in scr.text(ROWS - 2),
+              repr(scr.text(ROWS - 2)[:60]))
+        s.settle(2.5)                     # the round trip is honest
+        scr = s.screen()
+        check("the line rode back (the tail restored)",
+              scr.text(ROWS - 4)[GUTTER:GUTTER + 2] == "zz" and
+              scr.text(ROWS - 3)[GUTTER:GUTTER + 2] == "aa",
+              repr(scr.text(ROWS - 4)[:12] + scr.text(ROWS - 3)[:12]))
+
+        # ── 12. the exit — clean, code 0 ──────────────────────────────
+        print("── 12. the exit — esc to play, q quits")
         s.send(ESC)
         time.sleep(0.2)
         s.send("q")

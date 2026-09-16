@@ -199,7 +199,7 @@ int main() {
   }
 
   // 9. the version quad rides in the binary too
-  ok(std::string(dxn3::DXN3_VERSION) == "3.0.50",
+  ok(std::string(dxn3::DXN3_VERSION) == "3.0.51",
      "native version constant matches the release quad");
 
   // 10. png writer: checksum vectors, real structure, byte determinism
@@ -2681,6 +2681,73 @@ int main() {
            dxn3::ideSnippetShelfWhisper("game.cpp", "", 400)
                .find("fn — a named function") == 0,
        "the shelf is the file's own dialect - cpp speaks five");
+  }
+
+  // 59. the ride: ":lift"/":drop" — the selection's lines step one
+  // line up or down, the pins riding their lines, the displaced
+  // neighbor's pin landing where the neighbor went, the hand riding
+  // the block's head, a bed pressed against the edge refused
+  {
+    IdeState m1;
+    m1.lines = {"a", "b", "c", "d"};
+    m1.curR = 2;
+    m1.curC = 0;                     // the hand's line: "c"
+    ok(dxn3::ideMoveSel(m1, false) == 1,
+       "the hand's line lifts, a one-line bed with no selection");
+    ok(m1.lines[1] == "c" && m1.lines[2] == "b",
+       "the line slides up, the neighbor walks around it");
+    ok(m1.curR == 1 && m1.curC == 0, "the hand rides its line");
+    ok(!m1.undo.empty() && m1.undo.back().what == "lift",
+       "one honest restore point named lift");
+
+    IdeState m2;                     // a block lift with pins aboard
+    m2.lines = {"a", "b", "c", "d"};
+    dxn3::ideMarkToggle(m2, 0);      // a pin on the displaced neighbor
+    dxn3::ideMarkToggle(m2, 2);      // a pin inside the bed
+    m2.anchorR = 1;
+    m2.anchorC = 0;
+    m2.curR = 2;
+    m2.curC = 1;
+    ok(dxn3::ideMoveSel(m2, false) == 2, "the block lifts as one");
+    ok(m2.lines == std::vector<std::string>({"b", "c", "a", "d"}),
+       "the neighbor lands at the block's tail");
+    ok(m2.marks == std::vector<int>({1, 2}),
+       "the pins ride - and the ledger stays sorted");
+    ok(m2.curR == 0 && !dxn3::ideSelRange(m2),
+       "the hand rides the block's head, the selection let go");
+    ok(dxn3::ideUndo(m2) && m2.lines[0] == "a" && m2.marks[0] == 0 &&
+       m2.curR == 2,
+       "undo walks the ride back, hand and pins where they stood");
+
+    IdeState m3;                     // the edge refuses, honestly
+    m3.lines = {"a", "b"};
+    m3.curR = 0;
+    m3.curC = 0;
+    ok(dxn3::ideMoveSel(m3, false) == 0 && m3.undo.empty(),
+       "nothing above to lift into - no phantom step");
+    m3.curR = 1;
+    ok(dxn3::ideMoveSel(m3, true) == 0 && m3.undo.empty(),
+       "nothing below to drop into - no phantom step");
+
+    IdeState m4;                     // the drop, and its pin law
+    m4.lines = {"a", "b", "c"};
+    dxn3::ideMarkToggle(m4, 1);
+    m4.curR = 1;
+    m4.curC = 0;
+    ok(dxn3::ideMoveSel(m4, true) == 1, "the hand's line drops");
+    ok(m4.lines[1] == "c" && m4.lines[2] == "b",
+       "the neighbor below slides up to fill the gap");
+    ok(m4.marks == std::vector<int>({2}), "the pin rides down");
+    ok(!m4.undo.empty() && m4.undo.back().what == "drop",
+       "one honest restore point named drop");
+
+    const auto pl = dxn3::parseCommand(":lift");
+    const auto pd = dxn3::parseCommand(":drop");
+    ok(pl.ok() && pl.verb == "lift" && pd.ok() && pd.verb == "drop",
+       "parseCommand reads the ride pair");
+    ok(dxn3::usageHintFor(":lift").find("up") != std::string::npos &&
+       dxn3::usageHintFor(":drop").find("down") != std::string::npos,
+       "the bar whispers the ride's law");
   }
 
   // 53. the pins whisper: ":bm" completes itself as you type - the

@@ -81,6 +81,7 @@ struct Keys {
 struct IdeSnap {
   std::vector<std::string> lines;
   int curR = 0, curC = 0;
+  std::vector<int> marks;                      // the pins ride the restore
   std::string what;                            // the edit this step precedes
   bool operator==(const IdeSnap& o) const = default;
 };
@@ -289,7 +290,7 @@ inline void ideClamp(IdeState& s) {
 }
 
 inline void idePushUndo(IdeState& s, std::string what = "edit") {
-  s.undo.push_back({s.lines, s.curR, s.curC, std::move(what)});
+  s.undo.push_back({s.lines, s.curR, s.curC, s.marks, std::move(what)});
   if (s.undo.size() > IdeState::kUndoMax)
     s.undo.erase(s.undo.begin(),
                  s.undo.begin() + static_cast<long>(s.undo.size() - IdeState::kUndoMax));
@@ -577,10 +578,11 @@ inline std::optional<std::vector<std::string>> ideSnippetFor(
 // step's edit label rides along, so redo can re-apply it by name.
 inline bool ideUndo(IdeState& s) {
   if (s.undo.empty()) return false;
-  s.redo.push_back({s.lines, s.curR, s.curC, s.undo.back().what});
+  s.redo.push_back({s.lines, s.curR, s.curC, s.marks, s.undo.back().what});
   s.lines = std::move(s.undo.back().lines);
   s.curR = s.undo.back().curR;
   s.curC = s.undo.back().curC;
+  s.marks = s.undo.back().marks;               // the pins walk back too
   s.undo.pop_back();
   s.lastTyping = s.lastBack = false;
   ideSelClear(s);                    // the second chance drops the selection
@@ -592,10 +594,11 @@ inline bool ideUndo(IdeState& s) {
 // step forward again; false when there is nothing to redo
 inline bool ideRedo(IdeState& s) {
   if (s.redo.empty()) return false;
-  s.undo.push_back({s.lines, s.curR, s.curC, s.redo.back().what});
+  s.undo.push_back({s.lines, s.curR, s.curC, s.marks, s.redo.back().what});
   s.lines = std::move(s.redo.back().lines);
   s.curR = s.redo.back().curR;
   s.curC = s.redo.back().curC;
+  s.marks = s.redo.back().marks;               // the pins step forward too
   s.redo.pop_back();
   s.lastTyping = s.lastBack = false;
   ideSelClear(s);
@@ -1459,6 +1462,66 @@ inline int ideDentSel(IdeState& s, bool out) {
   s.dirty = true;
   s.idle = 0;
   return moved;
+}
+
+// ── the ride: the selection's lines step one line up — or down ─────
+// :lift and :drop move lines without an alphabet, without a mirror:
+// the bed slides one neighbor over, and the neighbor walks around it.
+// The bed is the selection's lines — and with no selection, the
+// hand's line (the move's natural home; VSCode's muscle memory, the
+// house's verbs). The pins RIDE their lines (the content-following
+// law rev speaks) and the displaced neighbor's pin lands where the
+// neighbor went — then the ledger is re-sorted, the move being a
+// cousin of the flip. ONE restore point named for the verb; the hand
+// rides the block's head; the selection lets go. A bed pressed
+// against the edge takes no snapshot and no step. Returns the count
+// of lines moved.
+inline int ideMoveSel(IdeState& s, bool down) {
+  int r0, r1, c0;
+  if (const auto sel = ideSelRange(s)) {
+    const auto [a, ca, b, cb] = *sel;
+    r0 = a;
+    c0 = ca;
+    r1 = b;
+  } else {
+    r0 = r1 = s.curR;                  // no selection: the hand's line
+    c0 = s.curC;
+  }
+  if (!down) {
+    if (r0 == 0) return 0;             // nothing above to lift into
+    idePushUndo(s, "lift");
+    std::rotate(s.lines.begin() + r0 - 1, s.lines.begin() + r0,
+                s.lines.begin() + r1 + 1);
+    bool rode = false;
+    for (int& m : s.marks) {
+      if (m == r0 - 1) { m = r1; rode = true; }       // the neighbor's pin
+      else if (m >= r0 && m <= r1) { m -= 1; rode = true; }
+    }
+    if (rode) std::sort(s.marks.begin(), s.marks.end());
+    ideSelClear(s);
+    s.curR = r0 - 1;                   // the hand rides the block's head
+    s.curC = std::min(c0, static_cast<int>(s.lines[static_cast<size_t>(r0 - 1)].size()));
+    s.dirty = true;
+    s.idle = 0;
+  } else {
+    const int N = static_cast<int>(s.lines.size());
+    if (r1 == N - 1) return 0;         // nothing below to drop into
+    idePushUndo(s, "drop");
+    std::rotate(s.lines.begin() + r0, s.lines.begin() + r1 + 1,
+                s.lines.begin() + r1 + 2);
+    bool rode = false;
+    for (int& m : s.marks) {
+      if (m == r1 + 1) { m = r0; rode = true; }       // the neighbor's pin
+      else if (m >= r0 && m <= r1) { m += 1; rode = true; }
+    }
+    if (rode) std::sort(s.marks.begin(), s.marks.end());
+    ideSelClear(s);
+    s.curR = r0 + 1;                   // the hand rides the block's head
+    s.curC = std::min(c0, static_cast<int>(s.lines[static_cast<size_t>(r0 + 1)].size()));
+    s.dirty = true;
+    s.idle = 0;
+  }
+  return r1 - r0 + 1;
 }
 
 // ── the sweep: trailing whitespace is noise ─────────────────────────
