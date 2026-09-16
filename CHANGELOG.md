@@ -1,3 +1,17 @@
+## v3.0.66 — the selection's own census (:stats)
+
+- **`:stats` answers for the selection.** With a selection live, the
+  stats now end with the SELECTION's own census — lines, words and
+  chars of the honest slice (the first line from c0, the last line to
+  c1, the middle whole), counted by the same law as the document and
+  computed in a pure, selftested `ideSelStats` the shell only prints.
+  It is spoken LAST so the console's two-row window shows the most
+  specific truth newest — the console shows two lines, and the
+  freshest word is the one that answers the question you just asked.
+- Selftest group 72 (2 asserts) — 649 → 651 groups. Smoke section
+  13a6 (1 check) — 122 → 123: a real shift+↓ selection, the census at
+  the console's tail.
+
 ## v3.0.65 — the vim gutter (:relnum)
 
 - **`:relnum` — the gutter counts from the hand.** The vim way:

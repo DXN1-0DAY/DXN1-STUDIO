@@ -838,6 +838,38 @@ inline std::string ideTodoWhisper(const IdeState& s, size_t maxTodos = 6) {
   return out;
 }
 
+// ── the selection's own census ──────────────────────────────────────
+// :stats on a selection speaks the SELECTION's truth first: the
+// honest slice (the first line from c0, the last line to c1, the
+// middle whole) counted the same way the document is. Pure and
+// selftested.
+struct IdeSelStats {
+  int lines = 0;
+  size_t words = 0, chars = 0;
+};
+
+inline IdeSelStats ideSelStats(const IdeState& s, const SelRange& sel) {
+  const auto [r0, c0, r1, c1] = sel;
+  IdeSelStats st;
+  st.lines = r1 - r0 + 1;
+  for (int r = r0; r <= r1 && r < static_cast<int>(s.lines.size()); ++r) {
+    const std::string& l = s.lines[static_cast<size_t>(r)];
+    const size_t a = (r == r0) ? static_cast<size_t>(std::max(0, c0)) : 0;
+    const size_t b =
+        (r == r1) ? static_cast<size_t>(std::min<int>(c1 + 1, l.size()))
+                  : l.size();
+    if (a >= b) continue;
+    const std::string part = l.substr(a, b - a);
+    st.chars += part.size();
+    bool inWord = false;
+    for (char c : part) {
+      if (std::isspace(static_cast<unsigned char>(c))) inWord = false;
+      else { if (!inWord) ++st.words; inWord = true; }
+    }
+  }
+  return st;
+}
+
 // ── pairs that carry their own closers ──────────────────────────────
 inline char ideCloserFor(char open) {
   switch (open) {

@@ -199,7 +199,7 @@ int main() {
   }
 
   // 9. the version quad rides in the binary too
-  ok(std::string(dxn3::DXN3_VERSION) == "3.0.65",
+  ok(std::string(dxn3::DXN3_VERSION) == "3.0.66",
      "native version constant matches the release quad");
 
   // 10. png writer: checksum vectors, real structure, byte determinism
@@ -3322,6 +3322,25 @@ int main() {
        "a clean file holds no debts");
     ok(dxn3::usageHintFor(":todo").find("marker") != std::string::npos,
        "the bar whispers the hunt");
+  }
+
+  // 72. the selection's own census: the honest slice, counted like
+  // the document — first line from c0, last line to c1, middle whole
+  {
+    IdeState s;
+    s.lines = {"alpha beta gamma",
+               "delta epsilon",
+               "zeta",
+               "eta theta"};
+    // a partial slice: "beta gamma" + "delta epsil"
+    dxn3::IdeSelStats st =
+        dxn3::ideSelStats(s, {0, 6, 1, 10});
+    ok(st.lines == 2 && st.words == 4 && st.chars == 21,
+       "the slice spans lines and keeps its edges honest");
+    // a whole-line selection: the middle stays whole
+    dxn3::IdeSelStats whole = dxn3::ideSelStats(s, {1, 0, 2, 3});
+    ok(whole.lines == 2 && whole.words == 3 && whole.chars == 17,
+       "a whole-line range counts the full lines");
   }
 
 

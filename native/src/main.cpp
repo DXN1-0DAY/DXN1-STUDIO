@@ -1978,6 +1978,18 @@ int main(int argc, char** argv) {
               std::to_string(ide.curC + 1) + " · " +
               std::string(dxn3::ideSnippetFamily(ide.path)) + " dialect · " +
               (ide.hostUp ? "host live" : "host idle"));
+          if (const auto sel = dxn3::ideSelRange(ide)) {
+            // the selection's own census — spoken LAST so the console's
+            // two-row window shows the most specific truth newest
+            const dxn3::IdeSelStats ss = dxn3::ideSelStats(ide, *sel);
+            ide.console.push_back(
+                "engine: the selection — " + std::to_string(ss.lines) +
+                " line" + (ss.lines == 1 ? "" : "s") + " · " +
+                std::to_string(ss.words) + " word" +
+                (ss.words == 1 ? "" : "s") + " · " +
+                std::to_string(ss.chars) + " char" +
+                (ss.chars == 1 ? "" : "s"));
+          }
         } else if (cmd.verb == "w") {
           if (ideEver) {
             takeStage();             // the save's receipt speaks in the

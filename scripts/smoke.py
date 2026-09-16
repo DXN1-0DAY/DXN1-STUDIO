@@ -870,6 +870,17 @@ def main():
               repr(scr.text(2)[:GUTTER]) + " / " +
               repr(scr.text(ROWS - 2)[:40]))
 
+        # ── 13a6. the selection's own stats — the newest console word ─
+        print("── 13a6. :stats — the selection's own census")
+        s.send(S_DOWN)                         # extend: two lines selected
+        time.sleep(0.2)
+        scr, _ = s.run_verb("stats", "ide")
+        # the selection's census is spoken LAST — the console's two-row
+        # window shows the most specific truth newest
+        check(":stats speaks the selection's truth (newest, at the tail)",
+              "engine: the selection — 2 lines · " in scr.text(ROWS - 2),
+              repr(scr.text(ROWS - 2)[:60]))
+
         # ── 13b. the pen — :w saves the script, the .bak keeps the past
         print("── 13b. the pen — :w writes the doc, a .bak keeps the past")
         scr, _ = s.run_verb("w", "ide")       # the first save: no past yet
