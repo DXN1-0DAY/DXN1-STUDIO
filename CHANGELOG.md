@@ -1,3 +1,26 @@
+## v3.0.29 — the autoscroll
+
+- **A drag at the edge pulls the unseen into view.** The mouse
+  vocabulary is complete: while the button is held and the hand parks
+  on the viewport's top or bottom row, the view slides toward the
+  unseen lines — one honest notch every ~70 ms, metered by a
+  wall-clock accumulator. The hand IS the edge: every notch the slide
+  reveals, the hand takes, so the selection grows from the anchor
+  exactly like every desktop editor's autoscroll. The wheel's pager
+  contract holds (the doc never dirties, the hand never leaves
+  sight), a stationary press never pulls (a real drag needs an
+  anchor), a long gap is an honest reset — never a catch-up jump —
+  and the void clamp still ends every pull at the last full page.
+- **Polish — the header counts.** While a selection rides with the
+  hand, the header speaks its honest size: "Ln 3 · Col 4 · sel 87".
+  A drag always says how much it holds, live.
+- Selftest: group 40 (the pull metered, the bare-press refusal, the
+  stall reset, the upward ride home, the void clamp, the sel counter)
+  — 344 → 355 assertion groups, all green. Smoke: section 12g drives
+  a real edge-park through the pty (94 → 99 checks) — the park's
+  SGR row is 28, the body's last row, not 27 (the coordinate the
+  first draft got wrong; the app's honest no-op taught the test).
+
 ## v3.0.28 — the guard
 
 - **ESC owns its frame.** A bare ESC is a mode key, and when a busy

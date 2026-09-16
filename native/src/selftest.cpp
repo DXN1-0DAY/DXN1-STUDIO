@@ -199,7 +199,7 @@ int main() {
   }
 
   // 9. the version quad rides in the binary too
-  ok(std::string(dxn3::DXN3_VERSION) == "3.0.28",
+  ok(std::string(dxn3::DXN3_VERSION) == "3.0.29",
      "native version constant matches the release quad");
 
   // 10. png writer: checksum vectors, real structure, byte determinism
@@ -1850,6 +1850,87 @@ int main() {
        "an ambiguous prefix is refused (two untitled files)");
     ok(dxn3::ideRecentResolve(small, "ghost.py") == "ghost.py",
        "a ghost passes through for the honest refusal upstream");
+  }
+
+  // 40. the autoscroll: a drag parked at the viewport's edge pulls the
+  // view toward the unseen lines — the wheel's ride contract, metered
+  {
+    IdeState a1;
+    a1.lines.clear();
+    for (int i = 0; i < 100; ++i) a1.lines.push_back("line " + std::to_string(i));
+    a1.page = 10;
+    a1.dirty = false;
+    a1.pressR = 2;                       // the button is down…
+    a1.anchorR = 2;                      // …and a real drag is under way:
+    a1.curR = 9;                         // the hand parked on the bottom row
+    dxn3::ideDragAutoScroll(a1, 1, 0.08);   // one notch's worth of pull
+    ok(a1.top == 1 && a1.curR == 10,
+       "a parked hand at the bottom edge pulls the view down one notch");
+    ok(!a1.dirty, "the autoscroll never dirties the doc");
+    dxn3::ideDragAutoScroll(a1, 1, 0.30);   // ~4 more notches accumulate
+    ok(a1.top == 5 && a1.curR == 14,
+       "the pull meters evenly, the hand riding the bottom edge");
+
+    IdeState a2;                        // a bare press (no anchor) never scrolls
+    a2.lines.clear();
+    for (int i = 0; i < 100; ++i) a2.lines.push_back("line " + std::to_string(i));
+    a2.page = 10;
+    a2.pressR = 0;                      // button down, but…
+    a2.curR = 0;
+    dxn3::ideDragAutoScroll(a2, 1, 0.50);
+    ok(a2.top == 0 && a2.curR == 0 && a2.dragAcc == 0,
+       "a stationary press at the edge does not pull the view");
+
+    IdeState a3;                        // the stall law
+    a3.lines.clear();
+    for (int i = 0; i < 100; ++i) a3.lines.push_back("line " + std::to_string(i));
+    a3.page = 10;
+    a3.pressR = 2;
+    a3.anchorR = 2;
+    a3.curR = 9;
+    dxn3::ideDragAutoScroll(a3, 1, 0.06);   // an almost-notch: saved up
+    ok(a3.top == 0, "less than a notch pulls nothing yet");
+    dxn3::ideDragAutoScroll(a3, 1, 2.0);    // the hand was away — a stall
+    ok(a3.top == 0 && a3.dragAcc == 0,
+       "a long gap resets the meter honestly, no catch-up jump");
+
+    IdeState a4;                        // the ride home, upward
+    a4.lines.clear();
+    for (int i = 0; i < 100; ++i) a4.lines.push_back("line " + std::to_string(i));
+    a4.page = 10;
+    a4.pressR = 20;
+    a4.anchorR = 20;
+    a4.curR = 20;                        // the hand parked on the top row
+    a4.top = 20;
+    dxn3::ideDragAutoScroll(a4, -1, 0.35);  // ~4 notches up (float-honest)
+    ok(a4.top == 16 && a4.curR == 16,
+       "a hand parked at the top edge pulls the view up, riding it");
+
+    IdeState a5;                        // the void clamp still holds
+    a5.lines.clear();
+    for (int i = 0; i < 20; ++i) a5.lines.push_back("line " + std::to_string(i));
+    a5.page = 10;
+    a5.pressR = 9;
+    a5.anchorR = 9;
+    a5.curR = 9;                         // parked on the bottom row
+    dxn3::ideDragAutoScroll(a5, 1, 0.42);        // six notches in
+    dxn3::ideDragAutoScroll(a5, 1, 0.35);        // five more: the void
+    ok(a5.top == 10 && a5.curR == 19,
+       "the pull clamps at the last full page — the void is honest");
+
+    // the header's honest counter: the selection says how much it holds
+    IdeState c1;
+    c1.lines = {"alpha", "beta", "gamma"};
+    c1.curR = 1;
+    c1.curC = 2;
+    ok(dxn3::ideSelCount(c1) == 0, "no anchor, no count");
+    c1.anchorR = 0;
+    c1.anchorC = 2;                     // (0,2) → (1,2): 3 + newline + 2
+    ok(dxn3::ideSelCount(c1) == 6,
+       "a two-line selection counts its characters and its newline");
+    c1.curR = 0;
+    c1.curC = 2;                        // an empty range is no selection
+    ok(dxn3::ideSelCount(c1) == 0, "an empty range counts nothing");
   }
 
   if (fails == 0) {

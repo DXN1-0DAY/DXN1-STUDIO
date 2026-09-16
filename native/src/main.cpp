@@ -773,9 +773,12 @@ void drawIDE(dxn3::Screen& scr, IdeState& ide, const dxn3::Game& g, bool hostUp)
   const std::string st = (hostUp ? "● LIVE  " : "○ idle  ") + ide.state + " ";
   const int scol = cols - static_cast<int>(st.size());
   if (scol > 26) scr.text(scol, 0, st, hostUp ? dxn3::rgb(52, 211, 153) : dxn3::rgb(110, 118, 140));
-  // where you are, always: the header carries the honest line:col
-  const std::string pos = "  Ln " + std::to_string(ide.curR + 1) + " · Col " +
-                          std::to_string(ide.curC + 1);
+  // where you are, always: the header carries the honest line:col —
+  // and when a selection rides with the hand, how much it holds
+  std::string pos = "  Ln " + std::to_string(ide.curR + 1) + " · Col " +
+                    std::to_string(ide.curC + 1);
+  if (const int selN = dxn3::ideSelCount(ide); selN > 0)
+    pos += " · sel " + std::to_string(selN);
   if (24 + static_cast<int>(file.size() + pos.size()) + 2 < scol)
     scr.text(24 + static_cast<int>(file.size()), 0, pos, dxn3::rgb(110, 118, 140));
 
@@ -1737,7 +1740,21 @@ int main(int argc, char** argv) {
         }
       };
       if (keys.clickR >= 0) translateCell(keys.clickR, keys.clickC);
-      if (keys.dragR >= 0) translateCell(keys.dragR, keys.dragC);
+      if (keys.dragR >= 0) {
+        // the autoscroll's edge sensor: a drag parked on the viewport's
+        // top or bottom row pulls the view toward the unseen lines —
+        // decided on the raw body row, before any zone mapping (a
+        // map-rail or gutter drag speaks the same edge law). A hand
+        // outside the body (header, rails) is no edge at all.
+        const int rawRow = keys.dragR - 1;                 // body row
+        const int bodyRowsC = rows0 - 3;
+        ide.dragEdge =
+            rawRow < 0 || rawRow >= bodyRowsC
+                ? 0
+                : rawRow == 0 ? -1
+                  : rawRow == bodyRowsC - 1 ? 1 : 0;
+        translateCell(keys.dragR, keys.dragC);
+      }
       ideKey(ide, keys);
       // the bridge: copy and cut also ride out to the system clipboard
       // (OSC 52) — terminals that honor it keep the OS's clip in sync
@@ -1767,6 +1784,8 @@ int main(int argc, char** argv) {
         ide.idle = 0;
       if (keys.scroll != 0) dxn3::ideScroll(ide, keys.scroll);   // the wheel
                                                 // and the ctrl+↑/↓ nudge
+      dxn3::ideDragAutoScroll(ide, ide.dragEdge, dt);            // the drag
+                                                // parked at an edge pulls
       if (keys.ctrlS) {
         std::string err;
         if (ideSave(ide, &err)) ide.console.push_back("engine: saved " + ide.path);

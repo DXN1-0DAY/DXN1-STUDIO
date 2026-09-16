@@ -112,6 +112,11 @@ struct IdeState {
   // the drag: where the left button went DOWN (−1 = up). Motion while
   // it is set drags the selection from the press to the hand.
   int pressR = -1, pressC = -1;
+  // the drag's edge: the hand parked on the viewport's top (−1) or
+  // bottom (+1) row while the button is held — the view pulls toward
+  // the unseen lines, one notch at a time (dragAcc meters the pull).
+  int dragEdge = 0;
+  double dragAcc = 0;
   // the ledger: the files this studio had open, most recent first —
   // :recent lists and reopens them
   std::vector<std::string> recent;
@@ -136,6 +141,21 @@ inline std::optional<SelRange> ideSelRange(const IdeState& s) {
 }
 
 inline void ideSelClear(IdeState& s) { s.anchorR = -1; s.anchorC = -1; }
+
+// the selection's honest size in characters — the header speaks it
+// ("sel N") so a drag always says how much it holds, live.
+inline int ideSelCount(const IdeState& s) {
+  const auto sel = ideSelRange(s);
+  if (!sel) return 0;
+  const auto [r0, c0, r1, c1] = *sel;
+  int n = 0;
+  for (int r = r0; r <= r1; ++r) {
+    const int last = static_cast<int>(s.lines[static_cast<size_t>(r)].size());
+    n += ((r == r1) ? std::min(c1, last) : last) -
+         ((r == r0) ? c0 : 0) + (r < r1 ? 1 : 0);   // the newline counts
+  }
+  return n;
+}
 
 // the selection goes first: the range is cut, the cursor collapses to
 // its start, the anchor clears. False when there was nothing selected.
@@ -786,6 +806,35 @@ inline void ideScroll(IdeState& s, int delta) {
   s.idle = 0;
 }
 
+// ── the autoscroll: a hand parked at the viewport's edge pulls the ───
+// view toward the unseen lines — the drag's other half. While the
+// button is down AND a real drag is under way (an anchor exists — a
+// stationary press never scrolls), each ~0.07s notch slides one line
+// with the SAME ride contract as the wheel: the hand never leaves
+// sight, the doc never dirties. A long gap (the hand was away, the
+// app stalled) is an honest reset, never a catch-up jump.
+inline void ideDragAutoScroll(IdeState& s, int edge, double dt) {
+  if (edge == 0 || s.pressR < 0 || s.anchorR < 0 || dt < 0 || dt > 0.5) {
+    s.dragAcc = 0;
+    return;
+  }
+  s.dragAcc += dt;
+  constexpr double PERIOD = 0.07;              // one notch every 70ms
+  int steps = 0;
+  while (s.dragAcc >= PERIOD) {
+    s.dragAcc -= PERIOD;
+    ++steps;
+  }
+  if (steps == 0) return;
+  ideScroll(s, edge * steps);                  // the ride contract applies
+  // the hand IS the edge: parked on the bottom row it takes each line
+  // the slide reveals — the selection grows from the anchor, exactly
+  // like every desktop editor's autoscroll
+  const int page = s.page > 0 ? s.page : 1;
+  s.curR = edge > 0 ? s.top + page - 1 : s.top;
+  ideClamp(s);
+}
+
 // ── the ledger: the files you had open, most recent first ───────────
 // The studio remembers so you don't have to: :recent lists them,
 // :recent <prefix> reopens. A path seen again moves to the front;
@@ -989,7 +1038,9 @@ inline void ideKey(IdeState& ide, const Keys& k) {
   if (k.clickRelease) {
     ide.pressR = -1;                           // the button came up: the
     ide.pressC = -1;                           // drag is over, the selection
-  }                                            // it made simply stays
+    ide.dragEdge = 0;                          // it made simply stays — and
+    ide.dragAcc = 0;                           // the edge pull is spent
+  }
   if (k.dragR >= 0 && ide.pressR >= 0) {       // motion with the button
                                                 // held: drag the selection
     ide.anchorR = ide.pressR;                  // from the press…
