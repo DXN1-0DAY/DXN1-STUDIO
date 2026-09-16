@@ -1951,6 +1951,29 @@ int main(int argc, char** argv) {
                     : "engine: '" + oldStr +
                           "' is not on this bed — nothing replaced");
           }
+        } else if (cmd.verb == "sa") {
+          // the swap's other face: the WHOLE document is the bed —
+          // the same exact-match law, ideReplaceAll speaks it.
+          takeStage();
+          const size_t cut = cmd.arg.find('/');
+          const std::string oldStr = cmd.arg.substr(0, cut);
+          const std::string newStr = cmd.arg.substr(cut + 1);
+          if (oldStr.empty()) {
+            cmdErr = "usage: :sa/old/new — an empty old replaces nothing";
+            cmdErrT = 3.5f;
+          } else {
+            int linesTouched = 0;
+            const int made = dxn3::ideReplaceAll(ide, oldStr, newStr,
+                                                 &linesTouched);
+            ide.console.push_back(
+                made > 0
+                    ? "engine: " + std::to_string(made) + " replaced on " +
+                          std::to_string(linesTouched) + " line" +
+                          (linesTouched == 1 ? "" : "s") +
+                          " across the document — one undo step"
+                    : "engine: '" + oldStr +
+                          "' is not in this document — nothing replaced");
+          }
         } else if (cmd.verb == "rev") {
           takeStage();
           const int flipped = dxn3::ideRevSel(ide);
@@ -2316,7 +2339,7 @@ int main(int argc, char** argv) {
           takeStage();                         // every verb takes the stage —
                                                // a law, not a suggestion
           if (cmd.arg.empty()) {
-            game.say(":scene :open :recent :template :snip :goto :jumps :changes :fresh :mark :marks :bm :ruler :minimap :zen :center :relnum :s :trim :cases :sort :rsort :rev :uniq :shuffle :indent :dedent :lift :drop :dup :join :upper :lower :title :hist :undo :redo :words :todo :stats "
+            game.say(":scene :open :recent :template :snip :goto :jumps :changes :fresh :mark :marks :bm :ruler :minimap :zen :center :relnum :s :sa :trim :cases :sort :rsort :rev :uniq :shuffle :indent :dedent :lift :drop :dup :join :upper :lower :title :hist :undo :redo :words :todo :stats "
                      ":record :macro :zoom :fit :reset :new :w :wq :q :screenshot :magnet :gravity — or :help <verb>",
                      4.f);
           } else {

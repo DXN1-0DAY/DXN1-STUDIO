@@ -1134,6 +1134,14 @@ def main():
         check("a clean bed is refused, never guessed",
               "'absent' is not on this bed" in scr.text(ROWS - 2),
               repr(scr.text(ROWS - 2)[:70]))
+        scr, _ = s1d.run_verb("sa/QQ/KK/", "ide")
+        check(":sa trades the WHOLE document — the hand's QQ is gone",
+              "'QQ' is not in this document" in scr.text(ROWS - 2),
+              repr(scr.text(ROWS - 2)[:70]))
+        scr, _ = s1d.run_verb("20", "ide")
+        check("a bare number IS a goto (:20 jumps)",
+              "jumped to line 20" in scr.text(ROWS - 2),
+              repr(scr.text(ROWS - 2)[:70]))
 
         s1d.send(ESC)
         time.sleep(0.3)

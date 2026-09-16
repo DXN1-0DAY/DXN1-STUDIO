@@ -1412,6 +1412,29 @@ inline int ideReplaceSel(IdeState& s, const std::string& oldStr,
   return made;
 }
 
+// the swap's other face: :sa/old/new — the WHOLE document is the bed.
+// The same exact-match law, spoken by the same ideReplaceSel: the bed
+// is simply the biggest selection a document can hold. One undo step
+// holds the whole take.
+inline int ideReplaceAll(IdeState& s, const std::string& oldStr,
+                         const std::string& newStr, int* linesTouched) {
+  if (s.lines.empty()) return 0;
+  const int keepR = s.curR, keepC = s.curC;
+  const int keepA = s.anchorR, keepAC = s.anchorC;
+  s.anchorR = 0;
+  s.anchorC = 0;
+  s.curR = static_cast<int>(s.lines.size()) - 1;
+  s.curC = static_cast<int>(s.lines.back().size());
+  const int made = ideReplaceSel(s, oldStr, newStr, linesTouched);
+  if (made == 0) {                         // a clean bed: nothing moved,
+    s.curR = keepR;                        // the hand goes home untouched
+    s.curC = keepC;
+    s.anchorR = keepA;
+    s.anchorC = keepAC;
+  }
+  return made;
+}
+
 // ── the rebalance: the view centers on the hand ────────────────────
 // :center — z. in vim's tongue. The hand rides the viewport's middle
 // (the SAME page the draw and the wheel use), clamped to the doc's

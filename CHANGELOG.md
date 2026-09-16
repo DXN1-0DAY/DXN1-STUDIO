@@ -1,3 +1,18 @@
+## v3.0.81 — the other face (:sa; :42 is a goto)
+
+- **`:sa/old/new` — the swap's other face.** The WHOLE document is
+  the bed: every byte-exact occurrence across every line trades, one
+  undo step holds the entire take ("N replaced on M lines across the
+  document"). The same law as :s, spoken by the same
+  ideReplaceSel — the bed is simply the biggest selection a document
+  can hold; a clean document refuses with the words standing.
+- **`:42` is a goto.** A bare number is vim's law — the goto's
+  absolute form, spelled the way the hand thinks it. 1..99999, the
+  parse refuses a number with letters; `:1` jumps to the very top.
+  The relative forms (+N/-N) stay :goto's own.
+- Selftest group 85 (9 asserts) 771 -> 781; smoke 13i3 grows the
+  document-wide trade and the bare-number jump (166 -> 168).
+
 ## v3.0.80 — the swap (:s/old/new — the bed's bytes trade places)
 
 - **`:s/old/new` — find & replace, the house way.** Every

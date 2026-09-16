@@ -38,14 +38,37 @@ inline Cmd parseCommand(std::string_view line) {
   // the swap's family: :s/old/new — the verb is ONE letter, the pair
   // rides after it separated by slashes. The '/' makes the verb token,
   // so the split-by-space rule steps aside for exactly this prefix.
-  if (line.rfind("s/", 0) == 0) {
-    c.verb = "s";
-    c.arg = std::string(line.substr(2));
+  if (line.rfind("s/", 0) == 0 || line.rfind("sa/", 0) == 0) {
+    const bool all = line.rfind("sa/", 0) == 0;
+    c.verb = all ? "sa" : "s";
+    c.arg = std::string(line.substr(all ? 3 : 2));
     // the old/new pair is validated by its handler (an empty old is a
     // refusal there); here only the delimiter law: at least one '/'
     if (c.arg.find('/') == std::string::npos)
-      c.error = "usage: :s/old/new — the pair rides after slashes";
+      c.error = all ? "usage: :sa/old/new — the pair rides after slashes"
+                    : "usage: :s/old/new — the pair rides after slashes";
     return c;
+  }
+
+  // a bare number is vim's law: :42 jumps the editor to line 42 —
+  // the goto's absolute form, spelled the way the hand thinks it.
+  {
+    bool allDigits = !line.empty();
+    for (const char ch : line)
+      if (ch < '0' || ch > '9') { allDigits = false; break; }
+    if (allDigits) {
+      c.verb = "goto";
+      c.arg = std::string(line);
+      double d = 0;
+      auto [p2, ec] = std::from_chars(line.data(), line.data() + line.size(), d);
+      if (ec == std::errc{} && d >= 1 && d <= 99999) {
+        c.num = static_cast<float>(d);
+        c.rel = false;
+      } else {
+        c.error = "usage: :<line> — 1..99999";
+      }
+      return c;
+    }
   }
 
   const size_t sp = line.find(' ');
@@ -261,6 +284,9 @@ inline std::string usageHintFor(std::string_view typed) {
     return " :title — every word's first letter stands up";
   if (verb == "uniq")
     return " :uniq — lines that repeat back-to-back say it once";
+  if (verb == "sa")
+    return " :sa/old/new — the swap's other face: the WHOLE document "
+           "is the bed";
   if (verb == "s")
     return " :s/old/new — replace every exact old with new on the "
            "selection's lines";

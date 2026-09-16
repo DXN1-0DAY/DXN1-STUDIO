@@ -199,7 +199,7 @@ int main() {
   }
 
   // 9. the version quad rides in the binary too
-  ok(std::string(dxn3::DXN3_VERSION) == "3.0.80",
+  ok(std::string(dxn3::DXN3_VERSION) == "3.0.81",
      "native version constant matches the release quad");
 
   // 10. png writer: checksum vectors, real structure, byte determinism
@@ -3936,6 +3936,43 @@ int main() {
     const auto p2 = dxn3::parseCommand(":s no slash");
     ok(!p2.ok() && p2.error.find("no such command") != std::string::npos,
        "a verb s WITHOUT its slashes is no verb at all");
+  }
+
+  // 85. the swap's other face + vim's bare number: :sa/old/new makes
+  // the WHOLE document the bed (one undo step holds the take); :42 is
+  // the goto's absolute form, spelled the way the hand thinks it.
+  {
+    IdeState a;
+    a.lines = {"x one", "mid", "two one x"};
+    int touched = 0;
+    const int made = dxn3::ideReplaceAll(a, "one", "1", &touched);
+    ok(made == 2 && touched == 2,
+       "the whole document trades — two on two lines");
+    ok(a.lines == std::vector<std::string>{"x 1", "mid", "two 1 x"},
+       "every line the bed holds was offered");
+    ok(a.touched.size() == 2, "the census covers the document's trade");
+    dxn3::Keys uz;
+    uz.ctrlZ = true;
+    ok(dxn3::ideUndo(a), "one undo holds the whole take");
+    IdeState n;
+    n.lines = {"nothing"};
+    const int none = dxn3::ideReplaceAll(n, "zz", "yy", &touched);
+    ok(none == 0 && n.lines[0] == "nothing",
+       "a clean document refuses, the words stand");
+
+    const auto g1 = dxn3::parseCommand(":42");
+    ok(g1.ok() && g1.verb == "goto" && g1.num == 42.f && !g1.rel,
+       "a bare number IS a goto — the vim law");
+    const auto g2 = dxn3::parseCommand(":1");
+    ok(g2.ok() && g2.num == 1.f, ":1 jumps to the very top");
+    const auto g3 = dxn3::parseCommand(":99999");
+    ok(g3.ok() || g3.error.find("1..99999") != std::string::npos,
+       "the range law holds either way");
+    const auto g4 = dxn3::parseCommand(":12x");
+    ok(!g4.ok(), "a number with letters is not a line");
+    const auto s1 = dxn3::parseCommand(":sa/a/b");
+    ok(s1.ok() && s1.verb == "sa" && s1.arg == "a/b",
+       ":sa/old/new parses — the other face's token");
   }
 
   // 83b. the macro register's session law, restated in the pure world:
