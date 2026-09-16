@@ -1875,23 +1875,20 @@ int main(int argc, char** argv) {
         // the IDE paints its own rails
       } else if (cmdOpen) {
         scr.text(0, rows - 1, ":" + cmdBuf + "_", dxn3::rgb(250, 204, 21));
-        const std::string hint = dxn3::usageHintFor(cmdBuf);
-        if (!hint.empty()) {
-          const int hcol = 2 + static_cast<int>(cmdBuf.size());
-          if (hcol + static_cast<int>(hint.size()) < cols - 1)
-            scr.text(hcol, rows - 1, hint, dxn3::rgb(124, 58, 237));
-        }
         // command-bar whispers: scenes, scripts, screenshots, :w scene
-        // targets and snippet names complete themselves as you type —
-        // the campaign, the cwd and the exports dir speak up.
+        // targets, snippet names and the ledger complete themselves as
+        // you type — the campaign, the cwd, the exports dir and the
+        // recent files speak up. The usage hint yields: a whisper that
+        // paints must not have the hint bleeding through its tail.
         // (cmdBuf never carries the leading ':' — the bar paints that.)
+        std::string whisper;               // the winner, painted once below
         const struct {
           const char* pre;
           size_t len;
           bool bare;             // whispers even with nothing typed after it
         } qs[] = {{"scene ", 6, false},      {"open ", 5, false},
                   {"screenshot ", 11, true}, {"w ", 2, false},
-                  {"snip ", 5, false}};
+                  {"snip ", 5, false},       {"recent ", 7, true}};
         for (const auto& q : qs) {
           if (cmdBuf.rfind(q.pre, 0) != 0 ||
               cmdBuf.size() < q.len + (q.bare ? 0 : 1))
@@ -1939,6 +1936,14 @@ int main(int argc, char** argv) {
               if (!w.empty()) w += " · ";
               w += "scenes/" + m + ".dxn1.json";
             }
+          } else if (std::strcmp(q.pre, "recent ") == 0) {
+            // the ledger whispers: what enter WILL open, before it
+            // opens it — full paths, the head of the list first, only
+            // as many as the bar honestly holds
+            const int hcolW = 2 + static_cast<int>(cmdBuf.size());
+            w = dxn3::ideRecentWhisper(
+                ide.recent, part,
+                static_cast<size_t>(std::max(0, cols - 1 - hcolW)));
           } else {                           // "snip " — the shelf whispers
             for (const auto& nm : dxn3::ideSnippetNames(ide.path)) {
               if (nm.rfind(part, 0) != 0) continue;
@@ -1948,8 +1953,19 @@ int main(int argc, char** argv) {
           }
           const int hcol = 2 + static_cast<int>(cmdBuf.size());
           if (!w.empty() && hcol + static_cast<int>(w.size()) < cols - 1)
-            scr.text(hcol, rows - 1, w, dxn3::rgb(168, 85, 247));
+            whisper = w;         // remembered — painted once, hint yields
           break;                 // one whisper per frame — first match wins
+        }
+        if (!whisper.empty()) {
+          const int hcol = 2 + static_cast<int>(cmdBuf.size());
+          scr.text(hcol, rows - 1, whisper, dxn3::rgb(168, 85, 247));
+        } else {                 // silent bar: the usage speaks instead
+          const std::string hint = dxn3::usageHintFor(cmdBuf);
+          if (!hint.empty()) {
+            const int hcol = 2 + static_cast<int>(cmdBuf.size());
+            if (hcol + static_cast<int>(hint.size()) < cols - 1)
+              scr.text(hcol, rows - 1, hint, dxn3::rgb(124, 58, 237));
+          }
         }
       } else if (cmdErrT > 0) {
         scr.text(0, rows - 1, " dxn3: " + cmdErr, dxn3::rgb(248, 113, 113));

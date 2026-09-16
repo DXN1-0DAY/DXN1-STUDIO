@@ -1,3 +1,21 @@
+## v3.0.30 — the whisper
+
+- **:recent completes itself while you type.** The command bar's
+  whisper family grows its last member: type `:recent bo` and the
+  bar speaks `sdk/examples/bounce.js` before enter is ever pressed —
+  full paths whose path OR basename carries the prefix, ledger order,
+  joined with " · ", clipped to the width the bar honestly holds. A
+  bare `:recent` whispers the head of the ledger; an empty ledger
+  says "(the ledger is empty)"; a ghost stays silent because enter
+  will refuse it and the bar never lies ahead of the truth.
+- Selftest: group 41 (basename and full-path prefixes, the ordered
+  bare whisper, the tail name, the silent ghost, the empty ledger,
+  the narrow-bar clip) — 355 → 363 assertion groups, all green.
+  Smoke: section 12h watches the live bar whisper (99 → 102 checks).
+- **Polish — the hint yields.** The bar's usage hint no longer bleeds
+  through behind a shorter whisper: the whisper paints alone when it
+  speaks, and the usage speaks only when the bar is silent.
+
 ## v3.0.29 — the autoscroll
 
 - **A drag at the edge pulls the unseen into view.** The mouse

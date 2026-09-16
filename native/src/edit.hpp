@@ -851,6 +851,27 @@ inline void ideRecentPush(std::vector<std::string>& recent,
   if (recent.size() > 12) recent.resize(12);
 }
 
+// the ledger whispers: what ":recent <part>" is about to resolve to,
+// spoken while you type — full paths whose path OR basename carries
+// the prefix, ledger order, joined with " · ", clipped to the bar's
+// honest width. An empty ledger says so; a ghost stays silent (enter
+// will refuse it, honestly).
+inline std::string ideRecentWhisper(const std::vector<std::string>& recent,
+                                    const std::string& part, size_t maxW) {
+  if (recent.empty()) return "(the ledger is empty)";
+  std::string w;
+  for (const auto& p : recent) {
+    const size_t slash = p.find_last_of('/');
+    const std::string base =
+        slash == std::string::npos ? p : p.substr(slash + 1);
+    if (p.rfind(part, 0) != 0 && base.rfind(part, 0) != 0) continue;
+    const size_t need = w.empty() ? p.size() : w.size() + 3 + p.size();
+    if (need > maxW) break;
+    w += w.empty() ? p : " · " + p;
+  }
+  return w;
+}
+
 // what ":recent <arg>" meant: an exact name wins, a UNIQUE prefix
 // resolves, an ambiguous prefix returns "" (the caller lists the
 // matches), and a ghost passes through unchanged — refused upstream,

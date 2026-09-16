@@ -199,7 +199,7 @@ int main() {
   }
 
   // 9. the version quad rides in the binary too
-  ok(std::string(dxn3::DXN3_VERSION) == "3.0.29",
+  ok(std::string(dxn3::DXN3_VERSION) == "3.0.30",
      "native version constant matches the release quad");
 
   // 10. png writer: checksum vectors, real structure, byte determinism
@@ -1931,6 +1931,32 @@ int main() {
     c1.curR = 0;
     c1.curC = 2;                        // an empty range is no selection
     ok(dxn3::ideSelCount(c1) == 0, "an empty range counts nothing");
+  }
+
+  // 41. the ledger's whisper: ":recent" completes itself as you type
+  {
+    const std::vector<std::string> ledger{
+        "sdk/examples/shooter.py", "sdk/examples/bounce.js", "untitled.py"};
+    using dxn3::ideRecentWhisper;
+    ok(ideRecentWhisper(ledger, "bo", 200) == "sdk/examples/bounce.js",
+       "a basename prefix whispers the whole path");
+    ok(ideRecentWhisper(ledger, "sdk/examples/s", 200) ==
+           "sdk/examples/shooter.py",
+       "a full-path prefix whispers too");
+    ok(ideRecentWhisper(ledger, "", 400) ==
+           "sdk/examples/shooter.py \xc2\xb7 sdk/examples/bounce.js "
+           "\xc2\xb7 untitled.py",
+       "an empty part speaks the whole ledger in order");
+    ok(ideRecentWhisper(ledger, "un", 200) == "untitled.py",
+       "the ledger's tail whispers like its head");
+    ok(ideRecentWhisper(ledger, "zz", 200).empty(),
+       "a ghost stays silent — enter will refuse it honestly");
+    ok(ideRecentWhisper({}, "", 200) == "(the ledger is empty)",
+       "an empty ledger says so instead of nothing");
+    ok(ideRecentWhisper(ledger, "", 30) == "sdk/examples/shooter.py",
+       "a narrow bar carries one name and stops before the separator");
+    ok(ideRecentWhisper(ledger, "s", 20) == "",
+       "a name wider than the bar is not whispered at all");
   }
 
   if (fails == 0) {
