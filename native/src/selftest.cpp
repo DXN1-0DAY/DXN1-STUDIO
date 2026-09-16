@@ -199,7 +199,7 @@ int main() {
   }
 
   // 9. the version quad rides in the binary too
-  ok(std::string(dxn3::DXN3_VERSION) == "3.0.22",
+  ok(std::string(dxn3::DXN3_VERSION) == "3.0.23",
      "native version constant matches the release quad");
 
   // 10. png writer: checksum vectors, real structure, byte determinism
@@ -1544,6 +1544,130 @@ int main() {
     ok(e.lines[0] == "x" && !e.console.empty() &&
            e.console.back().find("clipboard is empty") != std::string::npos,
        "pasting an empty clip speaks up instead of pretending");
+  }
+
+  // 34. the minimap: the whole document compressed, honest bar math
+  {
+    IdeState mm;
+    mm.path = "game.py";
+    mm.lines = {"top", "", "        deep", "x", "# note", "// not a comment"};
+    mm.findHits = {{4, 2}};              // the searchlight stood on row 4
+    const dxn3::IdeMini mini = dxn3::ideMiniMap(mm, 6, 10);
+    ok(mini.top == 0 && static_cast<int>(mini.rows.size()) == 6,
+       "a doc that fits rests at the top, every line a row");
+    ok(mini.rows[0].start == 0 && mini.rows[0].len == 2 && !mini.rows[0].blank,
+       "'top' compresses to a two-cell bar at the margin");
+    ok(mini.rows[1].blank && mini.rows[1].len == 1,
+       "a blank line is one dot, anchored");
+    ok(mini.rows[2].start == 4 && mini.rows[2].len == 2,
+       "eight spaces of indent compress 2:1 into the map");
+    ok(mini.rows[4].comment && mini.rows[4].hit,
+       "the comment line speaks gray and glows for the searchlight");
+    ok(!mini.rows[5].comment,
+       "'//' is not this file's comment prefix — python talks with #");
+    ok(mini.rows[0].inView && mini.rows[5].inView,
+       "when the editor shows everything, the map knows it");
+
+    IdeState big;                        // a doc the map cannot fit at once
+    big.lines.clear();                   // the fresh-doc empty line steps aside
+    for (int i = 0; i < 100; ++i) big.lines.push_back("line " + std::to_string(i));
+    big.curR = 50;
+    big.top = 48;                        // the editor's own viewport
+    const dxn3::IdeMini slide = dxn3::ideMiniMap(big, 6, 10);
+    ok(slide.top == 45 && static_cast<int>(slide.rows.size()) == 10,
+       "a long doc slides so the cursor rides the map's middle");
+    ok(!slide.rows[0].inView && !slide.rows[2].inView &&
+           slide.rows[3].inView && slide.rows[9].inView,
+       "the viewport's band lands on exactly the shown rows");
+    big.curR = 99;
+    ok(dxn3::ideMiniMap(big, 6, 10).top == 90,
+       "the map never slides past the document's end");
+    big.curR = 0;
+    ok(dxn3::ideMiniMap(big, 6, 10).top == 0,
+       "nor before its start");
+    ok(dxn3::ideMiniMap(mm, 0, 10).rows.empty(),
+       "a zero-wide map draws nothing at all");
+  }
+
+  // 35. the receipts name WHAT moved, and the word under the hand
+  // whispers its snippet
+  {
+    using dxn3::Keys;
+    IdeState t;                          // typing names itself
+    t.lines = {"a"};
+    t.idle = 1.0;                        // a cold hand: no coalescing
+    Keys tk;
+    tk.typed = "b";
+    dxn3::ideKey(t, tk);
+    ok(!t.undo.empty() && t.undo.back().what == "typing",
+       "a typed burst is remembered as 'typing'");
+    ok(dxn3::ideUndoReceipt(t) == "engine: undo — typing · 1 step left",
+       "the undo receipt names the move and the steps left");
+    ok(dxn3::ideUndo(t) && t.redo.back().what == "typing",
+       "the label rides the redo branch too");
+    ok(dxn3::ideRedoReceipt(t) == "engine: redo — typing",
+       "the redo receipt speaks the same name");
+    ok(dxn3::ideRedo(t) && t.undo.back().what == "typing",
+       "and the label comes home through redo");
+
+    IdeState p;                          // paste names itself
+    p.lines = {"x"};
+    p.clip = {"line"};
+    p.clipLines = true;
+    Keys pk;
+    pk.ctrlV = true;
+    dxn3::ideKey(p, pk);
+    ok(!p.undo.empty() && p.undo.back().what == "paste",
+       "a paste is remembered as 'paste'");
+
+    IdeState c;                          // comment, enter, cut, snippet
+    c.lines = {"code"};
+    Keys ck;
+    ck.comment = true;
+    dxn3::ideKey(c, ck);
+    ok(!c.undo.empty() && c.undo.back().what == "comment",
+       "a comment toggle is remembered as 'comment'");
+
+    IdeState en;
+    en.lines = {"ab"};
+    en.curC = 1;
+    Keys ek;
+    ek.enter = true;
+    dxn3::ideKey(en, ek);
+    ok(!en.undo.empty() && en.undo.back().what == "enter",
+       "an enter is remembered as 'enter'");
+
+    IdeState cut;
+    cut.lines = {"one", "two"};
+    Keys xk;
+    xk.ctrlX = true;
+    dxn3::ideKey(cut, xk);
+    ok(!cut.undo.empty() && cut.undo.back().what == "cut",
+       "a bare cut is remembered as 'cut'");
+
+    IdeState sn;
+    sn.lines = {"tick"};
+    sn.path = "game.py";
+    sn.curC = 4;
+    Keys sk;
+    sk.tab = true;
+    dxn3::ideKey(sn, sk);
+    ok(!sn.undo.empty() && sn.undo.back().what == "snippet",
+       "a tab trigger is remembered as 'snippet'");
+
+    IdeState w;                          // the whisper: the shelf speaks
+    w.lines = {"x tick y"};
+    w.path = "game.py";
+    w.curC = 6;
+    ok(dxn3::ideSnippetWhisper(w) == "tab expands 'tick'",
+       "a shelf word under the hand names its boilerplate");
+    w.curC = 2;                          // behind the hand: 'x ' only
+    ok(dxn3::ideSnippetWhisper(w).empty(),
+       "no word behind the hand, no whisper");
+    w.lines = {"zzz"};
+    w.curC = 3;
+    ok(dxn3::ideSnippetWhisper(w).empty(),
+       "a ghost name never whispers");
   }
 
   if (fails == 0) {

@@ -727,8 +727,13 @@ void drawIDE(dxn3::Screen& scr, IdeState& ide, const dxn3::Game& g, bool hostUp)
   if (24 + static_cast<int>(file.size() + pos.size()) + 2 < scol)
     scr.text(24 + static_cast<int>(file.size()), 0, pos, dxn3::rgb(110, 118, 140));
 
-  // the editor pane
-  const int textW = editW - 5;               // code columns after the gutter
+  // the editor pane — the minimap rents its rail from the code's right
+  // edge when the terminal is wide enough to spare it (six map columns,
+  // one gap, one divider); :minimap can always send it home
+  const bool mapOn = ide.minimap && split && cols >= 110;
+  const int mapW = 6;
+  const int mapX = editW - 1 - mapW;         // map cols [mapX, mapX + mapW)
+  const int textW = editW - 5 - (mapOn ? mapW + 1 : 0);   // code after gutter
   const int maxTop = std::max(0, static_cast<int>(ide.lines.size()) - bodyRows);
   ide.top = std::clamp(ide.top, 0, maxTop);
   if (ide.curR < ide.top) ide.top = ide.curR;
@@ -826,7 +831,7 @@ void drawIDE(dxn3::Screen& scr, IdeState& ide, const dxn3::Game& g, bool hostUp)
   }
   // the searchlight's wake: every match glows, the current one burns
   if (ide.findOpen && !ide.findHits.empty() && !ide.findQ.empty()) {
-    const int maxW = split ? editW - 1 : cols;
+    const int maxW = mapOn ? 4 + textW : (split ? editW - 1 : cols);
     size_t hi = 0;
     for (int r = 0; r < bodyRows; ++r) {
       const int li = ide.top + r;
@@ -844,6 +849,52 @@ void drawIDE(dxn3::Screen& scr, IdeState& ide, const dxn3::Game& g, bool hostUp)
         scr.textBg(4 + c, bodyTop + r, slice, paneBg,
                    static_cast<int>(i) == ide.findSel ? dxn3::rgb(180, 83, 9)
                                                       : dxn3::rgb(66, 50, 14));
+      }
+    }
+  }
+
+  // the minimap: the whole document compressed into a six-column rail
+  // riding the pane's right edge. The viewport's rows carry a soft band
+  // and burn brighter; the cursor's row is the brightest bar on the
+  // map; comments speak gray, find hits speak amber, blank lines keep
+  // one dim dot so the rows stay anchored.
+  if (mapOn) {
+    const dxn3::IdeMini mini = dxn3::ideMiniMap(ide, mapW, bodyRows);
+    const RGB barView = dxn3::rgb(150, 132, 220);
+    const RGB barOut = dxn3::rgb(84, 72, 120);
+    const RGB barCmt = dxn3::rgb(96, 104, 126);
+    const RGB barCur = dxn3::rgb(196, 181, 253);
+    const RGB barHit = dxn3::rgb(250, 204, 21);
+    const RGB dotC = dxn3::rgb(60, 66, 96);
+    const RGB bandBg = dxn3::rgb(30, 22, 52);
+    for (int r = 0; r < bodyRows; ++r)
+      scr.text(editW - 1, bodyTop + r, "│", dxn3::rgb(58, 50, 94));
+    auto bars = [](int n) {
+      std::string s;
+      for (int i = 0; i < n; ++i) s += "▌";
+      return s;
+    };
+    for (size_t i = 0; i < mini.rows.size(); ++i) {
+      const int row = bodyTop + static_cast<int>(i);
+      const int li = mini.top + static_cast<int>(i);
+      const auto& mr = mini.rows[static_cast<size_t>(i)];
+      const bool onCur = li == ide.curR;
+      if (mr.inView)                             // the viewport's band
+        for (int c = 0; c < mapW; ++c)
+          scr.textBg(mapX + c, row, " ", paneBg, bandBg);
+      if (mr.blank) {
+        scr.text(mapX, row, "·", mr.inView ? dxn3::rgb(96, 104, 126) : dotC);
+        continue;
+      }
+      const RGB fg = onCur ? barCur
+                     : mr.hit ? barHit
+                     : mr.comment ? barCmt
+                     : mr.inView ? barView : barOut;
+      if (mr.inView) {                           // bright bars ride the band
+        for (int c = 0; c < mr.len; ++c)
+          scr.textBg(mapX + mr.start + c, row, "▌", fg, bandBg);
+      } else {
+        scr.text(mapX + mr.start, row, bars(mr.len), fg);
       }
     }
   }
@@ -875,10 +926,16 @@ void drawIDE(dxn3::Screen& scr, IdeState& ide, const dxn3::Game& g, bool hostUp)
     const bool errorUp = errLine > 0;
     scr.text(1, c0 + 1, hint.substr(0, static_cast<size_t>(cols - 3)),
              errorUp ? dxn3::rgb(248, 113, 113) : dxn3::rgb(84, 72, 120));
-    if (!l2.empty())
-      scr.text(cols - std::min(cols - 3, static_cast<int>(l2.size())) - 1, c0 + 1,
-               l2.substr(0, static_cast<size_t>(std::min(cols - 3, static_cast<int>(l2.size())))),
-               dxn3::rgb(84, 72, 120));
+    // the whisper outranks the echo: a shelf word under the hand names
+    // its boilerplate, otherwise the console's second-newest line rests
+    // in the rail's right seat
+    const std::string whisper = dxn3::ideSnippetWhisper(ide);
+    const std::string right = whisper.empty() ? l2 : (" ⇥ " + whisper + " ");
+    if (!right.empty())
+      scr.text(cols - std::min(cols - 3, static_cast<int>(right.size())) - 1, c0 + 1,
+               right.substr(0, static_cast<size_t>(std::min(cols - 3, static_cast<int>(right.size())))),
+               whisper.empty() ? dxn3::rgb(84, 72, 120)
+                               : dxn3::rgb(250, 204, 21));
   }
 }
 
@@ -915,6 +972,7 @@ int main(int argc, char** argv) {
                    "       tab snippet/indent · shift+tab dedent · ctrl+/ comment\n"
                    "       shift+arrows select · shift+ctrl+←/→ select words\n"
                    "       ctrl+n template · ctrl+g error line · ctrl+p screenshot\n"
+                   "       :minimap the document's map rail · :ruler guides · :stats\n"
                    "       esc play/back · a/d move · w jump\n"
                    "       tab inspect · e file · : commands (:open loads any script) · q quit\n"
                    "your game is a child process speaking JSON on stdio — see sdk/",
@@ -1408,6 +1466,13 @@ int main(int argc, char** argv) {
           ide.console.push_back(ide.ruler
                                     ? "engine: ruler on — guides at 79 and 99"
                                     : "engine: ruler off");
+        } else if (cmd.verb == "minimap") {
+          if (!ide.open) ide.open = true;      // the studio takes the stage
+          ide.minimap = !ide.minimap;
+          ide.console.push_back(
+              ide.minimap ? "engine: minimap on — the document rides the "
+                            "pane's right edge"
+                          : "engine: minimap off");
         } else if (cmd.verb == "stats") {
           if (!ide.open) ide.open = true;      // the studio takes the stage
           size_t words = 0, chars = 0;
@@ -1448,8 +1513,8 @@ int main(int argc, char** argv) {
           game.scene.gravity = cmd.num;
           game.say("gravity " + std::to_string(static_cast<int>(cmd.num)), 1.2);
         } else if (cmd.verb == "help") {
-          game.say(":scene :open :template :snip :goto :ruler :stats :zoom :fit "
-                    ":reset :new :w :wq :q :screenshot :magnet :gravity", 4.f);
+          game.say(":scene :open :template :snip :goto :ruler :minimap :stats :zoom "
+                    ":fit :reset :new :w :wq :q :screenshot :magnet :gravity", 4.f);
         }
       } else {
         cmdBuf += keys.typed;

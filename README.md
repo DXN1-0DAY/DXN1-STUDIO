@@ -2,7 +2,7 @@
 
 ![DXN1 STUDIO 3](assets/banner.png)
 
-![version](https://img.shields.io/badge/version-3.0.22-8b5cf6?style=flat-square)
+![version](https://img.shields.io/badge/version-3.0.23-8b5cf6?style=flat-square)
 ![gates](https://github.com/DXN1-termux/DXN1-STUDIO/actions/workflows/ci.yml/badge.svg)
 ![native](https://img.shields.io/badge/native-C%2B%2023-f97316?style=flat-square)
 ![face](https://img.shields.io/badge/face-terminal_truecolor-22d3ee?style=flat-square)
@@ -120,6 +120,12 @@ viewport refreshes — *code a background, and boom, a background.*
   back. Dim guides at columns 79 and 99 keep the margins visible
   (`:ruler` toggles), `:stats` counts what you're holding, and
   `ctrl+home`/`ctrl+end` jump the edges of the document.
+- **The minimap rides the right edge.** A six-column map of the
+  whole document lives in the pane's right border on wide terminals:
+  indent compresses 2:1, the viewport's rows carry a soft band and
+  burn brighter, the cursor's row is the brightest bar, comments
+  speak gray, find hits glow amber — and `:minimap` sends it home
+  when you want the columns back.
 - **The selection is real.** `shift+arrows` extend a glowing
   anchor↔cursor range across lines; typing, backspace, delete or
   enter replaces it in one undo step; `ctrl+/` comments or strips
@@ -150,7 +156,9 @@ viewport refreshes — *code a background, and boom, a background.*
   iTerm2, Windows Terminal…) keep the OS clipboard in sync — while
   `ctrl+v` always pastes from the studio's own ring, so a plain
   terminal loses nothing. Pasting an empty clip says so instead of
-  pretending.
+  pretending. And every undo speaks its name now — `ctrl+z` says
+  `undo — paste · 3 steps left`, not a blind count — while a shelf
+  word under the hand whispers `⇥ tab expands 'tick'` from the rail.
 
 Keys: `ctrl+r` run · `ctrl+s` save · `ctrl+z` undo · `ctrl+y` redo ·
 `ctrl+c`/`ctrl+x`/`ctrl+v` copy · cut · paste ·
@@ -167,6 +175,7 @@ line ends · `ctrl+home`/`ctrl+end` doc edges · `del` forward-delete ·
 `esc` play your game fullscreen · `e` back to the editor ·
 `:open <file>` loads any script · `:goto <line>` jumps the editor ·
 `:template <name>` loads a starter · `:snip <name>` drops boilerplate ·
+`:minimap` toggles the map rail ·
 `:scene <name>` loads a demo (with
 completion whispers) · `:q` quit.
 

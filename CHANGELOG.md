@@ -1,3 +1,37 @@
+## v3.0.23 — the map
+
+- **The minimap rides the right edge.** A six-column map of the whole
+  document lives inside the editor pane's right border whenever the
+  terminal is wide enough to spare it (split mode, 110+ columns).
+  One doc line is one map row; leading whitespace compresses 2:1 so
+  deep nests stay inside the rail, and text compresses to half its
+  length rounding UP so even one character shows. The viewport's rows
+  carry a soft band and burn brighter, the cursor's row is the
+  brightest bar on the map, comments speak gray, find hits glow
+  amber, blank lines keep one dim dot so the rows stay anchored. The
+  map slides to keep the cursor centered once the doc outgrows the
+  pane and never slides past either end. `:minimap` toggles it.
+  The math (`ideMiniMap`) lives in edit.hpp, pure and selftestable —
+  main.cpp only paints.
+- **The undo receipt names the move.** Every restore point now
+  carries a label — typing, backspace, enter, delete, selection,
+  comment, duplicate, word bite, forward bite, indent, dedent,
+  snippet, cut, paste — and `ctrl+z` says `undo — paste · 3 steps
+  left` instead of a blind count. Labels ride the redo branch too,
+  so `ctrl+y` speaks the same name coming back.
+- **The shelf whispers from the rail.** A snippet word ending at the
+  cursor (`tick`, `key`, `fn`, …) now names its boilerplate in the
+  console rail's right seat — `⇥ tab expands 'tick'` — so the tab
+  trigger is discoverable before you know it exists. No word, no
+  whisper; the editor is not a barker.
+- Selftest: groups 34 (bar math: 2:1 indent compression, blank dots,
+  comment classification by the file's own prefix, hit glow, centered
+  slide, viewport band, degenerate widths) + 35 (every undo label,
+  receipts through undo AND redo, whisper/ghost silence) — 292 → 317.
+  Smoke: 68 → 76 checks — the OSC 52 payload is now DECODED and
+  compared against the selection, and the map's divider and bars are
+  asserted present, gone (`:minimap off`), and back.
+
 ## v3.0.22 — the bridge
 
 - **The system clipboard hears you.** `ctrl+c` and `ctrl+x` now also

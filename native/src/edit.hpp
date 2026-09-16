@@ -13,6 +13,7 @@
 #include <algorithm>
 #include <array>
 #include <cctype>
+#include <cstring>
 #include <optional>
 #include <string>
 #include <vector>
@@ -61,10 +62,13 @@ struct Keys {
   std::string typed;                           // printable chars this frame
 };
 
-// a restore point: the whole document plus where you were standing
+// a restore point: the whole document plus where you were standing —
+// and WHAT the edit that follows was (typing, paste, comment, …) so the
+// undo receipt can name it instead of counting blind steps
 struct IdeSnap {
   std::vector<std::string> lines;
   int curR = 0, curC = 0;
+  std::string what;                            // the edit this step precedes
   bool operator==(const IdeSnap& o) const = default;
 };
 
@@ -99,6 +103,10 @@ struct IdeState {
   // clip splices in at the cursor, tail text riding behind it.
   std::vector<std::string> clip;
   bool clipLines = false;
+  // the minimap: a compressed map of the whole document riding the
+  // editor pane's right edge (drawn only when the terminal has room;
+  // :minimap toggles it)
+  bool minimap = true;
 };
 
 // ── the selection: anchor ↔ cursor, honestly ordered ────────────────
@@ -158,8 +166,8 @@ inline void ideClamp(IdeState& s) {
   }
 }
 
-inline void idePushUndo(IdeState& s) {
-  s.undo.push_back({s.lines, s.curR, s.curC});
+inline void idePushUndo(IdeState& s, std::string what = "edit") {
+  s.undo.push_back({s.lines, s.curR, s.curC, std::move(what)});
   if (s.undo.size() > IdeState::kUndoMax)
     s.undo.erase(s.undo.begin(),
                  s.undo.begin() + static_cast<long>(s.undo.size() - IdeState::kUndoMax));
@@ -214,7 +222,7 @@ inline void ideClipCopy(IdeState& s) {
 inline void ideClipCut(IdeState& s) {
   const bool had = ideSelRange(s).has_value();
   ideClipCopy(s);
-  idePushUndo(s);
+  idePushUndo(s, "cut");
   if (!had) {
     s.lines.erase(s.lines.begin() + s.curR);
     if (s.lines.empty()) s.lines.emplace_back("");   // the doc never dies
@@ -276,7 +284,7 @@ inline void ideClipPaste(IdeState& s) {
     s.console.push_back("engine: the clipboard is empty — ctrl+c first");
     return;
   }
-  idePushUndo(s);
+  idePushUndo(s, "paste");
   ideSelDelete(s);                 // a live selection is the paste's bed
   auto& L = s.lines;
   if (s.clipLines) {
@@ -394,10 +402,11 @@ inline std::optional<std::vector<std::string>> ideSnippetFor(
   return std::nullopt;
 }
 
-// step back through time; false when there is nothing to undo
+// step back through time; false when there is nothing to undo. The
+// step's edit label rides along, so redo can re-apply it by name.
 inline bool ideUndo(IdeState& s) {
   if (s.undo.empty()) return false;
-  s.redo.push_back({s.lines, s.curR, s.curC});
+  s.redo.push_back({s.lines, s.curR, s.curC, s.undo.back().what});
   s.lines = std::move(s.undo.back().lines);
   s.curR = s.undo.back().curR;
   s.curC = s.undo.back().curC;
@@ -411,7 +420,7 @@ inline bool ideUndo(IdeState& s) {
 // step forward again; false when there is nothing to redo
 inline bool ideRedo(IdeState& s) {
   if (s.redo.empty()) return false;
-  s.undo.push_back({s.lines, s.curR, s.curC});
+  s.undo.push_back({s.lines, s.curR, s.curC, s.redo.back().what});
   s.lines = std::move(s.redo.back().lines);
   s.curR = s.redo.back().curR;
   s.curC = s.redo.back().curC;
@@ -420,6 +429,19 @@ inline bool ideRedo(IdeState& s) {
   ideSelClear(s);
   ideClamp(s);
   return true;
+}
+
+// the receipts name WHAT moved: "typing", "paste", "comment"… — never
+// a blind count again
+inline std::string ideUndoReceipt(const IdeState& s) {
+  return "engine: undo — " +
+         (s.undo.empty() ? std::string("edit") : s.undo.back().what) + " · " +
+         std::to_string(s.undo.size()) + " step" +
+         (s.undo.size() == 1 ? "" : "s") + " left";
+}
+inline std::string ideRedoReceipt(const IdeState& s) {
+  return "engine: redo — " +
+         (s.redo.empty() ? std::string("edit") : s.redo.back().what);
 }
 
 // ── the searchlight ─────────────────────────────────────────────────
@@ -734,6 +756,76 @@ inline bool ideClosesBlock(const std::string& s) {
   return false;
 }
 
+// ── the minimap: the whole document, compressed, at a glance ────────
+// One doc line becomes one map row; leading whitespace compresses 2:1
+// (deep nests stay inside six columns) and a run of text compresses to
+// half its honest length, rounding UP so one character still shows.
+// The map slides to keep the cursor centered once the document outgrows
+// the pane, and every row remembers whether it is a comment, a find
+// hit, or inside the editor's viewport — main.cpp only paints.
+struct IdeMiniRow {
+  int start = 0, len = 0;                      // the bar: cols [start, start+len)
+  bool blank = false;                          // nothing but air: a dim dot
+  bool comment = false;                        // the line talks
+  bool hit = false;                            // the searchlight found it
+  bool inView = false;                         // the editor shows it right now
+};
+
+struct IdeMini {
+  int top = 0;                                 // the map's first doc line
+  std::vector<IdeMiniRow> rows;
+};
+
+inline IdeMini ideMiniMap(const IdeState& s, int mapW, int bodyRows) {
+  IdeMini m;
+  const int N = static_cast<int>(s.lines.size());
+  if (mapW <= 0 || bodyRows <= 0 || N == 0) return m;
+  // centered follow: the cursor's line rides the map's middle (whole
+  // doc fits: the map rests at the top — the honest overview)
+  m.top = N <= bodyRows
+              ? 0
+              : std::clamp(s.curR - bodyRows / 2, 0, N - bodyRows);
+  const char* preC = ideCommentFor(s.path);
+  const std::string bare(preC, std::strlen(preC) - 1);      // "#" or "//" or "--"
+  for (int li = m.top; li < N && li < m.top + bodyRows; ++li) {
+    IdeMiniRow row;
+    const std::string& ln = s.lines[static_cast<size_t>(li)];
+    int indent = 0;
+    for (const char ch : ln) {
+      if (ch == ' ') ++indent;
+      else if (ch == '\t') indent += 4;
+      else break;
+    }
+    const int visLen =
+        std::max(0, static_cast<int>(ln.size()) - indent);
+    if (visLen == 0) {
+      row.blank = true;
+      row.len = 1;                           // a dot keeps the row anchored
+    } else {
+      row.start = std::min(mapW - 1, indent / 2);
+      row.len = std::min(mapW - row.start, (visLen + 1) / 2);
+    }
+    const size_t first = ln.find_first_not_of(" \t");
+    row.comment = first != std::string::npos &&
+                  ln.compare(first, bare.size(), bare) == 0;
+    for (const auto& [hr, hc] : s.findHits)
+      if (hr == li) { row.hit = true; break; }
+    row.inView = li >= s.top && li < s.top + bodyRows;
+    m.rows.push_back(row);
+  }
+  return m;
+}
+
+// ── the snippet whisper: the word under the hand names the shelf ────
+// A shelf word ending at the cursor speaks up in the rail — "tab
+// expands 'tick'" — so the trigger is discoverable before you know it.
+// Non-words and ghost names stay silent; the editor is not a barker.
+inline std::string ideSnippetWhisper(const IdeState& s) {
+  const std::string w = ideWordBehind(s);
+  if (w.empty() || !ideSnippetFor(w, s.path)) return "";
+  return "tab expands '" + w + "'";
+}
+
 // a snippet lands at the cursor: a blank line is REPLACED (the
 // boilerplate takes the empty stage), else the block slides in AFTER the
 // cursor line. One undo step; the cursor rests at the end of the block.
@@ -741,7 +833,7 @@ inline void ideInsertBlock(IdeState& s, const std::vector<std::string>& block) {
   if (block.empty()) return;
   if (s.curR >= static_cast<int>(s.lines.size()))
     s.curR = static_cast<int>(s.lines.size()) - 1;
-  idePushUndo(s);
+  idePushUndo(s, "snippet");
   const bool blank =
       s.lines[static_cast<size_t>(s.curR)].find_first_not_of(" \t") ==
       std::string::npos;
@@ -799,7 +891,7 @@ inline void ideKey(IdeState& ide, const Keys& k) {
   const bool editOp = !k.typed.empty() || k.back || k.del || k.enter;
   const bool selEdit = editOp && ideSelRange(ide).has_value();
   if (selEdit) {
-    idePushUndo(ide);
+    idePushUndo(ide, "selection");
     ideSelDelete(ide);
     ide.lastTyping = ide.lastBack = false;
   }
@@ -809,22 +901,26 @@ inline void ideKey(IdeState& ide, const Keys& k) {
   const bool quick = ide.idle < 0.8;
   if (!k.typed.empty()) {
     if (!selEdit) {
-      if (!(ide.lastTyping && quick)) idePushUndo(ide);
+      if (!(ide.lastTyping && quick)) idePushUndo(ide, "typing");
       else ide.redo.clear();
     }
     ide.lastTyping = true;
     ide.lastBack = false;
   }
   if (k.back && !selEdit) {
-    if (!((ide.lastTyping || ide.lastBack) && quick)) idePushUndo(ide);
+    if (!((ide.lastTyping || ide.lastBack) && quick)) idePushUndo(ide, "backspace");
     else ide.redo.clear();
     ide.lastBack = true;
     ide.lastTyping = false;
   }
-  if ((k.enter || k.del || k.ctrlD || k.delWord || k.delWordFwd || k.comment) &&
-      !selEdit)
-    idePushUndo(ide);              // structure stands alone — a selection
-                                   // replacement pushed once above already
+  if (k.enter && !selEdit) idePushUndo(ide, "enter");
+  if (k.del && !selEdit) idePushUndo(ide, "delete");
+  if (k.ctrlD && !selEdit) idePushUndo(ide, "duplicate");
+  if (k.delWord && !selEdit) idePushUndo(ide, "word bite");
+  if (k.delWordFwd && !selEdit) idePushUndo(ide, "forward bite");
+  if (k.comment && !selEdit) idePushUndo(ide, "comment");   // structure stands
+                                  // alone — a selection replacement pushed
+                                  // once above already
 
   std::string& line = L[static_cast<size_t>(ide.curR)];   // AFTER any range cut
 
@@ -883,7 +979,7 @@ inline void ideKey(IdeState& ide, const Keys& k) {
                                                // block breathes
     const auto selT = ideSelRange(ide);
     if (selT && (*selT)[2] > (*selT)[0]) {     // a block under the hand:
-      idePushUndo(ide);                        // every touched line steps
+      idePushUndo(ide, "indent");              // every touched line steps
       for (int r = (*selT)[0]; r <= (*selT)[2]; ++r) {   // left or right
         std::string& l = L[static_cast<size_t>(r)];
         if (k.tab) {
@@ -905,7 +1001,7 @@ inline void ideKey(IdeState& ide, const Keys& k) {
              cur[static_cast<size_t>(cutn)] == ' ')
         ++cutn;
       if (cutn > 0) {
-        idePushUndo(ide);
+        idePushUndo(ide, "dedent");
         cur.erase(0, static_cast<size_t>(cutn));
         ide.curC = std::max(0, ide.curC - cutn);
         ide.dirty = true;
@@ -918,7 +1014,7 @@ inline void ideKey(IdeState& ide, const Keys& k) {
       const std::string w = ideWordBehind(ide);
       const auto block = ideSnippetFor(w, ide.path);
       if (block) {
-        idePushUndo(ide);                      // the word becomes the snippet
+        idePushUndo(ide, "snippet");           // the word becomes the snippet
         const int c = std::min(ide.curC, static_cast<int>(cur.size()));
         int a = c;
         while (a > 0 && ideWordChar(cur[static_cast<size_t>(a) - 1])) --a;
@@ -936,14 +1032,14 @@ inline void ideKey(IdeState& ide, const Keys& k) {
         ide.idle = 0;
       } else {
         if (selT) {                            // a same-line selection is
-          idePushUndo(ide);                    // the tab's bed: replaced
+          idePushUndo(ide, "indent");          // the tab's bed: replaced
           ideSelDelete(ide);
           std::string& cur2 = L[static_cast<size_t>(ide.curR)];
           cur2.insert(static_cast<size_t>(std::min(ide.curC, static_cast<int>(cur2.size()))),
                       4, ' ');
           ide.curC += 4;
         } else {
-          if (!(ide.lastTyping && quick)) idePushUndo(ide);
+          if (!(ide.lastTyping && quick)) idePushUndo(ide, "tab");
           else ide.redo.clear();
           std::string& cur2 = L[static_cast<size_t>(ide.curR)];
           cur2.insert(static_cast<size_t>(std::min(ide.curC, static_cast<int>(cur2.size()))),
@@ -1156,14 +1252,13 @@ inline void ideKey(IdeState& ide, const Keys& k) {
     ide.idle = 0;
   }
 
-  // ── undo / redo: the second chance, one keystroke away
+  // ── undo / redo: the second chance, one keystroke away — and the
+  // receipt names WHAT moved, never a blind count
   if (k.ctrlZ) {
     if (ideUndo(ide)) {
       ide.dirty = true;                      // the game re-runs on the restored code
       ide.idle = 0;
-      ide.console.push_back("engine: undo — " +
-                            std::to_string(ide.undo.size()) + " step" +
-                            (ide.undo.size() == 1 ? "" : "s") + " left");
+      ide.console.push_back(ideUndoReceipt(ide));
     } else {
       ide.console.push_back("engine: nothing to undo");
     }
@@ -1172,7 +1267,7 @@ inline void ideKey(IdeState& ide, const Keys& k) {
     if (ideRedo(ide)) {
       ide.dirty = true;
       ide.idle = 0;
-      ide.console.push_back("engine: redo");
+      ide.console.push_back(ideRedoReceipt(ide));
     } else {
       ide.console.push_back("engine: nothing to redo");
     }

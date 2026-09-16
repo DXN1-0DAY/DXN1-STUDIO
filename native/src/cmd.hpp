@@ -89,7 +89,7 @@ inline Cmd parseCommand(std::string_view line) {
     number(1.f, 99999.f, "usage: :goto <line number>");
   } else if (c.verb == "q" || c.verb == "wq" || c.verb == "fit" ||
              c.verb == "reset" || c.verb == "help" || c.verb == "new" ||
-             c.verb == "ruler" || c.verb == "stats") {
+             c.verb == "ruler" || c.verb == "stats" || c.verb == "minimap") {
     if (!c.arg.empty())
       c.error = ":" + c.verb + " takes no argument";
   } else {
@@ -140,7 +140,7 @@ inline std::string usageHintFor(std::string_view typed) {
   if (!typed.empty() && typed.front() == ':') typed.remove_prefix(1);
   while (!typed.empty() && typed.front() == ' ') typed.remove_prefix(1);
   if (typed.empty())
-    return " verbs: scene open template snip goto zoom fit reset ruler stats w wq q screenshot magnet gravity help";
+    return " verbs: scene open template snip goto zoom fit reset ruler stats minimap w wq q screenshot magnet gravity help";
   const size_t sp = typed.find(' ');
   const std::string verb(sp == std::string_view::npos ? typed
                                                       : typed.substr(0, sp));
@@ -155,6 +155,7 @@ inline std::string usageHintFor(std::string_view typed) {
   if (verb == "goto") return " :goto <line> — jump the editor to a line";
   if (verb == "reset") return " :reset — back to spawn";
   if (verb == "ruler") return " :ruler — toggle the 79/99 column guides";
+  if (verb == "minimap") return " :minimap — toggle the document's map rail";
   if (verb == "stats") return " :stats — lines, words, chars, where you stand";
   if (verb == "w") return " :w [file] — save, a .bak is kept";
   if (verb == "wq") return " :wq — save and quit";
