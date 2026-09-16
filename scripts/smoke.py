@@ -787,6 +787,17 @@ def main():
               scr.text(ROWS - 3)[GUTTER:GUTTER + 5] == "zz aa",
               repr(scr.text(ROWS - 3)[:16]))
 
+        # ── 13a. the ledger — :hist lists the second chance ─────────
+        print("── 13a. the ledger — :hist lists what undo can walk")
+        scr, _ = s.run_verb("hist", "ide")
+        check(":hist lists the ledger, newest first (the fold on top)",
+              "the ledger, newest first — [" in scr.text(ROWS - 2) and
+              "back] join" in scr.text(ROWS - 2),
+              repr(scr.text(ROWS - 2)[:60]))
+        check("the ledger speaks its depth",
+              "steps back" in scr.text(ROWS - 2),
+              repr(scr.text(ROWS - 2)[:60]))
+
         # ── 13b. the pen — :w saves the script, the .bak keeps the past
         print("── 13b. the pen — :w writes the doc, a .bak keeps the past")
         scr, _ = s.run_verb("w", "ide")       # the first save: no past yet

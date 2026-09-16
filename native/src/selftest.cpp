@@ -199,7 +199,7 @@ int main() {
   }
 
   // 9. the version quad rides in the binary too
-  ok(std::string(dxn3::DXN3_VERSION) == "3.0.57",
+  ok(std::string(dxn3::DXN3_VERSION) == "3.0.58",
      "native version constant matches the release quad");
 
   // 10. png writer: checksum vectors, real structure, byte determinism
@@ -3078,6 +3078,36 @@ int main() {
     const auto w3 = dxn3::parseCommand(":wq");
     ok(w1.ok() && w2.ok() && w2.arg == "smoke-saved.py" && w3.ok(),
        "the pen's names are optional, the verbs well-formed");
+  }
+
+  // 66. the ledger, listed: :hist — the undo names newest first, the
+  // depth honest, the redo's head riding after the divider, the cap
+  // speaking the deeper truth, the empty ledger silent
+  {
+    IdeState h0;
+    ok(dxn3::ideHistWhisper(h0) == "",
+       "an untouched doc has no ledger to list");
+    h0.lines = {"a"};
+    dxn3::idePushUndo(h0, "typing");
+    dxn3::idePushUndo(h0, "drop");
+    dxn3::idePushUndo(h0, "paste");
+    const std::string h = dxn3::ideHistWhisper(h0);
+    ok(h.find("[3 steps back] paste · drop · typing") == 0,
+       "the depth leads, the names follow NEWEST first");
+    ok(h.find("[3 steps back]") != std::string::npos,
+       "the depth speaks in steps");
+    ok(dxn3::ideHistWhisper(h0, 2).find("… +1 deeper") != std::string::npos,
+       "a capped list confesses the deeper truth");
+    dxn3::ideUndo(h0);
+    ok(dxn3::ideHistWhisper(h0).find("redo: paste") != std::string::npos,
+       "the redo's head rides after the divider");
+    const auto c1 = dxn3::parseCommand(":hist");
+    ok(c1.ok() &&
+       dxn3::parseCommand(":hist now").error.find("takes no argument") !=
+           std::string::npos,
+       ":hist takes no argument, honestly");
+    ok(dxn3::usageHintFor(":hist").find("ledger") != std::string::npos,
+       "the bar whispers the ledger's law");
   }
 
 

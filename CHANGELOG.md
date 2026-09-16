@@ -1,3 +1,18 @@
+## v3.0.58 — the ledger, listed
+
+- **`:hist` — the second chance, listed.** One honest line in the
+  console: the undo ledger's names, NEWEST first ("join · drop ·
+  typing · paste …"), capped at eight with the deeper truth confessed
+  ("… +5 deeper"), the depth spoken in steps ("[12 steps back]"), and
+  the redo's head riding after the divider when undo has already
+  walked. An untouched doc refuses with the way out ("every edit you
+  make lands here — ctrl+z walks it back"). The names are the same
+  words the undo receipt speaks — the ledger and the walk share one
+  vocabulary.
+- Selftest group 66 (7 asserts) — 601 → 608 groups. Smoke grew the
+  ledger section (the fold on top, the depth honest) — 97 → 99
+  checks.
+
 ## v3.0.57 — the pen
 
 - **`:w` and `:wq` follow the session's work.** The pen saves the

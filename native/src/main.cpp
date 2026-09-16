@@ -1860,6 +1860,16 @@ int main(int argc, char** argv) {
                         " lines into one — one undo step takes it back"
                   : "engine: nothing to fold — select the lines, or stand "
                     "on a line with one below");
+        } else if (cmd.verb == "hist") {
+          // the second chance, listed: the ledger's names, newest
+          // first, the depth honest, the redo's head riding after
+          takeStage();
+          const std::string h = dxn3::ideHistWhisper(ide);
+          ide.console.push_back(
+              h.empty()
+                  ? "engine: the ledger is empty — every edit you make "
+                    "lands here (ctrl+z walks it back)"
+                  : "engine: the ledger, newest first — " + h);
         } else if (cmd.verb == "stats") {
           takeStage();
           size_t words = 0, chars = 0;

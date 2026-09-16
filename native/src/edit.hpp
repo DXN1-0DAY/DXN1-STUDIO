@@ -708,6 +708,28 @@ inline bool ideFindPrev(IdeState& s) {
   return true;
 }
 
+// ── the second chance, listed (:hist) ───────────────────────────────
+// one honest line: the undo ledger's names, NEWEST first, capped at
+// maxNames with the true depth in the tail; the redo's head rides
+// after the divider. Pure and selftested — the bar prints it.
+inline std::string ideHistWhisper(const IdeState& s, size_t maxNames = 8) {
+  if (s.undo.empty() && s.redo.empty()) return "";
+  const size_t n = s.undo.size();
+  // the depth LEADS — a long ledger clips from the right, and the
+  // depth is the one truth that must survive the clip
+  std::string out = "[" + std::to_string(n) + " step" +
+                    (n == 1 ? "" : "s") + " back";
+  if (!s.redo.empty()) out += " · redo: " + s.redo.back().what;
+  out += "] ";
+  for (size_t i = 0; i < n && i < maxNames; ++i) {
+    if (i > 0) out += " · ";
+    out += s.undo[n - 1 - i].what;
+  }
+  if (n > maxNames)
+    out += " · … +" + std::to_string(n - maxNames) + " deeper";
+  return out;
+}
+
 // ── pairs that carry their own closers ──────────────────────────────
 inline char ideCloserFor(char open) {
   switch (open) {

@@ -121,7 +121,8 @@ inline Cmd parseCommand(std::string_view line) {
              c.verb == "indent" || c.verb == "dedent" ||
              c.verb == "lift" || c.verb == "drop" || c.verb == "dup" ||
              c.verb == "join" ||
-             c.verb == "mark" || c.verb == "marks" || c.verb == "zen") {
+             c.verb == "mark" || c.verb == "marks" || c.verb == "zen" ||
+             c.verb == "hist") {
     if (!c.arg.empty())
       c.error = ":" + c.verb + " takes no argument";
   } else {
@@ -228,6 +229,8 @@ inline std::string usageHintFor(std::string_view typed) {
     return " :dup — duplicate the selection's lines, the copies sit below";
   if (verb == "join")
     return " :join — fold the selection's lines into one, single spaces between";
+  if (verb == "hist")
+    return " :hist — the undo ledger, listed (newest first)";
   if (verb == "stats") return " :stats — lines, words, chars, where you stand";
   if (verb == "w")
     return " :w [file] — save the session's work; a .bak is kept";

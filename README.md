@@ -2,7 +2,7 @@
 
 ![DXN1 STUDIO 3](assets/banner.png)
 
-![version](https://img.shields.io/badge/version-3.0.57-8b5cf6?style=flat-square)
+![version](https://img.shields.io/badge/version-3.0.58-8b5cf6?style=flat-square)
 ![gates](https://github.com/DXN1-termux/DXN1-STUDIO/actions/workflows/ci.yml/badge.svg)
 ![native](https://img.shields.io/badge/native-C%2B%2023-f97316?style=flat-square)
 ![face](https://img.shields.io/badge/face-terminal_truecolor-22d3ee?style=flat-square)
@@ -256,7 +256,7 @@ line ends · `ctrl+home`/`ctrl+end` doc edges · `del` forward-delete ·
 `:mark`/`:marks`/`:bm` pin lines and leap between them (the pins
 whisper as you type) ·
 `:w` [file] saves the session's work — a .bak is kept ·
-`:wq` saves and sleeps ·
+`:wq` saves and sleeps · `:hist` lists the undo ledger ·
 `:scene <name>` loads a demo (with
 completion whispers) · `:q` quit.
 
