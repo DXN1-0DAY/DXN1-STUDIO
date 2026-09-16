@@ -199,7 +199,7 @@ int main() {
   }
 
   // 9. the version quad rides in the binary too
-  ok(std::string(dxn3::DXN3_VERSION) == "3.0.52",
+  ok(std::string(dxn3::DXN3_VERSION) == "3.0.53",
      "native version constant matches the release quad");
 
   // 10. png writer: checksum vectors, real structure, byte determinism
@@ -2793,6 +2793,63 @@ int main() {
        "parseCommand reads :dup and refuses it an argument");
     ok(dxn3::usageHintFor(":dup").find("copies") != std::string::npos,
        "the bar whispers the echo's law");
+  }
+
+  // 61. the fold: ":join" — the bed's lines say it once in one
+  // breath, vim's J law for the hand's line, the seam for the hand,
+  // the uniq's pin law for the folded lines, the edges refusing
+  {
+    IdeState j1;
+    j1.lines = {"a", "b", "c"};
+    dxn3::ideMarkToggle(j1, 1);      // a pin on a folded line: dies
+    dxn3::ideMarkToggle(j1, 2);      // a pin beneath the bed: slides up
+    j1.curR = 1;
+    j1.curC = 0;                     // the hand's line "b" folds with "c"
+    ok(dxn3::ideJoinSel(j1) == 2,
+       "the hand's line folds with the one below, a two-line breath");
+    ok(j1.lines == std::vector<std::string>({"a", "b c"}),
+       "the fold speaks one space between the pieces");
+    ok(j1.marks == std::vector<int>({1}),
+       "a folded line's pin dies, the world beneath slides up");
+    ok(j1.curR == 1 && j1.curC == 2,
+       "the hand rests at the seam, where the first fold landed");
+    ok(!j1.undo.empty() && j1.undo.back().what == "join",
+       "one honest restore point named join");
+    ok(dxn3::ideUndo(j1) && j1.lines.size() == 3 &&
+       j1.marks == std::vector<int>({1, 2}),
+       "undo unfolds the breath, the pins walking back");
+
+    IdeState j2;                     // pure air contributes nothing
+    j2.lines = {"x", "", "  y  "};
+    j2.anchorR = 0;
+    j2.anchorC = 0;
+    j2.curR = 2;
+    j2.curC = 1;
+    ok(dxn3::ideJoinSel(j2) == 3, "the whole bed folds, air and all");
+    ok(j2.lines == std::vector<std::string>({"x y"}),
+       "pure air stays air, the pieces trimmed to their words");
+    ok(j2.curC == 2, "the seam rides past the space");
+
+    IdeState j3;                     // the edges refuse, honestly
+    j3.lines = {"a", "b"};
+    j3.curR = 1;
+    j3.curC = 0;
+    ok(dxn3::ideJoinSel(j3) == 0 && j3.undo.empty(),
+       "nothing below to fold into - no phantom step");
+    j3.curR = 0;
+    j3.anchorR = 0;
+    j3.anchorC = 0;
+    j3.curC = 1;
+    ok(dxn3::ideJoinSel(j3) == 0 && j3.undo.empty(),
+       "a same-line bed folds nothing");
+
+    const auto jo = dxn3::parseCommand(":join");
+    ok(jo.ok() && jo.verb == "join" &&
+       dxn3::parseCommand(":join up").error.find("takes no argument") !=
+           std::string::npos,
+       "parseCommand reads :join and refuses it an argument");
+    ok(dxn3::usageHintFor(":join").find("fold") != std::string::npos,
+       "the bar whispers the fold's law");
   }
 
   // 53. the pins whisper: ":bm" completes itself as you type - the

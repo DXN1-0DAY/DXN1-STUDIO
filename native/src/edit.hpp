@@ -1555,6 +1555,63 @@ inline int ideDupSel(IdeState& s) {
   return count;
 }
 
+// ── the fold: the selection's lines say it once, in one breath ─────
+// :join folds the bed into a single line — each line trimmed, the
+// pieces separated by one honest space, pure air contributing
+// nothing. The bed is the selection's lines; with NO selection the
+// hand's line folds with the one below (vim's J law — the fold's
+// natural home). A same-line bed folds nothing, and a bed pressed
+// against the document's last line has nothing below to fold into —
+// both refuse without a phantom step. ONE restore point named
+// "join"; the uniq's pin law speaks (a pin on a folded line dies —
+// it marked a line, and the line is gone — the world beneath slides
+// up); the hand rests at the SEAM, where the first fold landed.
+inline int ideJoinSel(IdeState& s) {
+  int r0, r1;
+  if (const auto sel = ideSelRange(s)) {
+    const auto [a, ca, b, cb] = *sel;
+    r0 = a;
+    r1 = b;
+  } else {
+    r0 = s.curR;                       // vim's J law: the hand's line
+    r1 = s.curR + 1;                   // folds with the one below
+  }
+  if (r1 <= r0) return 0;              // a same-line bed folds nothing
+  if (r1 >= static_cast<int>(s.lines.size()))
+    return 0;                          // nothing below to fold into
+  std::vector<std::string> pieces;
+  for (int r = r0; r <= r1; ++r) {
+    const std::string& l = s.lines[static_cast<size_t>(r)];
+    const size_t b0 = l.find_first_not_of(" \t");
+    if (b0 == std::string::npos) continue;      // pure air stays air
+    const size_t b1 = l.find_last_not_of(" \t");
+    pieces.push_back(l.substr(b0, b1 - b0 + 1));
+  }
+  std::string folded;
+  for (size_t i = 0; i < pieces.size(); ++i)
+    folded += i ? " " + pieces[i] : pieces[i];
+  const int seam =
+      pieces.size() >= 2 ? static_cast<int>(pieces[0].size()) + 1 : 0;
+  idePushUndo(s, "join");
+  s.lines[static_cast<size_t>(r0)] = folded;
+  s.lines.erase(s.lines.begin() + r0 + 1, s.lines.begin() + r1 + 1);
+  {                                    // the uniq's pin law: a folded
+    std::vector<int> nm;               // line's pin dies, the world
+    nm.reserve(s.marks.size());        // beneath slides up
+    for (const int m : s.marks) {
+      if (m > r0 && m <= r1) continue;
+      nm.push_back(m > r1 ? m - (r1 - r0) : m);
+    }
+    s.marks = std::move(nm);
+  }
+  ideSelClear(s);
+  s.curR = r0;                         // the hand rests at the seam
+  s.curC = std::min(seam, static_cast<int>(folded.size()));
+  s.dirty = true;
+  s.idle = 0;
+  return r1 - r0 + 1;
+}
+
 // ── the sweep: trailing whitespace is noise ─────────────────────────
 // Every line's tail spaces and tabs come off; a line of pure air goes
 // truly blank. ONE honest restore point named "trim", taken only when

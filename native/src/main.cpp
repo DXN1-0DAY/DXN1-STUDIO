@@ -1790,6 +1790,15 @@ int main(int argc, char** argv) {
           ide.console.push_back(
               "engine: duplicated " + std::to_string(echoed) + " line" +
               (echoed == 1 ? "" : "s") + " — the copies sit below");
+        } else if (cmd.verb == "join") {
+          if (!ide.open) ide.open = true;      // the studio takes the stage
+          const int folded = dxn3::ideJoinSel(ide);
+          ide.console.push_back(
+              folded > 0
+                  ? "engine: folded " + std::to_string(folded) +
+                        " lines into one — one undo step takes it back"
+                  : "engine: nothing to fold — select the lines, or stand "
+                    "on a line with one below");
         } else if (cmd.verb == "stats") {
           if (!ide.open) ide.open = true;      // the studio takes the stage
           size_t words = 0, chars = 0;
@@ -1830,7 +1839,7 @@ int main(int argc, char** argv) {
           game.scene.gravity = cmd.num;
           game.say("gravity " + std::to_string(static_cast<int>(cmd.num)), 1.2);
         } else if (cmd.verb == "help") {
-          game.say(":scene :open :recent :template :snip :goto :mark :marks :bm :ruler :minimap :zen :trim :cases :sort :rsort :rev :uniq :indent :dedent :lift :drop :dup :upper :lower :title :stats "
+          game.say(":scene :open :recent :template :snip :goto :mark :marks :bm :ruler :minimap :zen :trim :cases :sort :rsort :rev :uniq :indent :dedent :lift :drop :dup :join :upper :lower :title :stats "
                     ":zoom :fit :reset :new :w :wq :q :screenshot :magnet :gravity", 4.f);
         }
       } else {

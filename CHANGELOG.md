@@ -1,3 +1,17 @@
+## v3.0.53 — the fold
+
+- **`:join` — the selection's lines say it once, in one breath.**
+  Each line trimmed, the pieces separated by one honest space, pure
+  air contributing nothing. The bed is the selection's lines; with
+  no selection the hand's line folds with the one below (vim's J
+  law — the fold's natural home). A same-line bed folds nothing, a
+  bed on the last line has nothing below — both refuse without a
+  phantom step. The uniq's pin law speaks (a pin on a folded line
+  dies, the world beneath slides up); the hand rests at the SEAM,
+  where the first fold landed.
+- Selftest group 61 (13 asserts) — 551 → 564 groups. Smoke grew the
+  fold section (the receipt, "zz aa" at the seam) — 67 → 69 checks.
+
 ## v3.0.52 — the echo
 
 - **`:dup` — the selection's lines say it twice.** The copies land

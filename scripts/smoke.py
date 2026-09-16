@@ -644,8 +644,22 @@ def main():
               scr.text(ROWS - 3)[GUTTER:GUTTER + 2] == "zz",
               repr(scr.text(ROWS - 4)[:12] + scr.text(ROWS - 3)[:12]))
 
-        # ── 13. the exit — clean, code 0 ──────────────────────────────
-        print("── 13. the exit — esc to play, q quits")
+        # ── 13. the fold — :join says the bed once, in one breath ────
+        print("── 13. the fold — the hand's line folds with the one below")
+        # the tail reads zz(41), zz(42), zz(43, the echo), aa(44); the
+        # hand rests on the echo (line 43)
+        scr, _ = s.run_verb("join", "ide")
+        check(":join names its fold",
+              "folded 2 lines into one" in scr.text(ROWS - 2),
+              repr(scr.text(ROWS - 2)[:60]))
+        s.settle(2.5)                     # the burst decays before a
+        scr = s.screen()                  # body-text assert
+        check("the fold speaks one space (zz aa at the seam)",
+              scr.text(ROWS - 3)[GUTTER:GUTTER + 5] == "zz aa",
+              repr(scr.text(ROWS - 3)[:16]))
+
+        # ── 14. the exit — clean, code 0 ──────────────────────────────
+        print("── 14. the exit — esc to play, q quits")
         s.send(ESC)
         time.sleep(0.2)
         s.send("q")

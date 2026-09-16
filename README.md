@@ -2,7 +2,7 @@
 
 ![DXN1 STUDIO 3](assets/banner.png)
 
-![version](https://img.shields.io/badge/version-3.0.52-8b5cf6?style=flat-square)
+![version](https://img.shields.io/badge/version-3.0.53-8b5cf6?style=flat-square)
 ![gates](https://github.com/DXN1-termux/DXN1-STUDIO/actions/workflows/ci.yml/badge.svg)
 ![native](https://img.shields.io/badge/native-C%2B%2023-f97316?style=flat-square)
 ![face](https://img.shields.io/badge/face-terminal_truecolor-22d3ee?style=flat-square)
@@ -211,8 +211,9 @@ viewport refreshes — *code a background, and boom, a background.*
   `:lift` and `:drop` ride the selection's lines one line up or down
   (no selection moves the hand's line; the pins ride along, and undo
   carries them back); `:dup` says the selection's lines twice, the
-  copies landing below while the originals keep their pins;
-  `:goto <line>` jumps the editor;
+  copies landing below while the originals keep their pins; `:join`
+  folds the bed into one line at a seam the hand can stand on
+  (vim's J law with no selection); `:goto <line>` jumps the editor;
   `:stats` counts lines, words, chars and dialect. The gutter earns
   its width honestly — four columns to 999 lines, five from 1000,
   six from 10000 — and the pointer, ruler and glows all speak the
@@ -246,7 +247,7 @@ line ends · `ctrl+home`/`ctrl+end` doc edges · `del` forward-delete ·
 `:uniq` collapses back-to-back repeats · `:rev` flips the order ·
 `:indent`/`:dedent` breathe the selection one level ·
 `:lift`/`:drop` ride lines up and down ·
-`:dup` says the bed twice ·
+`:dup` says the bed twice · `:join` folds it into one ·
 `:cases` find respects case (Aa) ·
 `:mark`/`:marks`/`:bm` pin lines and leap between them (the pins
 whisper as you type) ·
@@ -333,6 +334,7 @@ accepted:
 | `:lift` | the selection's lines step one line up — no selection rides the hand's line |
 | `:drop` | the selection's lines step one line down — the pins ride along |
 | `:dup` | duplicate the selection's lines — the copies sit below, the pins stay true |
+| `:join` | fold the selection's lines into one — trimmed pieces, single spaces, the hand at the seam |
 | `:cases` | find respects case exactly (Aa), or forgives |
 | `:help` | list commands |
 
