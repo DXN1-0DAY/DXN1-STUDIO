@@ -1,3 +1,20 @@
+## v3.0.38 — the open book
+
+- **Documentation caught up with the editor.** The README's command
+  table now lists EVERY studio verb — `:open` (with its new bare
+  form), `:recent`, `:template`, `:snip`, `:goto`, `:ruler`,
+  `:minimap`, `:stats`, `:trim`, `:sort`, `:cases` — instead of
+  hiding the IDE's vocabulary behind the play-mode verbs. The
+  feature bullets tell the searchlight's two moods (:cases and the
+  `(Aa)` marker), the ledger's bare `:open`, the honest wide gutter,
+  the second wind, and the housekeeping verbs; the keys paragraph
+  names them all in one breath.
+- Polish: the header position line's doc example now shows the
+  selection counter too (`Ln 12 · Col 8 · sel 87`), so a reader
+  meets the drag's honest count before their first drag.
+- Zero code changes — the binary speaks exactly as 3.0.37 spoke;
+  409 assertion groups stand green.
+
 ## v3.0.37 — the ordering
 
 - **`:sort` orders the selected lines.** Select a block (drag or

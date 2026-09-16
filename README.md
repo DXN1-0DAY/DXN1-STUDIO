@@ -2,7 +2,7 @@
 
 ![DXN1 STUDIO 3](assets/banner.png)
 
-![version](https://img.shields.io/badge/version-3.0.37-8b5cf6?style=flat-square)
+![version](https://img.shields.io/badge/version-3.0.38-8b5cf6?style=flat-square)
 ![gates](https://github.com/DXN1-termux/DXN1-STUDIO/actions/workflows/ci.yml/badge.svg)
 ![native](https://img.shields.io/badge/native-C%2B%2023-f97316?style=flat-square)
 ![face](https://img.shields.io/badge/face-terminal_truecolor-22d3ee?style=flat-square)
@@ -88,18 +88,24 @@ viewport refreshes — *code a background, and boom, a background.*
 - **The block rides down.** Enter auto-indents: openers (`:`, `{`)
   bump a level, closers (`else`, `end`, …) drop back one, everything
   else inherits — python and C-family both feel at home.
-- **The searchlight.** `ctrl+f` finds in your file — case-insensitive,
-  every hit glows behind the text, `enter` walks you to the next one
-  (wrapping), and the rail counts them while you type. The header
-  always tells you where you stand: `Ln 12 · Col 8`.
+- **The searchlight.** `ctrl+f` finds in your file — case-insensitive
+  by default (the beginner way), every hit glows behind the text,
+  `enter` walks you to the next one (wrapping), and the rail counts
+  them while you type. `:cases` flips the light strict — only exact
+  casing answers, an `(Aa)` marker rides the rail — and flipping
+  re-aims the hits the instant it turns. The header always tells you
+  where you stand: `Ln 12 · Col 8 · sel 87`.
 - **Pairs carry their closers.** `(`, `[`, `{` and quotes type their
   other half for you; a closer you already have is skipped over, never
   doubled; backspace between an empty pair removes both halves; an
   apostrophe inside a word (`don't`) stays honest. `ctrl+d`
   duplicates the line under the cursor in one undo step.
-- **`:open <file>`** loads any script on the machine into the studio —
-  your own games and the `sdk/examples/` gallery whisper their names
-  as you type. Ghost files are refused honestly.
+- **`:open` learned the ledger.** `:open <file>` loads any script on
+  the machine — your own games and the `sdk/examples/` gallery
+  whisper their names as you type, and the LEDGER of files you had
+  open speaks first. A bare `:open` reopens your most recent file in
+  one word; an empty ledger refuses honestly. Ghost files are
+  refused too.
 - **Word hops and the partner.** `ctrl+←`/`ctrl+→` jump word by word —
   the same words `ctrl+w` bites — across line edges when they must.
   `ctrl+delete` eats exactly what a hop would cross; `ctrl+/` toggles
@@ -165,6 +171,17 @@ viewport refreshes — *code a background, and boom, a background.*
   pretending. And every undo speaks its name now — `ctrl+z` says
   `undo — paste · 3 steps left`, not a blind count — while a shelf
   word under the hand whispers `⇥ tab expands 'tick'` from the rail.
+- **Housekeeping verbs.** `:trim` sweeps every line's trailing
+  whitespace in one undo step (a clean doc is refused without a
+  phantom step); `:sort` orders the selected lines, A before B, the
+  hand landing at the block's head; `:goto <line>` jumps the editor;
+  `:stats` counts lines, words, chars and dialect. The gutter earns
+  its width honestly — four columns to 999 lines, five from 1000,
+  six from 10000 — and the pointer, ruler and glows all speak the
+  same rule. A drag parked at the viewport's edge pulls the view one
+  line every 70ms, and past 1.2 seconds of hold the SECOND WIND
+  doubles the pace; release, stall, or leaving the edge spends it
+  and the walk restarts slow.
 
 Keys: `ctrl+r` run · `ctrl+s` save · `ctrl+z` undo · `ctrl+y` redo ·
 `ctrl+c`/`ctrl+x`/`ctrl+v` copy · cut · paste ·
@@ -180,9 +197,11 @@ comment toggle (multi-line with a selection) ·
 `ctrl+p` screenshot of your live game · `pgup/pgdn` page · `home/end`
 line ends · `ctrl+home`/`ctrl+end` doc edges · `del` forward-delete ·
 `esc` play your game fullscreen · `e` back to the editor ·
-`:open <file>` loads any script · `:recent` reopens one · `:goto <line>` jumps the editor ·
+`:open` [file] loads any script — bare, it reopens the ledger's head ·
+`:recent` lists and reopens · `:goto <line>` jumps the editor ·
 `:template <name>` loads a starter · `:snip <name>` drops boilerplate ·
-`:minimap` toggles the map rail ·
+`:minimap` toggles the map rail · `:trim` sweeps trailing whitespace ·
+`:sort` orders the selection · `:cases` find respects case (Aa) ·
 `:scene <name>` loads a demo (with
 completion whispers) · `:q` quit.
 
@@ -241,6 +260,17 @@ accepted:
 | `:screenshot [file]` | PNG of the live frame |
 | `:magnet <px>` | coin magnet radius, live |
 | `:gravity <force>` | gravity, live |
+| `:open [file]` | load any script; bare `:open` reopens the ledger's head |
+| `:recent [name]` | the ledger — list it, or reopen a prefix match |
+| `:template <name>` | load a starter (blank, shooter, cards, …) |
+| `:snip <name>` | drop language-aware boilerplate at the hand |
+| `:goto <line>` | jump the editor to a line |
+| `:ruler` | toggle the 79/99 column guides |
+| `:minimap` | toggle the document's map rail |
+| `:stats` | lines, words, chars, dialect, where you stand |
+| `:trim` | sweep trailing whitespace, one undo step |
+| `:sort` | order the selected lines, one undo step |
+| `:cases` | find respects case exactly (Aa), or forgives |
 | `:help` | list commands |
 
 ## Scenes are JSON
