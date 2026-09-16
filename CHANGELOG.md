@@ -1,3 +1,47 @@
+## v3.0.15 — the searchlight: find, pairs, the copy machine
+
+- **`ctrl+f` finds in your file.** The searchlight is case-insensitive
+  the way beginners think, aims at the first hit at or after your
+  cursor, and `enter` walks you hit by hit with a honest wrap-around.
+  Every match glows behind the text — the current one burns amber —
+  and the rail counts them live (`2/7 · enter next · esc done`).
+  Typing under the searchlight feeds the query, never the buffer, and
+  backspace on an empty query closes it.
+- **The header knows where you stand**: `Ln 12 · Col 8` rides next to
+  the file name, always current.
+- **Pairs carry their own closers.** `(`, `[`, `{` and quotes type
+  their other half; a closer you already have is skipped over, never
+  doubled; backspace between an empty pair removes both halves; an
+  apostrophe inside a word (`don't`) never hijacks a pair; nesting
+  (`f([x])`) just works.
+- **`ctrl+d` duplicates the line** under the cursor — column kept,
+  one undo step, the copy takes your place.
+- **`:open <file>`** loads any script into the studio from the command
+  bar. Your cwd and the `sdk/examples/` gallery whisper their file
+  names as you type (matching on the file name, showing the path); a
+  ghost file is refused with an honest error, and a running game hands
+  the stage over cleanly.
+- **Fixed: the command-bar whispers were dead code.** The completion
+  matcher looked for a leading `":"` that `cmdBuf` never carries —
+  `:scene` name completion never drew a whisper since it shipped. The
+  matcher is fixed, and `:open` joins it with file-name matching.
+- **Fixed: a pasted command died silently.** Text landing in the same
+  read as its enter was dropped before `cmdBuf` ever saw it; the bar
+  now absorbs same-frame typing, so paste-style commands execute.
+- **Fixed: command frames leaked into the editor.** A `:open` executed
+  in the same read as its text let that text then be typed INTO the
+  freshly loaded document (and the auto-run saved the corruption back
+  to the file — a shipped example came home with the command as its
+  first line). A frame the command bar polled is now the bar's alone.
+- **Fixed: saves keep their trailing newline.** `ideSave` now writes
+  POSIX-honest files ending in `\n`, so loading an example and running
+  it no longer rewrites the file with a stripped last byte.
+- **Fixed:** forward-delete (`del`) never marked the document dirty —
+  a joined line would not re-run the game until the next edit. Now
+  `del` and `ctrl+d` both flag the auto-refresh honestly.
+- Selftest grew two groups (find-in-file, pairs + duplicate): 33 new
+  asserts, 146 total.
+
 ## v3.0.14 — the block rides down: auto-indent
 
 - **Enter carries the block.** A new line inherits the previous line's

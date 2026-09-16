@@ -199,7 +199,7 @@ int main() {
   }
 
   // 9. the version quad rides in the binary too
-  ok(std::string(dxn3::DXN3_VERSION) == "3.0.14",
+  ok(std::string(dxn3::DXN3_VERSION) == "3.0.15",
      "native version constant matches the release quad");
 
   // 10. png writer: checksum vectors, real structure, byte determinism
@@ -283,6 +283,10 @@ int main() {
     ok(!dxn3::parseCommand(":zoom banana").ok(), ":zoom with junk is refused");
     ok(!dxn3::parseCommand(":magnet 9999").ok(), ":magnet out of range is refused");
     ok(!dxn3::parseCommand(":q now").ok(), ":q with an argument is refused");
+    c = dxn3::parseCommand(":open game.py");
+    ok(c.ok() && c.verb == "open" && c.arg == "game.py",
+       "parseCommand reads :open with its file");
+    ok(!dxn3::parseCommand(":open").ok(), ":open without a file is refused");
   }
 
   // 13. saveScene: the .bak safety net + honest failures + round-trip
@@ -592,6 +596,145 @@ int main() {
        "a closer line dedents back one level");
     ok(dxn3::ideUndo(c) && c.lines.size() == 1,
        "auto-indent splits undo like any other edit");
+  }
+
+  // 22. the searchlight: find-in-file lives in the editor heart
+  {
+    using dxn3::Keys;
+    IdeState s;
+    s.lines = {"hello world", "the hello rings", "nope", "HELLO again"};
+    s.curR = 0;
+    s.curC = 0;
+    s.dirty = false;               // the contract: find never dirties
+    Keys f;
+    f.ctrlF = true;
+    dxn3::ideKey(s, f);
+    ok(s.findOpen, "ctrl+f opens the searchlight");
+    ok(!s.dirty, "opening find never dirties the document");
+    Keys t;
+    t.typed = "hello";
+    dxn3::ideKey(s, t);
+    ok(s.findQ == "hello" && s.lines[0] == "hello world",
+       "typing under the searchlight fills the query, never the buffer");
+    ok(s.findHits.size() == 3, "case-insensitive find sees every hello");
+    ok(s.findSel == 0 && s.curR == 0 && s.curC == 0,
+       "the first hit at/after the cursor is aimed at");
+    Keys e;
+    e.enter = true;
+    dxn3::ideKey(s, e);
+    ok(s.curR == 1 && s.curC == 4, "enter walks to the next hit");
+    dxn3::ideKey(s, e);
+    ok(s.curR == 3 && s.curC == 0, "enter keeps walking, case-insensitively");
+    dxn3::ideKey(s, e);
+    ok(s.curR == 0 && s.curC == 0, "the search wraps around the file");
+    Keys b;
+    b.back = true;
+    dxn3::ideKey(s, b);
+    ok(s.findQ == "hell" && s.findHits.size() == 3,
+       "backspace edits the query and the hits follow live");
+    while (!s.findQ.empty()) dxn3::ideKey(s, b);
+    ok(s.findOpen, "the search stays up while the query has letters");
+    dxn3::ideKey(s, b);
+    ok(!s.findOpen, "backspace on an empty query closes the searchlight");
+    dxn3::ideKey(s, f);
+    ok(s.findOpen && s.findQ.empty(), "ctrl+f reopens with a clean query");
+    Keys z;
+    z.typed = "zzzz";
+    dxn3::ideKey(s, z);
+    ok(s.findHits.empty() && s.findSel == -1, "no match is reported honestly");
+    dxn3::ideKey(s, e);
+    ok(s.curR == 0 && s.curC == 0, "enter with no hits moves nothing");
+    dxn3::ideKey(s, f);
+    ok(!s.findOpen, "ctrl+f again lowers the searchlight");
+    ok(s.lines[0] == "hello world" && s.lines.size() == 4,
+       "the document survives the whole search untouched");
+  }
+
+  // 23. pairs that carry their own closers + the copy machine
+  {
+    using dxn3::Keys;
+    IdeState s;
+    Keys t;
+    t.typed = "(";
+    dxn3::ideKey(s, t);
+    ok(s.lines[0] == "()" && s.curC == 1, "an opener carries its closer");
+    t.typed = "a+b";
+    dxn3::ideKey(s, t);
+    ok(s.lines[0] == "(a+b)" && s.curC == 4, "typing continues inside the pair");
+    t.typed = ")";
+    dxn3::ideKey(s, t);
+    ok(s.lines[0] == "(a+b)" && s.curC == 5,
+       "typing the closer skips over it, never doubles");
+    t.typed = "\"";
+    dxn3::ideKey(s, t);
+    ok(s.lines[0] == "(a+b)\"\"" && s.curC == 6, "quotes pair too");
+    t.typed = "\"";
+    dxn3::ideKey(s, t);
+    ok(s.lines[0] == "(a+b)\"\"" && s.curC == 7,
+       "a closing quote skips, never doubles");
+
+    IdeState w;                       // the apostrophe that must survive
+    w.lines = {"don"};
+    w.curR = 0;
+    w.curC = 3;
+    Keys q;
+    q.typed = "'t";
+    dxn3::ideKey(w, q);
+    ok(w.lines[0] == "don't", "an apostrophe inside a word does not pair");
+    IdeState st;                      // a string opener still wraps
+    st.lines = {"x = "};
+    st.curR = 0;
+    st.curC = 4;
+    Keys sq;
+    sq.typed = "\"";                  // after a space, the quote pairs
+    dxn3::ideKey(st, sq);
+    ok(st.lines[0] == "x = \"\"", "a quote after a space opens a pair");
+    sq.typed = "hi";                  // the string lands inside the pair
+    dxn3::ideKey(st, sq);
+    ok(st.lines[0] == "x = \"hi\"", "the string lands inside the pair");
+    sq.typed = "\"";                  // the closer is skipped, not doubled
+    dxn3::ideKey(st, sq);
+    ok(st.lines[0] == "x = \"hi\"" && st.curC == 8,
+       "the closing quote is skipped, not doubled");
+
+    IdeState n;                       // nesting
+    Keys o;
+    o.typed = "f(";
+    dxn3::ideKey(n, o);
+    o.typed = "[x]";
+    dxn3::ideKey(n, o);
+    ok(n.lines[0] == "f([x])", "nested pairs nest honestly");
+
+    IdeState p;                       // pair-delete
+    Keys br;
+    br.typed = "[";
+    dxn3::ideKey(p, br);
+    ok(p.lines[0] == "[]", "brackets pair");
+    Keys bk;
+    bk.back = true;
+    dxn3::ideKey(p, bk);
+    ok(p.lines[0] == "" && p.curC == 0,
+       "backspace between an empty pair removes both halves");
+    IdeState p2;                      // a plain backspace still deletes one
+    p2.lines = {"ab"};
+    p2.curR = 0;
+    p2.curC = 1;
+    dxn3::ideKey(p2, bk);
+    ok(p2.lines[0] == "b" && p2.curC == 0,
+       "backspace outside a pair deletes exactly one char");
+
+    IdeState d;                       // ctrl+d: the copy machine
+    d.lines = {"alpha", "beta"};
+    d.curR = 0;
+    d.curC = 3;
+    Keys cp;
+    cp.ctrlD = true;
+    dxn3::ideKey(d, cp);
+    ok(d.lines.size() == 3 && d.lines[1] == "alpha" && d.curR == 1 &&
+           d.curC == 3,
+       "ctrl+d copies the line under the cursor, column kept");
+    ok(dxn3::ideUndo(d) && d.lines.size() == 2,
+       "ctrl+d is one honest undo step");
   }
 
   if (fails == 0) {

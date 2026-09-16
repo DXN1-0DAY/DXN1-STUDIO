@@ -150,6 +150,8 @@ Keys pollKeys(Mode mode) {
         else if (c == 0x07) k.ctrlG = true;               // Ctrl+G — error line
         else if (c == 0x1a) k.ctrlZ = true;               // Ctrl+Z — undo
         else if (c == 0x19) k.ctrlY = true;               // Ctrl+Y — redo
+        else if (c == 0x06) k.ctrlF = true;               // Ctrl+F — find
+        else if (c == 0x04) k.ctrlD = true;               // Ctrl+D — dup line
         else if (c == 0x10) k.shot = true;                // Ctrl+P — screenshot
         else if (static_cast<unsigned char>(c) >= 0x20) k.typed += c;
       } else if (mode == Mode::File) {       // FILE VIEW: every letter is text
@@ -571,11 +573,8 @@ bool isScriptFile(const std::string& p) {
 bool ideSave(IdeState& ide, std::string* err) {
   std::ofstream f(ide.path, std::ios::binary);
   if (!f) { if (err) *err = "cannot write " + ide.path; return false; }
-  for (size_t i = 0; i < ide.lines.size(); ++i) {
-    f << ide.lines[i];
-    if (i + 1 < ide.lines.size()) f << '\n';
-  }
-  return true;
+  for (const auto& l : ide.lines) f << l << '\n';   // POSIX: files end in \n
+  return f.good();
 }
 
 // syntax tint: keywords purple, strings amber, comments gray — stamped
@@ -656,6 +655,11 @@ void drawIDE(dxn3::Screen& scr, IdeState& ide, const dxn3::Game& g, bool hostUp)
   const std::string st = (hostUp ? "● LIVE  " : "○ idle  ") + ide.state + " ";
   const int scol = cols - static_cast<int>(st.size());
   if (scol > 26) scr.text(scol, 0, st, hostUp ? dxn3::rgb(52, 211, 153) : dxn3::rgb(110, 118, 140));
+  // where you are, always: the header carries the honest line:col
+  const std::string pos = "  Ln " + std::to_string(ide.curR + 1) + " · Col " +
+                          std::to_string(ide.curC + 1);
+  if (24 + static_cast<int>(file.size() + pos.size()) + 2 < scol)
+    scr.text(24 + static_cast<int>(file.size()), 0, pos, dxn3::rgb(110, 118, 140));
 
   // the editor pane
   const int maxTop = std::max(0, static_cast<int>(ide.lines.size()) - bodyRows);
@@ -683,6 +687,28 @@ void drawIDE(dxn3::Screen& scr, IdeState& ide, const dxn3::Game& g, bool hostUp)
     const char ch = ide.curC < static_cast<int>(l.size()) ? l[static_cast<size_t>(ide.curC)] : ' ';
     scr.textBg(4 + ide.curC, row, std::string(1, ch), paneBg, dxn3::rgb(167, 139, 250));
   }
+  // the searchlight's wake: every match glows, the current one burns
+  if (ide.findOpen && !ide.findHits.empty() && !ide.findQ.empty()) {
+    const int maxW = split ? editW - 1 : cols;
+    size_t hi = 0;
+    for (int r = 0; r < bodyRows; ++r) {
+      const int li = ide.top + r;
+      if (li >= static_cast<int>(ide.lines.size())) break;
+      while (hi < ide.findHits.size() && ide.findHits[hi].first < li) ++hi;
+      for (size_t i = hi; i < ide.findHits.size() &&
+                          ide.findHits[i].first == li; ++i) {
+        const int c = ide.findHits[i].second;
+        const int room = maxW - 4 - c;
+        if (room <= 0) continue;            // past the pane's edge
+        std::string slice = ide.lines[static_cast<size_t>(li)].substr(
+            static_cast<size_t>(c),
+            std::min<size_t>(ide.findQ.size(), static_cast<size_t>(room)));
+        scr.textBg(4 + c, bodyTop + r, slice, paneBg,
+                   static_cast<int>(i) == ide.findSel ? dxn3::rgb(180, 83, 9)
+                                                      : dxn3::rgb(66, 50, 14));
+      }
+    }
+  }
 
   // the console rail: the game's prints + engine notes, honestly shown
   const int c0 = rows - consoleRows;
@@ -692,19 +718,29 @@ void drawIDE(dxn3::Screen& scr, IdeState& ide, const dxn3::Game& g, bool hostUp)
   const std::string l1 = n >= 1 ? ide.console[n - 1] : "";
   const std::string l2 = n >= 2 ? ide.console[n - 2] : "";
   scr.text(1, c0, l1.substr(0, static_cast<size_t>(cols - 3)), dxn3::rgb(148, 156, 180));
-  // a traceback in the console? offer the one-keystroke jump to the line
-  const int errLine = dxn3::consoleErrorLine(ide.console);
-  const std::string hint = errLine > 0
-      ? " ctrl+g jumps to line " + std::to_string(errLine) +
-        " · ctrl+z undo · ctrl+p shot · esc play "
-      : " ctrl+r run · ctrl+z undo · ctrl+p shot · ctrl+n template · esc play ";
-  const bool errorUp = errLine > 0;
-  scr.text(1, c0 + 1, hint.substr(0, static_cast<size_t>(cols - 3)),
-           errorUp ? dxn3::rgb(248, 113, 113) : dxn3::rgb(84, 72, 120));
-  if (!l2.empty())
-    scr.text(cols - std::min(cols - 3, static_cast<int>(l2.size())) - 1, c0 + 1,
-             l2.substr(0, static_cast<size_t>(std::min(cols - 3, static_cast<int>(l2.size())))),
-             dxn3::rgb(84, 72, 120));
+  if (ide.findOpen) {
+    // the searchlight has the rail: query, hits, the way out
+    std::string fb = " / find: " + ide.findQ + "_ ";
+    if (ide.findQ.empty()) fb += "type to search the whole file";
+    else if (ide.findHits.empty()) fb += "no matches — esc to close";
+    else fb += std::to_string(ide.findSel + 1) + "/" +
+               std::to_string(ide.findHits.size()) + " · enter next · esc done";
+    scr.text(1, c0 + 1, fb.substr(0, static_cast<size_t>(cols - 3)), dxn3::rgb(250, 204, 21));
+  } else {
+    // a traceback in the console? offer the one-keystroke jump to the line
+    const int errLine = dxn3::consoleErrorLine(ide.console);
+    const std::string hint = errLine > 0
+        ? " ctrl+g jumps to line " + std::to_string(errLine) +
+          " · ctrl+z undo · ctrl+f find · esc play "
+        : " ctrl+r run · ctrl+z undo · ctrl+f find · ctrl+p shot · esc play ";
+    const bool errorUp = errLine > 0;
+    scr.text(1, c0 + 1, hint.substr(0, static_cast<size_t>(cols - 3)),
+             errorUp ? dxn3::rgb(248, 113, 113) : dxn3::rgb(84, 72, 120));
+    if (!l2.empty())
+      scr.text(cols - std::min(cols - 3, static_cast<int>(l2.size())) - 1, c0 + 1,
+               l2.substr(0, static_cast<size_t>(std::min(cols - 3, static_cast<int>(l2.size())))),
+               dxn3::rgb(84, 72, 120));
+  }
 }
 
 int main(int argc, char** argv) {
@@ -735,9 +771,10 @@ int main(int argc, char** argv) {
                    "       dxn3-native --host-cmd 'ruby game.rb'   any interpreter you have\n"
                    "       dxn3-native --list-scenes | --screenshot out.png | --version\n"
                    "keys:  ctrl+r run · ctrl+s save · ctrl+z undo · ctrl+y redo\n"
+                   "       ctrl+f find · enter next hit · ctrl+d duplicate line\n"
                    "       ctrl+n template · ctrl+g error line · ctrl+p screenshot\n"
                    "       esc play/back · a/d move · w jump\n"
-                   "       tab inspect · e file · : commands · p screenshot · q quit\n"
+                   "       tab inspect · e file · : commands (:open loads any script) · q quit\n"
                    "your game is a child process speaking JSON on stdio — see sdk/",
                    dxn3::DXN3_VERSION);
       return 0;
@@ -870,6 +907,30 @@ int main(int argc, char** argv) {
         stems.push_back(de.path().stem().string());
     std::sort(stems.begin(), stems.end());
     return stems;
+  };
+
+  // the scripts on this machine — :open's completion fuel. Your own
+  // games first, then the gallery's examples (read them, remix them).
+  auto scriptCandidates = []() {
+    std::vector<std::string> out;
+    std::error_code ec;
+    static const char* exts[] = {".py", ".js", ".mjs", ".cpp",
+                                 ".cc", ".cxx", ".cs", ".rb", ".lua", ".sh"};
+    for (const auto& de : std::filesystem::directory_iterator(".", ec))
+      if (de.is_regular_file(ec)) {
+        const std::string p = de.path().filename().string();
+        for (const char* e : exts)
+          if (p.size() > std::strlen(e) &&
+              p.compare(p.size() - std::strlen(e), std::strlen(e), e) == 0) {
+            out.push_back(p);
+            break;
+          }
+      }
+    for (const auto& de : std::filesystem::directory_iterator("sdk/examples", ec))
+      if (de.is_regular_file(ec))
+        out.push_back("sdk/examples/" + de.path().filename().string());
+    std::sort(out.begin(), out.end());
+    return out;
   };
 
   // run the editor's code: save → host it → your game is live
@@ -1019,6 +1080,8 @@ int main(int argc, char** argv) {
     const Keys keys = pollKeys(cmdOpen ? Mode::Cmd
                               : ide.open ? Mode::Ide
                               : fileView ? Mode::File : Mode::Play);
+    const bool barOwned = cmdOpen;   // the bar polled this frame — its keys
+                                     // belong to it, never to the IDE
     cols0 = cols; rows0 = rows;
 
     // live refresh: edits settle for a beat, then your code runs again
@@ -1031,6 +1094,7 @@ int main(int argc, char** argv) {
       if (keys.esc) cmdOpen = false;
       else if (keys.back) { if (!cmdBuf.empty()) cmdBuf.pop_back(); }
       else if (keys.enter) {
+        cmdBuf += keys.typed;      // a paste that lands with enter counts
         const dxn3::Cmd cmd = dxn3::parseCommand(cmdBuf);
         cmdOpen = false;
         cmdBuf.clear();
@@ -1069,6 +1133,37 @@ int main(int argc, char** argv) {
         } else if (cmd.verb == "new") {
           if (!ide.open) ide.open = true;          // :new opens the studio
           nextTemplate();
+        } else if (cmd.verb == "open") {
+          // any script on this machine becomes the live document
+          std::ifstream f(cmd.arg, std::ios::binary);
+          if (!f.good()) {
+            cmdErr = "no such file: " + cmd.arg;
+            cmdErrT = 3.5f;
+          } else {
+            host.stop();                     // a new document owns the stage
+            ide.hostUp = false;
+            ide.lines.clear();
+            std::string ln;
+            while (std::getline(f, ln)) {
+              if (!ln.empty() && ln.back() == '\r') ln.pop_back();
+              ide.lines.push_back(ln);
+            }
+            if (ide.lines.empty()) ide.lines.push_back("");
+            ide.path = cmd.arg;
+            ide.undo.clear();                // a new document, a fresh history
+            ide.redo.clear();
+            ide.lastTyping = ide.lastBack = false;
+            ide.curR = ide.curC = ide.top = 0;
+            ide.tpl = -1;
+            ide.findOpen = false;            // the searchlight rests
+            ide.findQ.clear();
+            ide.findHits.clear();
+            ide.findSel = -1;
+            ide.open = true;                 // the studio takes the stage
+            ide.dirty = true;
+            ide.idle = 0;
+            game.say("open " + cmd.arg, 1.6);
+          }
         } else if (cmd.verb == "w") {
           const std::string path = cmd.arg.empty() ? scenePath : cmd.arg;
           const std::string err = dxn3::Game::saveScene(path, game.scene);
@@ -1089,7 +1184,7 @@ int main(int argc, char** argv) {
           game.scene.gravity = cmd.num;
           game.say("gravity " + std::to_string(static_cast<int>(cmd.num)), 1.2);
         } else if (cmd.verb == "help") {
-          game.say(":scene :zoom :fit :reset :new :w :wq :q :screenshot :magnet :gravity", 4.f);
+          game.say(":scene :open :zoom :fit :reset :new :w :wq :q :screenshot :magnet :gravity", 4.f);
         }
       } else {
         cmdBuf += keys.typed;
@@ -1175,10 +1270,15 @@ int main(int argc, char** argv) {
     }
 
     // the IDE owns its keys: typing is code, ctrl+r/s run and save,
-    // esc hands the keyboard to your game
-    if (ide.open) {
+    // esc hands the keyboard to your game (or closes the searchlight) —
+    // but a frame the command bar polled is the bar's alone (:open and
+    // :new hand the stage over; the same frame's text must not leak in)
+    if (ide.open && !barOwned) {
       ideKey(ide, keys);
-      if (!keys.typed.empty() || keys.back || keys.enter) {
+      // find-mode keystrokes feed the query — never the document
+      if (!ide.findOpen &&
+          (!keys.typed.empty() || keys.back || keys.enter || keys.del ||
+           keys.ctrlD)) {
         ide.dirty = true;
         ide.idle = 0;
       }
@@ -1206,7 +1306,10 @@ int main(int argc, char** argv) {
           ide.console.push_back("engine: no error line in the console yet");
         }
       }
-      if (keys.esc) ide.open = false;          // esc → play your game
+      if (keys.esc) {
+        if (ide.findOpen) ide.findOpen = false;  // esc leaves the search
+        else ide.open = false;                   // esc → play your game
+      }
     }
 
     // the hosted game: your code ticks every frame, even while you edit
@@ -1275,13 +1378,30 @@ int main(int argc, char** argv) {
           if (hcol + static_cast<int>(hint.size()) < cols - 1)
             scr.text(hcol, rows - 1, hint, dxn3::rgb(124, 58, 237));
         }
-        // :scene completion — the campaign whispers its own names
-        if (cmdBuf.rfind(":scene ", 0) == 0 && cmdBuf.size() > 7) {
-          const std::string part = cmdBuf.substr(7);
+        // command-bar whispers: scene names and script files complete
+        // themselves as you type — the campaign and the cwd speak up.
+        // (cmdBuf never carries the leading ':' — the bar paints that.)
+        const bool sceneQ = cmdBuf.rfind("scene ", 0) == 0;
+        const bool openQ = cmdBuf.rfind("open ", 0) == 0;
+        const size_t skip = sceneQ ? 6 : 5;
+        if ((sceneQ || openQ) && cmdBuf.size() > skip) {
+          const std::string part = cmdBuf.substr(skip);
           std::string w;
-          for (const auto& m : dxn3::sceneMatches(part, sceneStems())) {
-            if (!w.empty()) w += " · ";
-            w += m;
+          if (sceneQ) {
+            for (const auto& m : dxn3::sceneMatches(part, sceneStems())) {
+              if (!w.empty()) w += " · ";
+              w += m;
+            }
+          } else {
+            // scripts match on their FILE name, but whisper the full
+            // path — "f" finds sdk/examples/flappy.py
+            for (const auto& p : scriptCandidates()) {
+              const std::string base =
+                  std::filesystem::path(p).filename().string();
+              if (base.rfind(part, 0) != 0) continue;
+              if (!w.empty()) w += " · ";
+              w += p;
+            }
           }
           const int hcol = 2 + static_cast<int>(cmdBuf.size());
           if (!w.empty() && hcol + static_cast<int>(w.size()) < cols - 1)

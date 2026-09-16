@@ -78,6 +78,8 @@ inline Cmd parseCommand(std::string_view line) {
     number(-5000.f, 5000.f, "usage: :gravity <force -5000..5000>");
   } else if (c.verb == "w" || c.verb == "screenshot") {
     // optional path argument — both fine
+  } else if (c.verb == "open") {
+    needsArg("usage: :open <script file> — py, js, cpp, any language you have");
   } else if (c.verb == "q" || c.verb == "wq" || c.verb == "fit" ||
              c.verb == "reset" || c.verb == "help" || c.verb == "new") {
     if (!c.arg.empty())
@@ -130,13 +132,14 @@ inline std::string usageHintFor(std::string_view typed) {
   if (!typed.empty() && typed.front() == ':') typed.remove_prefix(1);
   while (!typed.empty() && typed.front() == ' ') typed.remove_prefix(1);
   if (typed.empty())
-    return " verbs: scene zoom fit reset w wq q screenshot magnet gravity help";
+    return " verbs: scene open zoom fit reset w wq q screenshot magnet gravity help";
   const size_t sp = typed.find(' ');
   const std::string verb(sp == std::string_view::npos ? typed
                                                       : typed.substr(0, sp));
   if (verb == "scene") return " :scene <file.dxn1.json>";
   if (verb == "zoom") return " :zoom in | out | <0.3-4>";
   if (verb == "fit") return " :fit — zoom to fit the scene";
+  if (verb == "open") return " :open <file> — load a script into the studio";
   if (verb == "reset") return " :reset — back to spawn";
   if (verb == "w") return " :w [file] — save, a .bak is kept";
   if (verb == "wq") return " :wq — save and quit";

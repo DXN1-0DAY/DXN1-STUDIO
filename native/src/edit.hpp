@@ -1,13 +1,14 @@
-// edit.hpp — the IDE's editor heart: the document, the cursor, and the
-// second chance (undo/redo). Header-only so main.cpp and the selftest
+// edit.hpp — the IDE's editor heart: the document, the cursor, the
+// second chance (undo/redo), the searchlight (find) and pairs that
+// carry their own closers. Header-only so main.cpp and the selftest
 // share one truth about what a keystroke means.
 //
 // Undo groups like real editors: a burst of typing or backspacing
 // coalesces while the hand is quick (idle < 0.8s — the same timer that
-// drives the live auto-run), while enter, forward-delete and template
-// loads are always their own restore point. undo/redo restore the whole
-// document AND the cursor, so the second chance lands you exactly where
-// you were standing.
+// drives the live auto-run), while enter, forward-delete, duplicate
+// and template loads are always their own restore point. undo/redo
+// restore the whole document AND the cursor, so the second chance
+// lands you exactly where you were standing.
 #pragma once
 #include <algorithm>
 #include <cctype>
@@ -41,6 +42,8 @@ struct Keys {
   bool home = false, end = false;              // IDE: line ends
   bool ctrlG = false;                          // IDE: jump to the error line
   bool ctrlZ = false, ctrlY = false;           // IDE: undo / redo
+  bool ctrlF = false;                          // IDE: find in the file
+  bool ctrlD = false;                          // IDE: duplicate this line
   std::string typed;                           // printable chars this frame
 };
 
@@ -67,6 +70,12 @@ struct IdeState {
   std::vector<IdeSnap> undo, redo;
   bool lastTyping = false, lastBack = false;   // group coalescing state
   static constexpr size_t kUndoMax = 200;      // deep enough to trust
+  // the searchlight: find lives in the same heart so the selftest can
+  // drive it with keystrokes, exactly like the editor does
+  bool findOpen = false;
+  std::string findQ;                           // the live query
+  std::vector<std::pair<int, int>> findHits;   // (row, col), in file order
+  int findSel = -1;                            // the hit you're standing on
 };
 
 // the cursor clamps to whatever document it lands on
@@ -111,6 +120,71 @@ inline bool ideRedo(IdeState& s) {
   return true;
 }
 
+// ── the searchlight ─────────────────────────────────────────────────
+// every match of the query, case-insensitively, in file order — the
+// starter IDE searches the way beginners think: "hello" finds HELLO.
+inline std::vector<std::pair<int, int>> ideFindAll(const IdeState& s,
+                                                   const std::string& q) {
+  std::vector<std::pair<int, int>> hits;
+  if (q.empty()) return hits;
+  auto lower = [](std::string x) {
+    for (char& c : x)
+      c = static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
+    return x;
+  };
+  const std::string needle = lower(q);
+  for (int r = 0; r < static_cast<int>(s.lines.size()); ++r) {
+    const std::string hay = lower(s.lines[static_cast<size_t>(r)]);
+    size_t at = 0;
+    while ((at = hay.find(needle, at)) != std::string::npos) {
+      hits.emplace_back(r, static_cast<int>(at));
+      at += needle.size();          // non-overlapping, like every editor
+    }
+  }
+  return hits;
+}
+
+// recompute the hits and aim at the first one at or after the cursor —
+// find always moves you FORWARD from where you stand, never backward.
+inline void ideFindRefresh(IdeState& s) {
+  s.findHits = ideFindAll(s, s.findQ);
+  s.findSel = -1;
+  if (s.findHits.empty()) return;
+  for (size_t i = 0; i < s.findHits.size(); ++i) {
+    const auto& [r, c] = s.findHits[i];
+    if (r > s.curR || (r == s.curR && c >= s.curC)) {
+      s.findSel = static_cast<int>(i);
+      return;
+    }
+  }
+  s.findSel = 0;                    // everything is behind you: wrap to 0
+}
+
+// step to the next hit (enter), wrapping; false when there is nothing
+inline bool ideFindNext(IdeState& s) {
+  if (s.findHits.empty()) return false;
+  s.findSel = (s.findSel + 1) % static_cast<int>(s.findHits.size());
+  const auto& [r, c] = s.findHits[static_cast<size_t>(s.findSel)];
+  s.curR = r;
+  s.curC = c;
+  return true;
+}
+
+// ── pairs that carry their own closers ──────────────────────────────
+inline char ideCloserFor(char open) {
+  switch (open) {
+    case '(': return ')';
+    case '[': return ']';
+    case '{': return '}';
+    case '"': return '"';
+    case '\'': return '\'';
+    default: return 0;
+  }
+}
+inline bool ideIsCloser(char c) {
+  return c == ')' || c == ']' || c == '}' || c == '"' || c == '\'';
+}
+
 // does this line OPEN a block (python ':', C-family '{')?
 inline bool ideOpensBlock(const std::string& s) {
   const size_t a = s.find_first_not_of(" \t");
@@ -142,6 +216,29 @@ inline bool ideClosesBlock(const std::string& s) {
 // lines, enter splits them (and carries the indent down), every edit is
 // undoable
 inline void ideKey(IdeState& ide, const Keys& k) {
+  // ── the searchlight is up: the query owns the keyboard, the buffer
+  // never changes while you search
+  if (ide.findOpen) {
+    if (k.ctrlF) { ide.findOpen = false; return; }        // toggle off
+    if (!k.typed.empty()) ide.findQ += k.typed;
+    if (k.back) {
+      if (!ide.findQ.empty()) ide.findQ.pop_back();
+      else { ide.findOpen = false; return; }   // back on empty: done looking
+    }
+    if (k.enter) ideFindNext(ide);             // to the next hit, wrapping
+    if (!k.typed.empty() || k.back) ideFindRefresh(ide);
+    return;
+  }
+  // ctrl+f raises the searchlight with a clean query
+  if (k.ctrlF) {
+    ide.findOpen = true;
+    ide.findQ.clear();
+    ide.findHits.clear();
+    ide.findSel = -1;
+    ide.lastTyping = ide.lastBack = false;
+    return;
+  }
+
   auto& L = ide.lines;
   if (ide.curR >= static_cast<int>(L.size()))
     ide.curR = static_cast<int>(L.size()) - 1;
@@ -162,14 +259,51 @@ inline void ideKey(IdeState& ide, const Keys& k) {
     ide.lastBack = true;
     ide.lastTyping = false;
   }
-  if (k.enter || k.del) idePushUndo(ide);      // structure changes stand alone
+  if (k.enter || k.del || k.ctrlD) idePushUndo(ide);   // structure stands alone
 
   for (const char ch : k.typed) {
+    // a closer you already have is skipped over, never doubled
+    if (ideIsCloser(ch) && ide.curC < static_cast<int>(line.size()) &&
+        line[static_cast<size_t>(ide.curC)] == ch) {
+      ++ide.curC;
+      continue;
+    }
     line.insert(line.begin() + std::min(ide.curC, static_cast<int>(line.size())), ch);
     ++ide.curC;
+    // an opener carries its closer — brackets always pair; quotes pair
+    // only when NEITHER neighbor is a word character, so "don't" keeps
+    // its honest apostrophe while `x = "hello"` still wraps
+    const char closer = ideCloserFor(ch);
+    if (closer) {
+      const bool quote = ch == '"' || ch == '\'';
+      bool pair = true;
+      if (quote) {
+        const bool prevWord =
+            ide.curC >= 2 &&
+            (std::isalnum(static_cast<unsigned char>(line[static_cast<size_t>(ide.curC) - 2])) ||
+             line[static_cast<size_t>(ide.curC) - 2] == '_');
+        const bool nextWord =
+            ide.curC < static_cast<int>(line.size()) &&
+            (std::isalnum(static_cast<unsigned char>(line[static_cast<size_t>(ide.curC)])) ||
+             line[static_cast<size_t>(ide.curC)] == '_');
+        pair = !prevWord && !nextWord;
+      }
+      if (pair)
+        line.insert(line.begin() + std::min(ide.curC, static_cast<int>(line.size())),
+                    closer);
+    }
   }
   if (k.back) {
-    if (ide.curC > 0) { line.erase(line.begin() + ide.curC - 1); --ide.curC; }
+    // backspace between an empty pair removes BOTH halves — the pair
+    // was born together, it dies together
+    if (ide.curC > 0 && ide.curC < static_cast<int>(line.size()) &&
+        ideCloserFor(line[static_cast<size_t>(ide.curC) - 1]) ==
+            line[static_cast<size_t>(ide.curC)]) {
+      line.erase(line.begin() + ide.curC);
+      line.erase(line.begin() + (ide.curC - 1));
+      --ide.curC;
+    }
+    else if (ide.curC > 0) { line.erase(line.begin() + ide.curC - 1); --ide.curC; }
     else if (ide.curR > 0) {                       // join with previous line
       ide.curC = static_cast<int>(L[static_cast<size_t>(ide.curR - 1)].size());
       L[static_cast<size_t>(ide.curR - 1)] += line;
@@ -213,6 +347,12 @@ inline void ideKey(IdeState& ide, const Keys& k) {
       cur += L[static_cast<size_t>(ide.curR) + 1];
       L.erase(L.begin() + ide.curR + 1);     // join the next line up
     }
+  }
+  if (k.ctrlD) {                             // duplicate this line
+    // copy BEFORE inserting: the insert may reallocate the buffer
+    const std::string cur = L[static_cast<size_t>(ide.curR)];
+    L.insert(L.begin() + ide.curR + 1, cur);
+    ++ide.curR;                              // the copy takes your place
   }
 
   // ── undo / redo: the second chance, one keystroke away
