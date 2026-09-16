@@ -2075,7 +2075,8 @@ int main(int argc, char** argv) {
             ide.console.push_back(
                 "engine: a clean page — nothing touched since it opened");
           } else if (cmd.arg.empty()) {
-            const std::string t = dxn3::ideTouchWhisper(ide);
+            const std::string t =
+                dxn3::ideTouchWhisper(ide, ide.marks);
             ide.console.push_back(
                 "engine: " + std::to_string(ide.touched.size()) +
                 " line" + (ide.touched.size() == 1 ? "" : "s") +

@@ -355,6 +355,30 @@ inline std::string ideTouchWhisper(const IdeState& s, size_t maxShow = 8) {
   return out;
 }
 
+// the cross-marked census: a touched line that is ALSO a pin wears the
+// pin's diamond — :changes and :jumps speak one marking law, so a line
+// you wrote AND nailed down reads "7◆" in both listings. `marks` rides
+// the pins' own invariant (sorted, unique — ide.marks always is).
+inline std::string ideTouchWhisper(const IdeState& s,
+                                   const std::vector<int>& marks,
+                                   size_t maxShow = 8) {
+  if (s.touched.empty()) return "";
+  const auto pinned = [&](int line) {
+    return std::binary_search(marks.begin(), marks.end(), line);
+  };
+  std::string out;
+  size_t shown = 0;
+  for (const int t : s.touched) {
+    if (shown == maxShow) break;
+    out += (shown == 0 ? "" : " · ") + std::to_string(t + 1);
+    if (pinned(t)) out += "◆";
+    ++shown;
+  }
+  if (s.touched.size() > maxShow)
+    out += " … +" + std::to_string(s.touched.size() - maxShow) + " deeper";
+  return out;
+}
+
 // the selection goes first: the range is cut, the cursor collapses to
 // its start, the anchor clears. False when there was nothing selected.
 inline bool ideSelDelete(IdeState& s) {

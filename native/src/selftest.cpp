@@ -199,7 +199,7 @@ int main() {
   }
 
   // 9. the version quad rides in the binary too
-  ok(std::string(dxn3::DXN3_VERSION) == "3.0.74",
+  ok(std::string(dxn3::DXN3_VERSION) == "3.0.75",
      "native version constant matches the release quad");
 
   // 10. png writer: checksum vectors, real structure, byte determinism
@@ -3722,6 +3722,18 @@ int main() {
            "now 10 · 9◆ · 8 · 7 · 6 · 5 · 4 · 3 … +1 deeper",
        "the visible pin wears its diamond; the pin hidden beyond the "
        "cap stays unseen");
+
+    // the cross-marked census: a touched line that is also a pin
+    // wears the diamond — one marking law for both listings
+    IdeState cm;
+    cm.lines = {"x", "y", "z"};
+    dxn3::ideTouch(cm, 0);
+    dxn3::ideTouch(cm, 2);
+    dxn3::ideMarkToggle(cm, 2);
+    ok(dxn3::ideTouchWhisper(cm, cm.marks) == "1 · 3◆",
+       "a touched pin wears the diamond in the census");
+    ok(dxn3::ideTouchWhisper(cm) == "1 · 3",
+       "the plain whisper stays plain — the caller chooses the law");
 
     // :changes <n> — the leap. The verb's walk lives in main (smoke's
     // pty drive lands the hand); here the LAWS it obeys: the leap is

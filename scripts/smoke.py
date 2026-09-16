@@ -1074,6 +1074,11 @@ def main():
               repr(scr.text(ROWS - 2)[:70]))
         s1d.send("Xy")                         # an edit under the pin
         time.sleep(0.25)
+        scr, _ = s1d.run_verb("changes", "ide")
+        check("the census wears the pin's diamond on a touched line",
+              "1 line touched since the page opened — 55◆" in
+              scr.text(ROWS - 2),
+              repr(scr.text(ROWS - 2)[:70]))
         s1d.run_verb("goto 30", "ide")         # away, so the leap is real
         scr, _ = s1d.run_verb("changes 1", "ide")
         check(":changes 1 leaps to the census's first touched line",

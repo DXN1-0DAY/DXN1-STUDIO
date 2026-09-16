@@ -1,3 +1,17 @@
+## v3.0.75 — the census wears the pins (one marking law, two listings)
+
+- **`:changes` speaks the pins' diamond.** A touched line that is
+  ALSO a pin reads "55◆" in the census, exactly as it does in the
+  :jumps ledger — one marking law across both listings, so a line
+  you wrote AND nailed down answers to the same glyph everywhere.
+  The plain whisper keeps its plain law (the caller chooses).
+- The new `ideTouchWhisper(s, marks)` overload rides the pins' own
+  sorted-unique invariant, the same contract the jumps listing's
+  cross-marks speak. Selftest group 79 grows two asserts (740 ->
+  742); smoke 13i grows the census-diamond check (153 -> 154) —
+  the pin lands on line 55, the edit touches it, and the census
+  names it "55◆" through the real pty.
+
 ## v3.0.74 — the dice (:shuffle — the deal its seed can replay)
 
 - **`:shuffle` deals the selection's lines like cards.** Fisher-Yates
