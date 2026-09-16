@@ -2,7 +2,7 @@
 
 ![DXN1 STUDIO 3](assets/banner.png)
 
-![version](https://img.shields.io/badge/version-3.0.73-8b5cf6?style=flat-square)
+![version](https://img.shields.io/badge/version-3.0.74-8b5cf6?style=flat-square)
 ![gates](https://github.com/DXN1-termux/DXN1-STUDIO/actions/workflows/ci.yml/badge.svg)
 ![native](https://img.shields.io/badge/native-C%2B%2023-f97316?style=flat-square)
 ![face](https://img.shields.io/badge/face-terminal_truecolor-22d3ee?style=flat-square)
@@ -106,6 +106,10 @@ viewport refreshes — *code a background, and boom, a background.*
   open speaks first. A bare `:open` reopens your most recent file in
   one word; an empty ledger refuses honestly. Ghost files are
   refused too.
+- **`:shuffle` deals the bed like cards.** The selection's lines land in
+  random order, Fisher-Yates honest; a seed replays the deal exactly
+  (the receipt names it), a bare verb rolls one from the clock. Pins
+  follow their words, the census covers the bed, one undo takes it back.
 - **`:changes` reads the census of your session.** Every line the
   hand changed since the page opened, ascending with its count —
   the answer to "where did the last hour go?". The pins' structural
@@ -257,6 +261,7 @@ line ends · `ctrl+home`/`ctrl+end` doc edges · `del` forward-delete ·
 `:rsort` lands it last-first ·
 `:upper`/`:lower`/`:title` change the selection's voice ·
 `:uniq` collapses back-to-back repeats · `:rev` flips the order ·
+`:shuffle` deals the lines like cards, its seed replays the deal ·
 `:indent`/`:dedent` breathe the selection one level ·
 `:lift`/`:drop` ride lines up and down ·
 `:dup` says the bed twice · `:join` folds it into one ·
@@ -344,6 +349,7 @@ accepted:
 | `:title` | every word's first letter stands up |
 | `:uniq` | collapse lines that repeat back-to-back — whole doc, or the selection |
 | `:rev` | flip the selection's line order, no alphabet invited |
+| `:shuffle [seed]` | deal the selection's lines into random order; the seed replays the deal |
 | `:indent` | the selected lines step right one level, pure air keeps its silence |
 | `:dedent` | the selected lines step back left — up to four spaces each |
 | `:lift` | the selection's lines step one line up — no selection rides the hand's line |

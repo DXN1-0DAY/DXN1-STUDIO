@@ -1,3 +1,28 @@
+## v3.0.74 — the dice (:shuffle — the deal its seed can replay)
+
+- **`:shuffle` deals the selection's lines like cards.** Fisher-Yates
+  over the bed, honest coins, no alphabet, no mirror — the sort
+  family's bed and refusals, ONE restore point named "shuffle", the
+  hand resting at the bed's head, the selection let go. The bed of
+  one refuses (one line has no other order); the census touches
+  every line the deal rewrote.
+- **The seed is the law's anchor.** `:shuffle 7` deals EXACTLY the
+  same order every time — undo, re-select, deal again, and the same
+  order lands (the replay law, proven twice: 9 selftest asserts and
+  a real-pty drive that undoes and re-deals the same bed). A bare
+  `:shuffle` rolls a seed from the clock and NAMES it — "3 lines
+  shuffled (seed 7) — :shuffle 7 replays the deal, one undo takes
+  it back" — so a lucky deal is replayable and shareable, the way
+  a seed should be.
+- **The pins ride their content.** A pin follows its words to the
+  new home (the flip's law, told by a permutation — home built from
+  the deal, the ledger re-sorted after), and the census rides its
+  lines the same way before the bed-wide touch lands.
+- Selftest group 80 (9 asserts) 731 -> 740; smoke 13j (3 checks)
+  150 -> 153 — the deal, the receipt's seed, and the replay law
+  through the real pty. `--help` and `:help` document the verb;
+  the bar whispers its usage as you type.
+
 ## v3.0.73 — the cross-marks (the ledger and the pins agree)
 
 - **`:jumps` wears the pins.** A leap that lands on a PIN now wears

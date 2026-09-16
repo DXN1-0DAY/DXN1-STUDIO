@@ -18,6 +18,8 @@
 #include <map>
 #include <optional>
 #include <charconv>
+#include <chrono>
+#include <random>
 #include <string>
 #include <vector>
 
@@ -1967,6 +1969,68 @@ inline int ideRevSel(IdeState& s) {
   s.dirty = true;
   s.idle = 0;
   return r1 - r0 + 1;
+}
+
+// ── the dice: the selection's lines walk to random homes ───────────
+// :shuffle deals the bed like cards — Fisher-Yates, honest coins, no
+// alphabet, no mirror. The seed is the law's anchor: a seeded
+// :shuffle deals EXACTLY the same order every time (the receipt
+// speaks the seed, so a lucky deal can be replayed or shared), a
+// bare :shuffle rolls one from the clock and names it. The sort
+// family's bed and refusals; ONE restore point named "shuffle"; the
+// pins ride their CONTENT to its new home (the flip's law, told by a
+// permutation), the census touches the whole bed (every line was
+// rewritten), the hand rests at the bed's head, the selection lets
+// go. 0 with no bed; else the count of lines dealt.
+inline int ideShuffleSel(IdeState& s, unsigned seed, bool seeded,
+                         unsigned* usedSeed) {
+  const auto sel = ideSelRange(s);
+  if (!sel) return 0;
+  const auto [r0, c0, r1, c1] = *sel;
+  if (r1 <= r0) return 0;                      // a same-line bed: no dice
+  const int count = r1 - r0 + 1;
+  const unsigned rolled =
+      seeded ? seed
+             : static_cast<unsigned>(
+                 std::chrono::steady_clock::now().time_since_epoch().count() &
+                 0x7fffffffu);
+  std::mt19937 rng(rolled);
+  std::vector<int> deal(static_cast<size_t>(count));  // pos k reads old a[k]
+  for (int k = 0; k < count; ++k) deal[static_cast<size_t>(k)] = k;
+  for (int k = count - 1; k > 0; --k) {
+    std::uniform_int_distribution<int> die(0, k);
+    std::swap(deal[static_cast<size_t>(k)], deal[static_cast<size_t>(die(rng))]);
+  }
+  std::vector<int> home(static_cast<size_t>(count));  // old offset -> new home
+  for (int k = 0; k < count; ++k)
+    home[static_cast<size_t>(deal[static_cast<size_t>(k)])] = k;
+  idePushUndo(s, "shuffle");
+  const std::vector<std::string> bed(s.lines.begin() + r0,
+                                     s.lines.begin() + r1 + 1);
+  for (int k = 0; k < count; ++k)
+    s.lines[static_cast<size_t>(r0 + k)] =
+        bed[static_cast<size_t>(deal[static_cast<size_t>(k)])];
+  {                                            // the pins follow their words
+    for (int& m : s.marks)
+      if (m >= r0 && m <= r1) m = r0 + home[static_cast<size_t>(m - r0)];
+    std::sort(s.marks.begin(), s.marks.end());
+  }
+  {                                            // the census rides its lines
+    for (int& t : s.touched)
+      if (t >= r0 && t <= r1) t = r0 + home[static_cast<size_t>(t - r0)];
+    std::sort(s.touched.begin(), s.touched.end());
+    s.touched.erase(std::unique(s.touched.begin(), s.touched.end()),
+                    s.touched.end());
+  }
+  for (int r = r0; r <= r1; ++r)
+    ideTouch(s, r);                            // the whole bed was rewritten
+  ideSelClear(s);
+  s.curR = r0;                                 // the hand rests at the head
+  s.curC = 0;
+  s.dirty = true;
+  s.idle = 0;
+  if (usedSeed) *usedSeed = rolled;
+  return count;
 }
 
 // ── the breath: the selection's lines step right — or back ─────────

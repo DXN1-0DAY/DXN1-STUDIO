@@ -1115,6 +1115,50 @@ def main():
         check("the second studio opens loud",
               scr2 is not None and scr2.find("untitled.py") is not None,
               "no frame" if scr2 is None else repr(scr2.text(0)[-30:]))
+
+        # ── 13j. the dice — :shuffle deals, the seed replays ─────────
+        print("── 13j. :shuffle — the deal, replayed by its seed")
+        s2.send("aaa")
+        time.sleep(0.15)
+        s2.send("\r")
+        time.sleep(0.15)
+        s2.send("bbb")
+        time.sleep(0.15)
+        s2.send("\r")
+        time.sleep(0.15)
+        s2.send("ccc")
+        time.sleep(0.4)
+        s2.run_verb("goto 1", "ide")           # the hand to the bed's head
+        s2.settle(0.2)
+        s2.send(S_DOWN)                        # a three-line bed: 1..3
+        s2.settle(0.2)
+        s2.send(S_DOWN)
+        s2.settle(0.3)
+        scr2, _ = s2.run_verb("shuffle 7", "ide")
+        check(":shuffle deals the bed and speaks its seed",
+              "3 lines shuffled (seed 7)" in scr2.text(ROWS - 2),
+              repr(scr2.text(ROWS - 2)[:70]))
+        s2.settle(2.2)                         # the auto-run's sparks decay
+        scr2 = s2.screen()                     # a fresh, quiet frame
+        first = (scr2.text(1), scr2.text(2), scr2.text(3))
+        s2.run_verb("undo", "ide")             # the old order back
+        s2.settle(0.3)
+        s2.run_verb("goto 1", "ide")
+        s2.settle(0.2)
+        s2.send(S_DOWN)                        # the same bed again
+        s2.settle(0.2)
+        s2.send(S_DOWN)
+        s2.settle(0.3)
+        scr2, _ = s2.run_verb("shuffle 7", "ide")
+        check("the replay deals too — the seed took again",
+              "3 lines shuffled (seed 7)" in scr2.text(ROWS - 2),
+              repr(scr2.text(ROWS - 2)[:70]))
+        s2.settle(2.2)                         # the sparks die again
+        scr2 = s2.screen()
+        check("the same seed deals the same order (the replay law)",
+              (scr2.text(1), scr2.text(2), scr2.text(3)) == first,
+              repr(scr2.text(1)[:14] + " vs " + first[0][:14]))
+
         s2.send(ESC)
         time.sleep(0.3)
         s2.send("q")

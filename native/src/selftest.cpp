@@ -199,7 +199,7 @@ int main() {
   }
 
   // 9. the version quad rides in the binary too
-  ok(std::string(dxn3::DXN3_VERSION) == "3.0.73",
+  ok(std::string(dxn3::DXN3_VERSION) == "3.0.74",
      "native version constant matches the release quad");
 
   // 10. png writer: checksum vectors, real structure, byte determinism
@@ -3737,6 +3737,69 @@ int main() {
     dxn3::ideJumpPush(cl, to);
     ok(cl.jumps.size() == 1 && cl.jumps.back() == 1 && cl.jumpIx == -1,
        "the census's leap is a real leap — planted, the walker at now");
+  }
+
+  // 80. the dice: :shuffle deals the bed into random order — a seed
+  // replays the deal EXACTLY, the bed's multiset survives, the pins
+  // ride their CONTENT (the flip's law told by a permutation), the
+  // census touches the whole bed, one undo step takes it back.
+  {
+    IdeState d;
+    d.lines = {"one", "two", "three", "four", "five", "six"};
+    d.anchorR = 1; d.anchorC = 0;              // bed: lines 2..5
+    d.curR = 4; d.curC = 3;
+    IdeState e = d;                            // the twin for the replay law
+    unsigned s1 = 0, s2 = 0;
+    const int dealt1 = dxn3::ideShuffleSel(d, 7, true, &s1);
+    ok(dealt1 == 4 && s1 == 7,
+       "a seeded shuffle deals the whole bed and speaks the seed");
+    const int dealt2 = dxn3::ideShuffleSel(e, 7, true, &s2);
+    ok(dealt2 == 4 && d.lines == e.lines,
+       "the same seed deals the same order (the replay law)");
+
+    // the multiset survives: the bed's lines are the same words
+    std::vector<std::string> got(d.lines.begin() + 1, d.lines.begin() + 5);
+    std::sort(got.begin(), got.end());
+    const std::vector<std::string> want = {"five", "four", "three", "two"};
+    ok(got == want, "the deal preserves the bed's words — none lost, none made");
+
+    // a different seed (almost surely) deals differently — deterministic
+    IdeState f = d;
+    f.anchorR = 1; f.anchorC = 0; f.curR = 4; f.curC = 3;
+    dxn3::ideShuffleSel(f, 8, true, nullptr);
+    ok(f.lines != d.lines || dealt1 == 0,
+       "a different seed deals a different order (deterministic per seed)");
+
+    // the pins follow their content, the census covers the bed
+    IdeState p;
+    p.lines = {"a", "b", "c", "d"};
+    dxn3::ideMarkToggle(p, 2);                 // a pin on line 3 ("c")
+    p.anchorR = 0; p.anchorC = 0;
+    p.curR = 3; p.curC = 1;
+    dxn3::ideShuffleSel(p, 7, true, nullptr);
+    ok(p.touched.size() == 4,
+       "the deal touches every line it rewrote");
+    bool pinRides = false;
+    for (int r = 0; r < 4; ++r)                // the pin sits where "c" landed
+      if (p.lines[static_cast<size_t>(r)] == "c" &&
+          dxn3::ideMarkHas(p, r)) pinRides = true;
+    ok(pinRides, "the pin rides its content to its new home");
+    ok(std::is_sorted(p.marks.begin(), p.marks.end()),
+       "the pins stay sorted after the deal");
+
+    // the second chance takes it all back
+    dxn3::Keys uz;
+    uz.ctrlZ = true;
+    const bool stepped = dxn3::ideUndo(p);
+    ok(stepped && p.lines ==
+           std::vector<std::string>{"a", "b", "c", "d"},
+       "one undo step deals the old order back");
+
+    // the honest refusals: no bed, no dice, no snapshot
+    IdeState r;
+    r.lines = {"solo"};
+    ok(dxn3::ideShuffleSel(r, 7, true, nullptr) == 0 && r.undo.empty(),
+       "a bed of one refuses — one line has no other order");
   }
 
 

@@ -1938,6 +1938,27 @@ int main(int argc, char** argv) {
                         " flipped — one undo step takes it back"
                   : "engine: select the lines to flip first "
                     "(shift+arrows, or drag)");
+        } else if (cmd.verb == "shuffle") {
+          // the dice: the bed deals into random order — a seed replays
+          // the deal exactly, a bare verb rolls one and names it. The
+          // sort family's laws, one undo step, the pins riding their
+          // content.
+          takeStage();
+          unsigned used = 0;
+          const int dealt = dxn3::ideShuffleSel(
+              ide, static_cast<unsigned>(cmd.num), !cmd.arg.empty(), &used);
+          ide.console.push_back(
+              dealt > 0
+                  ? "engine: " + std::to_string(dealt) + " line" +
+                        (dealt == 1 ? "" : "s") + " shuffled (seed " +
+                        std::to_string(used) + ")" +
+                        (cmd.arg.empty()
+                             ? " — :shuffle " + std::to_string(used) +
+                                   " replays the deal, one undo takes it back"
+                             : " — the same seed deals the same order") +
+                        ""
+                  : "engine: select the lines to shuffle first "
+                    "(shift+arrows, or drag)");
         } else if (cmd.verb == "indent" || cmd.verb == "dedent") {
           takeStage();
           const bool out = cmd.verb == "dedent";
@@ -2195,7 +2216,7 @@ int main(int argc, char** argv) {
           game.scene.gravity = cmd.num;
           game.say("gravity " + std::to_string(static_cast<int>(cmd.num)), 1.2);
         } else if (cmd.verb == "help") {
-          game.say(":scene :open :recent :template :snip :goto :jumps :changes :fresh :mark :marks :bm :ruler :minimap :zen :relnum :trim :cases :sort :rsort :rev :uniq :indent :dedent :lift :drop :dup :join :upper :lower :title :hist :undo :redo :words :todo :stats "
+          game.say(":scene :open :recent :template :snip :goto :jumps :changes :fresh :mark :marks :bm :ruler :minimap :zen :relnum :trim :cases :sort :rsort :rev :uniq :shuffle :indent :dedent :lift :drop :dup :join :upper :lower :title :hist :undo :redo :words :todo :stats "
                     ":zoom :fit :reset :new :w :wq :q :screenshot :magnet :gravity", 4.f);
         }
       } else {

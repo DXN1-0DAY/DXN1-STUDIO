@@ -118,6 +118,12 @@ inline Cmd parseCommand(std::string_view line) {
       number(1.f, 99999.f,
              "usage: :changes [n] — a bare :changes lists the touched lines; "
              "a number leaps to the Nth");
+  } else if (c.verb == "shuffle") {
+    // a bare :shuffle rolls a seed; a number deals the same order always
+    if (!c.arg.empty())
+      number(0.f, 999999999.f,
+             "usage: :shuffle [seed] — a bare :shuffle rolls a seed; "
+             "the same seed deals the same order");
   } else if (c.verb == "q" || c.verb == "wq" || c.verb == "fit" ||
              c.verb == "reset" || c.verb == "help" || c.verb == "new" ||
              c.verb == "ruler" || c.verb == "stats" || c.verb == "minimap" ||
@@ -232,6 +238,9 @@ inline std::string usageHintFor(std::string_view typed) {
     return " :uniq — lines that repeat back-to-back say it once";
   if (verb == "rev")
     return " :rev — flip the selection's line order, no alphabet invited";
+  if (verb == "shuffle")
+    return " :shuffle [seed] — deal the selection's lines into random "
+           "order; the seed replays the deal";
   if (verb == "indent")
     return " :indent — the selected lines step right, one undo step";
   if (verb == "dedent")
