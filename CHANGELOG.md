@@ -1,3 +1,32 @@
+## v3.0.62 — the hunt walks the file view
+
+- **F3/shift+F3 in the file view — the scene's source joins the hunt.**
+  The searchlight's walk was the IDE's alone — and the reason was a
+  GATE, not a missing verb: pollKeys' whole `~` case was Ide-gated, so
+  CSI 16~ never even reached the file view. The gate now carves F3 out
+  first; `/`'s question survives its enter and F3 walks the hits of
+  the scene source, shift+F3 walks back. ONE law with the IDE's F3
+  (v3.0.55): strictly
+  after the hand going down, strictly before going up, the full cycle
+  IS the wrap, an empty question silent. A landing paints its line
+  with a dark-amber bed and a lit gutter number, and the header rail
+  speaks the walk: " /coin  hit 2/5 — F3 walks" — the ordinal honest,
+  a fruitless question confessed with "no hits — / reasks".
+- **The strict law for enter too**: the same question asked again
+  walks from its last landing (it never re-lands the hit you stand
+  on — the exact skip-class bug the IDE's hunt fixed); a fresh
+  question starts from the viewport's head. And `/` reopens with the
+  committed query pre-filled for editing — the question survives, back
+  eats it, a new word re-asks.
+- SS3 R (the xterm F3 dialect) now serves the file view as well as the
+  IDE, and the view's hint rail names the walk.
+- Smoke section 15 (12 checks) — 103 → 115: the view, the question,
+  the landing's bed on its natural row (the file fits the view, the
+  clamp keeps it honest), the walk, the walk back, the surviving
+  question, the fresh question's own first hit, the clean exit.
+  Selftest stays at 635 groups (the hunt lives in the shell; the
+  screen is its witness).
+
 ## v3.0.61 — the second chance, spoken (:undo/:redo)
 
 - **`:undo` / `:redo` — the ledger's twins, spoken from the bar.**

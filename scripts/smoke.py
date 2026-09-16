@@ -171,9 +171,10 @@ def parse_frame(b):
 
 
 SMOKE_CWD = None                # the studio's private dir (saves land here)
+REPO_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
 class Studio:
-    def __init__(self, binary):
+    def __init__(self, binary, args=None):
         self.pid, self.fd = pty.fork()
         if self.pid == 0:
             env = dict(os.environ)
@@ -182,7 +183,7 @@ class Studio:
             if SMOKE_CWD:
                 os.chdir(SMOKE_CWD)     # saves stay out of the repo
             try:
-                os.execvpe(binary, [binary], env)
+                os.execvpe(binary, [binary] + list(args or []), env)
             except Exception:
                 os._exit(127)
         fcntl.ioctl(self.fd, termios.TIOCSWINSZ,
@@ -867,6 +868,82 @@ def main():
         check("the exit is clean (code 0)", s2.exit_code == 0,
               repr(s2.exit_code))
         s2.close()
+
+        # ── 15. the hunt in the file view — F3 walks the scene's source
+        print("── 15. the file view's hunt — / asks, enter lands, F3 walks")
+        scene_abs = os.path.join(REPO_ROOT, "scenes", "level-1.dxn1.json")
+        s3 = Studio(binary, ["--scene", scene_abs])   # a play boot: 'e'
+                                                      # views the source
+        s3.settle(2.4)                         # the splash eats the first key
+        s3.send("e")                           # e → the scene's source
+        fv = None
+        for _ in range(10):                    # poll the view's chip
+            fv = s3.settle(0.3)
+            if fv is not None and fv.find(" FILE ") is not None:
+                break
+        check("the file view opens on the scene's source",
+              fv is not None and fv.find(" FILE ") is not None and
+              "level-1.dxn1.json" in fv.text(0),
+              "no frame" if fv is None else repr(fv.text(0)[:60]))
+        s3.send("/")
+        time.sleep(0.25)
+        s3.send("coin")
+        scr3 = s3.settle(0.3)
+        check("the bar asks the question (enter to run)",
+              "/coin" in scr3.text(0) and "enter to run" in scr3.text(0),
+              repr(scr3.text(0)[-40:]))
+        s3.send("\r")
+        scr3 = s3.settle(0.35)
+        check("the landing speaks its ordinal among the hits",
+              "hit 1/" in scr3.text(0) and "F3 walks" in scr3.text(0),
+              repr(scr3.text(0)[-40:]))
+        bed_row = None
+        for r in range(1, ROWS - 1):
+            if scr3.bg_at(r, 6) == (58, 44, 8):
+                bed_row = r
+                break
+        check("the landing paints its line with the amber bed (its natural "
+              "row — the file fits the view, no scroll)",
+              bed_row == 19, f"bed at {bed_row}")
+        s3.send(F3)
+        scr3 = s3.settle(0.35)
+        check("F3 walks to the NEXT hit (the strict law)",
+              "hit 2/" in scr3.text(0), repr(scr3.text(0)[-40:]))
+        bed2 = None
+        for r in range(1, ROWS - 1):
+            if scr3.bg_at(r, 6) == (58, 44, 8):
+                bed2 = r
+                break
+        check("the bed rides with the landing (line 20, still its natural row)",
+              bed2 == 20, f"bed at {bed2}")
+        s3.send(F3_SHIFT)
+        scr3 = s3.settle(0.35)
+        check("shift+F3 walks back to the first hit",
+              "hit 1/" in scr3.text(0), repr(scr3.text(0)[-40:]))
+        s3.send("/")
+        time.sleep(0.25)
+        scr3 = s3.settle(0.2)
+        check("the question survives the walk (/ reopens it)",
+              "/coin" in scr3.text(0) and "enter to run" in scr3.text(0),
+              repr(scr3.text(0)[-40:]))
+        for _ in range(4):
+            s3.send("\x7f")                        # back eats the question
+            time.sleep(0.08)
+        s3.send("magnet")
+        scr3 = s3.settle(0.25)
+        check("a fresh question edits honestly",
+              "/magnet" in scr3.text(0), repr(scr3.text(0)[-40:]))
+        s3.send("\r")
+        scr3 = s3.settle(0.35)
+        check("the fresh question lands its own first hit",
+              "hit 1/1" in scr3.text(0), repr(scr3.text(0)[-40:]))
+        s3.send(ESC)                               # esc leaves the view
+        time.sleep(0.3)
+        s3.send("q")                               # q quits from play
+        gone3 = s3.wait_exit()
+        check("the scene studio exits clean", gone3 and s3.exit_code == 0,
+              repr(s3.exit_code))
+        s3.close()
 
         return finish(s)
     except Exception as e:

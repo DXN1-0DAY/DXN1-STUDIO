@@ -172,8 +172,18 @@ Keys pollKeys(Mode mode) {
               }
               break;
             case '~': {
-              if (mode != Mode::Ide) break;
               const int p = std::atoi(params.c_str());
+              if (p == 16) {                 // F3: the hunt — the IDE AND the
+                const size_t s16 =          // file view both walk it
+                    params.rfind(';');
+                const bool shift = s16 != std::string::npos &&
+                                   s16 + 1 < params.size() &&
+                                   params[s16 + 1] == '2';
+                if (shift) k.findBack = true;
+                else k.findJump = true;
+                break;
+              }
+              if (mode != Mode::Ide) break;
               // for '~' the params are the KEY NUMBER; a modifier only
               // exists when a ';' is present (3;5~ = ctrl+delete)
               const size_t semi = params.rfind(';');
@@ -213,7 +223,8 @@ Keys pollKeys(Mode mode) {
               // SS3 R (ESC O R) is F3 in the xterm dialect — the same
               // hunt, the other keyboard grammar. A CSI 'R' is a cursor
               // position report; !csi keeps the report silent.
-              if (!csi && mode == Mode::Ide) k.findJump = true;
+              if (!csi && (mode == Mode::Ide || mode == Mode::File))
+                k.findJump = true;
               break;
             case 'M': {
               // SGR mouse report: ESC[<b;x;yM — button 0 is the left
@@ -342,11 +353,13 @@ std::string fmtTime(float t) {
 // ---- FILE VIEW: the loaded scene's source, line numbers, / search
 
 void drawFile(dxn3::Screen& scr, const std::vector<std::string>& lines,
-              int top, const std::string& query, const std::string& path) {
+              int top, const std::string& query, const std::string& path,
+              int sel, const std::string& status) {
   scr.clear(dxn3::rgb(9, 10, 18));
   const RGB dim = dxn3::rgb(110, 118, 140);
   const RGB txt = dxn3::rgb(220, 222, 232);
   const RGB hit = dxn3::rgb(250, 204, 21);
+  const RGB landBg = dxn3::rgb(58, 44, 8);   // the landing's dark amber bed
   scr.railBg(0, dxn3::rgb(22, 12, 36));
   scr.railBg(scr.rows - 1, dxn3::rgb(13, 8, 23));
   scr.textBg(0, 0, " FILE ", dxn3::rgb(233, 213, 255), dxn3::rgb(88, 28, 135));
@@ -356,21 +369,22 @@ void drawFile(dxn3::Screen& scr, const std::vector<std::string>& lines,
     if (scr.cols > static_cast<int>(head.size()) + 16)
       scr.text(7, 0, head, dxn3::rgb(196, 181, 253));
   }
-  const std::string search = query.empty() ? " / to search"
-                                           : " /" + query + "  (enter to run)";
   if (scr.cols > 40)
-    scr.text(scr.cols - static_cast<int>(search.size()), 0, search,
-             query.empty() ? dim : hit);
+    scr.text(scr.cols - static_cast<int>(status.size()), 0, status,
+             status == " / to search" ? dim : hit);
   const int maxRow = scr.rows - 1;
   for (int row = 1; row < maxRow; ++row) {
     const int li = top + row - 1;
     if (li >= static_cast<int>(lines.size())) break;
     char num[16];
     std::snprintf(num, sizeof num, "%4d ", li + 1);
-    scr.text(0, row, num, dim);
-    scr.text(5, row, lines[li],
-             (!query.empty() && lines[li].find(query) != std::string::npos)
-                 ? hit : txt);
+    const bool landed = li == sel;
+    scr.text(0, row, num, landed ? hit : dim);
+    const RGB fg =
+        (!query.empty() &&
+         lines[li].find(query) != std::string::npos) ? hit : txt;
+    if (landed) scr.textBg(5, row, lines[li], fg, landBg);
+    else scr.text(5, row, lines[li], fg);
   }
 }
 
@@ -1427,6 +1441,17 @@ int main(int argc, char** argv) {
   bool fileView = false, searching = false;
   int fileTop = 0;
   std::string query;
+  int fileSel = -1;                 // the hunt's landing: the hit the view
+                                    // stands on (-1 = never landed)
+  std::string fileQ;                // the committed query — it survives the
+                                    // enter, so F3/shift+F3 can walk its hits
+  const int fileN = static_cast<int>(fileLines.size());   // hoisted so the
+                                    // hunt's law and its rail read one truth
+  const auto fileMatch = [&](int li) {
+    return li >= 0 && li < fileN &&
+           fileLines[static_cast<size_t>(li)].find(fileQ) !=
+               std::string::npos;
+  };
 
   std::println("dxn3 native {} (C++23) — scene '{}' — {} entities — magnet {}px",
                dxn3::DXN3_VERSION, game.scene.name, game.scene.entities.size(),
@@ -2002,7 +2027,10 @@ int main(int argc, char** argv) {
         if (searching) searching = false;
         else fileView = false;
       }
-      if (keys.slash && !searching) { searching = true; query.clear(); }
+      if (keys.slash && !searching) {
+        searching = true;
+        query = fileQ;         // the question survives: / reopens it, back edits
+      }
       if (searching) {
         if (keys.back) { if (!query.empty()) query.pop_back(); }
         else query += keys.typed;
@@ -2011,15 +2039,35 @@ int main(int argc, char** argv) {
         const int maxTop = std::max(0, static_cast<int>(fileLines.size()) - (rows - 3));
         fileTop = std::clamp(fileTop + keys.scroll, 0, maxTop);
       }
+      // the hunt, one law with the IDE's F3: strictly after the hand
+      // going down, strictly before going up, the full cycle IS the
+      // wrap, an empty question silent, a landing paints its line.
+      auto fileLand = [&](int pick) {
+        fileSel = pick;
+        const int maxTop = std::max(0, fileN - (rows - 3));
+        fileTop = std::clamp(pick - 2, 0, maxTop);
+      };
       if (keys.enter && searching && !query.empty()) {
         searching = false;
-        for (size_t i = 1; i <= fileLines.size(); ++i) {   // wrap-around find
-          const size_t li = (fileTop + i) % fileLines.size();
-          if (fileLines[li].find(query) != std::string::npos) {
-            const int maxTop = std::max(0, static_cast<int>(fileLines.size()) - (rows - 3));
-            fileTop = std::clamp(static_cast<int>(li) - 2, 0, maxTop);
-            break;
+        const bool fresh = query != fileQ || fileSel < 0;
+        fileQ = query;
+        if (fileN > 0) {
+          // the strict law: the SAME question walks from its last
+          // landing (it never re-lands the hit you stand on); a fresh
+          // question starts from the viewport's head
+          const int hand = fresh ? fileTop : fileSel;
+          for (int i = 1; i <= fileN; ++i) {
+            const int li = (hand + i) % fileN;
+            if (fileMatch(li)) { fileLand(li); break; }
           }
+        }
+      }
+      if ((keys.findJump || keys.findBack) && !fileQ.empty() && fileN > 0) {
+        const int hand = fileSel >= 0 ? fileSel : fileTop;
+        for (int i = 1; i <= fileN; ++i) {
+          const int li = keys.findJump ? (hand + i) % fileN
+                                       : ((hand - i) % fileN + fileN) % fileN;
+          if (fileMatch(li)) { fileLand(li); break; }
         }
       }
     }
@@ -2263,7 +2311,27 @@ int main(int argc, char** argv) {
     if (g_raw) {
       termSize(cols, rows);
       scr.resize(cols, rows);
-      if (fileView) drawFile(scr, fileLines, fileTop, query, scenePath);
+      if (fileView) {
+        // the hunt's rail: the question, the landing's ordinal among
+        // the hits, the honest "no hits" — words computed where the
+        // state lives, so the law and the sentence cannot diverge
+        std::string st = " / to search";
+        if (searching) {
+          if (!query.empty()) st = " /" + query + "  (enter to run)";
+        } else if (!fileQ.empty()) {
+          int m = 0, ord = 0;
+          for (int li = 0; li < fileN; ++li) {
+            if (!fileMatch(li)) continue;
+            ++m;
+            if (li == fileSel) ord = m;
+          }
+          st = m == 0 ? " /" + fileQ + "  no hits — / reasks"
+                      : " /" + fileQ + "  hit " + std::to_string(ord) + "/" +
+                            std::to_string(m) + " — F3 walks";
+        }
+        drawFile(scr, fileLines, fileTop, searching ? query : fileQ,
+                 scenePath, fileSel, st);
+      }
       else if (ide.open) drawIDE(scr, ide, game, host.running());
       else if (inspect) drawInspect(scr, game);
       else drawWorld(scr, game);
@@ -2392,7 +2460,7 @@ int main(int argc, char** argv) {
       } else if (cmdErrT > 0) {
         scr.text(0, rows - 1, " dxn3: " + cmdErr, dxn3::rgb(248, 113, 113));
       } else if (fileView) {
-        scr.help(" j/k scroll · / find · enter run · esc back · q quit");
+        scr.help(" j/k scroll · / find · enter/F3 walk · shift+F3 back · esc · q");
       } else if (inspect) {
         scr.help(" a/d move · w jump · r reset · +/- zoom · f fit · b dots · q quit");
       } else {
