@@ -1005,6 +1005,33 @@ def main():
         check("the disk's truth is back (QQ gone, ZZZ stays)",
               "ZZZ" in scr.text(5) and "QQ" not in scr.text(5),
               repr(scr.text(5)[GUTTER:GUTTER + 14]))
+
+        # ── 13g. the walker — ctrl+o / alt+arrows walk the jumps ─────
+        print("── 13g. the walker — the ledger's past, walked")
+        s1d.send("\x1b[1;3D")                  # alt+←: one step into the past
+        scr = s1d.settle(0.35)
+        check("alt+← walks back to the leap before the newest",
+              "the hand walks back to line 55" in scr.text(ROWS - 2),
+              repr(scr.text(ROWS - 2)[:60]))
+        s1d.send("\x1b[1;3D")
+        scr = s1d.settle(0.35)
+        check("a second step reaches deeper history",
+              "the hand walks back to line 30" in scr.text(ROWS - 2),
+              repr(scr.text(ROWS - 2)[:60]))
+        scr, _ = s1d.run_verb("jumps", "ide")
+        check(":jumps wears the walker's > bookmark",
+              "now 7 · 55 · >30 · 7" in scr.text(ROWS - 2),
+              repr(scr.text(ROWS - 2)[:70]))
+        s1d.send("\x1b[1;3C")                  # alt+→: the walk out
+        scr = s1d.settle(0.35)
+        check("alt+→ climbs back out of the past",
+              "the hand walks forward to line 55" in scr.text(ROWS - 2),
+              repr(scr.text(ROWS - 2)[:60]))
+        s1d.send("\x0f")                       # ctrl+o: the vim law
+        scr = s1d.settle(0.35)
+        check("ctrl+o walks the same ledger one step back",
+              "the hand walks back to line 30" in scr.text(ROWS - 2),
+              repr(scr.text(ROWS - 2)[:60]))
         s1d.send(ESC)
         time.sleep(0.3)
         s1d.send("q")

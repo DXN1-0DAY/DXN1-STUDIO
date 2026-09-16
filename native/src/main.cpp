@@ -141,6 +141,7 @@ Keys pollKeys(Mode mode) {
               break;
             case 'C':
               if (mode == Mode::Ide && mod == 6) k.sWRight = true;  // word select
+              else if (mode == Mode::Ide && mod == 3) k.jumpFwd = true;  // alt+→
               else if (mode == Mode::Ide && mod == 5) k.wRight = true;
               else if (mode == Mode::Ide && mod == 2) k.sRight = true;
               else if (mod == 0) {
@@ -151,6 +152,7 @@ Keys pollKeys(Mode mode) {
               break;
             case 'D':
               if (mode == Mode::Ide && mod == 6) k.sWLeft = true;   // word select
+              else if (mode == Mode::Ide && mod == 3) k.jumpBack = true; // alt+←
               else if (mode == Mode::Ide && mod == 5) k.wLeft = true;
               else if (mode == Mode::Ide && mod == 2) k.sLeft = true;
               else if (mod == 0) {
@@ -298,6 +300,8 @@ Keys pollKeys(Mode mode) {
         else if (c == 0x1c) k.leap = true;                // Ctrl+\ — to the partner
         else if (c == 0x1a) k.ctrlZ = true;               // Ctrl+Z — undo
         else if (c == 0x19) k.ctrlY = true;               // Ctrl+Y — redo
+        else if (c == 0x0f) k.jumpBack = true;            // Ctrl+O — the
+                              // jumps' walker, one step into the past
         else if (c == 0x0c) k.ctrlL = true;               // Ctrl+L — fresh console
         else if (c == 0x06) k.ctrlF = true;               // Ctrl+F — find
         else if (c == 0x04) k.ctrlD = true;               // Ctrl+D — dup lines
@@ -1117,6 +1121,7 @@ int main(int argc, char** argv) {
                    "       tab snippet/indent\n"
                    "       shift+tab dedent · ctrl+/ comment\n"
                    "       shift+arrows select · shift+ctrl+←/→ select words\n"
+                   "       ctrl+o / alt+← walk the jumps back · alt+→ walks out\n"
                    "       ctrl+l clear the console · ctrl+n template · ctrl+g error line · ctrl+p screenshot\n"
                    "       F2 next pin · shift+F2 previous pin · ctrl+F2 plant/pull a pin\n"
                    "       :minimap the document's map rail · :ruler guides · :stats · :zen the quiet\n"
@@ -1397,7 +1402,8 @@ int main(int argc, char** argv) {
     if (!ide.open) ide.open = true;
     ideEver = true;
   };
-  auto openScript = [&](const std::string& path) -> std::string {
+  auto openScript = [&](const std::string& path,
+                        bool keepJumps = false) -> std::string {
     std::ifstream f(path, std::ios::binary);
     if (!f.good()) return "no such file: " + path;
     host.stop();                     // a new document owns the stage
@@ -1416,7 +1422,10 @@ int main(int argc, char** argv) {
     ide.path = path;
     ide.undo.clear();                // a new document, a fresh history
     ide.redo.clear();
-    ide.jumps.clear();               // a jump belongs to the doc it leapt in
+    // a jump belongs to the doc it leapt in — but a :fresh reload is
+    // the SAME document re-read: the session's history doesn't lie,
+    // so the walker keeps its ledger when the caller says so.
+    if (!keepJumps) ide.jumps.clear();
     ide.lastTyping = ide.lastBack = false;
     ide.curR = ide.curC = ide.top = 0;
     dxn3::ideSelClear(ide);          // no stale selection rides along
@@ -1437,7 +1446,7 @@ int main(int argc, char** argv) {
       ide.curC = c;
       ide.hcol = c;
       ide.top = std::max(0, r - 4);  // the landing stays mid-screen
-      dxn3::ideJumpPush(ide.jumps, r);   // the welcome back IS a leap
+      dxn3::ideJumpPush(ide, r);         // the welcome back IS a leap
       resumed = true;
     }
     takeStage();
@@ -1680,7 +1689,7 @@ int main(int argc, char** argv) {
           const int step = static_cast<int>(cmd.num);
           const int from = ide.curR;     // the jump's law: a CHANGE of
           ide.curR = target;             // line plants — a stand does not
-          if (target != from) dxn3::ideJumpPush(ide.jumps, target);
+          if (target != from) dxn3::ideJumpPush(ide, target);
           ide.curC = 0;
           ide.top = std::max(0, ide.curR - 4);   // the jump lands mid-screen
           ide.lastTyping = ide.lastBack = false;
@@ -1990,7 +1999,8 @@ int main(int argc, char** argv) {
           // :goto, the pins' F2, the welcome back — newest first, the
           // "now" leading. A memory of where you have been.
           takeStage();
-          const std::string j = dxn3::ideJumpsWhisper(ide.jumps);
+          const std::string j =
+              dxn3::ideJumpsWhisper(ide.jumps, ide.jumpIx);
           ide.console.push_back(
               j.empty()
                   ? "engine: no jumps yet — :goto, F2 and the welcome "
@@ -2011,7 +2021,7 @@ int main(int argc, char** argv) {
               cmdErr = "nothing on disk to reload — :w writes the "
                        "page first";
             else
-              cmdErr = openScript(ide.path);
+              cmdErr = openScript(ide.path, /*keepJumps=*/true);
           }
         } else if (cmd.verb == "relnum") {
           // the vim way: the gutter counts from the hand — the hand's

@@ -199,7 +199,7 @@ int main() {
   }
 
   // 9. the version quad rides in the binary too
-  ok(std::string(dxn3::DXN3_VERSION) == "3.0.70",
+  ok(std::string(dxn3::DXN3_VERSION) == "3.0.71",
      "native version constant matches the release quad");
 
   // 10. png writer: checksum vectors, real structure, byte determinism
@@ -3522,6 +3522,71 @@ int main() {
        ":fresh with an argument is refused — the disk needs no hint");
     ok(dxn3::usageHintFor(":fresh").find("disk") != std::string::npos,
        "the bar whispers whose truth wins — the disk's");
+  }
+
+  // 77. the walker: ctrl+o / alt+← step into the ledger's past, alt+→
+  // steps back out. Walking is NOT leaping — nothing plants, only the
+  // bookmark moves; a real leap kills the bookmark; the edges refuse.
+  {
+    IdeState w;
+    ok(dxn3::ideJumpWalkBack(w) == -1,
+       "an empty ledger refuses the walk");
+    dxn3::ideJumpPush(w, 6);
+    dxn3::ideJumpPush(w, 29);
+    dxn3::ideJumpPush(w, 54);
+    ok(w.jumps.size() == 3 && w.jumpIx == -1,
+       "leaps put the walker at now — no bookmark until it walks");
+    ok(dxn3::ideJumpWalkBack(w) == 29 && w.jumpIx == 1,
+       "the first step back lands on the leap before the newest");
+    ok(dxn3::ideJumpWalkBack(w) == 6 && w.jumpIx == 0,
+       "the second step reaches the ledger's oldest");
+    ok(dxn3::ideJumpWalkBack(w) == -1,
+       "the first jump refuses — nothing behind it");
+    ok(dxn3::ideJumpWalkFwd(w) == 29 && w.jumpIx == 1,
+       "the walk forward climbs back out");
+    ok(dxn3::ideJumpWalkFwd(w) == 54 && w.jumpIx == 2,
+       "and lands on the newest again");
+    ok(dxn3::ideJumpWalkFwd(w) == -1,
+       "the newest leap is the edge — nothing ahead");
+    dxn3::ideJumpPush(w, 100);
+    ok(w.jumpIx == -1 && w.jumps.back() == 100,
+       "a real leap kills the bookmark — the walker is at now");
+    ok(w.jumps.size() == 4,
+       "the walk never planted — the ledger kept its truth");
+
+    const std::vector<int> led = {6, 29, 54, 100};
+    ok(dxn3::ideJumpsWhisper(led, 2) == "now 101 · >55 · 30 · 7",
+       "the walked entry wears the > marker in its place");
+    ok(dxn3::ideJumpsWhisper(led, -1) == "now 101 · 55 · 30 · 7",
+       "no bookmark, no marker — the plain listing");
+    ok(dxn3::ideJumpsWhisper(led, 9) == "now 101 · 55 · 30 · 7",
+       "a wild bookmark is ignored");
+    ok(dxn3::ideJumpsWhisper(led, 3) == "now 101 · 55 · 30 · 7",
+       "a bookmark on the newest is the plain listing — now needs no mark");
+    ok(dxn3::ideJumpsWhisper(led, 0) == "now 101 · 55 · 30 · >7",
+       "the marker rides the ledger's tail too");
+
+    IdeState fz;
+    fz.lines = {"a", "b", "c", "d", "e"};
+    dxn3::ideJumpPush(fz, 1);
+    dxn3::ideJumpPush(fz, 3);
+    dxn3::Keys ob;
+    ob.jumpBack = true;                    // ctrl+o / alt+←
+    dxn3::ideKey(fz, ob);
+    ok(fz.curR == 1 && fz.jumpIx == 0 && fz.jumps.size() == 2,
+       "the key's walk lands the hand and moves only the bookmark");
+    ok(fz.console.back().find("walks back to line 2") != std::string::npos,
+       "the walk speaks its landing");
+    dxn3::Keys of;
+    of.jumpFwd = true;                     // alt+→
+    dxn3::ideKey(fz, of);
+    ok(fz.curR == 3 && fz.jumpIx == 1 &&
+           fz.console.back().find("walks forward to line 4") !=
+               std::string::npos,
+       "the walk out speaks its landing too");
+    dxn3::ideKey(fz, of);
+    ok(fz.console.back().find("nothing ahead") != std::string::npos,
+       "the newest leap is the edge, spoken honestly");
   }
 
 

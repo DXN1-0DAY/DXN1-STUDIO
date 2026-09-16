@@ -50,6 +50,8 @@ struct Keys {
   bool home = false, end = false;              // IDE: line ends
   bool ctrlG = false;                          // IDE: jump to the error line
   bool ctrlZ = false, ctrlY = false;           // IDE: undo / redo
+  bool jumpBack = false, jumpFwd = false;      // IDE: the jumps' walker —
+                                // ctrl+o / alt+← into the past, alt+→ out
   bool ctrlL = false;                          // IDE: clear the console
   bool ctrlF = false;                          // IDE: find in the file
   bool ctrlD = false;                          // IDE: duplicate this line
@@ -149,6 +151,10 @@ struct IdeState {
   // only a change of line plants. Cleared with the document (a jump
   // belongs to the doc it leapt in), capped, newest at the back.
   std::vector<int> jumps;
+  // the walker's bookmark: where ctrl+o/alt+arrows stand in the
+  // ledger — -1 means "now", wherever the last real leap left the
+  // hand. A real leap kills the bookmark; walking only moves it.
+  int jumpIx = -1;
   // the pins: bookmarks — lines you mark so the hand can leap back
   // (:mark plants, F2 leaps). Sorted, unique line positions that follow
   // insertions and cuts; a pin dies with its line.
@@ -1311,6 +1317,33 @@ inline void ideJumpPush(std::vector<int>& jumps, int line) {
   if (jumps.size() > 32) jumps.erase(jumps.begin());
 }
 
+// the stateful plant: a real leap puts the walker back at "now" —
+// the bookmark dies with the leap that made it.
+inline void ideJumpPush(IdeState& s, int line) {
+  ideJumpPush(s.jumps, line);
+  s.jumpIx = -1;
+}
+
+// the walker: one step into the ledger's past (or back out of it).
+// Walking is NOT leaping — nothing plants, the ledger only moves its
+// bookmark. Returns the 0-based line to land on, -1 when the edge
+// refuses (an empty ledger, the first jump, or the newest already
+// under the hand). Pure, selftested.
+inline int ideJumpWalkBack(IdeState& s) {
+  if (s.jumps.empty()) return -1;
+  int ix = s.jumpIx < 0 ? static_cast<int>(s.jumps.size()) - 1 : s.jumpIx;
+  if (ix <= 0) return -1;              // the first jump — nothing behind
+  s.jumpIx = ix - 1;
+  return s.jumps[s.jumpIx];
+}
+
+inline int ideJumpWalkFwd(IdeState& s) {
+  if (s.jumps.empty() || s.jumpIx < 0) return -1;  // at now — nothing ahead
+  if (s.jumpIx >= static_cast<int>(s.jumps.size()) - 1) return -1;
+  s.jumpIx += 1;
+  return s.jumps[s.jumpIx];
+}
+
 // the ledger whispers: the leaps, NEWEST first, the freshest named
 // "now" (it answers "where have I been?"), the lines in their
 // 1-based names, capped at 8 with "… +N deeper". Empty says nothing —
@@ -1326,6 +1359,33 @@ inline std::string ideJumpsWhisper(const std::vector<int>& jumps) {
   }
   if (jumps.size() > kCap)
     out += " … +" + std::to_string(jumps.size() - kCap) + " deeper";
+  return out;
+}
+
+// the whisper with the walker's bookmark worn: the entry the hand
+// walks on carries ">" so the listing answers BOTH questions — where
+// the leaps went AND where the walker stands. No bookmark, a wild
+// one, or one sitting on "now": the plain listing. A bookmark hidden
+// beyond the cap simply stays unseen (honest).
+inline std::string ideJumpsWhisper(const std::vector<int>& jumps,
+                                   int walkIx) {
+  if (jumps.empty()) return ideJumpsWhisper(jumps);
+  const size_t n = jumps.size();
+  if (walkIx < 0 || static_cast<size_t>(walkIx) >= n)
+    return ideJumpsWhisper(jumps);
+  const size_t markAt = n - 1 - static_cast<size_t>(walkIx);
+  if (markAt == 0) return ideJumpsWhisper(jumps);   // the walker is at now
+  constexpr size_t kCap = 8;
+  std::string out;
+  size_t shown = 0;
+  for (size_t i = n; i-- > 0 && shown < kCap;) {
+    if (shown == 0) out += "now " + std::to_string(jumps[i] + 1);
+    else if (shown == markAt)
+      out += " · >" + std::to_string(jumps[i] + 1);
+    else out += " · " + std::to_string(jumps[i] + 1);
+    ++shown;
+  }
+  if (n > kCap) out += " … +" + std::to_string(n - kCap) + " deeper";
   return out;
 }
 
@@ -2215,11 +2275,44 @@ inline void ideKey(IdeState& ide, const Keys& k) {
         const int from = ide.curR;     // the leap's law: a CHANGE of line
         ide.curR = to;                 // plants the jump — a stand does not
         ide.curC = 0;
-        if (to != from) ideJumpPush(ide.jumps, to);
+        if (to != from) ideJumpPush(ide, to);
         ideSelClear(ide);
         ide.console.push_back("engine: the hand leaps to the pin at line " +
                               std::to_string(to + 1));
       }
+    }
+    ide.lastTyping = ide.lastBack = false;
+    ide.idle = 0;
+    return;
+  }
+
+  // ── the jumps' walker: ctrl+o / alt+← into the ledger's past,
+  // alt+→ back out. A look, never an edit: nothing plants, the
+  // ledger only moves its bookmark — the draw keeps the hand on
+  // screen the way the pins' leap trusts it to.
+  if (k.jumpBack || k.jumpFwd) {
+    const int to =
+        k.jumpBack ? ideJumpWalkBack(ide) : ideJumpWalkFwd(ide);
+    if (to < 0) {
+      ide.console.push_back(
+          k.jumpBack
+              ? (ide.jumps.empty()
+                     ? "engine: no jumps to walk — :goto, F2 and the "
+                       "welcome back plant them"
+                     : "engine: the ledger's first jump — nothing "
+                       "behind it")
+              : "engine: nothing ahead — you stand on the newest leap");
+    } else {
+      ide.curR = to;
+      ide.curC = 0;
+      ide.hcol = 0;
+      ideSelClear(ide);
+      ide.console.push_back(
+          k.jumpBack
+              ? "engine: the hand walks back to line " +
+                    std::to_string(to + 1)
+              : "engine: the hand walks forward to line " +
+                    std::to_string(to + 1));
     }
     ide.lastTyping = ide.lastBack = false;
     ide.idle = 0;

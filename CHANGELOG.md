@@ -1,3 +1,45 @@
+## v3.0.71 — the walker (ctrl+o / alt+←→ walk the jumps)
+
+- **The jumps ledger is now walkable.** ctrl+o (the vim law) and
+  alt+← step one leap into the past; alt+→ climbs back out — the
+  IDE-standard navigate-back/forward pair, wired to the ledger the
+  studio was already keeping. The receipt speaks each landing
+  ("the hand walks back to line 30"), the edges refuse honestly
+  ("the ledger's first jump — nothing behind it", "nothing ahead —
+  you stand on the newest leap", "no jumps to walk" naming the
+  three planters).
+- **WALKING IS NOT LEAPING.** The walk moves the hand and the
+  walker's bookmark — it plants NOTHING (the ledger kept its truth:
+  where the hand has BEEN, not a second history of the walking).
+  A real leap kills the bookmark and puts the walker back at "now".
+- **`:jumps` wears the bookmark.** The listing marks the entry the
+  walker stands on (">") so it answers both questions at once —
+  where the leaps went AND where the walker stands ("now 7 · 55 ·
+  >30 · 7"). No bookmark, a wild one, or one sitting on "now":
+  the plain listing; a bookmark hidden beyond the 8-cap stays
+  unseen.
+- The pure laws live in edit.hpp — `ideJumpWalkBack`/`ideJumpWalkFwd`
+  (the bookmark moves, the edges refuse), an `ideJumpPush(IdeState&,
+  int)` overload (the leap kills the bookmark), and an
+  `ideJumpsWhisper(vector, walkIx)` overload (the marker) — with
+  the keys parsed in pollKeys: ctrl+o as byte 0x0f, alt+←/→ as CSI
+  modifier 3 on 'D'/'C'. The three leap sites share the stateful
+  plant. `--help` documents the keys.
+- **A :fresh reload keeps the ledger.** The walker caught a law
+  conflict the day after :fresh shipped: openScript cleared the
+  jumps, but a reload is the SAME document re-read — history
+  doesn't lie (the pins still go home: a marker may point at
+  different words after the disk reshapes the page, history only
+  remembers). openScript now takes `keepJumps`; only :fresh says
+  yes.
+- Selftest group 77 (19 asserts) — 687 → 706 groups: the empty
+  refusal, the two steps down, the first-jump edge, the climb out,
+  the newest edge, the bookmark's death by leap, the walk that
+  never plants, the marker in place/on the tail/ignored, and the
+  real-key walks through `ideKey` with receipts. Smoke section 13g
+  (5 checks) — 136 → 141: alt+← twice, the marked `:jumps`, alt+→
+  out, ctrl+o one more step.
+
 ## v3.0.70 — :fresh (the disk's truth wins the page back)
 
 - **`:fresh` reloads the page from its file** — `:e!`'s twin. The
