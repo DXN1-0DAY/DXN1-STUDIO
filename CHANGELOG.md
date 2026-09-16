@@ -1,3 +1,22 @@
+## v3.0.79 — the rebalance (:center; the census joins :stats)
+
+- **`:center` — the view centers on your hand.** z. in vim's tongue:
+  the hand rides the viewport's middle (the SAME page the draw and
+  the wheel use), clamped to the document's honest edges — a hand
+  near the top keeps the top, a hand near the bottom keeps the
+  bottom; the middle is a preference, the document is the law. A
+  look, never an edit: nothing dirties, nothing undoes. The pure law
+  is `ideCenter` in edit.hpp (top = curR − page/2, clamped); the
+  smoke drives a mid-document line to the gutter's middle row.
+- **`:stats` speaks the census.** The document's first line now ends
+  "· N changed this session" when the session has touched anything —
+  the census's third face (the header badge, the map's emerald
+  ticks, and now the stats receipt) — so the count answers in the
+  same breath as the words and chars.
+- Selftest group 83 (6 asserts) 754 -> 759; smoke 13i2 (2 checks)
+  161 -> 163 — the landing receipt and the gutter's middle row,
+  through the real pty.
+
 ## v3.0.78 — the take, listed (:record shows its work; :macro N)
 
 - **The recorder's stop receipt lists the take.** `:record` ends and

@@ -1345,6 +1345,20 @@ inline void ideScroll(IdeState& s, int delta) {
   s.idle = 0;
 }
 
+// ── the rebalance: the view centers on the hand ────────────────────
+// :center — z. in vim's tongue. The hand rides the viewport's middle
+// (the SAME page the draw and the wheel use), clamped to the doc's
+// honest edges: a hand near the top keeps the top, a hand near the
+// bottom keeps the bottom — the middle is a preference, the document
+// is the law. A look, never an edit: nothing dirties, nothing undoes.
+inline void ideCenter(IdeState& s) {
+  const int page = s.page > 0 ? s.page : 1;
+  const int maxTop = std::max(0, static_cast<int>(s.lines.size()) - page);
+  s.top = std::clamp(s.curR - page / 2, 0, maxTop);
+  ideClamp(s);
+  s.idle = 0;
+}
+
 // ── the autoscroll: a hand parked at the viewport's edge pulls the ───
 // view toward the unseen lines — the drag's other half. While the
 // button is down AND a real drag is under way (an anchor exists — a

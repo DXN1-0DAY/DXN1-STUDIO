@@ -199,7 +199,7 @@ int main() {
   }
 
   // 9. the version quad rides in the binary too
-  ok(std::string(dxn3::DXN3_VERSION) == "3.0.78",
+  ok(std::string(dxn3::DXN3_VERSION) == "3.0.79",
      "native version constant matches the release quad");
 
   // 10. png writer: checksum vectors, real structure, byte determinism
@@ -3848,11 +3848,36 @@ int main() {
     ok(!m5.ok(), ":record still takes no argument — the take is the typing");
     ok(dxn3::usageHintFor("record").find("recorder") != std::string::npos,
        "the recorder's law whispers as you type");
+  }
+
+  // 83. the rebalance: :center — the hand rides the viewport's middle,
+  // clamped to the doc's honest edges; a look, never an edit.
+  {
+    IdeState c;
+    c.lines.clear();                       // the default doc has one empty line
+    for (int i = 0; i < 100; ++i) c.lines.push_back("l" + std::to_string(i));
+    c.page = 20;                           // the viewport's rows
+    c.curR = 50;
+    dxn3::ideCenter(c);
+    ok(c.top == 40, "the middle is the preference — 50 rides at 40");
+    ok(c.curR == 50 && c.lines.size() == 100,
+       "the hand and the document are untouched (a look, never an edit)");
+    c.curR = 3;
+    dxn3::ideCenter(c);
+    ok(c.top == 0, "a hand near the top keeps the top (clamped)");
+    c.curR = 97;
+    dxn3::ideCenter(c);
+    ok(c.top == 80, "a hand near the bottom keeps the bottom (maxTop wins)");
+    const auto cz = dxn3::parseCommand(":center");
+    ok(cz.ok() && cz.arg.empty(), ":center takes no argument");
+  }
+
+  // 83b. the macro register's session law, restated in the pure world:
+  // a restart empties the register (main clears on start)
+  {
     IdeState mr;
     mr.macro = {":trim", ":stats"};
     mr.recording = true;
-    // the recorder's toggle law, as the handler speaks it: a restart
-    // empties the register (main clears on start)
     mr.recording = false;
     mr.recording = true;
     mr.macro.clear();

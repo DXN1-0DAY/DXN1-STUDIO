@@ -144,6 +144,7 @@ inline Cmd parseCommand(std::string_view line) {
              c.verb == "lift" || c.verb == "drop" || c.verb == "dup" ||
              c.verb == "join" ||
              c.verb == "mark" || c.verb == "marks" || c.verb == "zen" ||
+             c.verb == "center" ||
              c.verb == "hist" || c.verb == "undo" || c.verb == "redo" ||
              c.verb == "words" || c.verb == "todo" ||
              c.verb == "jumps" || c.verb == "relnum" ||
@@ -290,6 +291,8 @@ inline std::string usageHintFor(std::string_view typed) {
   if (verb == "fresh")
     return " :fresh — the disk's truth wins the page back; the hand "
            "returns where it left";
+  if (verb == "center")
+    return " :center — the view centers on your hand (z.'s law)";
   if (verb == "relnum")
     return " :relnum — the gutter counts from the hand (the vim way); "
            ":relnum wakes the absolutes";

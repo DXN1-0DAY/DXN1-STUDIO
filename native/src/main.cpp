@@ -2176,6 +2176,15 @@ int main(int argc, char** argv) {
             else
               cmdErr = openScript(ide.path, /*keepJumps=*/true);
           }
+        } else if (cmd.verb == "center") {
+          // the view rebalances: the hand rides the viewport's middle,
+          // clamped to the doc's edges. A look, never an edit.
+          takeStage();
+          dxn3::ideCenter(ide);
+          ide.console.push_back(
+              "engine: the view centers on line " +
+              std::to_string(ide.curR + 1) +
+              " — the hand rides the middle");
         } else if (cmd.verb == "relnum") {
           // the vim way: the gutter counts from the hand — the hand's
           // own line keeps its true name, and the toggles always come back
@@ -2201,7 +2210,11 @@ int main(int argc, char** argv) {
           ide.console.push_back(
               "engine: " + std::to_string(ide.lines.size()) + " lines · " +
               std::to_string(words) + " words · " + std::to_string(chars) +
-              " chars");
+              " chars" +
+              (ide.touched.empty()
+                   ? ""
+                   : " · " + std::to_string(ide.touched.size()) +
+                         " changed this session"));
           ide.console.push_back(
               "engine: at Ln " + std::to_string(ide.curR + 1) + " · Col " +
               std::to_string(ide.curC + 1) + " · " +
@@ -2278,7 +2291,7 @@ int main(int argc, char** argv) {
           takeStage();                         // every verb takes the stage —
                                                // a law, not a suggestion
           if (cmd.arg.empty()) {
-            game.say(":scene :open :recent :template :snip :goto :jumps :changes :fresh :mark :marks :bm :ruler :minimap :zen :relnum :trim :cases :sort :rsort :rev :uniq :shuffle :indent :dedent :lift :drop :dup :join :upper :lower :title :hist :undo :redo :words :todo :stats "
+            game.say(":scene :open :recent :template :snip :goto :jumps :changes :fresh :mark :marks :bm :ruler :minimap :zen :center :relnum :trim :cases :sort :rsort :rev :uniq :shuffle :indent :dedent :lift :drop :dup :join :upper :lower :title :hist :undo :redo :words :todo :stats "
                      ":record :macro :zoom :fit :reset :new :w :wq :q :screenshot :magnet :gravity — or :help <verb>",
                      4.f);
           } else {

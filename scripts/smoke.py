@@ -1105,6 +1105,19 @@ def main():
               " of the ledger" not in scr.text(ROWS - 1),
               repr(scr.text(ROWS - 1)[:70]))
 
+        # ── 13i2. the rebalance — :center, the hand rides the middle ─
+        print("── 13i2. :center — the view rebalances")
+        s1d.run_verb("goto 30", "ide")         # a line far from the edges
+        s1d.run_verb("center", "ide")
+        check(":center speaks its landing",
+              "the view centers on line 30" in s1d.screen().text(ROWS - 2),
+              repr(s1d.screen().text(ROWS - 2)[:70]))
+        scr = s1d.settle(0.3)
+        MID = (ROWS - 3) // 2 + 1              # the body's middle row
+        check("the hand rides the middle (the gutter says 30 there)",
+              scr.text(MID)[:GUTTER].strip() == "30",
+              repr(scr.text(MID)[:GUTTER]))
+
         s1d.send(ESC)
         time.sleep(0.3)
         s1d.send("q")
