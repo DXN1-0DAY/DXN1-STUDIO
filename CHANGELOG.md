@@ -1,3 +1,23 @@
+## v3.1.15 — the descent (the campaign's eighth scene)
+
+- **`scenes/level-7.dxn1.json` — "the descent".** The summit's
+  answer: the only way out is DOWN. Five platforms stair-step from
+  the clouds to an indigo vault floor; three lifts ride down or
+  counter-phase; six gems mark the honest line; and the campaign's
+  first LEANING FANGS — spikes with a rot of their own (20° to
+  40°, two against the grain) — possible since the engine learned
+  to turn, used here for the first time. carousel-saw runs at
+  360°/s, the fastest thing in the campaign, and it is VISIBLE now
+  (v3.1.10's rot doing its job). The chain walked: level-6 →
+  **level-7** → playground, gate 3b green; 27 entities render one
+  real headless frame, gate 3 green.
+- **`docs/img/shot-level-7.png`** — the descent's real poster in
+  the README gallery, table row added.
+- **CAMPAIGN.md** gains the descent's section (the leaning fangs,
+  the carousel, the door home) and the chain line says eight.
+- Smoke's boot check can reach it like any scene: `--scene
+  scenes/level-7.dxn1.json` boots and quits clean.
+
 ## v3.1.14 — the long run, on a seeded desert
 
 - **`sdk/examples/dino.js` — an endless runner.** Space leaps (one

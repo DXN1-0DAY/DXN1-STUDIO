@@ -1,0 +1,49 @@
+{
+  "name": "the descent (level-7)",
+  "bg": "#080a14",
+  "gravity": 1500,
+  "magnet": 150,
+  "next": "scenes/playground.dxn1.json",
+  "camera": { "x": 100, "y": 300, "zoom": 0.8 },
+  "entities": [
+    { "name": "hero", "tag": "player", "x": 60, "y": 90, "w": 34, "h": 44, "color": "#8b5cf6" },
+
+    { "name": "start-ledge", "x": -200, "y": 140, "w": 620, "h": 90, "color": "#1f2937" },
+    { "name": "readme", "tag": "sign", "x": 170, "y": 66, "w": 30, "h": 34, "color": "#94a3b8", "text": "THE DESCENT \u2014 the fangs lean now" },
+    { "name": "fang-a", "tag": "spike", "x": 450, "y": 112, "w": 34, "h": 28, "shape": "triangle", "color": "#ef4444", "rot": 30 },
+
+    { "name": "drop-1", "x": 520, "y": 240, "w": 220, "h": 26, "color": "#1f2937" },
+    { "name": "fang-1", "tag": "spike", "x": 600, "y": 212, "w": 34, "h": 28, "shape": "triangle", "color": "#ef4444", "rot": -35 },
+    { "name": "gem-1", "tag": "coin", "x": 560, "y": 180, "w": 22, "h": 22, "shape": "circle", "color": "#facc15" },
+
+    { "name": "drop-2", "x": 840, "y": 330, "w": 200, "h": 26, "color": "#1f2937" },
+    { "name": "saw-1", "tag": "hazard", "x": 900, "y": 268, "w": 38, "h": 38, "color": "#fb7185", "rot": 0, "spin": 280 },
+    { "name": "gem-2", "tag": "coin", "x": 960, "y": 270, "w": 22, "h": 22, "shape": "circle", "color": "#facc15" },
+
+    { "name": "shaft-floor", "x": 1120, "y": 430, "w": 260, "h": 60, "color": "#1f2937" },
+    { "name": "fang-2", "tag": "spike", "x": 1200, "y": 402, "w": 34, "h": 28, "shape": "triangle", "color": "#ef4444", "rot": 20 },
+    { "name": "saw-2", "tag": "hazard", "x": 1320, "y": 368, "w": 38, "h": 38, "color": "#fb7185", "rot": 0, "spin": 300 },
+
+    { "name": "lift-1", "tag": "mover", "x": 1460, "y": 430, "w": 110, "h": 20, "color": "#38bdf8",
+      "path": [ { "x": 1460, "y": 430 }, { "x": 1460, "y": 300 } ], "pspeed": 85 },
+
+    { "name": "mid-deck", "x": 1600, "y": 300, "w": 240, "h": 26, "color": "#1f2937" },
+    { "name": "gem-3", "tag": "coin", "x": 1680, "y": 260, "w": 22, "h": 22, "shape": "circle", "color": "#facc15" },
+    { "name": "fang-3", "tag": "spike", "x": 1760, "y": 272, "w": 34, "h": 28, "shape": "triangle", "color": "#ef4444", "rot": -30 },
+    { "name": "carousel-saw", "tag": "hazard", "x": 1900, "y": 240, "w": 38, "h": 38, "color": "#fb7185", "rot": 0, "spin": 360 },
+
+    { "name": "drop-3", "x": 2060, "y": 380, "w": 220, "h": 26, "color": "#1f2937" },
+    { "name": "gem-4", "tag": "coin", "x": 2120, "y": 340, "w": 22, "h": 22, "shape": "circle", "color": "#facc15" },
+    { "name": "fang-4", "tag": "spike", "x": 2200, "y": 352, "w": 34, "h": 28, "shape": "triangle", "color": "#ef4444", "rot": 40 },
+
+    { "name": "vault-lift", "tag": "mover", "x": 2360, "y": 400, "w": 100, "h": 20, "color": "#38bdf8",
+      "path": [ { "x": 2360, "y": 400 }, { "x": 2360, "y": 480 } ], "pspeed": 65 },
+
+    { "name": "vault-floor", "x": 2500, "y": 480, "w": 300, "h": 80, "color": "#312e81" },
+    { "name": "gem-5", "tag": "coin", "x": 2560, "y": 440, "w": 22, "h": 22, "shape": "circle", "color": "#facc15" },
+    { "name": "gem-6", "tag": "coin", "x": 2630, "y": 440, "w": 22, "h": 22, "shape": "circle", "color": "#facc15" },
+    { "name": "tip-vault", "tag": "sign", "x": 2510, "y": 430, "w": 26, "h": 30, "color": "#a78bfa", "text": "the vault floor", "tsize": 16 },
+
+    { "name": "out", "tag": "goal", "x": 2760, "y": 416, "w": 30, "h": 64, "color": "#34d399" }
+  ]
+}

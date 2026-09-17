@@ -2,7 +2,7 @@
 
 ![DXN1 STUDIO 3](assets/banner.png)
 
-![version](https://img.shields.io/badge/version-3.1.14-8b5cf6?style=flat-square)
+![version](https://img.shields.io/badge/version-3.1.15-8b5cf6?style=flat-square)
 ![gates](https://github.com/DXN1-termux/DXN1-STUDIO/actions/workflows/ci.yml/badge.svg)
 ![native](https://img.shields.io/badge/native-C%2B%2023-f97316?style=flat-square)
 ![face](https://img.shields.io/badge/face-terminal_truecolor-22d3ee?style=flat-square)
@@ -14,7 +14,7 @@
 STUDIO 3 is a real engine: open it and you start with nothing — you write code
 (Python, JavaScript, C++, anything), and it runs LIVE beside your editor. The
 Spark 2D core renders, feeds input, reports collisions and consoles your game
-in truecolor; your code IS the game. It also ships a seven-scene campaign as a
+in truecolor; your code IS the game. It also ships an eight-scene campaign as a
 demo of what the engine can do. Scenes are plain JSON, games are plain code,
 and the whole thing builds with `make`.
 
@@ -333,7 +333,7 @@ whisper as you type) ·
 `:scene <name>` loads a demo (with
 completion whispers) · `:q` quit.
 
-## The built-in demo: a seven-scene campaign
+## The built-in demo: an eight-scene campaign
 
 The Spark engine ships with a chained platformer — real headless renders
 of the shipped scenes, the same frames your terminal draws. It is a demo
@@ -346,12 +346,12 @@ of the renderer; your games are the product:
 | ![level-2](docs/img/shot-level-2.png) | ![level-3](docs/img/shot-level-3.png) |
 | **the gauntlet (level-4)** | **the vault (level-5)** |
 | ![level-4](docs/img/shot-level-4.png) | ![level-5](docs/img/shot-level-5.png) |
-| **the ascent (level-6)** | **the windmill (posed, v3.1.10's rot)** |
-| ![level-6](docs/img/shot-level-6.png) | ![windmill](docs/img/shot-windmill.png) |
+| **the ascent (level-6)** | **the descent (level-7)** |
+| ![level-6](docs/img/shot-level-6.png) | ![level-7](docs/img/shot-level-7.png) |
 
-Goals chain the scenes into a seven-scene campaign: **playground → level-1 (the
+Goals chain the scenes into an eight-scene campaign: **playground → level-1 (the
 gap) → level-2 (the movers) → level-3 (the climb) → level-4 (the gauntlet) →
-level-5 (the vault) → level-6 (the ascent) → back home.** Coins score (+10, magnetized inside the scene's radius), spikes
+level-5 (the vault) → level-6 (the ascent) → level-7 (the descent) → back home.** Coins score (+10, magnetized inside the scene's radius), spikes
 respawn you with a camera shake, movers carry you across the gaps — and the
 HUD counts it all: `COINS x/y · SCORE · TIME`, scene name on the right.
 Level-3 goes vertical — two lifts, a springboard shortcut and a gradient

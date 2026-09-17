@@ -1,7 +1,7 @@
 # The Campaign — a field guide
 
 Seven scenes, one loop: **playground → the gap → the movers → the climb →
-the gauntlet → the vault → the ascent → back home.** Every scene is a plain
+the gauntlet → the vault → the ascent → the descent → back home.** Every scene is a plain
 `.dxn1.json` file; the
 goal door carries you to the next, and the last door brings you home. The
 HUD counts `COINS x/y · SCORE · TIME` the whole way — completionists grab
@@ -76,6 +76,20 @@ sits on the mid-deck like a toll. Both clear with a running jump; both
 punish a lazy one. Six gems — two over the first terrace, one on the deck,
 one on the sky ledge, two on the summit — and the campaign's highest door,
 painted indigo because the top of THIS world earned it.
+
+## level-7 — the descent
+
+The summit's answer: the only way out is DOWN. The campaign's first
+vertical drop — five platforms stair-stepping from the clouds to a
+vault floor painted the same indigo the ascent earned — and the
+first home of the LEANING FANGS: spikes with a rot of their own
+(20°, 30°, 40°, two of them leaning against the grain), possible
+since the engine learned to turn (v3.1.10) but never used until
+now. The saws spin where they always spun — you can finally SEE
+it — with carousel-saw running 360°/s as the fastest thing in the
+campaign. Three lifts, all headed down or counter-phased; six
+gems marking the honest line; and a door that dumps you back in
+the playground, where every run begins.
 
 ## Design notes (for scene authors)
 
