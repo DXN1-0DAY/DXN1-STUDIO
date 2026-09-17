@@ -1,3 +1,27 @@
+## v3.1.55 — the hand remembers
+
+- **A REAL light bug, caught by reading the engine before the probe
+  could catch it live: cards.py's played card stayed white FOREVER.**
+  The studio (host.hpp) keeps whatever flash the game last sent — the
+  decay is the GAME's job — and cards.py set `c.flash = 1.0` on play
+  and never lowered it. One play bleached that card for the rest of
+  the run. Now the flash decays down the honest staircase (3/s: 1.0,
+  0.7, 0.4, 0.1, 0.0).
+- **The hand wears the full light law.** The five cards AND their
+  rank labels ghost in on ONE shared clock (alpha 0.15 → full over
+  0.9 s — the radar-field law); a PLAYED card wears alpha 0.5 for
+  the rest of the run (the hand remembers what it spent); and a red
+  card's double pay SPEAKS — the title glows 3 and cools at six a
+  second. Entity count unchanged (12): the light rides existing
+  bodies, the conformance pin never moved.
+- **Probe `cards_breathe_probe.py`: 17 pins, all green** — the
+  ghost clock mirrored bit for bit (worst err 0.0), both scoring
+  laws pinned (black = chips only "2 x 1", red = chips AND mult
+  "6 x 2"), the staircase honest, the spent alphas worn. The probe
+  also learned the wire's own rhythm the honest way: a selection
+  made in keys appears on the NEXT frame's redraw (tick before
+  keys — the same order law the SDK packet taught in R21).
+
 ## v3.1.54 — the mystery takes the sky
 
 - **invaders.js grows the mystery saucer — the old ROM's law,
