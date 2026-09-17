@@ -1,3 +1,18 @@
+## v3.1.83 — the gate watches the sky
+
+- **The invaders' named-stream law is promoted to gate 6.** The
+  fleet's stars are born from THEIR OWN seeded stream ("the night
+  sky", FNV-1a + xorshift32 — the dino's law, one stream per
+  concern), and until now that determinism lived only in the probe's
+  pins. The gate now replicates the stream itself (the float trap
+  handled: JS multiplies in float64, so the replication XORs in
+  int32, multiplies in float, truncates) and demands the wire's
+  nine star seats match the deal EXACTLY — plus the born-a-rumor
+  alphas (0.15) and the moon's whisper (0.25, unlit, parked at
+  W-15). Three new permanent checks: a shuffled sky, a loud star or
+  a lit moon can never ship green again. The shooter's respawn and
+  now the invaders' sky — the wire's dice are the gate's business.
+
 ## v3.1.82 — the save speaks, the wardrobe's door
 
 - **`:w` speaks what it saved.** The save's census is taken BEFORE

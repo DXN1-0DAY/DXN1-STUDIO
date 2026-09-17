@@ -5,7 +5,7 @@ A fake engine feeds each sdk/examples game a hello + ticks and checks
 the scene and frames come back. python + node + a compiled C++ game;
 each probed only when its runner exists on this machine. Honest skips.
 """
-import json, subprocess, sys, os, time, shutil, tempfile, random
+import json, subprocess, sys, os, time, shutil, tempfile, random, math
 
 BASE = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 SDK = os.path.join(BASE, "sdk")
@@ -14,6 +14,44 @@ EX = os.path.join(SDK, "examples")
 
 def have(exe):
     return shutil.which(exe) is not None
+
+
+# ── the invaders' sky: one stream per concern, on the gate's wire ────
+# The fleet's stars are born from THEIR OWN seeded stream (FNV-1a +
+# xorshift32 over "the night sky" — the dino's law; the march's
+# unseeded dice never touch it), so gate 6 predicts the deal from the
+# replicated stream and the wire must agree EXACTLY — the same
+# promotion the shooter's respawn earned. THE FLOAT TRAP: JS
+# multiplies in float64 (seed * 16777619 exceeds 2^53 and ToUint32
+# keeps only the exact float's low bits), so the replication XORs in
+# int32, multiplies in float, truncates — never clean int math.
+def _to_int32(x):
+    x &= 0xFFFFFFFF
+    return x - 0x100000000 if x >= 0x80000000 else x
+
+
+def _to_uint32_f(x):
+    return int(math.fmod(x, 4294967296.0)) % 4294967296
+
+
+def invaders_sky_deal():
+    """the nine (x, y) seats the night sky deals, in birth order"""
+    seed = 2166136261
+    for ch in "the night sky":
+        seed = _to_uint32_f(float(_to_int32(seed) ^ ord(ch)) * 16777619.0)
+
+    def nnext():
+        nonlocal seed
+        seed = (seed ^ ((seed << 13) & 0xFFFFFFFF)) & 0xFFFFFFFF
+        seed = (seed ^ (seed >> 17)) & 0xFFFFFFFF
+        seed = (seed ^ ((seed << 5) & 0xFFFFFFFF)) & 0xFFFFFFFF
+        return seed / 4294967296
+
+    out = []
+    for _ in range(9):
+        out.append((2 + math.floor(nnext() * (120 - 6)),
+                    3 + math.floor(nnext() * 9)))
+    return out
 
 
 def probe(cmd, ticks=6, hold=None, hits=None, capture_at=None):
@@ -125,6 +163,26 @@ def main():
         check("invaders.js", scene is not None and frames >= 3 and got == 62,
               f"scene={'yes' if scene else 'NO'} frames={frames} "
               f"entities={got}")
+        if scene:
+            ents = {e.get("name"): e for e in scene.get("entities", [])}
+            exp_deal = invaders_sky_deal()
+            got_deal = [(ents.get(f"star-{i}", {}).get("x"),
+                         ents.get(f"star-{i}", {}).get("y"))
+                        for i in range(9)]
+            check("invaders.js sky = its named stream's deal",
+                  got_deal == exp_deal,
+                  f"got={got_deal[:3]}... exp={exp_deal[:3]}...")
+            alphas = [ents.get(f"star-{i}", {}).get("alpha") for i in range(9)]
+            check("invaders.js stars born a rumor (alpha 0.15)",
+                  all(a is not None and abs(a - 0.15) < 1e-9
+                      for a in alphas),
+                  f"alphas={alphas[:3]}...")
+            moon = ents.get("moon", {})
+            check("invaders.js moon born a whisper (0.25, unlit)",
+                  moon.get("x") == 120 - 15 and moon.get("y") == 4 and
+                  abs((moon.get("alpha") or 0) - 0.25) < 1e-9 and
+                  moon.get("glow", 0) == 0,
+                  f"moon={moon}")
         scene, frames, console, captured = probe(["node", f"{EX}/dino.js"])
         got = len(scene.get("entities", [])) if scene else 0
         check("dino.js", scene is not None and frames >= 3 and got == 24,
