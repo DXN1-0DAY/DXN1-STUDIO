@@ -435,7 +435,7 @@ inline std::string usageHintFor(std::string_view typed) {
   if (verb == "count")
     return " :count [word] — the census of a query: a bare :count counts "
            "the searchlight's query everywhere; a word counts itself";
-  if (verb == "stats") return " :stats — lines, words, chars, where you stand";
+  if (verb == "stats") return " :stats — lines, words, chars · todos, comments, blanks, depth";
   if (verb == "diff")
     return " :diff — the page against the disk: added, changed, removed — "
            "a look, not a save";

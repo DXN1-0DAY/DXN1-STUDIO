@@ -1791,6 +1791,61 @@ inline int ideLongestLine(const IdeState& s) {
   return best;
 }
 
+// ── the document's census: markers, comments, blanks, depth ─────────
+// :stats speaks the file's WEATHER, not just its size. The laws, all
+// honest and all pure:
+//   · todos are the SHOUTED markers only — TODO / FIXME / XXX / HACK
+//     on word boundaries, upper-case exactly (lowercase prose never
+//     shouts), and a line counts ONCE however many markers it wears;
+//   · comments are lines whose first non-blank breath is the file's
+//     own comment stem (# // --) — the stem comes from the same
+//     extension table the :toggle commentator uses, so the two never
+//     disagree; a shebang IS a comment, and says so honestly;
+//   · blanks are lines that hold only air;
+//   · deepest indent is how far the worst offender reaches — tab
+//     counts as 4 columns, the classic stop, so mixed files measure
+//     on one ruler.
+struct IdeDocCensus {
+  size_t todos = 0, comments = 0, blanks = 0;
+  int deepest = 0;
+};
+
+inline IdeDocCensus ideDocCensus(const IdeState& s) {
+  IdeDocCensus c;
+  std::string stem = ideCommentFor(s.path);
+  while (!stem.empty() && stem.back() == ' ') stem.pop_back();
+  static const char* const marks[] = {"TODO", "FIXME", "XXX", "HACK"};
+  auto alnum = [](char ch) {
+    return std::isalnum(static_cast<unsigned char>(ch)) != 0 || ch == '_';
+  };
+  for (const auto& l : s.lines) {
+    const size_t a = l.find_first_not_of(" \t");
+    if (a == std::string::npos) { ++c.blanks; continue; }
+    if (l.compare(a, stem.size(), stem) == 0) ++c.comments;
+    int depth = 0;
+    for (char ch : l) {
+      if (ch == ' ') ++depth;
+      else if (ch == '\t') depth += 4;
+      else break;
+    }
+    c.deepest = std::max(c.deepest, depth);
+    for (const char* m : marks) {
+      const size_t len = std::strlen(m);
+      size_t i = l.find(m);
+      bool hit = false;
+      while (i != std::string::npos && !hit) {
+        const bool openOk = i == 0 || !alnum(l[i - 1]);
+        const size_t end = i + len;
+        const bool closeOk = end >= l.size() || !alnum(l[end]);
+        if (openOk && closeOk) hit = true;
+        i = l.find(m, i + 1);
+      }
+      if (hit) { ++c.todos; break; }   // the line counts once
+    }
+  }
+  return c;
+}
+
 // ── the eye's walk: visual ↑/↓ under the fold ───────────────────────
 // With the fold speaking, up/down walk VISUAL rows — from a line's
 // continuation row, up lands on the line's OWN head, not the line

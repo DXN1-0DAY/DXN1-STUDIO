@@ -1,3 +1,20 @@
+## v3.1.44 — the census
+
+- **:stats speaks the file's weather now.** The document row gains
+  four honest counts: shouted markers (`TODO` `FIXME` `XXX` `HACK`
+  on word boundaries, upper-case exactly — lowercase prose never
+  shouts, and a line counts ONCE however many markers it wears),
+  comment lines (by the file's own comment stem, the same
+  extension table the :toggle commentator uses — shebangs included),
+  lines of pure air, and the DEEPEST INDENT (tab = 4 columns, so
+  mixed files measure on one ruler). One row, no windows displaced
+  — the census rides the size row it belongs with.
+- Pure and selftested: `ideDocCensus` in edit.hpp, selftest group
+  105 (7 pins) — word-boundary honesty ("FIXED is not FIXME"), the
+  once-per-line law, the trailing-`//` is-ink-not-comment law, tab
+  arithmetic, and the newborn document's one line of air. 983
+  assertion groups green.
+
 ## v3.1.43 — the radar field
 
 - **Asteroids wears the engine's light — all three fields, one

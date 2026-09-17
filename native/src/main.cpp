@@ -2974,6 +2974,19 @@ int main(int argc, char** argv) {
               std::to_string(words) + " words · " + std::to_string(chars) +
               " chars · longest " +
               std::to_string(dxn3::ideLongestLine(ide)) +
+              [&] {
+                // the census: the file's weather rides the same row —
+                // shouted markers, comment lines, air, and how deep
+                // the nesting's worst offender reaches
+                const dxn3::IdeDocCensus c = dxn3::ideDocCensus(ide);
+                return " · " + std::to_string(c.todos) + " todo" +
+                       (c.todos == 1 ? "" : "s") + " · " +
+                       std::to_string(c.comments) + " comment" +
+                       (c.comments == 1 ? "" : "s") + " · " +
+                       std::to_string(c.blanks) + " blank" +
+                       (c.blanks == 1 ? "" : "s") + " · deepest indent " +
+                       std::to_string(c.deepest);
+              }() +
               (ide.touched.empty()
                    ? ""
                    : " · " + std::to_string(ide.touched.size()) +

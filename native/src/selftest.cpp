@@ -5002,6 +5002,56 @@ int main() {
     std::filesystem::remove(tmp);
   }
 
+  // 105. the census: ideDocCensus speaks the file's weather — shouted
+  // markers (word-boundary TODO/FIXME/XXX/HACK, a line counts once),
+  // comment lines by the file's own stem, air, and the deepest
+  // indent (tab = 4 columns)
+  {
+    IdeState s;
+    s.path = "notes.py";
+    s.lines = {
+        "#!/usr/bin/env python3",           // comment (a shebang is one)
+        "# TODO fix the thing",             // comment + todo
+        "import os  # TODO and FIXME here", // todo line (counts ONCE),
+                                            // not a comment (stem not first)
+        "",
+
+        "      ",                           // air made of spaces
+        "   \t\tdeep = 1",                  // indent: 3 spaces + 2 tabs = 11
+        "\t# a tabbed comment",             // comment, depth 4
+        "the todo lowercase never shouts",  // lowercase: not a marker
+        "FIXED is not FIXME",               // FIXED: word boundary saves it
+        "x = 'TODO inside a string'",       // boundaries: ' then T — hits
+                                            // (honest: the census reads ink,
+                                            // not parse trees)
+    };
+    const dxn3::IdeDocCensus c = dxn3::ideDocCensus(s);
+    ok(c.todos == 4, "four lines shout (TODO x3, FIXME by boundary), got " +
+                         std::to_string(c.todos));
+    ok(c.comments == 3, "three comment lines speak the # stem, got " +
+                            std::to_string(c.comments));
+    ok(c.blanks == 2, "two lines hold only air (empty + spaces), got " +
+                          std::to_string(c.blanks));
+    ok(c.deepest == 11, "deepest indent is 11 (tab = 4 columns), got " +
+                            std::to_string(c.deepest));
+    // a C++ file wears // — the stem follows the extension
+    IdeState cpp;
+    cpp.path = "engine.cpp";
+    cpp.lines = {"// the lead comment", "int main() { // trailing stays ink",
+                 "  // FIXME soon", "\treturn 0;"};
+    const dxn3::IdeDocCensus cc = dxn3::ideDocCensus(cpp);
+    ok(cc.comments == 2 && cc.todos == 1,
+       "a cpp's // stem honored (trailing // is ink, not a comment line), got " +
+           std::to_string(cc.comments) + "/" + std::to_string(cc.todos));
+    ok(cc.deepest == 4, "a lone tab measures 4, got " +
+                            std::to_string(cc.deepest));
+    // an empty document is honest: a newborn file is ONE line of air
+    IdeState none;
+    const dxn3::IdeDocCensus cn = dxn3::ideDocCensus(none);
+    ok(cn.todos == 0 && cn.comments == 0 && cn.blanks == 1 && cn.deepest == 0,
+       "a newborn document is one line of air, the rest zeros");
+  }
+
   if (fails == 0) {
     std::println("native selftest: all green ({} assertion groups)", n);
     return 0;
