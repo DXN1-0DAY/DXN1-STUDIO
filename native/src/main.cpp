@@ -2237,6 +2237,53 @@ int main(int argc, char** argv) {
                   ? "engine: no jumps yet — :goto, F2 and the welcome "
                     "back plant them"
                   : "engine: the jumps, newest first — " + j);
+        } else if (cmd.verb == "drift") {
+          // the drift as addresses — the census's amber, speakable. A
+          // bare :drift LISTS the lines the last :diff heard
+          // disagreeing with the disk; a number LEAPS to the Nth — the
+          // same real leap the pins' :bm and the census's :changes
+          // obey: planted in the ledger, the selection dropped, the
+          // landing mid-screen. The drift is the census's memory:
+          // :diff asks the disk first, :w sweeps what it heard.
+          takeStage();
+          if (ide.drift.empty()) {
+            ide.console.push_back(
+                "engine: no drift known — :diff asks the disk first, :w "
+                "sweeps what it heard");
+          } else if (cmd.arg.empty()) {
+            std::string out;
+            size_t shown = 0;
+            for (const int t : ide.drift) {
+              if (shown == 8) break;
+              out += (shown == 0 ? "" : " · ") + std::to_string(t + 1);
+              ++shown;
+            }
+            if (ide.drift.size() > 8)
+              out += " … +" + std::to_string(ide.drift.size() - 8) + " deeper";
+            ide.console.push_back(
+                "engine: " + std::to_string(ide.drift.size()) +
+                " line" + (ide.drift.size() == 1 ? "" : "s") +
+                " drifted from disk — " + out);
+          } else if (static_cast<int>(cmd.num) >= 1 &&
+                     static_cast<int>(cmd.num) <=
+                         static_cast<int>(ide.drift.size())) {
+            const int to = ide.drift[static_cast<size_t>(
+                static_cast<int>(cmd.num) - 1)];
+            ide.findOpen = false;              // the searchlight rests
+            ide.curR = to;
+            ide.curC = 0;
+            ide.top = std::max(0, ide.curR - 4);   // the leap lands mid-screen
+            dxn3::ideSelClear(ide);                // the leap drops the selection
+            dxn3::ideJumpPush(ide, to);            // a real leap, planted
+            ide.console.push_back(
+                "engine: the hand leaps to the drift's line " +
+                std::to_string(static_cast<int>(cmd.num)) + " — line " +
+                std::to_string(to + 1));
+          } else {
+            ide.console.push_back(
+                "engine: no such drift — :drift lists " +
+                std::to_string(ide.drift.size()));
+          }
         } else if (cmd.verb == "diff") {
           // the page against the disk — a look, never an edit, never
           // a save. The census speaks in three voices: added, changed,

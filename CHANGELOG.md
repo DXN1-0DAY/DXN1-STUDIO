@@ -1,3 +1,21 @@
+## v3.0.99 — :drift (the amber census as addresses)
+
+- **The drift is not just a mirror — it is a set of addresses.**
+  `:drift` — a bare verb LISTS the lines the last `:diff` heard
+  disagreeing with the disk (the amber ticks' own numbers, capped at
+  eight with the `... +k deeper` tail); a number LEAPS to the Nth —
+  the same real leap the pins' `:bm` and the census's `:changes`
+  obey: planted in the jumps ledger, the selection dropped, the
+  landing mid-screen. The drift is the census's memory: `:diff`
+  asks the disk first, `:w` sweeps what it heard, and a page with
+  no drift says so with the way out (`:diff` first). One law, three
+  census voices now: `:changes` speaks the session, `:count` speaks
+  the query, `:drift` speaks the disk.
+- Selftest stayed 877 (the drift store/ask laws are pinned in group
+  98; the leap lives in the verb layer). Smoke 13v: TWO drives
+  (205 -> 207) — the listing after a real drift, the leap landing
+  the hand (the header's Ln speaks it). Gates ALL GREEN.
+
 ## v3.0.98 — the dashboard's truth (:stats speaks the drift)
 
 - **`:stats` — the one-line session dashboard, extended.** The

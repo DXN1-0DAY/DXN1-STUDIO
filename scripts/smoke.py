@@ -1533,6 +1533,28 @@ def main():
               "disagree" not in scr2.text(ROWS - 2),
               repr(scr2.text(ROWS - 2)[:60]))
 
+        # ── 13v. :drift — the amber census as addresses ──────────────
+        print("── 13v. :drift — a bare verb lists, a number leaps")
+        s2.run_verb("goto 2", "ide")           # the hand drifts the page
+        s2.settle(0.2)
+        s2.send("y")
+        s2.settle(0.4)
+        s2.run_verb("diff", "ide")             # the census hears the drift
+        s2.settle(0.2)
+        scr2, _ = s2.run_verb("drift", "ide")
+        check(":drift lists what :diff heard",
+              "1 line drifted from disk" in scr2.text(ROWS - 2) and
+              "2" in scr2.text(ROWS - 2),
+              repr(scr2.text(ROWS - 2)[:70]))
+        scr2, _ = s2.run_verb("drift 1", "ide")
+        scr2 = s2.screen()
+        check(":drift 1 leaps the hand to the drifted line",
+              "leaps to the drift's line 1" in scr2.text(ROWS - 2) and
+              "Ln 2" in scr2.text(0),
+              repr(scr2.text(ROWS - 2)[:50] + " / " + scr2.text(0)[:40]))
+        s2.run_verb("undo", "ide")             # the drift's breath undone
+        s2.settle(0.3)
+
         # ── 13p. :count — the census of a query ──────────────────────
         print("── 13p. :count — the find's law, spoken as a number")
         scr2, _ = s2.run_verb("count ccc", "ide")

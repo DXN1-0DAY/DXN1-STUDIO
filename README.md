@@ -379,6 +379,7 @@ accepted:
 | `:marks` | list every pin in the file |
 | `:bm [n]` | leap to a pin; bare `:bm` takes the next, wrapping — the pins whisper as you type |
 | `:changes [n\|word]` | the census — a bare verb lists the session's touched lines; a number leaps to the Nth; a word asks which touched lines speak it |
+| `:drift [n]` | the amber census — a bare verb lists the lines that disagree with the disk; a number leaps to the Nth; `:diff` asks, `:w` sweeps |
 | `:ruler` | toggle the 79/99 column guides |
 | `:minimap` | toggle the document's map rail |
 | `:center` | the view centers on your hand — z.'s law, clamped to the edges |
