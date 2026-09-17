@@ -85,6 +85,9 @@ function gravity(g) { _scene.gravity = g; }
 function magnet(m) { _scene.magnet = m; }
 function camera(x, y, zoom = 1) { _cam = { x, y, zoom }; }
 function vars(kv) { Object.assign(_vars, kv); }
+let _say = "", _win = "";
+function say(m) { _say = String(m); }   // one transient HUD line, this frame
+function win(b) { _win = String(b); }   // banner + screen flash, this frame
 const on = {
   tick: fn => _cb.tick.push(fn),
   key: fn => _cb.key.push(fn),
@@ -128,11 +131,12 @@ function run() {
     }
     pairs = seen;
     _send({ t: "frame", set: [...E.values()], del: _dels,
-            vars: _vars, camera: _cam });
-    _dels = []; _vars = {};
+            vars: _vars, camera: _cam, say: _say, win: _win });
+    _dels = []; _vars = {}; _say = ""; _win = "";
   }
 }
 
 module.exports = { W, H, get dt() { return dt; },
                    rect, circle, tri, label, destroy, find,
-                   background, gravity, magnet, camera, vars, on, run };
+                   background, gravity, magnet, camera, vars, say, win,
+                   on, run };

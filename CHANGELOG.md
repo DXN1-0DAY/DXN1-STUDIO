@@ -1,3 +1,23 @@
+## v3.1.8 — the SDKs learn to speak (say / win)
+
+- **`say(...)` and `win(...)` in BOTH SDKs** — the wire protocol
+  always carried the frame's `say` and `win` fields (the engine's
+  `applyFrame` reads them: a transient HUD line and a banner + screen
+  flash), but the Python and JavaScript SDKs never exposed them.
+  The bridge exists now: the words ride ONE frame, the run loop
+  clears them the moment the frame is sent, and the probe suite
+  proved both halves end to end (python + node: tick 1 speaks, tick
+  2 is clean). The lunar lander wears it first — every touchdown
+  says `+N — touchdown` on the HUD, transiently, the way the engine
+  meant it.
+- **sdk/PROTOCOL.md** says so in print: the frame packet section now
+  names the SDK verbs, so the document and the SDKs tell one story.
+- The Python half earned its honesty the hard way: the first draft
+  hit Python's local-shadow law (`_say` assigned in `run()` made it
+  local — UnboundLocalError on the very first frame), caught by the
+  saywin probe before any push. `global _say, _win` in the run loop;
+  the words ride one frame.
+
 ## v3.1.7 — the moon joins the gallery
 
 - **`sdk/examples/lunar.py` — the lander, the ninth proof.** Gravity

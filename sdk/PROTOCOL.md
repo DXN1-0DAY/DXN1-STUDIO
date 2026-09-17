@@ -44,7 +44,9 @@ pairs for any tagged entities; the SDK fires `on_hit` when a pair ENTERS.
 
 `set` patches entities **by name**: known names update in place, unknown
 names spawn. Omitted fields keep their value. `del` retires names.
-`vars.score` mirrors to the studio HUD. Anything unparsable a child prints
+`vars.score` mirrors to the studio HUD. The SDKs expose `say(...)`
+and `win(...)` for the frame's `say` and `win` fields — the words ride
+ONE frame, then the run loop clears them. Anything unparsable a child prints
 (a stray `print`, a traceback, a debug line) becomes a console line — the
 engine never crashes because a game did.
 

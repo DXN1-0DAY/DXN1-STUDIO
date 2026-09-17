@@ -14,6 +14,9 @@
     def on_hit(a, b):       # two tagged entities overlapping
         ...
 
+    say("hello")            # one transient HUD line, this frame
+    win("you win")          # banner + screen flash, this frame
+
     run()                   # hands the loop to the studio
 
 The engine owns rendering, input and collision; this module talks the
@@ -124,6 +127,22 @@ def vars(**kw):
     _vars.update(kw)
 
 
+_say = ""
+_win = ""
+
+
+def say(m):
+    """one transient HUD line this frame — the engine holds it ~1.6s."""
+    global _say
+    _say = str(m)
+
+
+def win(b):
+    """banner + screen flash — the loudest honest thing a frame can say."""
+    global _win
+    _win = str(b)
+
+
 def on_tick(fn): _ticks.append(fn); return fn
 def on_key(fn): _keys.append(fn); return fn
 def on_hit(fn): _hits.append(fn); return fn
@@ -137,7 +156,8 @@ def run():
     global dt
     import inspect
     fg = inspect.stack()[1].frame.f_globals
-    def _hook(name):
+    global _say, _win                          # the words ride one frame,
+    def _hook(name):                           # then the run loop clears them
         fn = fg.get(name)                       # skip our own registrars
         return fn if callable(fn) and getattr(fn, "__module__", "") != __name__ else None
     ticks = _ticks + ([_hook("on_tick")] if _hook("on_tick") else [])
@@ -197,6 +217,10 @@ def run():
                "set": [e.d for e in E.values()],
                "del": _dels,
                "vars": _vars,
-               "camera": _cam})
+               "camera": _cam,
+               "say": _say,
+               "win": _win})
         _dels.clear()
         _vars.clear()
+        _say = ""
+        _win = ""

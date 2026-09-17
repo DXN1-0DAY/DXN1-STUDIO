@@ -126,6 +126,7 @@ def on_hit(a, b):
         pay = pays.get(other.name, 0)
         score += pay
         vars(score=score)
+        say(f"+{pay} — touchdown")
         print(f"touchdown — pad pays {pay} · fuel left {int(fuel)}")
         freeze(1.4)
 
