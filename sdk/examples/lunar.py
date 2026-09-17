@@ -7,11 +7,14 @@ import random
 background("#050810")
 
 hud = label("hud", 2, 2, "FUEL 100 · SCORE 0 · LIVES 3")
+fuelbar = rect("fuelbar", 2, 5, 28, 2, "#22c55e")   # the tank, drawn honest
 fuel = 100.0
 score = 0
 lives = 3
 flash = 0.0            # freeze beats: touchdown pays, crash mourns
 burn = 0.0             # the flame lives only this long after a burn
+alarm_t = 0.0          # the low-fuel blink's clock
+warned_low = False     # the one honest warning per tank
 
 # the moonscape: hills are honest (and lethal) ground, pads pay
 HILLS = [(-40, 430, 260, 120), (250, 390, 180, 160), (760, 400, 300, 150),
@@ -43,13 +46,17 @@ gen = 0
 
 
 def respawn_lander():
-    global fuel, burn
+    global fuel, burn, warned_low
     land.x = random.randint(20, W - 40)
     land.y = 30
     land.vx = random.choice([-12, 12])
     land.vy = 10
     fuel = 100.0
     burn = 0.0
+    warned_low = False               # a fresh tank earns a fresh warning
+    fuelbar.w = 28
+    fuelbar.color = "#22c55e"
+    fuelbar.visible = 1
     flame.visible = 0
 
 
@@ -62,10 +69,11 @@ def freeze(beat):
 
 
 def on_key(k):
-    if flash > 0 or fuel <= 0:
-        return
-    if k == "space":
-        land.vy -= BURN * dt
+    global fuel                     # the tank is the module's — without
+    if flash > 0 or fuel <= 0:      # this word the first key press died
+        return                      # (UnboundLocalError) and the lander
+    if k == "space":                # never burned a drop. A latent bug
+        land.vy -= BURN * dt        # the fuel-gauge probe just exposed.
         fuel = max(0.0, fuel - 14 * dt)
         burn = 0.09
     elif k == "left":
@@ -92,7 +100,7 @@ def crash(why):
 
 
 def on_tick(dt2):
-    global flash, burn, score
+    global flash, burn, score, alarm_t, warned_low
     if burn > 0:
         burn -= dt2
         if burn <= 0:
@@ -108,6 +116,21 @@ def on_tick(dt2):
         crash("lost to the dark below")
     elif land.x < -30 or land.x > W + 30:
         crash("drifted off the moon")
+    # the gauge: the tank empties in width AND in color — green while
+    # rich, amber under half, red under a quarter, BLINKING when the
+    # landing has to be planned, a flat line when the tank is dry
+    fuelbar.w = max(0.0, 28 * fuel / 100)
+    fuelbar.color = ("#22c55e" if fuel > 50
+                     else "#facc15" if fuel > 25 else "#ef4444")
+    if 0 < fuel <= 25:
+        alarm_t = (alarm_t + dt2) % 0.8
+        fuelbar.visible = 1 if alarm_t < 0.5 else 0
+    else:
+        alarm_t = 0.0
+        fuelbar.visible = 1
+    if fuel <= 25 and not warned_low:
+        warned_low = True
+        say("fuel low — plan the landing")
     hud.text = f"FUEL {int(fuel)} · SCORE {score} · LIVES {lives}"
 
 

@@ -1,3 +1,18 @@
+## v3.1.38 — the gauge
+
+- **lunar.py grows a fuel gauge — the tank is finally SEEABLE.** A
+  bar under the HUD empties in width AND color: green while rich,
+  amber under half, red under a quarter — BLINKING when the landing
+  has to be planned, with one honest "fuel low — plan the landing"
+  per tank, and a fresh tank after every respawn.
+- **BUG the gauge probe exposed:** `on_key` never declared
+  `global fuel` — the assignment shadowed the module global and the
+  FIRST key press died on UnboundLocalError. The lander could never
+  burn a drop; the freeze-beat's early return hid it from every
+  forced-hit probe. Fixed, and the gauge pins (width shrink, color
+  ladder, blink, warning) prove the burn end to end. Gate 6: lunar
+  entities 10 → 11.
+
 ## v3.1.37 — the wardrobe
 
 - **The editor learns to dress: `:theme` — six coats ship inside.**

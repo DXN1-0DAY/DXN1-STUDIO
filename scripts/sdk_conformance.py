@@ -88,7 +88,7 @@ def main():
                 ("flappy.py", ["python3", f"{EX}/flappy.py"], 9),
                 ("cards.py", ["python3", f"{EX}/cards.py"], 12),
                 ("snake.py", ["python3", f"{EX}/snake.py"], 5),
-                ("lunar.py", ["python3", f"{EX}/lunar.py"], 10),
+                ("lunar.py", ["python3", f"{EX}/lunar.py"], 11),
                 ("raycast.py", ["python3", f"{EX}/raycast.py"], 26),
                 ("windmill.py", ["python3", f"{EX}/windmill.py"], 13)]
     if have("python3"):
