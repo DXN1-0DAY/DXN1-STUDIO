@@ -2,6 +2,10 @@
 # run:  dxn3 sdk/examples/raycast.py
 # a Wolfenstein-style 3D view out of plain rects: left/right turn,
 # w/forward + s/back walk, a wall stops you, distance shades the world.
+# the TORCH BREATHES: the eye's lantern glows on the hud rail and the
+# whole world's shade sways ±7% on a nine-radian sine — near walls
+# burn and rest, the dark breathes back. Deterministic: the same
+# stillness, the same breath.
 from dxn3 import *
 import math
 
@@ -33,6 +37,8 @@ COLW = W / NCOL
 
 cols = [rect(f"c{i}", i * COLW, 0, COLW + 1, 1, "#8b5cf6") for i in range(NCOL)]
 mark = rect("mark", 0, 0, 6, 6, "#facc15")   # where you stand, on the hud rail
+mark.glow = 2                             # the eye's lantern
+tt = 0.0                                  # the torch's clock
 
 
 def solid(mx, my):
@@ -41,13 +47,18 @@ def solid(mx, my):
     return MAP[my][mx] == "#"
 
 
-def shade(dist, wall_kind):
-    # near walls burn violet, far walls sink into the dark
+def shade(dist, wall_kind, flick):
+    # near walls burn violet, far walls sink into the dark — and the
+    # torch sways the WHOLE color ±5% (channels, clamped), so every
+    # distance breathes, far and near alike
     t = max(0.0, min(1.0, 1.0 - dist / (9.0 * CELL)))
     if wall_kind == "x":                 # the two faces wear different tones
         r, g, b = int(90 + 120 * t), int(70 + 90 * t), int(200 + 55 * t)
     else:
         r, g, b = int(60 + 70 * t), int(45 + 55 * t), int(140 + 40 * t)
+    r = min(255, int(r * flick))
+    g = min(255, int(g * flick))
+    b = min(255, int(b * flick))
     return f"#{r:02x}{g:02x}{b:02x}"
 
 
@@ -74,6 +85,9 @@ def on_key(k):
 
 
 def on_tick(dt2):
+    global tt
+    tt += dt2
+    flick = 1.0 + 0.05 * math.sin(tt * 9.0)   # the torch's breath
     mid = H // 2                          # the horizon lives mid-screen
     for i in range(NCOL):
         ray = ang - FOV / 2 + FOV * (i + 0.5) / NCOL
@@ -95,7 +109,7 @@ def on_tick(dt2):
         c.x = i * COLW
         c.y = mid - hgt / 2
         c.h = max(2.0, hgt)
-        c.color = shade(dist, kind)
+        c.color = shade(dist, kind, flick)
     mark.x = W - 12
     mark.y = 4
 

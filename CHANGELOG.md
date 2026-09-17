@@ -1,3 +1,22 @@
+## v3.1.53 — the torch breathes
+
+- **raycast.py wears the light — every example now speaks the
+  engine's glow.** The eye's lantern (mark.glow 2) burns on the hud
+  rail, and the whole world's shade sways ±5% on a nine-radian
+  sine — the torch breathes: near walls burn and rest, the dark
+  breathes back, and the breath is DETERMINISTIC (the same
+  stillness, the same breath).
+- **The probe taught the difference between a law and a look.** The
+  first cut swung the shade's t by ±7% — mathematically present,
+  bit-mirrored by the probe, and INVISIBLE: 8-bit channels
+  quantized the breath to one color. The fix scales the CHANNELS
+  (clamped at 255) so every distance breathes visibly, far and
+  near alike. Probe `raycast_torch_probe.py`: 6 pins — the game is
+  python, so the probe replicates the full ray march and matches
+  the engine's colors EXACTLY across 3 columns x 60 ticks, pins
+  the breath's ~14-tick near-period (within 2 channel units), and
+  confirms turning still paints a different world.
+
 ## v3.1.52 — the war wears the light
 
 - **invaders.js wears the light — the last undressed example.**
