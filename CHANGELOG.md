@@ -1,3 +1,24 @@
+## v3.1.67 — the hit-pair scan chapter
+
+- **PROTOCOL.md grows the collision chapter every SDK author was
+  owed.** "The child owns the DECISION, the studio owns the
+  DETECTION" — the wire contract's collision half, written down at
+  last: the studio walks the scene it just rendered, collects the
+  overlapping pairs of TAGGED entities, and forwards them flat in
+  the next tick packet. Five laws, each paid for by a probe this
+  sprint: the TAG law (untagged entities never collide — the sky and
+  the hud ride free; this round's flappy night sky leans on it), the
+  ONE-FRAME LAG law (tick runs before hits — pin the consequence one
+  frame after the packet that carried the cause, the R23 law), the
+  ENTER law (on_hit is edge-triggered — verified against dxn3.py's
+  _pairs dedupe: a held overlap never spams, a pair that separates
+  may fire again), the PROBE law (the child does no detection, so a
+  probe must INJECT hits — a probe that waits for a real overlap
+  waits forever), and the COST law (the scan is O(n^2) every frame —
+  shooter's bolt leak is the cautionary tale, v3.1.63).
+- Docs-only increment; no code changed, no entity counts moved.
+  Gates 7 green.
+
 ## v3.1.66 — the night owns this sky too
 
 - **flappy.py grows a night of its own — and the pipes dress for it.**

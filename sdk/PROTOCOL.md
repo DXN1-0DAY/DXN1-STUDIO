@@ -77,6 +77,44 @@ ONE frame, then the run loop clears them. Anything unparsable a child prints
 (a stray `print`, a traceback, a debug line) becomes a console line — the
 engine never crashes because a game did.
 
+## the hit-pair scan — who owns collision
+
+**The child owns the DECISION, the studio owns the DETECTION.** A wire
+game never checks overlaps itself. Every tick the studio walks the
+scene it just rendered, collects the overlapping pairs of **tagged**
+entities, and forwards them flat in the next tick packet:
+
+```
+engine → child : {"t":"tick", …, "hits":["land","pad0","bird","ptop1"]}
+```
+
+The SDK fires `on_hit(a, b)` when a pair ENTERS — once per contact, not
+every tick of it. The laws that bite:
+
+**The tag law.** Untagged entities never collide — the full-screen sky,
+the hud, decoration and furniture stay out of the scan for free. Tag
+only what can be touched; a tagged anything is an O(scan) anything.
+
+**The one-frame lag law.** The pairs describe the LAST rendered frame:
+tick runs before hits, and the hud a hit updates lands the NEXT frame.
+Pin the consequence one frame after the packet that carried the cause.
+
+**The enter law.** `on_hit` is edge-triggered — a bird riding a pipe
+wall fires once at the touch, not every tick of the ride. If repeating
+contact should keep hurting, the game re-arms it; if it should pay
+once, the game guards it (lunar's `if flash > 0: return`).
+
+**The probe law.** Because the child does no detection, a probe harness
+must INJECT hits itself — `"hits": ["land", "pad0"]` reaches `on_hit`
+exactly as a live overlap would. Every shipped example's probe pays
+this law; a probe that waits for a real overlap waits forever.
+
+**The cost law.** The scan is O(n²) over the scene, every frame — so a
+wire game that never destroys its own projectiles leaks entities the
+scan pays for forever (shooter's bolts did exactly this, fixed in
+v3.1.63). What leaves the stage takes its light with it: destroy it,
+and forget it in the same tick.
+
 ## the seed chapter — determinism for game authors
 
 A seeded game replays itself: the same run grows the same desert, the
