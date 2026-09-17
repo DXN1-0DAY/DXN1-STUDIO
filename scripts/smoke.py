@@ -1474,6 +1474,28 @@ def main():
               body(s2.screen(), 3) == before3,
               repr(body(s2.screen(), 2)[:8] + "/" + body(s2.screen(), 3)[:8]))
 
+        # ── 13s. the selection's coat — ctrl+U over a live span ──────
+        print("── 13s. the selection's coat — every word held whole")
+        s2.run_verb("goto 2", "ide")           # the hand at the line's head
+        s2.settle(0.2)
+        span0 = body(s2.screen(), 2)
+        s2.send(ESC + "[1;2C")                 # shift+right ×3: the span
+        s2.settle(0.15)
+        s2.send(ESC + "[1;2C")                 # holds "ccc" whole
+        s2.settle(0.15)
+        s2.send(ESC + "[1;2C")
+        s2.settle(0.3)
+        s2.send("\x15")                        # ctrl+U over the span
+        s2.settle(0.4)
+        span1 = body(s2.screen(), 2)
+        check("the span coats the word it holds whole",
+              span0[:3] == "ccc" and span1[:3] == "CCC",
+              repr(span0[:6] + " -> " + span1[:6]))
+        s2.run_verb("undo", "ide")             # one step, whole span
+        s2.settle(0.3)
+        check("one undo restores the span",
+              body(s2.screen(), 2) == span0, repr(body(s2.screen(), 2)[:6]))
+
         # ── 13p. :count — the census of a query ──────────────────────
         print("── 13p. :count — the find's law, spoken as a number")
         scr2, _ = s2.run_verb("count ccc", "ide")

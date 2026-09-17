@@ -199,7 +199,7 @@ int main() {
   }
 
   // 9. the version quad rides in the binary too
-  ok(std::string(dxn3::DXN3_VERSION) == "3.0.93",
+  ok(std::string(dxn3::DXN3_VERSION) == "3.0.94",
      "native version constant matches the release quad");
 
   // 10. png writer: checksum vectors, real structure, byte determinism
@@ -4418,6 +4418,61 @@ int main() {
     dxn3::ideKey(es, ek);
     ok(es.lines[0] == "ECHO",
        "two hands on one word take one coat, not two");
+  }
+
+
+  // 95. the selection's coat: ctrl+U over a live span
+  {
+    IdeState ss;
+    ss.lines = {"alpha beta gamma"};
+    ss.curR = 0;
+    ss.curC = 0;
+    ss.anchorR = 0;
+    ss.anchorC = 11;                      // the span holds "alpha beta"
+    dxn3::Keys sk;
+    sk.caseCycle = true;
+    dxn3::ideKey(ss, sk);
+    ok(ss.lines[0] == "ALPHA BETA gamma",
+       "the span coats every word it holds whole");
+    ok(ss.anchorR < 0, "the breath drops the selection — the frame's own");
+    ok(!ss.undo.empty() && ss.undo.back().what == "case cycle",
+       "the span's coats ride ONE named undo step");
+    ok(dxn3::ideUndo(ss) && ss.lines[0] == "alpha beta gamma",
+       "one undo restores the whole span");
+    IdeState cs;                          // a word the span CUTS
+    cs.lines = {"alpha beta"};
+    cs.curR = 0;
+    cs.curC = 0;
+    cs.anchorR = 0;
+    cs.anchorC = 8;                       // the span holds "alpha be"
+    dxn3::Keys ck;
+    ck.caseCycle = true;
+    dxn3::ideKey(cs, ck);
+    ok(cs.lines[0] == "ALPHA beta",
+       "a word the span cuts is left honest — only whole words paint");
+    IdeState ms;                          // a multi-row span
+    ms.lines = {"alpha", "beta", "gamma"};
+    ms.curR = 2;
+    ms.curC = 5;                          // the hand past "gamma"
+    ms.anchorR = 0;
+    ms.anchorC = 0;                       // every word of all three rows
+    dxn3::Keys mk;
+    mk.caseCycle = true;
+    dxn3::ideKey(ms, mk);
+    ok(ms.lines[0] == "ALPHA" && ms.lines[1] == "BETA" &&
+           ms.lines[2] == "GAMMA",
+       "a multi-row span coats every row it holds");
+    IdeState ds;                          // a span over bare digits
+    ds.lines = {"123 456"};
+    ds.curR = 0;
+    ds.curC = 0;
+    ds.anchorR = 0;
+    ds.anchorC = 7;
+    dxn3::Keys dk;
+    dk.caseCycle = true;
+    dxn3::ideKey(ds, dk);
+    ok(ds.lines[0] == "123 456" && ds.undo.empty() && ds.anchorR < 0,
+       "a span with no coatable word refuses honestly — and still drops");
   }
 
 

@@ -2997,6 +2997,28 @@ struct IdeCasePlan {
   std::string next;                        // the word's next coat
 };
 
+// the coat walk: the word's next coat, or nullopt when no coat can
+// paint (bare digits) — shared by the hand law, the crew, and the
+// selection
+inline std::optional<std::string> ideCaseNext(const std::string& w) {
+  bool anyUpper = false, anyLower = false;
+  for (const char ch : w) {
+    if (std::isupper(static_cast<unsigned char>(ch))) anyUpper = true;
+    if (std::islower(static_cast<unsigned char>(ch))) anyLower = true;
+  }
+  if (!anyUpper && !anyLower) return std::nullopt;  // digits wear no coat
+  int coat = !anyUpper ? 0 : (!anyLower ? 1 : 2);  // 0 whisper 1 shout 2 title
+  static constexpr int NEXT[3] = {1, 2, 0};
+  for (int step = 0; step < 3; ++step) {   // a coat that changes nothing
+    coat = NEXT[coat];                     // bows out; the walk carries on
+    const std::string cand = coat == 0 ? ideCaseWhisper(w)
+                             : coat == 1 ? ideCaseShout(w)
+                                         : ideCaseTitle(w);
+    if (cand != w) return cand;
+  }
+  return std::nullopt;                     // armored: never paint the same
+}
+
 inline std::optional<IdeCasePlan>
 ideCasePlanAt(const IdeState& s, int r, int c) {
   if (r < 0 || r >= static_cast<int>(s.lines.size())) return std::nullopt;
@@ -3025,22 +3047,44 @@ ideCasePlanAt(const IdeState& s, int r, int c) {
   if (a < 0 || b <= a) return std::nullopt;  // no word: the refusal is honest
   const std::string w = l.substr(static_cast<size_t>(a),
                                  static_cast<size_t>(b - a));
-  bool anyUpper = false, anyLower = false;
-  for (const char ch : w) {
-    if (std::isupper(static_cast<unsigned char>(ch))) anyUpper = true;
-    if (std::islower(static_cast<unsigned char>(ch))) anyLower = true;
+  const auto next = ideCaseNext(w);
+  if (!next) return std::nullopt;
+  return IdeCasePlan{a, b, *next};
+}
+
+// The selection's coat: every word FULLY inside the span cycles its
+// own coat — the selection never edits what it doesn't hold whole (a
+// word the span cuts is left honest, teaching a clean drag). Rows
+// ride their own windows: the first row from c0, the last to c1, the
+// middle rows whole.
+inline std::vector<std::pair<int, IdeCasePlan>>
+ideCasePlanSelection(const IdeState& s, const SelRange& sel) {
+  std::vector<std::pair<int, IdeCasePlan>> plans;
+  const auto [r0, c0, r1, c1] = sel;       // r0/c0 the span's head
+  for (int r = r0; r <= r1; ++r) {
+    if (r < 0 || r >= static_cast<int>(s.lines.size())) continue;
+    const std::string& l = s.lines[static_cast<size_t>(r)];
+    const int len = static_cast<int>(l.size());
+    const int lo = (r == r0) ? c0 : 0;
+    const int hi = (r == r1) ? std::min(c1, len) : len;
+    int i = lo;
+    while (i < hi) {
+      if (ideWordChar(l[static_cast<size_t>(i)])) {
+        const bool cutLeft = i == lo && i > 0 &&
+                             ideWordChar(l[static_cast<size_t>(i) - 1]);
+        int b = i;
+        while (b < len && ideWordChar(l[static_cast<size_t>(b)])) ++b;
+        if (!cutLeft && b <= hi) {           // the word sits whole inside
+          const std::string w = l.substr(static_cast<size_t>(i),
+                                         static_cast<size_t>(b - i));
+          if (const auto next = ideCaseNext(w))
+            plans.emplace_back(r, IdeCasePlan{i, b, *next});
+        }
+        i = b;
+      } else ++i;
+    }
   }
-  if (!anyUpper && !anyLower) return std::nullopt;  // digits wear no coat
-  int coat = !anyUpper ? 0 : (!anyLower ? 1 : 2);  // 0 whisper 1 shout 2 title
-  static constexpr int NEXT[3] = {1, 2, 0};
-  for (int step = 0; step < 3; ++step) {   // a coat that changes nothing
-    coat = NEXT[coat];                     // bows out; the walk carries on
-    const std::string cand = coat == 0 ? ideCaseWhisper(w)
-                             : coat == 1 ? ideCaseShout(w)
-                                         : ideCaseTitle(w);
-    if (cand != w) return IdeCasePlan{a, b, cand};
-  }
-  return std::nullopt;                     // armored: never paint the same
+  return plans;
 }
 
 inline bool ideCaseApply(IdeState& s, int r, const IdeCasePlan& p) {
@@ -3520,8 +3564,17 @@ inline void ideKey(IdeState& ide, const Keys& k) {
                                              // whisper, SHOUT, Title. The
                                              // seat never moves; press
                                              // again for the next coat.
-    ideSelClear(ide);                        // the cycle is the frame's own
-    if (ide.crew.empty()) {
+    if (const auto sel = ideSelRange(ide)) { // a live span: EVERY word
+                                             // held whole takes its coat
+      const auto plans = ideCasePlanSelection(ide, *sel);
+      if (!plans.empty()) {
+        idePushUndo(ide, "case cycle");      // one step back for the span
+        for (const auto& [r, p] : plans) ideCaseApply(ide, r, p);
+        ide.dirty = true;
+        ide.idle = 0;
+      }
+      ideSelClear(ide);                      // the breath is the frame's own
+    } else if (ide.crew.empty()) {
       if (ideCycleCase(ide)) {
         ide.dirty = true;                    // the game hears about it
         ide.idle = 0;

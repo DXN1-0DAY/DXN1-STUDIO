@@ -2,7 +2,7 @@
 
 ![DXN1 STUDIO 3](assets/banner.png)
 
-![version](https://img.shields.io/badge/version-3.0.93-8b5cf6?style=flat-square)
+![version](https://img.shields.io/badge/version-3.0.94-8b5cf6?style=flat-square)
 ![gates](https://github.com/DXN1-termux/DXN1-STUDIO/actions/workflows/ci.yml/badge.svg)
 ![native](https://img.shields.io/badge/native-C%2B%2023-f97316?style=flat-square)
 ![face](https://img.shields.io/badge/face-terminal_truecolor-22d3ee?style=flat-square)
@@ -105,7 +105,8 @@ viewport refreshes — *code a background, and boom, a background.*
   `hello` → `HELLO` → `Hello` → `hello` — the hand never moves, and
   a coat that paints nothing (a lone `V2`) bows out honestly. With a
   crew live the breath is shared: every hand coats its own word in
-  one undo step.
+  one undo step. Over a selection the span speaks: every word held
+  WHOLE takes its coat; a word the span cuts is left honest.
 - **`:open` learned the ledger.** `:open <file>` loads any script on
   the machine — your own games and the `sdk/examples/` gallery
   whisper their names as you type, and the LEDGER of files you had

@@ -1,3 +1,26 @@
+## v3.0.94 — the selection's coat (ctrl+U over a live span)
+
+- **A selection changes ctrl+U's breath.** With a live span, every
+  word held WHOLE inside it takes its next coat in one breath, one
+  named undo step — and a word the span CUTS is left honest: the
+  selection never edits what it doesn't hold, teaching a clean drag.
+  The law bites on both edges: a run cut by the span's head (the
+  first row starting mid-word) skips too. Rows ride their own
+  windows — the first row from c0, the last to c1, the middle rows
+  whole — so a multi-row span coats every word of every row it
+  holds. The breath drops the selection either way (the frame's
+  own, the transpose's law); a span with no coatable word refuses
+  honestly — no undo, no dirt. Under the hood the coat walk factored
+  into `ideCaseNext` (shared by hand, crew, and span) plus
+  `ideCasePlanSelection`.
+- Selftest group 95: SEVEN span laws (854 -> 861) — the whole-word
+  breath, the dropped anchor, the named undo, the cut word's
+  honesty, the multi-row span, the digit refusal. MY BUG (caught on
+  review before any gate): SelRange is an std::array<int,4>, not a
+  struct — the first build spoke its name. Smoke 13s: TWO drives
+  (199 -> 201) — the span end-to-end via shift+arrows, one undo
+  restoring it. Gates ALL GREEN.
+
 ## v3.0.93 — the crew's coats (one breath, every hand's word)
 
 - **`ctrl+U` edits THROUGH the crew.** With hands planted, the cycle
