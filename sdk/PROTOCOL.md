@@ -154,6 +154,45 @@ streams that name the RUN (the owl's) and lets continue the streams
 that name the WORLD (the desert's). Pick per stream, and write the
 choice down — the probe replays exactly what the game decided.
 
+## the replay probe — proving a seeded game's law
+
+A seeded game does not have to be PLAYED to be believed — it can be
+PROVEN. A replay probe drives the real child over the real wire and
+pins the packets: the say on the clear's own frame, the banner's
+birth bloom, the wear staircase. The sprint's worked example: the
+tetris streak ×2, hunted from the EMPTY well — 90 scripted events,
+clears at locks 14/15/18 (runs 1, 2, 1), twelve pins green. The laws
+the hunt paid for:
+
+**One event = one tick.** A probe script is a list of events, each
+sent as its own tick: the key held for exactly that frame. The held
+grammar carries `left`, `right`, `jump`, `space`; letters ride
+`chars` (`r`, `c`, `s`). A turn is `jump` — the wire's held keys
+never carried "up".
+
+**The float timeline law — the one that bites twice.** The game's
+gravity accumulates `dropT += 0.05` and fires at `>= 0.5` — but ten
+float additions read `0.4999999999999999`, never `0.5`. The real
+cadence is a fire every 11 ticks at dt 0.05, and a sim that models
+ten fires per half second drifts a full row every piece. Accumulate
+the float EXACTLY like the game — the same law that bit the seed
+(signed int32) bites the clock.
+
+**The unswept spawn law.** The game's `lock()` calls `spawn()` BEFORE
+the sweep — the top-out check reads the UNSWEPT well, the full row
+still in place, one row taller. A sim that sweeps first is wrong by
+a row at every clear, and will call alive what the game calls dead.
+
+**The script search.** To find a script that proves a law, beam over
+tick-exact placements — every (turns, slides, slam) sequence run on
+the sim, deduped by resulting state — scored by construction
+(fullness, hole-subset alignment, the open head). Collect every
+combo-live state, scan the next piece exhaustively for the back-to-
+back clear, then beam the dry locks and the isolated clear that
+proves the reset. The probe pins the say on the very frame the sim
+says it is born — sim and wire agree to the tick, or the pin goes
+red and the law is not done.
+
 ## hosting any language
 
 The engine picks a runner by extension, honestly:

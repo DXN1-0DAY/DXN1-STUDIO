@@ -1,3 +1,26 @@
+## v3.1.72 — the x2 proof
+
+- **The streak law's one honest gap is CLOSED: the combo ×2 is
+  proven on the real wire from the EMPTY well.** A beam over
+  tick-exact placements (6,388 combo-live states, 62 pair states)
+  found the 90-event script: the R25 base's construction, a
+  back-to-back clear pair (locks 14 and 15 — the say carries
+  "line · lv 1 · combo ×2" and the banner is born brighter at
+  glow 3), ten watched waits of honest 0.15/tick wear (3.0 → 1.5),
+  and the isolated clear at lock 18 that says PLAIN again — the dry
+  lock broke the streak and the ledger said so. Twelve pins green,
+  first run.
+- **PROTOCOL.md grows the replay-probe chapter** — how to PROVE a
+  seeded game's law instead of playing it: one event = one tick,
+  the held-key grammar (a turn is `jump`; letters ride `chars`), the
+  float timeline law (ten 0.05 additions never reach 0.5 — gravity
+  fires every 11 ticks), the unswept spawn law (lock() spawns before
+  the sweep, so the top-out check reads the taller well), and the
+  script search that found the ×2. The hunt's two wire laws are now
+  house documentation, paid for by the probe that needed them.
+- Gates 7 green; no engine bytes changed — the law was already
+  honest, now it is also PROVEN.
+
 ## v3.1.71 — the muzzle flash
 
 - **asteroids.js: every transient light rides ONE ledger.** The shot
