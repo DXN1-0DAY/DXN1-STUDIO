@@ -848,6 +848,11 @@ void drawIDE(dxn3::Screen& scr, IdeState& ide, const dxn3::Game& g, bool hostUp)
                                                 // at a glance in big files
   if (const int selN = dxn3::ideSelCount(ide); selN > 0)
     pos += " · sel " + std::to_string(selN);
+  if (!ide.drift.empty())
+    pos += " · " + std::to_string(ide.drift.size()) +
+           " drifted";               // the disk's disagreement, at a
+                                     // glance — the breath keeps it live
+                                     // and the beat keeps it silent
   if (!ide.touched.empty())
     pos += " · " + std::to_string(ide.touched.size()) +
            " changed";               // the census at a glance — LAST in the
@@ -1352,6 +1357,9 @@ int main(int argc, char** argv) {
   size_t macroIx = 0;                    // the register's walk
   int macroRuns = 1;                     // :macro N — the take N times
   int playedRuns = 1;                    // how many runs the receipt names
+  double driftBeat = 0;                  // the drift's breath: the slow
+                                         // silent beat the page re-hears
+                                         // the disk on (never a word)
   float cmdErrT = 0;
   auto defaultShot = [&]() {
     std::string base = game.scene.name.empty() ? "scene" : game.scene.name;
@@ -1425,6 +1433,9 @@ int main(int argc, char** argv) {
       ide.dirty = false;
       return;
     }
+    dxn3::ideDriftClear(ide);  // the disk heard the page — every saving
+                               // mouth sweeps the amber (:w's own law;
+                               // the auto-run's mouth obeys it too now)
     std::vector<std::string> argv = hostOverride;
     if (argv.empty() && !dxn3::hostCommandFor(ide.path, argv, &err)) {
       ide.console.push_back("engine: " + err);
@@ -2759,6 +2770,32 @@ int main(int argc, char** argv) {
 
     return false;
   };
+
+    // the drift BREATHES: on a slow silent beat the page re-hears the
+    // disk — the amber follows the edits live while they are still
+    // unsaved, and a disk that moved under a settled page is worn on
+    // the rail without a word (the store is the whole breath; the
+    // census's own laws apply: agree clears, a bed too big keeps the
+    // old ticks, a lost disk copy is skipped, never spoken).
+    if (ide.open && !ide.path.empty()) {
+      driftBeat += dt;
+      if (driftBeat > 0.25) {
+        driftBeat = 0;
+        std::ifstream df(ide.path, std::ios::binary);
+        if (df.good()) {
+          std::vector<std::string> disk;
+          std::string ln;
+          while (std::getline(df, ln)) {
+            if (!ln.empty() && ln.back() == '\r') ln.pop_back();
+            disk.push_back(ln);
+          }
+          if (const auto rep = dxn3::ideDiffCensus(disk, ide.lines)) {
+            if (rep->same()) dxn3::ideDriftClear(ide);
+            else dxn3::ideDriftStore(ide, *rep);
+          }
+        }
+      }
+    }
 
     // live refresh: edits settle for a beat, then your code runs again
     if (ide.open) {

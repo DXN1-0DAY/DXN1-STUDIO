@@ -1,3 +1,28 @@
+## v3.1.1 — the drift that breathes
+
+- **The amber is no longer a photograph — it is a pulse.** On a
+  slow silent beat (a quarter second) the page re-hears the disk:
+  the drift store refreshes without a word — the amber follows the
+  edits live while they are still unsaved, and a disk that moved
+  under a settled page (a checkout, a teammate, another hand) is
+  worn on the rail and spoken in the header (`N drifted`) the
+  moment the census hears it. The breath never spends a console
+  line; the store is the whole breath. The census's own laws
+  hold inside it: an agreeing beat clears, a bed too big keeps
+  the old ticks, a lost disk copy is skipped, never spoken.
+- **Every saving mouth sweeps the amber now.** The auto-run's
+  save (the idle live-refresh) obeyed `:w`'s receipt but kept the
+  stale ticks — a page saved clean still wore amber for lines the
+  disk had just heard. The sweep rides the save itself, the same
+  law the `:w` and `:wq` verbs speak.
+- Smoke 13x: THREE drives on a fresh studio — the ledger settles
+  (no pending word scrolls the listing away), the disk loses its
+  tail, and a bare `:drift` lists `1 line drifted from disk` with
+  NO `:diff` ever asked (207 -> 213 checks; the breath proved
+  silent, live, and swept). Selftest stays 879 (the breath rides
+  the store's pinned laws). README speaks the breath in the diff
+  prose and the `:drift` row. Gates ALL GREEN.
+
 ## v3.1.0 — :git (the repo's truth in one breath)
 
 - **The branch manager's seed: the studio knows its repo.** `:git` —

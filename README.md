@@ -2,7 +2,7 @@
 
 ![DXN1 STUDIO 3](assets/banner.png)
 
-![version](https://img.shields.io/badge/version-3.1.0-8b5cf6?style=flat-square)
+![version](https://img.shields.io/badge/version-3.1.1-8b5cf6?style=flat-square)
 ![gates](https://github.com/DXN1-termux/DXN1-STUDIO/actions/workflows/ci.yml/badge.svg)
 ![native](https://img.shields.io/badge/native-C%2B%2023-f97316?style=flat-square)
 ![face](https://img.shields.io/badge/face-terminal_truecolor-22d3ee?style=flat-square)
@@ -143,7 +143,13 @@ viewport refreshes — *code a background, and boom, a background.*
   wears the census's finding amber — a drifted line carries the
   amber tick until `:w` speaks it to the disk (the pin's bar and the
   session's emerald keep their own edges); a save or a fresh page
-  sweeps the amber away.
+  sweeps the amber away. **And the drift breathes**: on a slow
+  silent beat (a quarter second) the page re-hears the disk — the
+  amber follows the edits live while they are still unsaved, a disk
+  that moved under a settled page is worn on the rail without a
+  word, and the header speaks the count (`N drifted`) at a glance.
+  The breath never spends a console line; the store is the whole
+  breath.
 - **Word hops and the partner.** `ctrl+←`/`ctrl+→` jump word by word —
   the same words `ctrl+w` bites — across line edges when they must.
   `ctrl+delete` eats exactly what a hop would cross; `ctrl+/` toggles
@@ -379,7 +385,7 @@ accepted:
 | `:marks` | list every pin in the file |
 | `:bm [n]` | leap to a pin; bare `:bm` takes the next, wrapping — the pins whisper as you type |
 | `:changes [n\|word]` | the census — a bare verb lists the session's touched lines; a number leaps to the Nth; a word asks which touched lines speak it |
-| `:drift [n]` | the amber census — a bare verb lists the lines that disagree with the disk; a number leaps to the Nth; `:diff` asks, `:w` sweeps |
+| `:drift [n]` | the amber census — a bare verb lists the lines that disagree with the disk; a number leaps to the Nth; `:diff` asks, `:w` sweeps; the silent beat keeps it live |
 | `:git` | the repo's truth in one breath — branch, uncommitted count, the last commit's name (read-only; refuses honestly without git) |
 | `:ruler` | toggle the 79/99 column guides |
 | `:minimap` | toggle the document's map rail |

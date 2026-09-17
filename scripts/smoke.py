@@ -1587,6 +1587,51 @@ def main():
               "uncommitted" not in scr2.text(ROWS - 2),
               repr(scr2.text(ROWS - 2)[:80]))
 
+        # ── 13x. the drift that breathes ─────────────────────────────
+        print("── 13x. the drift breathes — a silent beat, a spoken count")
+        s3 = Studio(binary)
+        disk_path = os.path.join(SMOKE_CWD, "untitled.py")
+        if os.path.exists(disk_path):
+            os.remove(disk_path)           # the elder's copy yields the floor:
+                                           # the first writer after this is s3's
+                                           # own boot save, never a ghost
+        for _ in range(40):                # the boot's own auto-run plants
+            if os.path.exists(disk_path):  # the disk (the splash eats a beat)
+                break
+            s3.settle(0.1)
+        s3.settle(0.5)                     # a beat re-hears: agree, clean
+        prev = None
+        for _ in range(16):                # the boot's receipts settle: the
+            s3.settle(0.25)                # exit's word arrives, then the
+            cur = (s3.screen().text(ROWS - 2),   # ledger is still — no
+                   s3.screen().text(ROWS - 1))  # pending word can scroll
+            if cur == prev:                # the listing away mid-check
+                break
+            prev = cur
+        doc = open(disk_path).read().splitlines()
+        with open(disk_path, "w") as f:
+            f.write("\n".join(doc[:-1]) + "\n")   # the disk loses its tail
+        quiet = (s3.screen().text(ROWS - 2),                 # the console's
+                 s3.screen().text(ROWS - 1))                 # last two rows
+        s3.settle(0.6)                         # the beat re-hears, silent
+        scr3 = s3.screen()
+        check("the breath spent no console line",
+              (scr3.text(ROWS - 2), scr3.text(ROWS - 1)) == quiet,
+              repr(scr3.text(ROWS - 1)[:50]) + " vs " + repr(quiet[1][:50]))
+        scr3, _ = s3.run_verb("drift", "ide")  # no :diff was ever asked
+        check("the beat heard the moved disk (no :diff asked)",
+              "1 line drifted from disk" in scr3.text(ROWS - 2) or
+              "1 line drifted from disk" in scr3.text(ROWS - 1),
+              repr(scr3.text(ROWS - 1)[:80]))
+        s3.run_verb("w", "ide")                # the page answers the disk
+        s3.settle(0.4)                         # a beat re-hears: agree
+        scr3, _ = s3.run_verb("drift", "ide")
+        check("the save swept the amber (the beat agrees, clear)",
+              "no drift known" in scr3.text(ROWS - 2) or
+              "no drift known" in scr3.text(ROWS - 1),
+              repr(scr3.text(ROWS - 1)[:80]))
+        s3.close()
+
         # ── 13p. :count — the census of a query ──────────────────────
         print("── 13p. :count — the find's law, spoken as a number")
         scr2, _ = s2.run_verb("count ccc", "ide")
