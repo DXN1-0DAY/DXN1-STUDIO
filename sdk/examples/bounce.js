@@ -8,6 +8,12 @@
 // one each tick, wearing their ages as alpha (0.5 down to 0.10);
 // the pad answers a touch with a glow that decays at twelve a
 // second; a lost ball parks the comet and the next serve re-forms it.
+// v3.1.69 — the wear audit came for the room: a brick BITE makes the
+// lantern FLARE (glow 4, worn back to its resting 2 by the honest
+// 3/s — a flare with a floor, never a flash-forever and never a
+// light below its rest), and the end plaques (the win, the game
+// over) are born with a bloom of glow 3 that wears at the house's
+// 3/s — the words stay, the light tells the truth about its age.
 const dxn3 = require("dxn3");
 const { rect, circle, label, destroy, background, on, run } = dxn3;
 const W = dxn3.W, H = dxn3.H;
@@ -31,8 +37,19 @@ for (let i = 0; i < TRAIL_A.length; ++i) {
 }
 let px = ball.x, py = ball.y;            // the seat the ball just left
 
+let plaque = null, plaqueGlow = 0;       // the end plaques' honest bloom
+
 const hud = label("hud", 2, 1, "BRICKS 12 LEFT · BALLS 3");
 let bricks = 0, balls = 3;
+
+function speak(kind) {                   // the room's end plaques: born
+  const text = kind === "win" ?          // whole (glow 3), worn 3/s
+    "CLEARED! you built this with code." : "GAME OVER — ctrl+r to retry";
+  const color = kind === "win" ? "#34d399" : "#fb7185";
+  plaque = label(kind, W / 2 - 70, H / 2 - 10, text, color);
+  plaque.glow = 3;
+  plaqueGlow = 3;
+}
 
 // the wall of bricks — four across, three deep, sized to the room
 const COLS = 4, ROWS = 3;
@@ -52,6 +69,15 @@ on.key((k) => {
 });
 
 on.tick(() => {
+  // the plaques' light wears at the house's 3/s — decay runs FIRST
+  // (the birth-tick law): a plaque lit later this very tick shows whole
+  if (plaqueGlow > 0) {
+    plaqueGlow = Math.max(0, Math.round((plaqueGlow - 3 * dxn3.dt) * 1000) / 1000);
+    if (plaque) plaque.glow = plaqueGlow;
+  }
+  // the lantern's flare wears back to its resting 2 — a flare with a
+  // floor: it never dips below the lantern's own honest rest
+  ball.glow = Math.max(2, ball.glow - 3 * dxn3.dt);
   // the comet: each seat slides back one, the young seat takes the
   // spot the ball just left; every seat wears its own age as alpha
   for (let i = trail.length - 1; i > 0; --i) {
@@ -74,8 +100,7 @@ on.tick(() => {
     ball.vy = -300; ball.vx = 260 * (Math.random() < 0.5 ? -1 : 1);
     px = ball.x; py = ball.y;
     trail.forEach((t) => { t.x = -999; t.y = -999; t.alpha = 0; });
-    if (balls <= 0) label("over", W / 2 - 60, H / 2 - 10,
-                          "GAME OVER — ctrl+r to retry", "#fb7185");
+    if (balls <= 0 && !plaque) speak("over");
   }
   hud.text = "BRICKS " + (12 - bricks) + " LEFT · BALLS " + balls;
 });
@@ -87,8 +112,10 @@ on.hit((a, b) => {
     destroy(other.name);
     bricks += 1;
     ball.vy = -ball.vy;
-    if (bricks >= 12) label("win", W / 2 - 70, H / 2 - 10,
-                            "CLEARED! you built this with code.", "#34d399");
+    ball.glow = 4;                     // the bite: the lantern FLARES
+                                       // (worn back to its resting 2
+                                       // by the tick's 3/s staircase)
+    if (bricks >= 12 && !plaque) speak("win");
   } else if (other.tag === "pad") {
     // steer: hitting the paddle's edge angles the ball
     const off = (me.x - other.x) / other.w - 0.5;

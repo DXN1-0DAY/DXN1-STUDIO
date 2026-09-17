@@ -10,6 +10,16 @@
 // floor), so the danger literally brightens as it closes in. Fresh
 // rings DRIFT IN (1.5 s from nothing to the radar's truth), and a
 // shot dissolves over its last quarter second instead of winking out.
+// v3.1.69 — the wear audit came for the field: a SPLIT is a small
+// detonation, so each child rock is BORN with a bloom of glow 2,
+// worn by the game's own 3/s staircase (the tetris lock-bloom law,
+// ported; the ledger forgets a rock the tick it dies), and the
+// thrust flame's light stopped lying — it no longer snaps from 4 to
+// 0 the tick the burn dies: the thrust key LIGHTS it whole that very
+// frame (the key handler may patch fields — decay-before-spawn is
+// not enough when the key arrives after the tick), the burn holds
+// it at 4 while it lasts, and release wears it down the burn's own
+// linear staircase to dark.
 const dxn3 = require("dxn3");
 const { circle, tri, label, destroy, background, vars, say, win, on, run } = dxn3;
 const W = dxn3.W, H = dxn3.H;
@@ -27,6 +37,7 @@ let rot = 0, vx = 0, vy = 0, nowDt = 0, safe = 0, gunCool = 0, burn = 0;
 let lives = 3, score = 0, gen = 0, uid = 0, ringAge = 9;
 const rocks = new Map();                 // name -> { size }
 const bullets = new Map();               // name -> seconds left to live
+const blooms = new Map();                // name -> split bloom left (glow)
 const lastX = {}, lastY = {};            // where every rock last stood
 const SPEED = { 13: 20, 8: 55, 5: 90 };  // smaller rocks fly faster
 
@@ -79,8 +90,13 @@ function split(name) {
   const size = info.size;
   const pts = size === 13 ? 20 : size === 8 ? 50 : 100;
   if (size > 5) {
-    spawnRock(`rock${gen}_${++uid}a`, lastX[name] - size, lastY[name], size - 5);
-    spawnRock(`rock${gen}_${++uid}b`, lastX[name] + size, lastY[name], size - 5);
+    // a split is a small detonation: the children BLOOM (glow 2, worn
+    // by the tick's own 3/s staircase) — a fresh ring's rocks do not,
+    // they have the drift-in fade for their entrance
+    const a = spawnRock(`rock${gen}_${++uid}a`, lastX[name] - size, lastY[name], size - 5);
+    a.glow = 2; blooms.set(a.name, 2);
+    const b = spawnRock(`rock${gen}_${++uid}b`, lastX[name] + size, lastY[name], size - 5);
+    b.glow = 2; blooms.set(b.name, 2);
   }
   return pts;
 }
@@ -110,7 +126,20 @@ on.tick((d) => {
   ship.rot = rot + 180;
   burn = Math.max(0, burn - d);
   nose.visible = burn > 0 ? 1 : 0;
-  nose.glow = burn > 0 ? 4 : 0;           // the flame's honest light
+  // the flame's light WEARS with the burn's own age — born whole at
+  // the thrust (burn 0.12), an honest linear walk down to dark. The
+  // old law here snapped 4 -> 0 the tick the burn died: a hard cut
+  // is not the house's staircase.
+  nose.glow = 4 * Math.min(1, burn / 0.12);
+  // the split blooms wear at the house's 3/s — and the ledger
+  // forgets a rock the tick it dies (what leaves the stage takes
+  // its light with it)
+  for (const [nm, g] of blooms) {
+    const e = dxn3.find(nm);
+    const ng = Math.max(0, g - 3 * d);
+    if (!e || ng === 0) { blooms.delete(nm); if (e) e.glow = 0; }
+    else { blooms.set(nm, ng); e.glow = Math.round(ng * 1000) / 1000; }
+  }
   // the hit's bleach WEARS OFF — 3/s, the honest staircase. The old
   // comment here claimed "the engine does the fading": a lie the
   // cards/snake rounds buried. The studio keeps the last light a
@@ -147,6 +176,11 @@ on.key((k) => {
   if (k === "right" || k === "d") rot += turn;
   if (k === "jump" || k === "w") {
     burn = 0.12;                       // the flame lives while the burn does
+    nose.glow = 4;                     // LIT WHOLE the very frame the key
+                                       // arrives — the key handler runs
+                                       // after the tick, so a glow left to
+                                       // the tick would render already faded
+    nose.visible = 1;
     vx += Math.sin(rot * Math.PI / 180) * 190 * nowDt;
     vy += -Math.cos(rot * Math.PI / 180) * 190 * nowDt;
   }

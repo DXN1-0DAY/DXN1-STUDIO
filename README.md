@@ -2,7 +2,7 @@
 
 ![DXN1 STUDIO 3](assets/banner.png)
 
-![version](https://img.shields.io/badge/version-3.1.68-8b5cf6?style=flat-square)
+![version](https://img.shields.io/badge/version-3.1.69-8b5cf6?style=flat-square)
 ![gates](https://github.com/DXN1-termux/DXN1-STUDIO/actions/workflows/ci.yml/badge.svg)
 ![native](https://img.shields.io/badge/native-C%2B%2023-f97316?style=flat-square)
 ![face](https://img.shields.io/badge/face-terminal_truecolor-22d3ee?style=flat-square)
@@ -82,7 +82,10 @@ viewport refreshes — *code a background, and boom, a background.*
   at 8, and every five after — the dark fades in over two honest
   seconds, the pipes dress pale with a faint halo so the gap reads
   in the dark, and the moon SHINES when the fade completes), `bounce.js`
-  (breakout with a steering paddle), `cards.py` (balatro-lite poker
+  (breakout with a steering paddle — the lantern FLARES when it
+  bites a brick and wears back to its resting 2, a flare with a
+  floor, and the end plaques are born with a bloom of glow 3 that
+  wears to dark while the words stay), `cards.py` (balatro-lite poker
   hands vs the blind — the selected card GLOWS like a lamp, a played
   card FLASHES white as it lands in your hand row, and the score
   reads chips x mult with red suits paying double), `snake.py` (the classic — a turn queue that
@@ -92,8 +95,10 @@ viewport refreshes — *code a background, and boom, a background.*
   milestones flash the new tail too), milestones name you — the
   garden snake, the hunter, the
   anaconda, the world eater — and every death arrives as a banner), `asteroids.js` (a hull that REALLY turns — a rotated tri,
-  its thrust flame speaking only while you burn — splitting
-  rocks that fly faster as they shrink, a hull hit that BLEACHES
+  its thrust flame LIT WHOLE the frame the thrust lands and worn
+  down the burn's own staircase to dark — splitting rocks that fly
+  faster as they shrink and BLOOM glow 2 as they're born, worn 3/s
+  by the game's own ledger, a hull hit that BLEACHES
   the ship with the engine's flash and says so on the HUD, a grace
   blink after), `lunar.py` (side-thrusters, one main engine,
   two pads that pay by their risk — the hills are not for landing —

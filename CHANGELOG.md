@@ -1,3 +1,38 @@
+## v3.1.69 — the wear audit came for the field and the room
+
+- **asteroids.js: the split blooms, the flame wears.** A split is a
+  small detonation — the two child rocks are BORN with a bloom of
+  glow 2 (the tetris lock-bloom law, ported), worn by the game's own
+  3/s staircase down to dark; the ledger forgets a rock the tick it
+  dies (what leaves the stage takes its light with it). Fresh-ring
+  rocks carry NO bloom — the drift-in alpha fade is their entrance,
+  honestly absent light. And the thrust flame stopped lying: the old
+  code snapped glow 4 -> 0 the tick the burn died (a hard cut, not a
+  staircase) — now the thrust key LIGHTS the flame whole the very
+  frame it lands (the key handler runs after the tick, so a glow left
+  to the tick's wear would render already faded — the birth-tick
+  law, key edition), the burn holds it at 4, and release wears it
+  down the burn's own linear staircase to dark.
+- **bounce.js: the lantern flares, the plaques wear.** A brick bite
+  flares the ball's lantern to glow 4, worn back to its RESTING 2 by
+  the honest 3/s — a flare with a floor: never below the lamp's own
+  rest, never a flash-forever. The end plaques (the win, the game
+  over) are born with a bloom of glow 3 that wears 3/s to dark —
+  the words stay, the light tells the truth about its age.
+- **Probes: 36 new pins, all green x3 (deterministic).**
+  ast_split_probe (19) walks the flame's full staircase and the
+  split's bloom from birth to dark, and pays the ledger-forgets law
+  (a blooming rock shot out of the sky leaves no ghost patches);
+  bounce_lantern_probe (17) rides injected bites and host saves to
+  the win plaque with zero steering lottery.
+- **A pre-existing probe flakiness confessed and was root-caused:**
+  the old bounce steering probe failed ~50% of runs on UNTOUCHED
+  v3.1.68 too (verified by stash-run) — a period-2 trap where the
+  ball parks at x=113.2 with the pad clamped at x=36, every save
+  reproducing the same off -> vx so the wall flip loops it forever.
+  The game's laws were verified green by direct injection throughout;
+  the harness was the liar, not the game.
+
 ## v3.1.68 — the catalog told the truth
 
 - **README's example catalog caught up with the light-law ports.**
