@@ -1,3 +1,14 @@
+## v3.1.19 — the gate that reads the promise
+
+- **`scripts/gates.sh` grows gate 7: the README never promises a
+  ghost.** Every `docs/img/*.png` and every `sdk/examples/*` path
+  the README mentions must EXIST on disk, and the README's version
+  badge must equal the VERSION file — checked before a tag can
+  leave the machine. A gallery row pointing at a screenshot that
+  was never rendered, an example named but never committed, a
+  badge left one version behind: all of them are GATES RED now,
+  not a slow embarrassment discovered later.
+
 ## v3.1.18 — the falling order
 
 - **`sdk/examples/tetris.js` — the classic, honestly built.** A 10×16

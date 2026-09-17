@@ -80,5 +80,38 @@ else
   echo "   (skip) python3 not on this machine — the wire contract runs in CI"
 fi
 
+echo "── gate 7: the README never promises a ghost"
+if command -v python3 >/dev/null 2>&1; then
+  if python3 - << 'PY7'
+import re, pathlib
+
+readme = pathlib.Path("README.md").read_text()
+ghosts = []
+for m in sorted(set(re.findall(r"docs/img/[A-Za-z0-9_\-\.]+\.png", readme))):
+    if not pathlib.Path(m).exists():
+        ghosts.append(m)
+for m in sorted(set(re.findall(r"sdk/examples/[A-Za-z0-9_\-\.]+", readme))):
+    if not pathlib.Path(m).exists():
+        ghosts.append(m)
+badge = re.search(r"version-([\d\.]+)-", readme)
+ver = pathlib.Path("VERSION").read_text().strip()
+if not badge or badge.group(1) != ver:
+    ghosts.append(f"README version badge {badge.group(1) if badge else '?'} != VERSION {ver}")
+if ghosts:
+    for g in ghosts:
+        print(f"   FAIL ghost: {g}")
+    raise SystemExit(1)
+print(f"   ok  every image, example and the badge ({ver}) are real")
+PY7
+  then
+    :
+  else
+    echo "   FAIL the README promised something that is not there"
+    FAIL=1
+  fi
+else
+  echo "   (skip) python3 not on this machine — the README gate runs in CI"
+fi
+
 echo
 if [ $FAIL -eq 0 ]; then echo "ALL GATES GREEN"; else echo "GATES RED"; exit 1; fi
