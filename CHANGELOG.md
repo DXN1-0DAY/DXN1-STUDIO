@@ -1,3 +1,24 @@
+## v3.1.39 — the glow hand
+
+- **cards.py stops being a flat menu and becomes a TABLE.** The
+  selected card GLOWS (the engine's glow field, 6 — the same light
+  the campaign's gems wear) and follows your A/D cursor; a played
+  card FLASHES white (the flash field, the same bleach the snake's
+  meal wears) the instant it lands.
+- **The dead `played` list finally speaks:** every played card
+  collects in the hand row — "hand: 5♥ 8♦ A♣" — the game keeps a
+  visible memory of what you spent.
+- **chips x mult scoring, balatro-style:** red suits pay +4 chips
+  and +1 mult, black suits pay +2 chips; the title reads
+  "score: 8 x 3" so a red streak visibly compounds.
+- **Probe lessons (3 green runs to get there):** the python SDK
+  only speaks `tick` events — a bare `keys` packet is silently
+  ignored; select() on the child's fd starves once TextIOWrapper
+  buffers ahead (probe v2's stall) — pump threads beat selectors;
+  and the run loop draws on_tick BEFORE on_key, so a key tick
+  returns the old world and one empty tick must follow it.
+  11 pins green on the real wire.
+
 ## v3.1.38 — the gauge
 
 - **lunar.py grows a fuel gauge — the tank is finally SEEABLE.** A
