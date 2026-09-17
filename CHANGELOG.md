@@ -1,3 +1,24 @@
+## v3.1.46 — the C++ SDK sees the light
+
+- **The compiled SDK speaks the engine's light now.** `dxn3.hpp`'s
+  `Ent` gains the three fields its JS and Python siblings always
+  had: `glow` (a halo), `flash` (a hit-bleach the host decays), and
+  `alpha` (a ghost-thin body). Zero-cost until used — the frame
+  only carries them when they differ from their defaults, so every
+  existing compiled game wires exactly as before.
+- **Pong wears its own law:** the AI paddle's halo IS its rung
+  (`ai->glow = lvl`) — L5's halo burns, L1's barely breathes. The
+  ladder you can now SEE without reading the hud.
+- **BUG the probe's lean-pin caught before shipping:** `mk()`'s
+  positional aggregate init silently SHIFTED when the light fields
+  joined the struct — every entity came out glowing (glow = 1).
+  `mk()` now uses designated initializers, which cannot lie about
+  member order and stay safe for future additions.
+- Probe `pong_ladder_probe.py` grew to 7 pins: the scene travels
+  lean (no default light on the wire), the AI's halo equals its
+  rung across 300 frames, plus the existing hud/movement/rung
+  laws. All green.
+
 ## v3.1.45 — the ladder
 
 - **Pong's CPU climbs a difficulty ladder now** — and the rung is

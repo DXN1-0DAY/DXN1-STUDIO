@@ -4,7 +4,9 @@
 // BREATHES with the set: even score → L3 (the classic 190); you lead →
 // the CPU digs in, up to L5 (285); the CPU leads → it eases off, down
 // to L1 (120). A rubber band, honest on the hud ("CPU L3"), so a set
-// stays dramatic on purpose. run it:  dxn3 sdk/examples/pong.cpp
+// stays dramatic on purpose — and the rung is VISIBLE: the AI paddle's
+// halo IS its level (glow 1..5, the C++ SDK's own light since v3.1.46).
+// run it:  dxn3 sdk/examples/pong.cpp
 #include "../dxn3.hpp"
 
 int main() {
@@ -69,6 +71,8 @@ int main() {
         // caught the first speech mixing the pre-score rung with
         // post-score numbers; honesty means one score, one truth.)
         lvl = std::clamp(3 + you - cpu, 1, 5);
+        ai->glow = lvl;         // v3.1.46: the rung is VISIBLE — L5's
+                                // halo burns, L1's barely breathes
         hud->text = "YOU " + std::to_string(you) + " · CPU " +
                     std::to_string(cpu) + " · first to 5 · CPU L" +
                     std::to_string(lvl);

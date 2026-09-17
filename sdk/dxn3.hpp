@@ -40,6 +40,11 @@ struct Ent {
               fill = "solid", color2;
   float x = 0, y = 0, w = 32, h = 32, vx = 0, vy = 0, rot = 0, spin = 0,
         tsize = 20;
+  // the engine's light, since v3.1.46 — the same three fields the JS
+  // and Python SDKs speak: a halo (glow), a hit-bleach the host decays
+  // (flash), and a ghost-thin body (alpha). Zero-cost until used: the
+  // frame only carries them when they differ from the defaults.
+  float glow = 0, flash = 0, alpha = 1;
   int visible = 1;
 };
 
@@ -234,8 +239,13 @@ private:
         e.visible = 1;
         return &e;
       }
-    ents_.push_back(Ent{name, "", color, shape, "", "solid", "",
-                        x, y, w, h, 0, 0, 0, 0, 20, 1});
+    // designated initializers on purpose: positional aggregate init
+    // silently SHIFTED when the light fields joined the struct (the
+    // ladder probe's lean-pin caught glow arriving as 1) — named
+    // members can't lie, and future additions stay safe
+    ents_.push_back(Ent{.name = name, .color = color, .shape = shape,
+                        .fill = "solid", .x = x, .y = y, .w = w, .h = h,
+                        .tsize = 20, .alpha = 1, .visible = 1});
     return &ents_.back();
   }
   static std::string entJson(const Ent& e) {
@@ -255,6 +265,9 @@ private:
     putN("x", e.x); putN("y", e.y); putN("w", e.w); putN("h", e.h);
     putN("vx", e.vx); putN("vy", e.vy); putN("rot", e.rot);
     putN("spin", e.spin); putN("tsize", e.tsize);
+    if (e.glow != 0) putN("glow", e.glow);
+    if (e.flash != 0) putN("flash", e.flash);
+    if (e.alpha != 1) putN("alpha", e.alpha);
     o += ",\"visible\":" + std::to_string(e.visible);
     return o + "}";
   }
