@@ -5097,6 +5097,128 @@ int main() {
        "a newborn document is one line of air, the rest zeros");
   }
 
+  // 106. the save's ledger: the census taken BEFORE the pen falls —
+  // what the disk is about to hear — the journal line it speaks, and
+  // the journal's cap (the last twelve stay, the oldest falls off)
+  {
+    const std::string tmp = "/tmp/dxn3_savecensus_probe";
+    {
+      std::ofstream f(tmp, std::ios::binary | std::ios::trunc);
+      f << "alpha\nbeta\ngamma\n";
+    }
+    const auto c1 = dxn3::ideSaveCensus(
+        tmp, {"alpha", "BETA", "gamma", "extra"});
+    ok(c1 && c1->changed == 1 && c1->added == 1 && c1->removed == 0,
+       "the save's census speaks before the pen: a change and an add");
+    ok(c1 && c1->changedAt.size() == 1 && (*c1).changedAt[0] == 2 &&
+           (*c1).addedAt[0] == 4,
+       "the census wears the page's gutter numbers");
+    const auto c2 = dxn3::ideSaveCensus(tmp, {"alpha", "beta", "gamma"});
+    ok(c2 && c2->same(), "a save that changes nothing has no story");
+    ok(dxn3::ideJournalLine(*c2, tmp).empty(),
+       "the journal refuses a storyless save");
+    const std::string jl = dxn3::ideJournalLine(*c1, tmp);
+    ok(jl == "+1 ~1 -0  " + tmp,
+       "the journal's voice: +added ~changed -removed, then the path, got '" +
+           jl + "'");
+    const auto c3 = dxn3::ideSaveCensus("/tmp/dxn3_savecensus_absent_probe",
+                                        {"one", "two"});
+    ok(c3 && c3->added == 2 && c3->changed == 0 && c3->removed == 0,
+       "a first save's disk is empty: every page line is an addition");
+    // the journal's cap: the last twelve stay, the oldest falls off
+    std::vector<std::string> j;
+    for (int i = 1; i <= 15; ++i)
+      dxn3::ideJournalPush(j, "s" + std::to_string(i));
+    ok(j.size() == dxn3::kJournalKeep && j.front() == "s4" &&
+           j.back() == "s15",
+       "the journal keeps the last twelve; the oldest falls off");
+    dxn3::ideJournalPush(j, "");
+    ok(j.size() == dxn3::kJournalKeep,
+       "an empty line is not a save's story");
+    std::filesystem::remove(tmp);
+  }
+
+  // 107. the wardrobe's door: a coat spoken as one line, carried out
+  // by :theme export and adopted back by :theme import — the loader's
+  // law (shipped names refused) is the guard on the way home
+  {
+    auto& ts = dxn3::ideThemes();
+    const size_t base = ts.size();
+    ok(base >= 6, "the door opens on the shipped wardrobe");
+    // the line's law: name + six decimal triples, ':'-joined
+    const std::string line = dxn3::ideThemeLine(ts[0]);
+    ok(line.rfind("dxn:226,232,240:96,104,126:", 0) == 0,
+       "the house coat speaks its line (name:base:comment, decimal), got '" +
+           line + "'");
+    // an export with no path comes back as the line itself
+    std::string err;
+    const std::string out = dxn3::ideThemeExport("nord", "", &err);
+    ok(err.empty() && out == dxn3::ideThemeLine(ts[3]),
+       "an export with no path speaks the coat's line");
+    // an export with a path APPENDS — the file grows, never truncates
+    const std::string tmp = "/tmp/dxn3_theme_export_probe";
+    std::filesystem::remove(tmp);
+    err.clear();
+    ok(!dxn3::ideThemeExport("nord", tmp, &err).empty() && err.empty(),
+       "an export with a path appends and reports");
+    err.clear();
+    ok(!dxn3::ideThemeExport("dracula", tmp, &err).empty() && err.empty(),
+       "a second coat joins the file");
+    {
+      std::ifstream f(tmp);
+      int lines = 0;
+      std::string l;
+      while (std::getline(f, l)) ++lines;
+      ok(lines == 2, "the file holds both coats, one line each");
+    }
+    ok(dxn3::ideThemeLoadUserFile(tmp) == 0,
+       "the way home refuses shipped names (the loader's law)");
+    ok(ts.size() == base, "a refused coat takes no wardrobe space");
+    // a user coat's round trip: adopted, exported, the same line back
+    const std::string u1 =
+        "door1:#112233:#445566:#778899:#aabbcc:#ddeeff:#001122";
+    {
+      std::ofstream f(tmp, std::ios::binary | std::ios::trunc);
+      f << u1 << "\n";
+    }
+    ok(dxn3::ideThemeLoadUserFile(tmp) == 1, "a user coat adopts");
+    ok(ts.size() == base + 1, "the wardrobe grew by one");
+    const std::string tmp2 = "/tmp/dxn3_theme_export_probe2";
+    std::filesystem::remove(tmp2);
+    err.clear();
+    dxn3::ideThemeExport("door1", tmp2, &err);
+    ok(err.empty(), "the user coat travels too");
+    {
+      std::ifstream f(tmp2);
+      std::string l;
+      std::getline(f, l);
+      ok(l == dxn3::ideThemeLine(ts[base]),
+         "the coat's journey speaks the same line the wardrobe holds "
+         "(decimal, the loader's tongue), got '" + l + "'");
+    }
+    // the refusals: a ghost coat, an unwritable path
+    err.clear();
+    dxn3::ideThemeExport("nope", "", &err);
+    ok(!err.empty() && err.find("no such theme") != std::string::npos,
+       "a ghost coat is refused at the door");
+    err.clear();
+    dxn3::ideThemeExport("door1", "/no/such/dir/coats", &err);
+    ok(!err.empty() && err.find("cannot write") != std::string::npos,
+       "an unwritable path is refused honestly");
+    // the import: honest zero from a missing file, a counted receipt
+    // from a real one (your own coat re-tailors in place)
+    ok(dxn3::ideThemeImport("/tmp/dxn3_theme_absent_probe").find("waits") !=
+           std::string::npos,
+       "an import from a missing file is honest zero");
+    const std::string imp = dxn3::ideThemeImport(tmp);
+    ok(imp.find("1 coat") != std::string::npos,
+       "the import's receipt speaks the count, got '" + imp + "'");
+    ok(ts.size() == base + 1, "a re-import re-tailors, never duplicates");
+    std::filesystem::remove(tmp);
+    std::filesystem::remove(tmp2);
+    ts.resize(base);   // shed the door's coats so later groups see six
+  }
+
   if (fails == 0) {
     std::println("native selftest: all green ({} assertion groups)", n);
     return 0;

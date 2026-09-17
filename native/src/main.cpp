@@ -842,7 +842,23 @@ bool isScriptFile(const std::string& p) {
   return false;
 }
 
-bool ideSave(IdeState& ide, std::string* err, bool* bakKept = nullptr) {
+// the receipt's counts: " (+3 ~2 -1)" when the save changed the disk,
+// "" when the census called it same — a save with no story wears none
+std::string savedCounts(const dxn3::IdeDiffReport& rep) {
+  if (rep.same()) return "";
+  return "  (+" + std::to_string(rep.added) + " ~" +
+         std::to_string(rep.changed) + " -" + std::to_string(rep.removed) +
+         ")";
+}
+
+bool ideSave(IdeState& ide, std::string* err, bool* bakKept = nullptr,
+             dxn3::IdeDiffReport* rep = nullptr) {
+  // the save's ledger, taken before the pen falls: the page against
+  // the disk it is ABOUT to hear. A census too big to think leaves
+  // the caller's report untouched — the receipt then speaks no counts.
+  if (rep) {
+    if (const auto c = dxn3::ideSaveCensus(ide.path, ide.lines)) *rep = *c;
+  }
   // the pen's second copy: the file that exists becomes <path>.bak the
   // moment this save starts — the scene's law (.bak kept), now every
   // document's. A first save has no past to keep; a failed copy is a
@@ -2084,13 +2100,66 @@ int main(int argc, char** argv) {
           }
         } else if (cmd.verb == "theme") {
           takeStage();
-          std::string terr;
-          const std::string receipt = dxn3::ideThemeSet(ide, cmd.arg, &terr);
-          if (!terr.empty())
-            ide.console.push_back("engine: " + terr);
-          else {
-            ide.console.push_back("engine: " + receipt);
-            if (!cmd.arg.empty()) dxn3::ideThemeStore(ide);   // the coat keeps
+          // the wardrobe's door rides the same verb: ":theme export
+          // [name [path]]" carries a coat OUT as one themes-file line
+          // (bare: the coat you wear; a path: the line is appended),
+          // ":theme import [path]" adopts a file's coats NOW (the
+          // default is the wardrobe's home). Any other argument is
+          // still the wearing law — a bare :theme lists.
+          const std::string& a = cmd.arg;
+          const bool isExport =
+              a.rfind("export", 0) == 0 && (a.size() == 6 || a[6] == ' ');
+          const bool isImport =
+              a.rfind("import", 0) == 0 && (a.size() == 6 || a[6] == ' ');
+          if (isExport || isImport) {
+            std::string rest =
+                a.size() > 6 ? a.substr(7) : "";   // past the subword
+            const size_t p0 = rest.find_first_not_of(" \t");
+            rest = (p0 == std::string::npos) ? "" : rest.substr(p0);
+            if (isExport) {
+              std::string name, path;
+              if (rest.empty()) {
+                // a bare export speaks the coat you are wearing
+                name = dxn3::ideThemes()[static_cast<size_t>(ide.themeIx)]
+                           .name;
+              } else {
+                const size_t sp = rest.find(' ');
+                if (sp == std::string::npos) {
+                  name = rest;                 // one word: the coat's name
+                } else {
+                  name = rest.substr(0, sp);   // name, then the file
+                  const size_t q0 = rest.find_first_not_of(" \t", sp);
+                  if (q0 != std::string::npos) path = rest.substr(q0);
+                }
+              }
+              std::string terr2;
+              const std::string out =
+                  dxn3::ideThemeExport(name, path, &terr2);
+              if (!terr2.empty()) ide.console.push_back("engine: " + terr2);
+              else if (path.empty()) {
+                ide.console.push_back("engine: " + name +
+                                      "'s line — paste it into a themes "
+                                      "file:");
+                ide.console.push_back("  " + out);
+              } else ide.console.push_back("engine: " + out);
+            } else {
+              // one path token (a path may hold spaces); "" is the home
+              const size_t p1 = rest.find_last_not_of(" \t");
+              const std::string path =
+                  rest.empty() ? "" : rest.substr(0, p1 + 1);
+              ide.console.push_back("engine: " + dxn3::ideThemeImport(path));
+            }
+          } else {
+            std::string terr;
+            const std::string receipt =
+                dxn3::ideThemeSet(ide, cmd.arg, &terr);
+            if (!terr.empty())
+              ide.console.push_back("engine: " + terr);
+            else {
+              ide.console.push_back("engine: " + receipt);
+              if (!cmd.arg.empty())
+                dxn3::ideThemeStore(ide);   // the coat keeps
+            }
           }
         } else if (cmd.verb == "ruler") {
           takeStage();
@@ -2720,6 +2789,26 @@ int main(int argc, char** argv) {
               }
             }
           }
+        } else if (cmd.verb == "journal") {
+          // the save journal: what each :w CHANGED, oldest at the top,
+          // the newest last — the disk's memory, one line per save,
+          // the census taken before each pen fell. A save the census
+          // called same() is not a story and takes no line; the last
+          // twelve stay, the oldest falls off the far end.
+          takeStage();
+          if (ide.journal.empty()) {
+            ide.console.push_back(
+                "engine: the journal is blank — no save has changed a "
+                "line yet (:w writes its story here)");
+          } else {
+            ide.console.push_back(
+                "engine: the last " + std::to_string(ide.journal.size()) +
+                (ide.journal.size() == 1 ?
+                     " save the disk heard, oldest first:" :
+                     " saves the disk heard, oldest first:"));
+            for (const auto& e : ide.journal)
+              ide.console.push_back("  " + e);
+          }
         } else if (cmd.verb == "changes") {
           // the census: a bare :changes LISTS the touched lines; a
           // number LEAPS to the Nth — the census is not just a mirror,
@@ -3027,24 +3116,33 @@ int main(int argc, char** argv) {
             // the document.
             std::string err;
             bool bak = false;
+            dxn3::IdeDiffReport rep;   // the census before the pen fell
             if (!cmd.arg.empty()) {
               const std::string old = ide.path;
               ide.path = cmd.arg;
-              if (ideSave(ide, &err, &bak)) {
+              if (ideSave(ide, &err, &bak, &rep)) {
                 dxn3::ideDriftClear(ide);  // the disk heard the page
                 dxn3::ideRecentPush(ide.recent, ide.path);
-                ide.console.push_back("engine: saved as " + ide.path +
-                                      (bak ? "  (.bak kept)" : ""));
+                dxn3::ideJournalPush(ide.journal,
+                                     dxn3::ideJournalLine(rep, ide.path));
                 ideRun();
                 ide.idle = 0;
+                // the receipt speaks AFTER the run's own notes — the
+                // last word in the rail, never drowned by them
+                ide.console.push_back("engine: saved as " + ide.path +
+                                      savedCounts(rep) +
+                                      (bak ? "  (.bak kept)" : ""));
               } else {
                 ide.path = old;    // the name was refused: the doc
                 cmdErr = err;      // keeps its own
                 cmdErrT = 3.5f;
               }
-            } else if (ideSave(ide, &err, &bak)) {
+            } else if (ideSave(ide, &err, &bak, &rep)) {
               dxn3::ideDriftClear(ide);      // the disk heard the page
+              dxn3::ideJournalPush(ide.journal,
+                                   dxn3::ideJournalLine(rep, ide.path));
               ide.console.push_back("engine: saved " + ide.path +
+                                    savedCounts(rep) +
                                     (bak ? "  (.bak kept)" : ""));
             } else { cmdErr = err; cmdErrT = 3.5f; }
           } else {
@@ -3056,7 +3154,12 @@ int main(int argc, char** argv) {
         } else if (cmd.verb == "wq") {
           if (ideEver) {
             std::string err;
-            if (ideSave(ide, &err)) return true;   // the save is the sleep
+            dxn3::IdeDiffReport rep;   // the pen is quiet, the journal is not
+            if (ideSave(ide, &err, nullptr, &rep)) {
+              dxn3::ideJournalPush(ide.journal,
+                                   dxn3::ideJournalLine(rep, ide.path));
+              return true;                         // the save is the sleep
+            }
             cmdErr = err; cmdErrT = 3.5f;    // a failed pen never quits
           } else {
             const std::string err = dxn3::Game::saveScene(scenePath, game.scene);
@@ -3077,7 +3180,7 @@ int main(int argc, char** argv) {
           takeStage();                         // every verb takes the stage —
                                                // a law, not a suggestion
           if (cmd.arg.empty()) {
-            game.say(":scene :open :recent :template :snip :goto :jumps :changes :diff :drift :git :fresh :mark :marks :bm :ruler :minimap :theme :zen :wrap :crew :count :center :relnum :s :sa :o :e :trim :cases :sort :rsort :rev :uniq :squeeze :retab :ws :shuffle :indent :dedent :lift :drop :dup :join :upper :lower :title :hist :undo :redo :words :todo :stats "
+            game.say(":scene :open :recent :template :snip :goto :jumps :changes :diff :drift :journal :git :fresh :mark :marks :bm :ruler :minimap :theme :zen :wrap :crew :count :center :relnum :s :sa :o :e :trim :cases :sort :rsort :rev :uniq :squeeze :retab :ws :shuffle :indent :dedent :lift :drop :dup :join :upper :lower :title :hist :undo :redo :words :todo :stats "
                      ":record :macro :zoom :fit :reset :new :w :wq :q :screenshot :magnet :gravity — or :help <verb>",
                      4.f);
           } else {
@@ -3413,12 +3516,19 @@ int main(int argc, char** argv) {
       if (keys.ctrlS) {
         std::string err;
         bool bak = false;
-        if (ideSave(ide, &err, &bak))
+        dxn3::IdeDiffReport rep;   // the keyboard's :w — the same law
+        if (ideSave(ide, &err, &bak, &rep)) {
+          dxn3::ideDriftClear(ide);    // the disk heard (the law, kept)
+          dxn3::ideJournalPush(ide.journal,
+                               dxn3::ideJournalLine(rep, ide.path));
+          ideRun();
+          ide.idle = 0;
+          // the receipt speaks after the run's own notes — the last
+          // word in the rail, never drowned by them
           ide.console.push_back("engine: saved " + ide.path +
+                                savedCounts(rep) +
                                 (bak ? "  (.bak kept)" : ""));
-        else ide.console.push_back("engine: " + err);
-        ideRun();
-        ide.idle = 0;
+        } else ide.console.push_back("engine: " + err);
       } else if (keys.ctrlR) {
         ideRun();
         ide.idle = 0;

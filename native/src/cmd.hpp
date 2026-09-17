@@ -228,9 +228,17 @@ inline Cmd parseCommand(std::string_view line) {
   } else if (c.verb == "count") {
     // a bare :count counts the searchlight's query; :count <word> the word
   } else if (c.verb == "theme") {
-    // a bare :theme lists the wardrobe; :theme <name|n> wears one
-    if (c.arg.find(' ') != std::string::npos)
-      c.error = "usage: :theme [name|n] — one coat at a time";
+    // a bare :theme lists the wardrobe; :theme <name|n> wears one;
+    // the wardrobe's door rides the same verb: export/import take
+    // their own words after them (a name, a path)
+    const bool sub =
+        (c.arg.rfind("export", 0) == 0 &&
+         (c.arg.size() == 6 || c.arg[6] == ' ')) ||
+        (c.arg.rfind("import", 0) == 0 &&
+         (c.arg.size() == 6 || c.arg[6] == ' '));
+    if (!sub && c.arg.find(' ') != std::string::npos)
+      c.error = "usage: :theme [name|n] — one coat at a time "
+                "(:theme export/import take their own words)";
   } else if (c.verb == "help") {
     // a bare :help lists every verb; :help <verb> whispers that verb's law
     if (!c.arg.empty() && c.arg.find(' ') != std::string::npos)
@@ -251,6 +259,7 @@ inline Cmd parseCommand(std::string_view line) {
              c.verb == "jumps" || c.verb == "relnum" ||
              c.verb == "wrap" ||
              c.verb == "record" ||
+             c.verb == "journal" ||
              c.verb == "squeeze" ||
              c.verb == "retab" || c.verb == "ws" ||
              c.verb == "match" ||
@@ -347,7 +356,14 @@ inline std::string usageHintFor(std::string_view typed) {
   if (verb == "theme")
     return " :theme [name|n] — wear a coat (bare :theme lists the "
            "wardrobe; your own load from $HOME/.dxn3-themes and wear "
-           "[user]); the choice keeps across nights";
+           "[user]); the choice keeps across nights. The wardrobe's "
+           "door: :theme export [name [path]] speaks a coat as one "
+           "themes-file line (bare: the worn coat; a path appends), "
+           ":theme import [path] adopts a file's coats now";
+  if (verb == "journal")
+    return " :journal — the save ledger: what each :w changed "
+           "(+added ~changed -removed path), the last twelve, "
+           "oldest first";
   if (verb == "zen")
     return " :zen — the rail rests, the body breathes; :zen wakes it and "
            "replays its ledger";
@@ -448,7 +464,9 @@ inline std::string usageHintFor(std::string_view typed) {
            "walks the memory; :git branch names the locals; :git tag "
            "counts the milestones (read-only)";
   if (verb == "w")
-    return " :w [file] — save the session's work; a .bak is kept";
+    return " :w [file] — save the session's work; a .bak is kept; the "
+           "receipt wears the census it saved (+a ~c -r) and :journal "
+           "remembers";
   if (verb == "wq") return " :wq — save and quit";
   if (verb == "q") return " :q — quit";
   if (verb == "screenshot") return " :screenshot [file.png]";

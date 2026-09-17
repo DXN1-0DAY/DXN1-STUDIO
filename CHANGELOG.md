@@ -1,3 +1,52 @@
+## v3.1.82 — the save speaks, the wardrobe's door
+
+- **`:w` speaks what it saved.** The save's census is taken BEFORE
+  the pen falls — the same LCS three voices as `:diff`, aimed
+  forward in time (ideSaveCensus) — and the receipt wears it:
+  `saved path (+3 ~2 -1)`. A save the census calls same wears no
+  counts (a save with no story); a first save to a fresh name
+  speaks the honest birth line (`(+N)` — the disk never heard the
+  page, every line is an addition). The receipt speaks AFTER the
+  run's own notes — the last word in the rail, never drowned by
+  them. The keyboard's `ctrl+s` is the same law, and it now also
+  sweeps the drift (the disk heard — the law `:w` kept all along;
+  the keyboard's save had been letting the amber lie).
+- **`:journal` — the save ledger.** One line per save that CHANGED
+  the disk: `+added ~changed -removed  path`, the last twelve kept
+  (kJournalKeep), oldest first on the listing. A storyless save
+  takes no line; the blank journal says so kindly. Session-scoped
+  like the census — the disk's memory of your hand, spoken on ask.
+- **The wardrobe's door: `:theme export` / `:theme import`.** A coat
+  can leave and come home. `:theme export [name [path]]` speaks a
+  coat as ONE themes-file line (ideThemeLine — the same seven
+  fields the loader reads, decimal triples; the export's voice and
+  the loader's tongue are one law): bare it speaks the coat you
+  WEAR, with a path it APPENDS the line to a file (a wardrobe that
+  grows, never truncates). `:theme import [path]` adopts a file's
+  coats right now (bare: $HOME/.dxn3-themes, the wardrobe's home) —
+  the loader's own law is the guard on the way home: shipped names
+  refused, your earlier coats re-tailor in place, bad lines skip,
+  an absent file is honest zero. The wearing law's eye is extracted
+  (ideThemePick) so export resolves coats by the SAME name, unique
+  prefix or 1-based index; the parse law now lets the door's words
+  ride (`:theme export/import` take their own arguments; the
+  wearing law still refuses two words).
+- **The wiring the probe caught.** `:journal` was refused by the
+  command bar's parse law ("no such command") — the handler existed
+  but the verb was never whitelisted; the pty probe drove the REAL
+  binary and caught it before the wire ever lied. The probe also
+  pinned the whole door end to end: 13/13 pins over the birth
+  census, the journal's voice, the storyless save's silence, the
+  bare export's line, the file append, the shipped-name refusal on
+  the way home, the ghost coat and the unwritable path.
+- **Tests:** selftest grows groups 106/107 — the save's ledger
+  (census before the pen, the journal line's exact voice, the
+  twelve cap, the storyless refusal) and the wardrobe's door (the
+  line's law, append-never-truncate, the round trip speaking the
+  same line the wardrobe holds, the loader's guard, the honest
+  zeros) — 1,060 assertion groups, all green. ide_door_probe.py:
+  13/13 pins green over the real binary in a pty.
+
 ## v3.1.81 — the deck's low light (and the ten it saved)
 
 - **The hand label wears the countdown.** cards.py's deck drains

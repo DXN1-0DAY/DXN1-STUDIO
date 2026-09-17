@@ -2,7 +2,7 @@
 
 ![DXN1 STUDIO 3](assets/banner.png)
 
-![version](https://img.shields.io/badge/version-3.1.81-8b5cf6?style=flat-square)
+![version](https://img.shields.io/badge/version-3.1.82-8b5cf6?style=flat-square)
 ![gates](https://github.com/DXN1-termux/DXN1-STUDIO/actions/workflows/ci.yml/badge.svg)
 ![native](https://img.shields.io/badge/native-C%2B%2023-f97316?style=flat-square)
 ![face](https://img.shields.io/badge/face-terminal_truecolor-22d3ee?style=flat-square)
@@ -222,6 +222,17 @@ viewport refreshes — *code a background, and boom, a background.*
   word, and the header speaks the count (`N drifted`) at a glance.
   The breath never spends a console line; the store is the whole
   breath.
+- **`:w` speaks what it saved, and `:journal` remembers.** The save's
+  census is taken BEFORE the pen falls — the same three voices as
+  `:diff`, aimed forward in time — and the receipt wears it:
+  `saved (+3 ~2 -1)`. A save that changes nothing wears no counts
+  (the census called it same) and takes no journal line; a first
+  save to a fresh name speaks the honest birth line (`+N` — every
+  page line is an addition, the disk never heard it). `:journal`
+  lists the last twelve saves the disk heard, oldest first, one
+  line per save — the receipt always speaks LAST, after the run's
+  own notes, so it is never drowned. The keyboard's `ctrl+s` is the
+  same law (counts, journal, and the drift swept — the disk heard).
 - **Word hops and the partner.** `ctrl+←`/`ctrl+→` jump word by word —
   the same words `ctrl+w` bites — across line edges when they must.
   `ctrl+delete` eats exactly what a hop would cross; `ctrl+/` toggles
@@ -380,6 +391,12 @@ choice keeps across nights in `~/.dxn3-theme` ·
 color speaking decimal (`30,41,59`) or hex (`#e2e8f0`); shipped
 names are refused, your own earlier coats re-tailor in place, and
 the list marks your coats `[user]` ·
+**and the wardrobe has a door**: `:theme export [name [path]]`
+speaks a coat as one themes-file line (bare: the coat you wear; a
+path appends the line to a file) and `:theme import [path]` adopts
+a file's coats right now (bare: `~/.dxn3-themes`) — the loader's
+law is the guard on the way home, so a coat that leaves can always
+come back ·
 **the keepsake**: the editor's habits — `:ruler` `:minimap` `:zen`
 `:relnum` `:wrap` — ride one line in `~/.dxn3-settings` and return
 with you at boot; toggle one and the whole set keeps itself ·
@@ -398,7 +415,9 @@ with you at boot; toggle one and the whole set keeps itself ·
 `:cases` find respects case (Aa) ·
 `:mark`/`:marks`/`:bm` pin lines and leap between them (the pins
 whisper as you type) ·
-`:w` [file] saves the session's work — a .bak is kept ·
+`:w` [file] saves the session's work — a .bak is kept, the receipt
+wears the census it saved (`(+3 ~2 -1)`) and `:journal` lists the
+last twelve ·
 `:wq` saves and sleeps · `:hist` lists the undo ledger ·
 `:scene <name>` loads a demo (with
 completion whispers) · `:q` quit.
@@ -492,10 +511,11 @@ accepted:
 | `:bm [n]` | leap to a pin; bare `:bm` takes the next, wrapping — the pins whisper as you type |
 | `:changes [n\|word]` | the census — a bare verb lists the session's touched lines; a number leaps to the Nth; a word asks which touched lines speak it |
 | `:drift [n]` | the amber census — a bare verb lists the lines that disagree with the disk; a number leaps to the Nth; `:diff` asks, `:w` sweeps; the silent beat keeps it live |
+| `:journal` | the save ledger — what each `:w` changed (`+added ~changed -removed path`), the last twelve, oldest first; a storyless save takes no line |
 | `:git [log [n] \| branch \| tag]` | the repo's truth in one breath — branch, uncommitted count, the last commit's name; `:git log [n]` walks the memory; `:git branch` names the locals, the current starred; `:git tag` counts the milestones (read-only; refuses honestly without git) |
 | `:ruler` | toggle the 79/99 column guides |
 | `:minimap` | toggle the document's map rail |
-| `:theme [name\|n]` | wear a coat — six ship inside (dxn, dracula, gruvbox, nord, solar-dark, solar-light) and YOURS load from `~/.dxn3-themes` (name:base:comment:string:keyword:pane:sel, decimal or hex); by name, unique prefix or 1-based index; a bare verb lists the wardrobe; the choice keeps across nights |
+| `:theme [name\|n]` | wear a coat — six ship inside (dxn, dracula, gruvbox, nord, solar-dark, solar-light) and YOURS load from `~/.dxn3-themes` (name:base:comment:string:keyword:pane:sel, decimal or hex); by name, unique prefix or 1-based index; a bare verb lists the wardrobe; the choice keeps across nights. The door: `:theme export [name [path]]` speaks a coat as one line (bare: the worn coat; a path appends), `:theme import [path]` adopts a file's coats now |
 | `:center` | the view centers on your hand — z.'s law, clamped to the edges |
 | `:zen` | the quiet — the rail rests, the body breathes; `:zen` wakes it |
 | `:wrap` | the fold — long lines break into the pane at the last space or hyphen that fits, and ↑/↓ walk the rows; a second `:wrap` wakes the slide |

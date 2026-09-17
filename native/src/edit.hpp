@@ -183,6 +183,11 @@ struct IdeState {
   // until :w speaks them to the disk (or the page reopens). The
   // census's own memory, never edited by it.
   std::vector<int> drift;
+  // the save journal: one line per save that CHANGED the disk —
+  // "+added ~changed -removed  path", the census taken before the pen
+  // fell. :journal lists them (the last kJournalKeep, oldest first);
+  // a save the census called same() is not a story and takes no line.
+  std::vector<std::string> journal;
   // the crew: extra hands — every one stands where a cursor stands, and
   // the four edit verbs (typing, backspace, enter, forward delete) speak
   // through EVERY hand at once. Sorted, unique, the primary hand
@@ -370,6 +375,37 @@ inline int ideThemeLoadUserFile(const std::string& path) {
   return n;
 }
 
+// the wearing law's eye: resolve a coat by exact name, unique prefix
+// or 1-based index. Returns the wardrobe index, or -1 with *err
+// speaking (ambiguous prefixes are refused, not guessed).
+inline int ideThemePick(const std::string& arg, std::string* err = nullptr) {
+  const auto& ts = ideThemes();
+  int pick = -1;
+  if (arg.find_first_not_of("0123456789") == std::string::npos) {
+    const int n = std::atoi(arg.c_str());
+    if (n >= 1 && n <= static_cast<int>(ts.size())) pick = n - 1;
+  } else {
+    for (size_t i = 0; i < ts.size(); ++i)
+      if (arg == ts[i].name) { pick = static_cast<int>(i); break; }
+    if (pick < 0) {
+      int hits = 0;
+      for (size_t i = 0; i < ts.size(); ++i)
+        if (arg == ts[i].name ||
+            std::string_view(ts[i].name).rfind(arg, 0) == 0) {
+          pick = static_cast<int>(i);
+          ++hits;
+        }
+      if (hits > 1) {
+        if (err) *err = "ambiguous theme '" + arg + "' — :theme lists them";
+        return -1;
+      }
+    }
+  }
+  if (pick < 0 && err)
+    *err = "no such theme: " + arg + " — :theme lists them";
+  return pick;
+}
+
 // :theme — wear a coat by name, unique prefix or 1-based index; no
 // argument lists the wardrobe with the worn one marked (your coats
 // say [user]). Returns the receipt line either way; a bad or
@@ -388,33 +424,71 @@ inline std::string ideThemeSet(IdeState& ide, const std::string& arg,
     }
     return list;
   }
-  int pick = -1;
-  if (arg.find_first_not_of("0123456789") == std::string::npos) {
-    const int n = std::atoi(arg.c_str());
-    if (n >= 1 && n <= static_cast<int>(ts.size())) pick = n - 1;
-  } else {
-    for (size_t i = 0; i < ts.size(); ++i)
-      if (arg == ts[i].name) { pick = static_cast<int>(i); break; }
-    if (pick < 0) {
-      int hits = 0;
-      for (size_t i = 0; i < ts.size(); ++i)
-        if (arg == ts[i].name ||
-            std::string_view(ts[i].name).rfind(arg, 0) == 0) {
-          pick = static_cast<int>(i);
-          ++hits;
-        }
-      if (hits > 1) {
-        if (err) *err = "ambiguous theme '" + arg + "' — :theme lists them";
-        return {};
-      }
-    }
-  }
-  if (pick < 0) {
-    if (err) *err = "no such theme: " + arg + " — :theme lists them";
-    return {};
-  }
+  const int pick = ideThemePick(arg, err);
+  if (pick < 0) return {};
   ide.themeIx = pick;
   return "theme " + std::string(ts[pick].name) + " — the editor wears it";
+}
+
+// the coat spoken as one line — the SAME seven fields the themes file
+// wears (name:base:comment:string:keyword:pane:sel, decimal triples).
+// The export's voice and the loader's tongue are one law, so a coat
+// that leaves can come home.
+inline std::string ideThemeLine(const Theme& t) {
+  const auto c = [](RGB v) {
+    return std::to_string((v >> 16) & 0xFF) + "," +
+           std::to_string((v >> 8) & 0xFF) + "," +
+           std::to_string(v & 0xFF);
+  };
+  return t.name + ":" + c(t.base) + ":" + c(t.comment) + ":" + c(t.str) +
+         ":" + c(t.kw) + ":" + c(t.paneBg) + ":" + c(t.selBg);
+}
+
+// ── the wardrobe's door, outward: :theme export [name [path]] ───────
+// A coat carried out as one themes-file line. No path: the line comes
+// back (the console wears it; your hand copies it anywhere). A path:
+// the line is APPENDED, never truncated — a wardrobe that grows. Any
+// coat may travel, a shipped name too — the loader's own law (shipped
+// names refused at the door home) is the guard on the way back in.
+inline std::string ideThemeExport(const std::string& name,
+                                  const std::string& path,
+                                  std::string* err = nullptr) {
+  const int pick = ideThemePick(name, err);
+  if (pick < 0) return {};
+  const std::string line =
+      ideThemeLine(ideThemes()[static_cast<size_t>(pick)]);
+  if (path.empty()) return line;
+  std::ofstream f(path, std::ios::binary | std::ios::app);
+  if (!f) {
+    if (err) *err = "cannot write " + path;
+    return {};
+  }
+  f << line << '\n';
+  return "coat " + ideThemes()[static_cast<size_t>(pick)].name +
+         " appended to " + path;
+}
+
+// the wardrobe file's home — the coats the engine adopts at birth
+// ($HOME/.dxn3-themes). Empty when there is no home to name.
+inline std::string ideThemeWardrobePath() {
+  const char* home = std::getenv("HOME");
+  if (!home || !*home) return {};
+  return std::string(home) + "/.dxn3-themes";
+}
+
+// ── the wardrobe's door, inward: :theme import [path] ───────────────
+// Adopt every coat in a themes file NOW (the default is the
+// wardrobe's home). The adoption law is the loader's own: shipped
+// names refused, your earlier coats re-tailor in place, bad lines
+// skip. The receipt speaks the count either way — an empty or absent
+// file is honest zero, never an error.
+inline std::string ideThemeImport(const std::string& path) {
+  const std::string p = path.empty() ? ideThemeWardrobePath() : path;
+  if (p.empty()) return "no HOME — the wardrobe has no home to read";
+  const int n = ideThemeLoadUserFile(p);
+  if (n <= 0) return "no coats in " + p + " — the wardrobe waits";
+  return "imported " + std::to_string(n) + (n == 1 ? " coat" : " coats") +
+         " from " + p + " — :theme lists them, [user] marks yours";
 }
 
 // persistence — one line, the theme's name. An empty override means
@@ -807,6 +881,50 @@ inline void ideDriftClear(IdeState& s) { s.drift.clear(); }
 inline bool ideDriftHas(const IdeState& s, int line) {
   return line >= 0 &&
          std::binary_search(s.drift.begin(), s.drift.end(), line);
+}
+
+// ── the save's ledger: the census taken before the pen falls ────────
+// What the disk is ABOUT to hear, spoken before :w touches the file —
+// the same census :diff wears, aimed forward in time. A file that
+// does not exist yet is an empty disk: every page line is an
+// addition, the honest birth line. A bed too big to think comes back
+// nullopt and the receipt speaks no counts.
+inline std::optional<IdeDiffReport>
+ideSaveCensus(const std::string& path,
+              const std::vector<std::string>& page) {
+  std::vector<std::string> disk;
+  std::ifstream f(path, std::ios::binary);
+  if (f.good()) {
+    std::string ln;
+    while (std::getline(f, ln)) {
+      if (!ln.empty() && ln.back() == '\r') ln.pop_back();
+      disk.push_back(ln);
+    }
+  }
+  return ideDiffCensus(disk, page);
+}
+
+// the journal's voice: one line per save — "+added ~changed -removed
+// path", the disk's side of the story. A save the census called
+// same() changed nothing and takes no line: "" is the refusal.
+inline std::string ideJournalLine(const IdeDiffReport& rep,
+                                  const std::string& path) {
+  if (rep.same()) return "";
+  return "+" + std::to_string(rep.added) + " ~" +
+         std::to_string(rep.changed) + " -" +
+         std::to_string(rep.removed) + "  " + path;
+}
+
+// the journal remembers the last saves the disk heard — the oldest
+// falls off the far end (kJournalKeep stay). An empty line is not a
+// save's story; it is refused.
+constexpr size_t kJournalKeep = 12;
+inline void ideJournalPush(std::vector<std::string>& journal,
+                           std::string line) {
+  if (line.empty()) return;
+  journal.push_back(std::move(line));
+  if (journal.size() > kJournalKeep)
+    journal.erase(journal.begin(), journal.end() - kJournalKeep);
 }
 
 // the selection goes first: the range is cut, the cursor collapses to
