@@ -1,3 +1,45 @@
+## v3.1.58 — the owl hunts the jump
+
+- **The desert grows a hunter.** At night — and ONLY at night — the
+  owl sweeps in from the right on its OWN seeded stream ("the night
+  owl"; the desert's seed stays dedicated, the sky's law held). It
+  flies a band the grounded runner passes UNDER (rows H-13/H-12,
+  two full rows of clear sky above the standing head) but any LEAP
+  rises straight through it — the owl is the hazard that hunts the
+  jump, not the runner. It wings its own 0.22 s flap (the beat
+  lifts, never dips), wears the pale dress with a halo of its own
+  (glow 2), swoops at 1.8x the run, and speaks "hoot hoot" on
+  every launch.
+- **Fair by construction: while an owl flies, the desert holds its
+  breath.** The launch gate demands the runner's feet down and
+  NOTHING ahead of the runner (parked or passed counts as clear);
+  and for the whole flight the spawn block is frozen — no cactus
+  can appear inside the owl's no-jump window, so the owl can never
+  steal a leap a cactus demanded. Waiting at the door consumes no
+  randomness: the draw happens only on a real launch, so the same
+  run grows the same owl.
+- **The first owl waits >= 6 s after night falls** (owlIn = 6 at
+  the nightfall packet, no stream draw), then every launch draws
+  its own 6-14 s from the owl's stream. walkAgain parks the
+  hunters, restarts the owl clock, and RESEEDS the owl stream —
+  the second run's owl flies from the same first draw, while the
+  desert's stream continues unbroken across both runs.
+- **Entity count 20 -> 22** (two owls parked off right); the
+  conformance pin moved with it.
+- **Probe `dino_owl_probe.py`: 14 pins green** — both streams
+  replayed bit for bit (cactus shapes across BOTH runs, owl launch
+  packets with ZERO drift); the freeze observed (while an owl flew,
+  nothing ever stood ahead of the runner); fairness counted
+  (zero leaps suppressed); the band never dipped toward the
+  runner; every launch spoke; death -> r -> walkAgain -> second
+  night -> owl again. Two wire laws re-learned the hard way:
+  (1) the engine's held-key whitelist forwards only
+  left/right/jump/space — letter keys ride via `chars` (the R15
+  lesson, re-learned by the r-walk-again silently never firing);
+  (2) the engine's order is physics -> tick -> keys -> hits — the
+  death packet's tick math runs BEFORE on.hit, so a mirror that
+  skips it desyncs the stream by one draw.
+
 ## v3.1.57 — the desert grows three shapes
 
 - **A playability bug the size of the desert: the dino could clear

@@ -18,6 +18,15 @@
 // the fat twin 6x4, the tall sentinel 3x5 — the stream is untouched,
 // so the same run grows the same desert) and the sky's clock dresses
 // them: green by day, pale by night with a faint halo of their own.
+// the OWL hunts only at night, from its OWN seeded stream ("the night
+// owl" — the desert's seed stays dedicated): it sweeps a band the
+// grounded runner passes under, but any LEAP rises into it — the owl
+// is the hazard that hunts the jump, not the runner. it launches only
+// while the runner's feet are down and NOTHING is ahead of the runner
+// (fair by construction), swoops at 1.8x the run, wings its own flap,
+// and wears a halo of its own. and while an owl flies the desert
+// HOLDS ITS BREATH — no cactus spawns — so the no-jump window is
+// guaranteed clear: the owl never steals a leap a cactus demanded.
 // r walks again after the fall.
 const dxn3 = require("dxn3");
 const { rect, circle, label, find, background, say, win, on, run } = dxn3;
@@ -69,6 +78,38 @@ for (let i = 0; i < CACTI; ++i) {
   cacti.push(c);
 }
 
+// the OWLS: two hunters parked off right, in a band the grounded
+// runner passes under (rows H-13/H-12 — the standing head tops at
+// H-9) but a leap climbs straight through. tag "hazard" — the same
+// honest law: touch it and the run ends.
+const OWLS = 2;
+const OWL_COLOR = "#d8b4fe";
+const owls = [];
+for (let i = 0; i < OWLS; ++i) {
+  const o = rect(`owl-${i}`, -999, H - 13, 5, 2, OWL_COLOR);
+  o.tag = "hazard";
+  o.glow = 2;                            // born wearing its own lantern
+  owls.push(o);
+}
+
+// the owl's OWN seeded stream — the desert's seed stays dedicated
+// (the sky already proved the law; the owl follows it)
+let oseed = 0;
+function initOwlSeed() {
+  oseed = 2166136261 >>> 0;
+  for (const ch of "the night owl") {
+    oseed ^= ch.charCodeAt(0);
+    oseed = (oseed * 16777619) >>> 0;
+  }
+}
+initOwlSeed();
+const onext = () => {
+  oseed ^= oseed << 13; oseed >>>= 0;
+  oseed ^= oseed >>> 17;
+  oseed ^= oseed << 5;  oseed >>>= 0;
+  return oseed / 4294967296;
+};
+
 // the seed: the studio's law — deterministic stars, deterministic
 // desert. FNV-1a of the runner's name, xorshift after.
 let seed = 2166136261 >>> 0;
@@ -87,6 +128,9 @@ let speed = 55, dist = 0, vy = 0, dead = false, night = false, nightT = 0;
 let spawnIn = 2.2;                       // seconds until the next cactus
 let free = 0;                            // round-robin over the pool
 let bufT = 0;                            // the grace memory: a kept press
+let owlIn = 0;                           // seconds until the owl may ask
+let owlFree = 0;                         // round-robin over the owl pool
+let flapT = 0, flapUp = false;           // the wingbeat's own clock
 
 
 function leap() {
@@ -113,6 +157,10 @@ function walkAgain() {
   dust.alpha = 0;
   night = false;                         // a fresh run is a fresh day
   nightT = 0;
+  owls.forEach((o) => { o.x = -999; });  // the hunters go home
+  owlIn = 0;                             // and the owl clock restarts
+  initOwlSeed();                         // the same run, the same owl
+  owlFree = 0;
   ground.color = "#5b4a3a";
   sky.forEach((s) => { s.alpha = 0.15; });
   moon.alpha = 0.25;
@@ -128,6 +176,7 @@ on.key((k) => {
 
 on.tick((dt) => {
   if (dead) return;
+  const owlFlying = owls.some((o) => o.x > -100);  // read before anything moves
   // the run: the desert speeds up forever, the meters pile up
   speed += 2 * dt;
   dist += speed * dt;
@@ -165,9 +214,11 @@ on.tick((dt) => {
   });
   // the spawn law: the seed decides, the pool serves — ONE draw for
   // the shape (short, the fat twin, tall — three bands, same stream),
-  // ONE for the rest; the sky's clock dresses the skin for free
+  // ONE for the rest; the sky's clock dresses the skin for free.
+  // WHILE AN OWL FLIES the desert holds its breath: no cactus spawns,
+  // so nothing can demand a leap inside the owl's no-jump window.
   spawnIn -= dt;
-  if (spawnIn <= 0) {
+  if (spawnIn <= 0 && !owlFlying) {
     const c = cacti[free % CACTI];
     free += 1;
     c.x = W + 2;
@@ -184,9 +235,42 @@ on.tick((dt) => {
     if (c.x > -100) c.x -= speed * dt;
     else if (c.x > -999 && c.x < -100) c.x = -999;   // walked off: park
   });
+  // the owl's night shift: it asks every owlIn seconds, but launches
+  // ONLY with the runner's feet down and NOTHING ahead of the runner
+  // (parked or passed counts as clear). the draw happens only on a
+  // real launch (waiting consumes no randomness).
+  if (night) {
+    owlIn -= dt;
+    if (owlIn <= 0) {
+      const feetDown = dino.y >= H - 9;
+      const clearAhead = cacti.every((c) => c.x <= -999 || c.x + c.w <= dino.x);
+      if (feetDown && clearAhead) {
+        const o = owls[owlFree % OWLS];
+        owlFree += 1;
+        o.x = W + 2;
+        o.y = H - 13;
+        say("hoot hoot");
+        owlIn = 6 + onext() * 8;         // one draw, on the owl's stream
+      }
+    }
+  }
+  owls.forEach((o) => {
+    if (o.x > -100) {
+      o.x -= speed * 1.8 * dt;           // the swoop: faster than the run
+      flapT += dt;
+      if (flapT >= 0.22) {               // the wingbeat, its own clock
+        flapT = 0;
+        flapUp = !flapUp;
+      }
+      o.y = H - 13 - (flapUp ? 1 : 0);   // the beat lifts, never dips
+    } else if (o.x > -999 && o.x < -100) {
+      o.x = -999;                        // flown off: park
+    }
+  });
   if (!night && meters >= 200) {         // the desert goes dark
     night = true;
     ground.color = "#2b2620";
+    owlIn = 6;                           // the first owl no sooner than 6 s
     say("night falls at 200");
   }
   if (night && nightT < 1) {             // the sky fades in over two seconds
