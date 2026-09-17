@@ -1,3 +1,20 @@
+## v3.1.37 — the wardrobe
+
+- **The editor learns to dress: `:theme` — six coats ship inside.**
+  dxn (the house coat), dracula, gruvbox, nord, solar-dark and
+  solar-light — each naming drawCodeLine's four code voices (base,
+  comment, string, keyword) and the pane's two chrome washes. Wear
+  one by exact name, UNIQUE PREFIX or 1-based index; a bare
+  `:theme` lists the wardrobe marking what's worn; ambiguous
+  prefixes and ghost names are refused honestly; the command bar
+  whispers the coats as you type. The choice survives the night:
+  one line in `~/.dxn3-theme`, recalled at boot, garbage-tolerant
+  (a bad peg keeps the house coat on).
+- Selftest group 102: registry sanity, name/prefix/index/ghost/
+  ambiguous/list pins, store→recall round trip, garbage peg. 957
+  assertion groups, all green. README editor sections + `--help`
+  + `:help` speak the wardrobe.
+
 ## v3.1.36 — the meal bleaches
 
 - **snake.py adopts the flash field — every meal bleaches the head

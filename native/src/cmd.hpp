@@ -227,6 +227,10 @@ inline Cmd parseCommand(std::string_view line) {
     // a look, never an edit — the page against the disk
   } else if (c.verb == "count") {
     // a bare :count counts the searchlight's query; :count <word> the word
+  } else if (c.verb == "theme") {
+    // a bare :theme lists the wardrobe; :theme <name|n> wears one
+    if (c.arg.find(' ') != std::string::npos)
+      c.error = "usage: :theme [name|n] — one coat at a time";
   } else if (c.verb == "help") {
     // a bare :help lists every verb; :help <verb> whispers that verb's law
     if (!c.arg.empty() && c.arg.find(' ') != std::string::npos)
@@ -301,7 +305,7 @@ inline std::string usageHintFor(std::string_view typed) {
   if (!typed.empty() && typed.front() == ':') typed.remove_prefix(1);
   while (!typed.empty() && typed.front() == ' ') typed.remove_prefix(1);
   if (typed.empty())
-    return " verbs: scene open recent template snip goto zoom fit reset ruler stats minimap w wq q screenshot magnet gravity help crew count";
+    return " verbs: scene open recent template snip goto zoom fit reset ruler stats minimap theme w wq q screenshot magnet gravity help crew count";
   const size_t sp = typed.find(' ');
   const std::string verb(sp == std::string_view::npos ? typed
                                                       : typed.substr(0, sp));
@@ -340,6 +344,9 @@ inline std::string usageHintFor(std::string_view typed) {
   if (verb == "reset") return " :reset — back to spawn";
   if (verb == "ruler") return " :ruler — toggle the 79/99 column guides";
   if (verb == "minimap") return " :minimap — toggle the document's map rail";
+  if (verb == "theme")
+    return " :theme [name|n] — wear a coat (bare :theme lists the "
+           "wardrobe); the choice keeps across nights";
   if (verb == "zen")
     return " :zen — the rail rests, the body breathes; :zen wakes it and "
            "replays its ledger";

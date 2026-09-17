@@ -19,6 +19,8 @@
 #include <optional>
 #include <charconv>
 #include <chrono>
+#include <cstdlib>
+#include <fstream>
 #include <random>
 #include <string>
 #include <vector>
@@ -222,7 +224,118 @@ struct IdeState {
   // register survives opens and reloads; :record's start clears it.
   std::vector<std::string> macro;
   bool recording = false;
+  // the wardrobe: which coat the editor wears — an index into
+  // ideThemes(). :theme switches (and remembers, via
+  // ideThemeStore/ideThemeRecall); 0 is the house coat, dxn.
+  int themeIx = 0;
 };
+
+// ── the wardrobe: the editor's coats ─────────────────────────────────
+// A theme is four code voices (base, comment, string, keyword — the
+// voices drawCodeLine speaks) plus the two chrome washes (pane, sel).
+// Six ship inside; :theme wears one by name, unique prefix or 1-based
+// index, and the choice survives the night in $HOME/.dxn3-theme.
+struct Theme {
+  const char* name;
+  RGB base, comment, str, kw;
+  RGB paneBg, selBg;
+};
+
+inline const std::vector<Theme>& ideThemes() {
+  static const std::vector<Theme> kThemes = {
+      {"dxn",         rgb(226, 232, 240), rgb(96, 104, 126),  rgb(250, 204, 21),
+       rgb(167, 139, 250), rgb(16, 12, 30),    rgb(30, 22, 52)},
+      {"dracula",     rgb(248, 248, 242), rgb(98, 114, 164),  rgb(241, 250, 140),
+       rgb(255, 121, 198), rgb(40, 42, 54),    rgb(68, 69, 90)},
+      {"gruvbox",     rgb(235, 219, 178), rgb(146, 131, 116), rgb(184, 187, 38),
+       rgb(251, 73, 52),   rgb(40, 40, 40),    rgb(60, 56, 54)},
+      {"nord",        rgb(236, 239, 244), rgb(97, 110, 136),  rgb(163, 190, 140),
+       rgb(136, 192, 208), rgb(46, 52, 64),    rgb(59, 66, 82)},
+      {"solar-dark",  rgb(147, 161, 161), rgb(88, 110, 117),  rgb(181, 137, 0),
+       rgb(38, 139, 210),  rgb(0, 43, 54),     rgb(7, 54, 66)},
+      {"solar-light", rgb(101, 123, 131), rgb(147, 161, 161), rgb(181, 137, 0),
+       rgb(38, 139, 210),  rgb(253, 246, 227), rgb(238, 232, 213)},
+  };
+  return kThemes;
+}
+
+// :theme — wear a coat by name, unique prefix or 1-based index; no
+// argument lists the wardrobe with the worn one marked. Returns the
+// receipt line either way; a bad or ambiguous name reports through
+// *err instead and the coat does not change.
+inline std::string ideThemeSet(IdeState& ide, const std::string& arg,
+                               std::string* err = nullptr) {
+  const auto& ts = ideThemes();
+  if (arg.empty()) {
+    std::string list;
+    for (size_t i = 0; i < ts.size(); ++i) {
+      if (!list.empty()) list += " · ";
+      list += ts[i].name;
+      if (static_cast<int>(i) == ide.themeIx) list += " [worn]";
+    }
+    return list;
+  }
+  int pick = -1;
+  if (arg.find_first_not_of("0123456789") == std::string::npos) {
+    const int n = std::atoi(arg.c_str());
+    if (n >= 1 && n <= static_cast<int>(ts.size())) pick = n - 1;
+  } else {
+    for (size_t i = 0; i < ts.size(); ++i)
+      if (arg == ts[i].name) { pick = static_cast<int>(i); break; }
+    if (pick < 0) {
+      int hits = 0;
+      for (size_t i = 0; i < ts.size(); ++i)
+        if (arg == ts[i].name ||
+            std::string_view(ts[i].name).rfind(arg, 0) == 0) {
+          pick = static_cast<int>(i);
+          ++hits;
+        }
+      if (hits > 1) {
+        if (err) *err = "ambiguous theme '" + arg + "' — :theme lists them";
+        return {};
+      }
+    }
+  }
+  if (pick < 0) {
+    if (err) *err = "no such theme: " + arg + " — :theme lists them";
+    return {};
+  }
+  ide.themeIx = pick;
+  return "theme " + std::string(ts[pick].name) + " — the editor wears it";
+}
+
+// persistence — one line, the theme's name. An empty override means
+// the default ($HOME/.dxn3-theme); a missing $HOME or an unwritable
+// file is a silent no (a coat that will not keep is worn for the
+// session only). Recall keeps the current coat on any silence.
+inline std::string ideThemePath(const std::string& over = "") {
+  if (!over.empty()) return over;
+  const char* home = std::getenv("HOME");
+  if (!home || !*home) return {};
+  return std::string(home) + "/.dxn3-theme";
+}
+
+inline void ideThemeStore(const IdeState& ide, const std::string& over = "") {
+  const std::string p = ideThemePath(over);
+  if (p.empty()) return;
+  std::ofstream f(p, std::ios::binary | std::ios::trunc);
+  if (!f) return;
+  f << ideThemes()[static_cast<size_t>(ide.themeIx) % ideThemes().size()].name
+    << '\n';
+}
+
+inline void ideThemeRecall(IdeState& ide, const std::string& over = "") {
+  const std::string p = ideThemePath(over);
+  if (p.empty()) return;
+  std::ifstream f(p, std::ios::binary);
+  if (!f) return;
+  std::string line;
+  if (!std::getline(f, line)) return;
+  while (!line.empty() && (line.back() == '\n' || line.back() == '\r'))
+    line.pop_back();
+  std::string err;
+  ideThemeSet(ide, line, &err);            // silence on garbage: keep dxn
+}
 
 // ── the selection: anchor ↔ cursor, honestly ordered ────────────────
 // The anchor is where the selection was BORN (shift+arrow sets it on

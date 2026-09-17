@@ -4831,6 +4831,65 @@ int main() {
        "an alpha scene renders in the PNG raster");
   }
 
+  // 102. the wardrobe: :theme wears a coat by name, prefix, or number —
+  // the list marks the worn one, garbage is refused, and the choice
+  // keeps across nights (one line in $HOME/.dxn3-theme)
+  {
+    const auto& ts = dxn3::ideThemes();
+    ok(ts.size() >= 6, "the wardrobe ships at least six coats");
+    for (size_t i = 0; i < ts.size(); ++i)
+      for (size_t j = i + 1; j < ts.size(); ++j)
+        ok(std::string(ts[i].name) != ts[j].name, "coat names are unique");
+
+    IdeState s;
+    ok(s.themeIx == 0, "the editor is born in the house coat (dxn)");
+    std::string err;
+    const std::string r = dxn3::ideThemeSet(s, "dracula", &err);
+    ok(err.empty() && s.themeIx == 1 && r.find("dracula") != std::string::npos,
+       "a name wears the coat");
+    err.clear();
+    dxn3::ideThemeSet(s, "gru", &err);
+    ok(err.empty() && std::string(ts[s.themeIx].name) == "gruvbox",
+       "a unique prefix resolves (gru → gruvbox)");
+    err.clear();
+    dxn3::ideThemeSet(s, "solar", &err);
+    ok(!err.empty() && err.find("ambiguous") != std::string::npos,
+       "an ambiguous prefix is refused, not guessed (solar → two coats)");
+    err.clear();
+    dxn3::ideThemeSet(s, "5", &err);
+    ok(err.empty() && std::string(ts[s.themeIx].name) == "solar-dark",
+       "a 1-based index wears too (5 → solar-dark)");
+    err.clear();
+    dxn3::ideThemeSet(s, "nope", &err);
+    ok(!err.empty() && err.find("no such theme") != std::string::npos &&
+           std::string(ts[s.themeIx].name) == "solar-dark",
+       "a ghost coat is refused — the worn one stays on");
+    const std::string list = dxn3::ideThemeSet(s, "", nullptr);
+    ok(list.find("[worn]") != std::string::npos &&
+           list.find("dxn") != std::string::npos,
+       "a bare :theme lists the wardrobe and marks what is worn");
+
+    // persistence: one line, the coat's name — a round trip through an
+    // explicit path (the $HOME default is the binary's business)
+    const std::string tmp = "/tmp/dxn3_theme_probe";
+    dxn3::ideThemeSet(s, "nord", nullptr);
+    dxn3::ideThemeStore(s, tmp);
+    IdeState fresh;
+    dxn3::ideThemeRecall(fresh, tmp);
+    ok(std::string(ts[fresh.themeIx].name) == "nord",
+       "the coat survives the night (store → recall)");
+    IdeState junk;
+    {
+      std::ofstream j(tmp, std::ios::binary | std::ios::trunc);
+      j << "a coat that never existed\n";
+    }
+    dxn3::ideThemeRecall(junk, tmp);
+    ok(junk.themeIx == 0, "garbage on the peg: the house coat stays on");
+    std::filesystem::remove(tmp);
+    ok(dxn3::usageHintFor(":theme").find("coat") != std::string::npos,
+       "the bar whispers the wardrobe");
+  }
+
   if (fails == 0) {
     std::println("native selftest: all green ({} assertion groups)", n);
     return 0;

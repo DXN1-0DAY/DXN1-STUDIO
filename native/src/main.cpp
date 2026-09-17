@@ -35,6 +35,8 @@
 using dxn3::RGB;
 using dxn3::Keys;          // the editor heart lives in edit.hpp
 using dxn3::IdeState;
+using dxn3::Theme;         // the wardrobe: :theme's coats
+using dxn3::ideThemes;
 
 namespace {
 
@@ -860,14 +862,15 @@ bool ideSave(IdeState& ide, std::string* err, bool* bakKept = nullptr) {
   return f.good();
 }
 
-// syntax tint: keywords purple, strings amber, comments gray — stamped
-// over the base line so every language looks at home in the studio
+// syntax tint: the THEME speaks — keywords, strings, comments and the
+// base line wear the coat the editor has on (ideThemes(); :theme swaps
+// it) — stamped over the base line so every language looks at home
 void drawCodeLine(dxn3::Screen& scr, int col, int row, const std::string& s,
-                  int maxCols) {
-  const RGB base = dxn3::rgb(226, 232, 240);
-  const RGB gray = dxn3::rgb(96, 104, 126);
-  const RGB amber = dxn3::rgb(250, 204, 21);
-  const RGB purple = dxn3::rgb(167, 139, 250);
+                  int maxCols, const Theme& th) {
+  const RGB base = th.base;
+  const RGB gray = th.comment;
+  const RGB amber = th.str;
+  const RGB purple = th.kw;
   std::string vis = s.empty() ? " " : s;
   if (static_cast<int>(vis.size()) > maxCols) {
     vis = vis.substr(0, std::max(0, maxCols - 1)) + "…";
@@ -911,8 +914,10 @@ void drawCodeLine(dxn3::Screen& scr, int col, int row, const std::string& s,
 
 void drawIDE(dxn3::Screen& scr, IdeState& ide, const dxn3::Game& g, bool hostUp) {
   const int cols = scr.cols, rows = scr.rows;
-  const RGB paneBg = dxn3::rgb(16, 12, 30);
-  const RGB selBg = dxn3::rgb(30, 22, 52);
+  const Theme& th = ideThemes()[static_cast<size_t>(
+      ide.themeIx % static_cast<int>(ideThemes().size()))];
+  const RGB paneBg = th.paneBg;
+  const RGB selBg = th.selBg;
 
   // zen: the console rail hides and the body breathes — two more rows
   // of code on every screen. The searchlight still gets its row when
@@ -1053,7 +1058,7 @@ void drawIDE(dxn3::Screen& scr, IdeState& ide, const dxn3::Game& g, bool hostUp)
     } else {
       slice = ln;
     }
-    drawCodeLine(scr, G, bodyTop + r, slice, textW);
+    drawCodeLine(scr, G, bodyTop + r, slice, textW, th);
   }
   // the ruler: honest guides at 79 and 99 — a dim dot only where the
   // cell is blank, so the guide never paints over your code. The fold
@@ -1331,7 +1336,7 @@ int main(int argc, char** argv) {
                    "       ctrl+o / alt+← walk the jumps back · alt+→ walks out\n"
                    "       ctrl+l clear the console · ctrl+n template · ctrl+g error line · ctrl+p screenshot\n"
                    "       F2 next pin · shift+F2 previous pin · ctrl+F2 plant/pull a pin\n"
-                   "       :minimap the document's map rail · :ruler guides · :stats · :zen the quiet\n"
+                   "       :minimap the document's map rail · :ruler guides · :stats · :zen the quiet · :theme the coat\n"
                    "       esc play/back · a/d move · w jump\n"
                    "       mouse: click to move · drag to select · wheel rolls\n"
                    "       tab inspect · e file · : commands (:open loads any script) · q quit\n"
@@ -1380,6 +1385,7 @@ int main(int argc, char** argv) {
 
   // ─── boot: the engine first. you start with nothing, you code, it runs.
   IdeState ide;
+  dxn3::ideThemeRecall(ide);                 // last night's coat, if it kept
   dxn3::ScriptHost host;
   // the sdk lives beside the BINARY — the studio's own installation —
   // not beside the user's cwd: a studio launched from anywhere hosts
@@ -2067,6 +2073,16 @@ int main(int argc, char** argv) {
                           (kept == 1 ? " receipt" : " receipts"));
             if (!digest.empty())
               ide.console.push_back("engine: zen's ledger — " + digest);
+          }
+        } else if (cmd.verb == "theme") {
+          takeStage();
+          std::string terr;
+          const std::string receipt = dxn3::ideThemeSet(ide, cmd.arg, &terr);
+          if (!terr.empty())
+            ide.console.push_back("engine: " + terr);
+          else {
+            ide.console.push_back("engine: " + receipt);
+            if (!cmd.arg.empty()) dxn3::ideThemeStore(ide);   // the coat keeps
           }
         } else if (cmd.verb == "ruler") {
           takeStage();
@@ -3036,7 +3052,7 @@ int main(int argc, char** argv) {
           takeStage();                         // every verb takes the stage —
                                                // a law, not a suggestion
           if (cmd.arg.empty()) {
-            game.say(":scene :open :recent :template :snip :goto :jumps :changes :diff :drift :git :fresh :mark :marks :bm :ruler :minimap :zen :wrap :crew :count :center :relnum :s :sa :o :e :trim :cases :sort :rsort :rev :uniq :squeeze :retab :ws :shuffle :indent :dedent :lift :drop :dup :join :upper :lower :title :hist :undo :redo :words :todo :stats "
+            game.say(":scene :open :recent :template :snip :goto :jumps :changes :diff :drift :git :fresh :mark :marks :bm :ruler :minimap :theme :zen :wrap :crew :count :center :relnum :s :sa :o :e :trim :cases :sort :rsort :rev :uniq :squeeze :retab :ws :shuffle :indent :dedent :lift :drop :dup :join :upper :lower :title :hist :undo :redo :words :todo :stats "
                      ":record :macro :zoom :fit :reset :new :w :wq :q :screenshot :magnet :gravity — or :help <verb>",
                      4.f);
           } else {
@@ -3495,7 +3511,8 @@ int main(int argc, char** argv) {
         } qs[] = {{"scene ", 6, false},      {"open ", 5, true},
                   {"screenshot ", 11, true}, {"w ", 2, false},
                   {"snip ", 5, true},        {"recent ", 7, true},
-                  {"bm ", 3, true},          {"template ", 9, true}};
+                  {"bm ", 3, true},          {"template ", 9, true},
+                  {"theme ", 6, false}};
         for (const auto& q : qs) {
           if (cmdBuf.rfind(q.pre, 0) != 0 ||
               cmdBuf.size() < q.len + (q.bare ? 0 : 1))
@@ -3544,6 +3561,13 @@ int main(int argc, char** argv) {
                 w += p;
               }
             }
+          } else if (std::strcmp(q.pre, "theme ") == 0) {
+            // :theme's whisper: the wardrobe by prefix
+            for (const auto& t : dxn3::ideThemes())
+              if (std::string_view(t.name).rfind(part, 0) == 0) {
+                if (!w.empty()) w += " · ";
+                w += t.name;
+              }
           } else if (std::strcmp(q.pre, "w ") == 0) {
             // :w writes scene json — the campaign's stems whisper
             for (const auto& m : dxn3::sceneMatches(part, sceneStems())) {
