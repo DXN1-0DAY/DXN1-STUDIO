@@ -1,3 +1,29 @@
+## v3.1.12 — the invasion, and a rounder sky
+
+- **`sdk/examples/invaders.js` — the classic march.** Fifteen
+  aliens step, drop at the edges and speed up as their ranks thin
+  (0.8s → 0.2s by the last survivor); the cannon fires from a
+  three-shot pool, the grid answers from its own pool — bullets
+  PARK off-screen at x −999 until a gun needs them, so an idle
+  bullet costs the wire nothing. Three waves, then EARTH HOLDS;
+  the grid landing costs a life, three losses — EARTH FALLS.
+  Probed for truth: 23 entities exactly, the march moves, a hit
+  pays its row's points, a parked pool exists, no tracebacks.
+  Gate 6 roster 11 → 12, and the JS gallery grows to three.
+- **The poster renders real discs.** The terminal drew circles
+  per-dot from day one, but the PNG raster fell through to plain
+  rects — every coin and sun in every poster was a square wearing
+  a halo. Now the poster runs the same disc test per pixel (with
+  the rim's lighter edge), and coins keep their halo around a
+  ROUND body. The sky got rounder everywhere.
+- **`docs/img/shot-windmill.png` — the gallery gains the mill.**
+  The windmill posed for its portrait: four blades frozen mid-sweep
+  (every one REALLY rotated through v3.1.10's Turn math), the hub's
+  diamond caught at 45°, gradient tower and grass, a sun that is —
+  as of this version — finally a circle in the poster too.
+- **smoke's section 16 verified green** before this tag: level-6
+  "the ascent" boots a real frame and quits clean.
+
 ## v3.1.11 — the windmill, and spikes that turn
 
 - **`sdk/examples/windmill.py` — the turn showcase.** Four blades

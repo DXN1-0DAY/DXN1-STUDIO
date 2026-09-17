@@ -2,7 +2,7 @@
 
 ![DXN1 STUDIO 3](assets/banner.png)
 
-![version](https://img.shields.io/badge/version-3.1.11-8b5cf6?style=flat-square)
+![version](https://img.shields.io/badge/version-3.1.12-8b5cf6?style=flat-square)
 ![gates](https://github.com/DXN1-termux/DXN1-STUDIO/actions/workflows/ci.yml/badge.svg)
 ![native](https://img.shields.io/badge/native-C%2B%2023-f97316?style=flat-square)
 ![face](https://img.shields.io/badge/face-terminal_truecolor-22d3ee?style=flat-square)
@@ -88,7 +88,9 @@ viewport refreshes — *code a background, and boom, a background.*
   rects — the engine is a canvas, so it can be ANY canvas),
   `windmill.py` (four blades orbit the hub while the SDK drives
   their rot each tick — and the hub's little square turns itself
-  with the engine's own spin), `pong.cpp` (a compiled C++ pong
+  with the engine's own spin), `invaders.js` (the classic march:
+  a grid that steps, drops and speeds up as it thins, pooled guns
+  parked off-screen until their moment), `pong.cpp` (a compiled C++ pong
   with an AI that caps its speed — the hardest SDK proof in the
   set).
 - **The editor forgives.** `ctrl+z` undoes — typing bursts coalesce the
@@ -337,8 +339,8 @@ of the renderer; your games are the product:
 | ![level-2](docs/img/shot-level-2.png) | ![level-3](docs/img/shot-level-3.png) |
 | **the gauntlet (level-4)** | **the vault (level-5)** |
 | ![level-4](docs/img/shot-level-4.png) | ![level-5](docs/img/shot-level-5.png) |
-| **the ascent (level-6)** | — |
-| ![level-6](docs/img/shot-level-6.png) | |
+| **the ascent (level-6)** | **the windmill (posed, v3.1.10's rot)** |
+| ![level-6](docs/img/shot-level-6.png) | ![windmill](docs/img/shot-windmill.png) |
 
 Goals chain the scenes into a seven-scene campaign: **playground → level-1 (the
 gap) → level-2 (the movers) → level-3 (the climb) → level-4 (the gauntlet) →

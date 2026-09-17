@@ -108,14 +108,32 @@ inline std::string shootPNG(const std::string& path, const Game& g) {
       fillRect(x0, y1 - 2, x1, y1, edge);
       continue;
     }
-    if (e.tag == "coin") {                                // halo + gem
+    if (e.tag == "coin") {                                // halo keeps its glow
       const float glow = 5.f;
       fillRect(x0 - glow, y0 - glow, x1 + glow, y1 + glow,
                lerpColor(px[std::max(0, static_cast<int>(y0)) * W +
                              std::clamp(static_cast<int>(x0), 0, W - 1)], c1, 0.14f));
-      const float inx = e.w * 0.22f, iny = e.h * 0.22f;
-      fillGradient(x0 + inx, y0 + iny, x1 - inx, y1 - iny,
-                   lerpColor(c1, 0xFFFFFF, 0.35f), c1);
+    }
+    const bool disc = e.shape == "circle" || e.shape == "ellipse" ||
+                      e.tag == "coin";
+    if (disc) {                                           // a real disc, per pixel
+      const float rw = (x1 - x0) / 2.f, rh = (y1 - y0) / 2.f;
+      if (rw <= 0 || rh <= 0) continue;
+      const float cx = (x0 + x1) / 2.f, cy = (y0 + y1) / 2.f;
+      const int dxa = std::max(0, static_cast<int>(x0) - 1);
+      const int dxb = std::min(W - 1, static_cast<int>(x1) + 1);
+      const int dya = std::max(0, static_cast<int>(y0) - 1);
+      const int dyb = std::min(H - 1, static_cast<int>(y1) + 1);
+      for (int py = dya; py <= dyb; ++py) {
+        auto* line = &px[static_cast<size_t>(py) * W];
+        const float ty = (py + 0.5f - cy) / rh;
+        for (int pxx = dxa; pxx <= dxb; ++pxx) {
+          const float tx = (pxx + 0.5f - cx) / rw;
+          const float k2 = tx * tx + ty * ty;
+          if (k2 > 1.f) continue;
+          line[pxx] = k2 > 0.80f ? edge : c1;             // the rim keeps its edge
+        }
+      }
       continue;
     }
     if (e.tag == "spike") {                               // triangle profile

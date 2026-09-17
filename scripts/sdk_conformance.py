@@ -112,6 +112,11 @@ def main():
         check("asteroids.js", scene is not None and frames >= 3 and got == 7,
               f"scene={'yes' if scene else 'NO'} frames={frames} "
               f"entities={got}")
+        scene, frames, console = probe(["node", f"{EX}/invaders.js"])
+        got = len(scene.get("entities", [])) if scene else 0
+        check("invaders.js", scene is not None and frames >= 3 and got == 23,
+              f"scene={'yes' if scene else 'NO'} frames={frames} "
+              f"entities={got}")
     else:
         print("   (skip) bounce.js — node not on this machine", flush=True)
 
