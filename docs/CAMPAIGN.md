@@ -1,7 +1,7 @@
 # The Campaign — a field guide
 
-Seven scenes, one loop: **playground → the gap → the movers → the climb →
-the gauntlet → the vault → the ascent → the descent → back home.** Every scene is a plain
+Nine scenes, one loop: **playground → the gap → the movers → the climb →
+the gauntlet → the vault → the ascent → the descent → the beacon → back home.** Every scene is a plain
 `.dxn1.json` file; the
 goal door carries you to the next, and the last door brings you home. The
 HUD counts `COINS x/y · SCORE · TIME` the whole way — completionists grab
@@ -90,6 +90,18 @@ it — with carousel-saw running 360°/s as the fastest thing in the
 campaign. Three lifts, all headed down or counter-phased; six
 gems marking the honest line; and a door that dumps you back in
 the playground, where every run begins.
+
+## level-8 — the beacon
+
+v3.1.20 taught every entity to glow; the beacon is the first scene BUILT
+from that law. The wayfinding is literally made of light: six gems and
+the goal door itself all carry `"glow": 7`, strung across the darkest
+sky in the campaign (#070912) — follow the bright line and you cannot
+get lost. The platforming keeps the descent's lessons honest: a fang
+leaning against the grain at the very first step, two saws spinning at
+300°/s and 340°/s over the mid-deck, and the closing pull rides two
+counter-phased lifts plus a summit ferry. Six gems, one lit door, one
+ride home to the playground.
 
 ## Design notes (for scene authors)
 

@@ -1,3 +1,20 @@
+## v3.1.21 — the light learns to fall
+
+- **Glow grew a falloff.** v3.1.20's halo was flat paint; now the
+  circular ring blends with a radial falloff — bright where the body
+  meets the halo, gone at the rim — and the rect aura became a stepped
+  one (three nested rects, brighter toward the body). Both rasters obey
+  the same law, and the PNG rect aura now blends against the pixel it
+  lands on, so stars survive behind the light.
+- **level-8 — the beacon, the ninth scene.** The first scene BUILT
+  from the glow law: six gems AND the goal door all carry
+  `"glow": 7` across the darkest sky in the campaign — wayfinding
+  made of light. Three fangs (one against the grain), two saws at
+  300°/s and 340°/s, two counter-phased lifts plus a summit ferry.
+  Chain: level-7.next → level-8 → playground (gate 3b walked).
+- Gallery row, CAMPAIGN section, nine-scene counts — the README
+  promises only what ships (gate 7 walked).
+
 ## v3.1.20 — the halo anyone can wear
 
 - **`glow` — a general entity field.** The coins' halo was hardcoded;

@@ -111,6 +111,7 @@ inline std::string shootPNG(const std::string& path, const Game& g) {
     if (e.glow > 0) {
       const bool ring =
           e.shape == "circle" || e.shape == "ellipse" || e.tag == "coin";
+      const RGB lightC = lerpColor(c1, 0xFFFFFF, 0.45f);
       if (ring) {
         const float rw = (x1 - x0) / 2.f + e.glow;
         const float rh = (y1 - y0) / 2.f + e.glow;
@@ -125,16 +126,30 @@ inline std::string shootPNG(const std::string& path, const Game& g) {
             const float ty = (py + 0.5f - cy) / rh;
             for (int pxx = dxa; pxx <= dxb; ++pxx) {
               const float tx = (pxx + 0.5f - cx) / rw;
-              if (tx * tx + ty * ty > 1.f) continue;
-              line[pxx] = lerpColor(line[pxx], c1, 0.14f);
+              const float k2 = tx * tx + ty * ty;
+              if (k2 > 1.f) continue;
+              // radial falloff — the terminal raster's law, kept
+              line[pxx] = lerpColor(line[pxx], lightC, 0.5f * (1.f - k2));
             }
           }
         }
       } else {
+        // a stepped aura: three nested rects, brighter toward the body,
+        // each blended against the pixel it lands on (stars survive)
+        const auto base = [&px, W, H](int x, int y) -> RGB {
+          return px[std::clamp(y, 0, H - 1) * W + std::clamp(x, 0, W - 1)];
+        };
         fillRect(x0 - e.glow, y0 - e.glow, x1 + e.glow, y1 + e.glow,
-                 lerpColor(px[std::max(0, static_cast<int>(y0)) * W +
-                               std::clamp(static_cast<int>(x0), 0, W - 1)],
-                           c1, 0.14f));
+                 lerpColor(base(static_cast<int>(x0), static_cast<int>(y0)),
+                           lightC, 0.14f));
+        fillRect(x0 - e.glow * 0.66f, y0 - e.glow * 0.66f,
+                 x1 + e.glow * 0.66f, y1 + e.glow * 0.66f,
+                 lerpColor(base(static_cast<int>(x0), static_cast<int>(y0)),
+                           lightC, 0.22f));
+        fillRect(x0 - e.glow * 0.33f, y0 - e.glow * 0.33f,
+                 x1 + e.glow * 0.33f, y1 + e.glow * 0.33f,
+                 lerpColor(base(static_cast<int>(x0), static_cast<int>(y0)),
+                           lightC, 0.32f));
       }
     }
 

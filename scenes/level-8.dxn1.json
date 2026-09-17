@@ -1,0 +1,50 @@
+{
+  "name": "the beacon (level-8)",
+  "bg": "#070912",
+  "gravity": 1500,
+  "magnet": 150,
+  "next": "scenes/playground.dxn1.json",
+  "camera": { "x": 100, "y": 300, "zoom": 0.8 },
+  "entities": [
+    { "name": "hero", "tag": "player", "x": 60, "y": 360, "w": 34, "h": 44, "color": "#8b5cf6" },
+
+    { "name": "start-ledge", "x": -200, "y": 400, "w": 560, "h": 90, "color": "#1f2937" },
+    { "name": "readme", "tag": "sign", "x": 170, "y": 326, "w": 30, "h": 34, "color": "#94a3b8", "text": "THE BEACON \u2014 the gems light the way" },
+    { "name": "gem-1", "tag": "coin", "x": 320, "y": 330, "w": 22, "h": 22, "shape": "circle", "color": "#facc15", "glow": 7 },
+
+    { "name": "step-1", "x": 440, "y": 370, "w": 180, "h": 26, "color": "#1f2937" },
+    { "name": "fang-a", "tag": "spike", "x": 540, "y": 342, "w": 34, "h": 28, "shape": "triangle", "color": "#ef4444", "rot": -30 },
+    { "name": "gem-2", "tag": "coin", "x": 480, "y": 320, "w": 22, "h": 22, "shape": "circle", "color": "#facc15", "glow": 7 },
+
+    { "name": "ferry-1", "tag": "mover", "x": 700, "y": 360, "w": 120, "h": 20, "color": "#38bdf8",
+      "path": [ { "x": 700, "y": 360 }, { "x": 900, "y": 360 } ], "pspeed": 70 },
+    { "name": "gem-3", "tag": "coin", "x": 800, "y": 300, "w": 22, "h": 22, "shape": "circle", "color": "#facc15", "glow": 7 },
+
+    { "name": "deck-2", "x": 980, "y": 340, "w": 220, "h": 26, "color": "#1f2937" },
+    { "name": "saw-1", "tag": "hazard", "x": 1060, "y": 278, "w": 38, "h": 38, "color": "#fb7185", "rot": 0, "spin": 300 },
+    { "name": "fang-1", "tag": "spike", "x": 1150, "y": 312, "w": 34, "h": 28, "shape": "triangle", "color": "#ef4444", "rot": 25 },
+
+    { "name": "lift-1", "tag": "mover", "x": 1280, "y": 340, "w": 110, "h": 20, "color": "#38bdf8",
+      "path": [ { "x": 1280, "y": 340 }, { "x": 1280, "y": 220 } ], "pspeed": 80 },
+    { "name": "lift-2", "tag": "mover", "x": 1460, "y": 220, "w": 110, "h": 20, "color": "#38bdf8",
+      "path": [ { "x": 1460, "y": 220 }, { "x": 1460, "y": 340 } ], "pspeed": 80 },
+    { "name": "gem-4", "tag": "coin", "x": 1370, "y": 260, "w": 22, "h": 22, "shape": "circle", "color": "#facc15", "glow": 7 },
+
+    { "name": "high-deck", "x": 1600, "y": 220, "w": 240, "h": 26, "color": "#1f2937" },
+    { "name": "saw-2", "tag": "hazard", "x": 1700, "y": 158, "w": 38, "h": 38, "color": "#fb7185", "rot": 0, "spin": 340 },
+    { "name": "gem-5", "tag": "coin", "x": 1790, "y": 180, "w": 22, "h": 22, "shape": "circle", "color": "#facc15", "glow": 7 },
+
+    { "name": "drop-1", "x": 1920, "y": 280, "w": 200, "h": 26, "color": "#1f2937" },
+    { "name": "fang-2", "tag": "spike", "x": 2020, "y": 252, "w": 34, "h": 28, "shape": "triangle", "color": "#ef4444", "rot": -35 },
+
+    { "name": "vault-floor", "x": 2180, "y": 400, "w": 300, "h": 80, "color": "#312e81" },
+    { "name": "gem-6", "tag": "coin", "x": 2260, "y": 350, "w": 22, "h": 22, "shape": "circle", "color": "#facc15", "glow": 7 },
+    { "name": "tip-vault", "tag": "sign", "x": 2320, "y": 340, "w": 26, "h": 30, "color": "#a78bfa", "text": "the light lives up there", "tsize": 16 },
+
+    { "name": "summit-lift", "tag": "mover", "x": 2520, "y": 400, "w": 100, "h": 20, "color": "#38bdf8",
+      "path": [ { "x": 2520, "y": 400 }, { "x": 2520, "y": 160 } ], "pspeed": 95 },
+
+    { "name": "beacon-deck", "x": 2660, "y": 160, "w": 260, "h": 30, "color": "#312e81" },
+    { "name": "out", "tag": "goal", "x": 2840, "y": 96, "w": 30, "h": 64, "color": "#34d399", "glow": 9 }
+  ]
+}

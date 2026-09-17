@@ -530,6 +530,7 @@ void drawWorld(dxn3::Screen& scr, const dxn3::Game& g) {
     // wears the rect aura the coins have always had. Painted FIRST so
     // the body covers the middle. Same law in the PNG raster.
     if (e.glow > 0 && !off) {
+      const RGB lightC = dxn3::lerpColor(c1, 0xFFFFFF, 0.45f);
       if (disc) {
         const float grw = (x1 - x0) / 2.f + e.glow;
         const float grh = (y1 - y0) / 2.f + e.glow;
@@ -540,21 +541,31 @@ void drawWorld(dxn3::Screen& scr, const dxn3::Game& g) {
           const int gya = std::max(0, static_cast<int>((cym - grh) * 2.f) - 1);
           const int gyb =
               std::min(hr * 2 - 1, static_cast<int>((cym + grh) * 2.f) + 1);
-          const RGB hc = dxn3::lerpColor(bg, c1, 0.14f);
           for (int gy = gya; gy <= gyb; ++gy) {
             const float wy = gy * 0.5f + 0.25f;
             const float ty = (wy - cym) / grh;
             for (int gx = gxa; gx <= gxb; ++gx) {
               const float wx = gx * 0.5f + 0.25f;
               const float tx = (wx - cxm) / grw;
-              if (tx * tx + ty * ty > 1.f) continue;
-              scr.pxDot(wx, wy, hc);
+              const float k2 = tx * tx + ty * ty;
+              if (k2 > 1.f) continue;
+              // radial falloff: bright where the body meets the halo,
+              // gone at the rim — light, not a sticker
+              scr.pxDot(wx, wy,
+                        dxn3::lerpColor(bg, lightC, 0.5f * (1.f - k2)));
             }
           }
         }
       } else {
-        scr.rect(x0 - e.glow, y0 - e.glow, x1 + e.glow, y1 + e.glow,
-                 dxn3::lerpColor(bg, c1, 0.14f));
+        // a stepped aura: three nested rects, brighter toward the body
+        const RGB o1 = dxn3::lerpColor(bg, lightC, 0.14f);
+        const RGB o2 = dxn3::lerpColor(bg, lightC, 0.22f);
+        const RGB o3 = dxn3::lerpColor(bg, lightC, 0.32f);
+        scr.rect(x0 - e.glow, y0 - e.glow, x1 + e.glow, y1 + e.glow, o1);
+        scr.rect(x0 - e.glow * 0.66f, y0 - e.glow * 0.66f,
+                 x1 + e.glow * 0.66f, y1 + e.glow * 0.66f, o2);
+        scr.rect(x0 - e.glow * 0.33f, y0 - e.glow * 0.33f,
+                 x1 + e.glow * 0.33f, y1 + e.glow * 0.33f, o3);
       }
     }
 
