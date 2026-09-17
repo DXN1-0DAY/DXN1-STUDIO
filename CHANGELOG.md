@@ -1,3 +1,25 @@
+## v3.1.85 — the meal wears the heat
+
+- **The cards.py low-light lesson comes to the snake's table.** Every
+  meal sharpens the snake (0.14 s/step toward the 0.06 cap, reached at
+  twenty meals) — so the meal's breath BASE now rides the same
+  staircase: 3 at birth, 4.5 at the cap, the trough rising with it
+  (1.5 -> 3.0). The one light on the board burns hotter as the world
+  sharpens, and the milestone voice says so ("as sharp as it gets"
+  from twenty on). snake_heat_probe.py drives a deterministic
+  serpentine sweep over the real wire — the probe paces the game with
+  the speed law's own double (one honest step per packet), walks every
+  cell of an 18x13 board, and pins the law POINTWISE: the implied base
+  (observed glow minus 1.5*sin(4t), t integrated from the dt the probe
+  itself sent) equals 3 + 1.5*min(score,20)/20 EXACTLY on every frame
+  of the run — birth 3.0, meal 10 at 3.75, the cap at 4.5 — with the
+  cap voice pinned at twenty and the bare rank voice at fifteen. The
+  driver lessons are now house lore: the SDK dispatches a packet's
+  keys AFTER its tick (one packet of coast in every turn), wasd rides
+  the chars channel, a turn pair must ride chars alone (the string's
+  order is the queue's order), and a serpentine that visits every cell
+  beats any greedy hunter.
+
 ## v3.1.84 — the dark pays double
 
 - **The owl's twin visits the invaders' purse.** In the shooter the

@@ -6,10 +6,18 @@
 # 3/s staircase back to dark (the cards.py lesson, found living here
 # too); the meal itself BREATHES (glow 3 ± 1.5 on a 4-rad sine — the
 # torch's law); and every new life ghosts in (alpha 0.35 -> 1).
+# v3.1.85 — THE MEAL WEARS THE HEAT: the speed's countdown made
+# visible. Every meal sharpens the snake (0.14 s/step toward the 0.06
+# cap, reached at twenty meals) — so the meal's breath BASE rides the
+# same staircase: 3 at birth, 4.5 at the cap, the trough rising with
+# it (1.5 -> 3.0). The one light on the board burns hotter as the
+# world sharpens, and the milestone voice says so ("as sharp as it
+# gets" from twenty on).
 from dxn3 import *
 import random, math
 
 CELL = 12
+SPEED_MEALS = 20                       # 0.14 - 20 * 0.004 = the 0.06 cap
 COLS, ROWS = W // CELL, H // CELL
 background("#070b16")
 
@@ -92,7 +100,11 @@ def on_tick(dt2):
     t += dt2
     # the food breathes — the one light on the board is alive (the
     # torch's law: glow on a sine, every frame, even between steps)
-    food.glow = 3 + 1.5 * math.sin(4 * t)
+    # — and its BASE rides the speed's countdown (the cards.py low
+    # light's lesson): quiet while the snake is young, burning at 4.5
+    # once the reflex cap is reached at SPEED_MEALS
+    heat = min(score, SPEED_MEALS) / SPEED_MEALS
+    food.glow = 3 + 1.5 * heat + 1.5 * math.sin(4 * t)
     # the honest staircase: the meal's bleach decays at 3/s and the
     # newborn ghost fills in at 2/s — the studio keeps the last light
     # a game sent, so the decay is THIS game's job (cards.py's lesson,
@@ -147,7 +159,9 @@ def on_tick(dt2):
         vars(score=score)
         # the meal speaks: milestones get a name, the rest a census
         if score % 5 == 0:
-            say(f"{score} meals — you are {rank(score)} now")
+            sharp = (" · as sharp as it gets"
+                     if score >= SPEED_MEALS else "")
+            say(f"{score} meals — you are {rank(score)} now{sharp}")
         else:
             say(f"meal {score} · {len(body)} long")
         print(f"meal {score} — the snake is {len(body)} long")
