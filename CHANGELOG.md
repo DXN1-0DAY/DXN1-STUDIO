@@ -1,3 +1,26 @@
+## v3.1.96 — the door comes home, dieted to the answer
+
+- **ide_door_probe IS DIETED** — it had been walking inside the
+  walls all along, but its 35 seconds were an exile of their own:
+  now 11.7 s of answer-driven waits (13/13 pins, three runs
+  green). Gate 8 stays at 51 pins; the slow list empties and the
+  flaky list holds ONE name (invaders_darkpays, ~50%).
+- The diet is a small method story in itself. The first attempt
+  waited for QUIESCENCE — read until the pty goes quiet — and was
+  taught two lessons by the machine: the starter AUTO-HOSTS a game
+  whose render flood never lets the pty go quiet (every cap
+  burned; the probe got SLOWER), and the splash quiesces before
+  the editor finishes booting (a half-booted IDE ate the first
+  command; the census pins went red). The diet that works: WAIT
+  FOR THE ANSWER — poll in slices until the expected receipt
+  appears in the post-enter buffer, capped. The machine decides
+  when it's done; the probe stops guessing. (The boot keeps one
+  honest fixed window — the editor's boot time is what it is.)
+- The typing phase also shed its per-char sleeps: the verb goes in
+  one honest burst (the pty preserves order; the bar parses the
+  line, not the rhythm).
+- Gates 8 green (51 probes + 7 gates).
+
 ## v3.1.95 — the chase comes home, load-proof at last
 
 - **The evicted chase probe walks inside the walls again** — and

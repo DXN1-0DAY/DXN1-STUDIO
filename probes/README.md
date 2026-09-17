@@ -79,6 +79,15 @@ homecoming sweep; they stay external until re-pinned:
   new wire laws minted in sdk/PROTOCOL.md (#2's per-character fine
   print, #8's one-tick command flight). 8 pins, 5x green under
   concurrent load.
+- DIETED in v3.1.96 (it was walking inside the walls all along —
+  its exile was the 35 seconds): `ide_door_probe`, from 35 s of
+  fixed sleeps to answer-driven waits (13/13 in 11.7 s, three
+  runs green): the
+  auto-hosted game floods the pty continuously, so the first
+  diet's quiescence never fired (every cap burned) and a
+  half-booted IDE ate the first command; the diet that works
+  waits for THE ANSWER — poll in slices until the expected
+  receipt appears in the post-enter buffer, capped.
 - STILL OUTSIDE (re-pin or retire):
   `invaders_darkpays_probe` — FLAKY (~50%): a dark summon
   occasionally pays the BASE purse; the ritual cannot yet PROVE
