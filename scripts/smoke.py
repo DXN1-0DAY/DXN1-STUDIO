@@ -1371,6 +1371,32 @@ def main():
         check("the trade undoes — the neighbors sit as they sat",
               restored == before, repr(restored[:8]))
 
+        # ── 13o. the honest home — first non-blank, then the head ────
+        print("── 13o. home — the honest home's three-way toggle")
+        s2.run_verb("goto 1", "ide")
+        s2.settle(0.2)
+        s2.send("    ")                        # four spaces of pure air
+        s2.settle(0.3)
+        s2.send(ESC + "[F")                    # end: the hand to the tail
+        s2.settle(0.15)
+        s2.send(ESC + "[H")                    # home: the first non-blank
+        s2.settle(0.3)
+        scr2 = s2.screen()
+        check("home lands on the line's first non-blank",
+              "Col 5" in scr2.text(0), repr(scr2.text(0)[-40:]))
+        s2.send(ESC + "[H")                    # home again: the head
+        s2.settle(0.3)
+        scr2 = s2.screen()
+        check("already there, the head",
+              "Col 1" in scr2.text(0), repr(scr2.text(0)[-40:]))
+        s2.send(ESC + "[H")                    # and back again
+        s2.settle(0.3)
+        scr2 = s2.screen()
+        check("at the head, back to the first non-blank",
+              "Col 5" in scr2.text(0), repr(scr2.text(0)[-40:]))
+        s2.run_verb("undo", "ide")             # the pure air swept away
+        s2.settle(0.3)
+
         s2.send(ESC)
         time.sleep(0.3)
         s2.send("q")

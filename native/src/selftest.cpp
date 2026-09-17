@@ -199,7 +199,7 @@ int main() {
   }
 
   // 9. the version quad rides in the binary too
-  ok(std::string(dxn3::DXN3_VERSION) == "3.0.89",
+  ok(std::string(dxn3::DXN3_VERSION) == "3.0.90",
      "native version constant matches the release quad");
 
   // 10. png writer: checksum vectors, real structure, byte determinism
@@ -4271,6 +4271,35 @@ int main() {
        "the trade rides one honest undo step, named");
     ok(dxn3::ideUndo(us) && us.lines[0] == "teh",
        "undo restores the untraded line");
+  }
+
+
+  // 91. the honest home: home toggles the first non-blank and the head
+  {
+    IdeState hs;
+    hs.lines = {"    hello there"};
+    hs.curR = 0;
+    hs.curC = 9;
+    dxn3::Keys h1;
+    h1.home = true;
+    dxn3::ideKey(hs, h1);
+    ok(hs.curC == 4, "home lands the hand on the line's first non-blank");
+    dxn3::Keys h2;
+    h2.home = true;
+    dxn3::ideKey(hs, h2);
+    ok(hs.curC == 0, "already there, the head");
+    dxn3::Keys h3;
+    h3.home = true;
+    dxn3::ideKey(hs, h3);
+    ok(hs.curC == 4, "at the head, back to the first non-blank");
+    IdeState bs;
+    bs.lines = {"   "};
+    bs.curR = 0;
+    bs.curC = 0;
+    dxn3::Keys h4;
+    h4.home = true;
+    dxn3::ideKey(bs, h4);
+    ok(bs.curC == 0, "a blank line's home is the head, honestly");
   }
 
 

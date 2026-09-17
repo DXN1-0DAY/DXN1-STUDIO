@@ -1,3 +1,20 @@
+## v3.0.90 — the honest home (first non-blank, then the head)
+
+- **`home` learned the three-way toggle.** The hand's first breath
+  lands on the line's FIRST NON-BLANK — the indent's edge, where code
+  actually begins; already there, the head (col 0); already there,
+  back to the first non-blank. The dance the honest editors speak:
+  `middle → indent edge → head → indent edge → …` A blank line's home
+  is the head, honestly (there is no edge to find). `end` keeps its
+  old law; `ctrl+home`/`ctrl+end` still take the document's edges.
+- Selftest group 91: four home laws (829 -> 833) — the first
+  non-blank landing, the head toggle both ways, the blank line's
+  honest head. Smoke 13o: THREE drives (185 -> 188) — the toggle
+  end-to-end via the header's honest Col census, with the pure air
+  typed in swept away by one undo after. The :s/:sa README rows now
+  speak the query's borrow (docs debt from v3.0.86, paid).
+- Gates ALL GREEN.
+
 ## v3.0.89 — the transpose (the two neighbors trade places)
 
 - **`ctrl+T` — the typo's honest fix.** The two neighbors around the

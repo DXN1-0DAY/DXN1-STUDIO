@@ -2,7 +2,7 @@
 
 ![DXN1 STUDIO 3](assets/banner.png)
 
-![version](https://img.shields.io/badge/version-3.0.89-8b5cf6?style=flat-square)
+![version](https://img.shields.io/badge/version-3.0.90-8b5cf6?style=flat-square)
 ![gates](https://github.com/DXN1-termux/DXN1-STUDIO/actions/workflows/ci.yml/badge.svg)
 ![native](https://img.shields.io/badge/native-C%2B%2023-f97316?style=flat-square)
 ![face](https://img.shields.io/badge/face-terminal_truecolor-22d3ee?style=flat-square)
@@ -249,6 +249,7 @@ around the hand trade places (the typo's fix) ·
 `ctrl+w` delete word · `ctrl+del` delete word ahead · `ctrl+/`
 comment toggle (multi-line with a selection) ·
 `shift+arrows` select · `shift+ctrl+←`/`→` select words ·
+`home` the honest home — the line's first non-blank, then the head, then back ·
 `mouse` click code/map to move · shift+click selects ·
 `tab` snippet/indent · `shift+tab` dedent ·
 `ctrl+←`/`ctrl+→` word hops ·
@@ -368,8 +369,8 @@ accepted:
 | `:lower` | the selection whispers — one undo step |
 | `:title` | every word's first letter stands up |
 | `:uniq` | collapse lines that repeat back-to-back — whole doc, or the selection |
-| `:s/old/new` | replace every exact old with new on the selection's lines — one undo step |
-| `:sa/old/new` | the whole document is the bed — the swap's other face |
+| `:s/old/new` | replace every exact old with new on the selection's lines — one undo step; an EMPTY old borrows the find query as the old |
+| `:sa/old/new` | the whole document is the bed — the swap's other face; an empty old borrows the find query too |
 | `:<line>` | a bare number jumps — `:42` is the goto's absolute form |
 | `:rev` | flip the selection's line order, no alphabet invited |
 | `:shuffle [seed]` | deal the selection's lines into random order; the seed replays the deal |

@@ -3367,7 +3367,17 @@ inline void ideKey(IdeState& ide, const Keys& k) {
   if (k.wRight) ideWordFwd(ide);             // the document never hears about it
   if (k.sWLeft) ideWordBack(ide);            // the word hops with the anchor
   if (k.sWRight) ideWordFwd(ide);            // riding — the selection grows
-  if (k.home) ide.curC = 0;
+  if (k.home) {
+    // the honest home: the hand's first breath lands on the line's
+    // first non-blank; already there, the head; already there, back —
+    // the three-way toggle the honest editors speak
+    const std::string& hl = L[static_cast<size_t>(ide.curR)];
+    const size_t first = hl.find_first_not_of(" \t");
+    const int fnb = first == std::string::npos
+                        ? 0
+                        : static_cast<int>(first);
+    ide.curC = ide.curC == fnb ? 0 : fnb;
+  }
   if (k.end) ide.curC = static_cast<int>(L[static_cast<size_t>(ide.curR)].size());
   if (k.docHome) {                           // ctrl+home: the very top
     ide.curR = 0;
