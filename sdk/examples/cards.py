@@ -14,6 +14,11 @@
 # dry the muck RETURNS and the reshuffle stream ("the deck's
 # reshuffle") reorders it — the title SPEAKS the reshuffle and the
 # fresh hand ghosts in again, the radar-field law re-run.
+# v3.1.80 adds the deck's LOW LIGHT: the hand label wears the
+# countdown as the deck drains — quiet above ten cards, a faint ring
+# at ten, and the last hand (five) burns brighter — because the
+# muck's return is coming and a player deserves to see it coming
+# from across the table.
 # run:  dxn3 sdk/examples/cards.py
 from dxn3 import *
 import random
@@ -51,6 +56,13 @@ def redraw():
         c.alpha = 0.5 if spent[i] else A              # the hand remembers
         t.alpha = c.alpha                             # the rank wears it too
 
+def decklight():                         # the deck's low light — the
+    """hand label wears the countdown: quiet above ten, a faint ring
+    when the deck thins to ten, and the end (five or the last dregs)
+    burns brighter — the muck's return is at hand."""
+    n = len(deck_cards)
+    hand_lbl.glow = 2 if n <= 5 else (1 if n <= 10 else 0)
+
 def deal():
     """five from the deck; a dry deck returns the muck, reshuffled by
     its own stream, and the say speaks"""
@@ -73,6 +85,8 @@ def deal():
     redraw()                                         # the birth frame is honest:
                                                      # on_key runs AFTER on_tick,
                                                      # so the deal paints itself
+    decklight()                                      # the low light rides the deal
+    hand_lbl.text = f"muck: {len(muck)} · deck: {len(deck_cards)}"
     print("dealt", len(deck_cards), "left in the deck")
 
 deal()                                               # the first hand is the stream's first five
@@ -90,7 +104,10 @@ def on_key(k):
         else:
             chips += 2
         c.flash = 1.0                                 # the landing flash
-        muck.append(rank + suit)                      # the muck grows
+        muck.append((rank, suit))                     # the muck grows —
+                                                     #   real cards, not strings:
+                                                     #   a returned "10" must
+                                                     #   unpack as (rank, suit)
         spent[selected] = True
         if all(spent):                                # the hand is spent —
             deal()                                    # the deck answers

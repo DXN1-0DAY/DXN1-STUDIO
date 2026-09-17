@@ -2,7 +2,7 @@
 
 ![DXN1 STUDIO 3](assets/banner.png)
 
-![version](https://img.shields.io/badge/version-3.1.80-8b5cf6?style=flat-square)
+![version](https://img.shields.io/badge/version-3.1.81-8b5cf6?style=flat-square)
 ![gates](https://github.com/DXN1-termux/DXN1-STUDIO/actions/workflows/ci.yml/badge.svg)
 ![native](https://img.shields.io/badge/native-C%2B%2023-f97316?style=flat-square)
 ![face](https://img.shields.io/badge/face-terminal_truecolor-22d3ee?style=flat-square)
@@ -92,7 +92,9 @@ viewport refreshes — *code a background, and boom, a background.*
   real now: forty cards shuffled by their own named stream, dealt
   five at a hand, the muck growing until the dry deck RETURNS
   through its reshuffle stream and the title SPEAKS the reshuffle
-  while the fresh hand ghosts in again), `snake.py` (the classic — a turn queue that
+  while the fresh hand ghosts in again — and the hand label wears
+  the deck's LOW LIGHT: quiet above ten, a faint ring at ten, bright
+  at the last dregs), `snake.py` (the classic — a turn queue that
   plays fair under held keys, meals that sharpen the step, a tail
   that grows, the meal SPEAKS on the HUD and wears the engine's
   glow, every meal BLEACHES the head white (the flash field —

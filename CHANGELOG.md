@@ -1,3 +1,26 @@
+## v3.1.81 — the deck's low light (and the ten it saved)
+
+- **The hand label wears the countdown.** cards.py's deck drains
+  five a hand, and now the player SEES it coming: the hand label's
+  glow is the deck's low light — quiet above ten cards, a faint ring
+  (glow 1) when the deck thins to ten, and BRIGHT (glow 2) through
+  the last full hand and the dregs hand (deck 5, then 0) — the
+  muck's return is at hand. The reshuffle's deal pours the quiet
+  back. The light is a steady state, not a flash: it rides every
+  deal and holds through the hand's plays.
+- **The deal tells the truth now.** The hand label used to keep
+  saying "deck: 40" until the first play — a stale count from the
+  label's birth text. deal() refreshes it every deal, so the scene's
+  very first frame reads the honest "muck: 0 · deck: 35".
+- **The probe caught a latent CRASH from v3.1.74.** Playing one hand
+  past the reshuffle — which no probe had ever done — the muck
+  returned as STRINGS ("10♥") into a deck that unpacks tuples: any
+  returned ten crashed the deal ("too many values to unpack"). The
+  muck now stores real cards — (rank, suit) pairs — and the dregs
+  hand plays clean. cards_lowlight_probe.py: 9/9 pins green over 45
+  plays, and cards_deck_probe.py re-green with its scene pin updated
+  to the honest count.
+
 ## v3.1.80 — the owl hunts the flash
 
 - **The void's third threat class flies only after dark.** shooter.py
