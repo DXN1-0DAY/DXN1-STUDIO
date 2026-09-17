@@ -10,8 +10,9 @@ ground.fill = "gradient"
 ground.color2 = "#2a2f4a"
 
 moon = circle("moon", W - 18, 6, 9, 9, "#e9e5ff")
+moon.glow = 3                              # one attribute — the moon glows
 stars = label("stars", 2, 2, "*  *   *    *  *   *  *", "#6b7280")
 
-print("a background, from 6 lines of code")
+print("a background, from 6 lines of code (plus one glow)")
 
 run()

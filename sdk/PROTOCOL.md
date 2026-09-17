@@ -40,12 +40,30 @@ Shapes: `rect` · `circle` (a real disc) · `tri` (triangle) · `text`
 (a plaque rendering `text`). Tags are yours — the engine reports overlap
 pairs for any tagged entities; the SDK fires `on_hit` when a pair ENTERS.
 
+## the light fields — glow, flash, alpha
+
 Any entity may carry `"glow": <px>` — a dim halo painted behind the
 body (a real ring on circles, the coins' rect aura elsewhere). Both
 rasters obey, and the frame's `set` can patch it like any field, so a
 pulse is just a patch per frame.
 
-Any entity may carry `"flash": <0..1>` — a hit-flash that bleaches the body toward white and decays at 4/s in `update`; a wire `set` re-lights it, so a game marks a hit with one patch. Both rasters obey.
+Any entity may carry `"flash": <0..1>` — a hit-flash that bleaches
+the body toward white. Both rasters render it; **who decays it
+depends on who owns the tick**:
+
+| you are… | flash decay | glow decay | alpha |
+|---|---|---|---|
+| a `:scene` demo (the engine's own entities) | the engine's update decays it at **4/s** | never — the scene animates it | the scene animates it |
+| a wire game (this protocol) | **the studio keeps what you last sent** — the decay is YOUR job | same — your job | same — your job |
+
+That asymmetry is a law, not a footnote: a wire game that sets
+`flash = 1` once and never lowers it ships a card bleached white
+forever (this exact bug shipped and was fixed in v3.1.55). The
+house style is an **honest staircase** — decay by a constant rate
+every tick (`flash -= 3*dt`, `glow -= 8*dt`), so the light tells
+the truth about its own age. A fade must also survive its birth
+tick: compute the decay BEFORE the spawn, or the subject is born
+already faded.
 
 Any entity may carry `"alpha": <0..1>` (default 1) — the body blends toward the scene bg, so a scene can ship ghosts, fog banks and glass. `alpha: 0` is the bg itself; both rasters blend identically, and a wire `set` can thin or thicken it live (a vanishing act is a patch).
 

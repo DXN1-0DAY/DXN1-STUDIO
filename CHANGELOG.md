@@ -1,3 +1,21 @@
+## v3.1.56 — the light field, documented honestly
+
+- **sdk/PROTOCOL.md grows "the light fields" — and loses a lie.**
+  The old flash paragraph said a flash "decays at 4/s in update" —
+  true for the engine's own `:scene` entities (spark.cpp decays at
+  4/s) and MISLEADING for every wire game this document is written
+  for: the studio (host.hpp) keeps whatever the game last sends,
+  and the decay is the GAME's job. A wire author following the old
+  paragraph would have written v3.1.55's bleached-card bug exactly.
+  Now the doc states both paths side by side — a table of who owns
+  the tick, who owns the decay — plus the house conventions: the
+  honest staircase (constant rate every tick), and the birth-tick
+  law (compute the decay BEFORE the spawn, or the subject is born
+  already faded).
+- **background.py, the hello-world, learns glow in one attribute:**
+  the moon wears `glow = 3`. Six lines of code plus one — the
+  first thing a newcomer ships now also teaches the light.
+
 ## v3.1.55 — the hand remembers
 
 - **A REAL light bug, caught by reading the engine before the probe
