@@ -1,3 +1,25 @@
+## v3.1.73 — the drifting twin
+
+- **shooter.py grows a SECOND THREAT CLASS.** The drifting twin:
+  smaller (7 px to the bulk's 10), nearly twice as fast (0.55 to
+  0.3), riding a sine bob whose phase is honest in dt (the y trace
+  bends, pinned over a 60-tick window), and worth 25 to the bulk's
+  10. It drifts in through the same ghost law — alpha 0.15 rising
+  over DRIFT seconds — so the void announces both threats alike.
+- **The seed chapter's one-stream-per-concern lands in the shooter.**
+  The respawns were riding the unseeded global `random` — no run
+  could be replayed. Now the threat answers "the threat's return"
+  and the twin answers "the twin's return": two named streams, never
+  sharing a draw, each respawn EXACTLY what a replay probe predicts
+  (10 pins green, first wire run — including the second-hit pin that
+  proves the stream ADVANCES).
+- **The probe pins the hit-pair timing contract**: on_hit runs after
+  the tick's on_tick, so a mutated entity's patch rides the hit
+  frame while a recomputed hud line pays one tick late — the probe
+  samples each where it is honest.
+- Gate 6's shooter pin follows the census: 3 → 4 entities. Gates 7
+  green.
+
 ## v3.1.72 — the x2 proof
 
 - **The streak law's one honest gap is CLOSED: the combo ×2 is
