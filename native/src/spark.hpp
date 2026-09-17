@@ -23,6 +23,8 @@ struct Entity {
   std::string fill = "solid";         // solid | gradient
   std::string shape = "rect";         // rect | circle | tri | text
   float rot = 0, spin = 0, tsize = 20;
+  float glow = 0;                     // halo radius in px (0 = none);
+                                      // circles ring, the rest rect-aura
   std::vector<Vec2> path;             // mover waypoints (world px)
   float pathSpeed = 60;
   bool alive = true;

@@ -64,6 +64,7 @@ Scene Game::fromJson(const std::string& text) {
       en.rot = static_cast<float>(e.at("rot").num_or(0));
       en.spin = static_cast<float>(e.at("spin").num_or(0));
       en.tsize = static_cast<float>(e.at("tsize").num_or(20));
+      en.glow = static_cast<float>(e.at("glow").num_or(0));
       en.pathSpeed = static_cast<float>(e.at("pspeed").num_or(60));
       const Value& path = e.at("path");
       if (path.is(json::Kind::Arr)) {
@@ -117,6 +118,7 @@ std::string Game::toJson(const Scene& s) {
                            << static_cast<int>(e.tsize);
     if (e.rot != 0) o << ", \"rot\": " << e.rot;
     if (e.spin != 0) o << ", \"spin\": " << e.spin;
+    if (e.glow > 0) o << ", \"glow\": " << e.glow;
     if (!e.path.empty()) {
       o << ", \"path\": [";
       for (size_t j = 0; j < e.path.size(); ++j) {

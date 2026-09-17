@@ -1,3 +1,14 @@
+## v3.1.20 — the halo anyone can wear
+
+- **`glow` — a general entity field.** The coins' halo was hardcoded;
+  now ANY entity can carry `"glow": <px>` and breathe the same dim
+  aura — circles get a real per-dot ring, everything else the rect
+  aura the coins have always worn. Both rasters obey (the terminal
+  and the PNG poster agree on the shape test), the wire's `set`
+  patches it like any field (a pulse is a patch), `toJson` round-trips
+  it, and the selftest pins the parse, the patch and the
+  byte-identical render (group 99).
+
 ## v3.1.19 — the gate that reads the promise
 
 - **`scripts/gates.sh` grows gate 7: the README never promises a

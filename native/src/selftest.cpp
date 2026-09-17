@@ -4741,6 +4741,42 @@ int main() {
     }
   }
 
+  // 99. the glow: an author's halo — parsed, patched, round-tripped
+  {
+    Scene s = dxn3::Game::fromJson(
+        R"({"name":"glow","entities":[{"name":"gem","shape":"circle","x":10,"y":20,"w":22,"h":22,"color":"#facc15","glow":7}]})");
+    ok(!s.entities.empty() && s.entities[0].glow == 7.f,
+       "fromJson reads a glow halo");
+    Scene s0 = dxn3::Game::fromJson(
+        R"({"name":"plain","entities":[{"name":"p","x":0,"y":0}]})");
+    ok(s0.entities.empty() || s0.entities[0].glow == 0.f,
+       "no glow field means no halo");
+    ok(dxn3::Game::toJson(s).find("\"glow\": 7") != std::string::npos,
+       "toJson writes the glow back");
+    Game g(s);
+    HostFrame f;
+    f.frame = true;
+    f.set = dxn3::json::parse(R"([{"name":"gem","glow":3}])").value();
+    dxn3::applyFrame(g, f);
+    ok(g.scene.entities[0].glow == 3.f,
+       "a wire patch moves the glow (a pulse is a patch)");
+    ok(dxn3::shootPNG("/tmp/dxn3_glow_a.png", g).empty(),
+       "a glowing scene renders");
+    dxn3::shootPNG("/tmp/dxn3_glow_b.png", g);
+    auto slurp = [](const char* p) {
+      std::FILE* fp = std::fopen(p, "rb");
+      std::string b;
+      char buf[8192];
+      size_t r;
+      if (fp) {
+        while ((r = std::fread(buf, 1, sizeof buf, fp)) > 0) b.append(buf, r);
+        std::fclose(fp);
+      }
+      return b;
+    };
+    ok(slurp("/tmp/dxn3_glow_a.png") == slurp("/tmp/dxn3_glow_b.png"),
+       "the halo is a pure function of state (byte-identical)");
+  }
 
   if (fails == 0) {
     std::println("native selftest: all green ({} assertion groups)", n);

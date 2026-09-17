@@ -350,6 +350,7 @@ inline Scene sceneFromHost(const json::Value& v, int worldW, int worldH) {
     en.rot = static_cast<float>(e.at("rot").num_or(0));
     en.spin = static_cast<float>(e.at("spin").num_or(0));
     en.tsize = static_cast<float>(e.at("tsize").num_or(20));
+    en.glow = static_cast<float>(e.at("glow").num_or(0));
     en.color = e.at("color").str_or("#8b5cf6");
     en.color2 = e.at("color2").str_or("");
     en.fill = e.at("fill").str_or(en.fill);
@@ -383,6 +384,7 @@ inline void applyFrame(Game& g, const HostFrame& f) {
       e->rot = static_cast<float>(p.at("rot").num_or(e->rot));
       e->spin = static_cast<float>(p.at("spin").num_or(e->spin));
       e->tsize = static_cast<float>(p.at("tsize").num_or(e->tsize));
+      e->glow = static_cast<float>(p.at("glow").num_or(e->glow));
       e->color = p.at("color").str_or(e->color);
       e->color2 = p.at("color2").str_or(e->color2);
       e->fill = p.at("fill").str_or(e->fill);

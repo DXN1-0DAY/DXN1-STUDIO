@@ -103,6 +103,41 @@ inline std::string shootPNG(const std::string& path, const Game& g) {
     const RGB edge = lum < 90000 ? lerpColor(c1, 0xFFFFFF, 0.28f)
                                  : lerpColor(c1, 0x000000, 0.45f);
 
+    // the glow: the terminal raster's law, kept. A glowing disc breathes
+    // a real ring (blended, soft); every other shape wears the coin's
+    // rect aura. Painted before the body so the middle is covered —
+    // and the shape test matches the terminal's `disc` exactly, so the
+    // two rasters never disagree about where the halo goes.
+    if (e.glow > 0) {
+      const bool ring =
+          e.shape == "circle" || e.shape == "ellipse" || e.tag == "coin";
+      if (ring) {
+        const float rw = (x1 - x0) / 2.f + e.glow;
+        const float rh = (y1 - y0) / 2.f + e.glow;
+        if (rw > 0 && rh > 0) {
+          const float cx = (x0 + x1) / 2.f, cy = (y0 + y1) / 2.f;
+          const int dxa = std::max(0, static_cast<int>(x0 - e.glow) - 1);
+          const int dxb = std::min(W - 1, static_cast<int>(x1 + e.glow) + 1);
+          const int dya = std::max(0, static_cast<int>(y0 - e.glow) - 1);
+          const int dyb = std::min(H - 1, static_cast<int>(y1 + e.glow) + 1);
+          for (int py = dya; py <= dyb; ++py) {
+            auto* line = &px[static_cast<size_t>(py) * W];
+            const float ty = (py + 0.5f - cy) / rh;
+            for (int pxx = dxa; pxx <= dxb; ++pxx) {
+              const float tx = (pxx + 0.5f - cx) / rw;
+              if (tx * tx + ty * ty > 1.f) continue;
+              line[pxx] = lerpColor(line[pxx], c1, 0.14f);
+            }
+          }
+        }
+      } else {
+        fillRect(x0 - e.glow, y0 - e.glow, x1 + e.glow, y1 + e.glow,
+                 lerpColor(px[std::max(0, static_cast<int>(y0)) * W +
+                               std::clamp(static_cast<int>(x0), 0, W - 1)],
+                           c1, 0.14f));
+      }
+    }
+
     if (e.tag == "sign") {                                // plaque rails
       fillRect(x0, y0, x1, y0 + 2, edge);
       fillRect(x0, y1 - 2, x1, y1, edge);

@@ -40,6 +40,11 @@ Shapes: `rect` · `circle` (a real disc) · `tri` (triangle) · `text`
 (a plaque rendering `text`). Tags are yours — the engine reports overlap
 pairs for any tagged entities; the SDK fires `on_hit` when a pair ENTERS.
 
+Any entity may carry `"glow": <px>` — a dim halo painted behind the
+body (a real ring on circles, the coins' rect aura elsewhere). Both
+rasters obey, and the frame's `set` can patch it like any field, so a
+pulse is just a patch per frame.
+
 ## the frame packet — every tick, patch the world
 
 `set` patches entities **by name**: known names update in place, unknown

@@ -525,6 +525,39 @@ void drawWorld(dxn3::Screen& scr, const dxn3::Game& g) {
     const RGB edgeC = lum1 < 90000 ? dxn3::lerpColor(c1, 0xFFFFFF, 0.28f)
                                    : dxn3::lerpColor(c1, 0x000000, 0.45f);
 
+    // the glow: an author's halo. A glowing disc breathes a real ring
+    // (per dot — the body then covers the middle); every other shape
+    // wears the rect aura the coins have always had. Painted FIRST so
+    // the body covers the middle. Same law in the PNG raster.
+    if (e.glow > 0 && !off) {
+      if (disc) {
+        const float grw = (x1 - x0) / 2.f + e.glow;
+        const float grh = (y1 - y0) / 2.f + e.glow;
+        if (grw > 0 && grh > 0) {
+          const int gxa = std::max(0, static_cast<int>((cxm - grw) * 2.f) - 1);
+          const int gxb =
+              std::min(cols * 2 - 1, static_cast<int>((cxm + grw) * 2.f) + 1);
+          const int gya = std::max(0, static_cast<int>((cym - grh) * 2.f) - 1);
+          const int gyb =
+              std::min(hr * 2 - 1, static_cast<int>((cym + grh) * 2.f) + 1);
+          const RGB hc = dxn3::lerpColor(bg, c1, 0.14f);
+          for (int gy = gya; gy <= gyb; ++gy) {
+            const float wy = gy * 0.5f + 0.25f;
+            const float ty = (wy - cym) / grh;
+            for (int gx = gxa; gx <= gxb; ++gx) {
+              const float wx = gx * 0.5f + 0.25f;
+              const float tx = (wx - cxm) / grw;
+              if (tx * tx + ty * ty > 1.f) continue;
+              scr.pxDot(wx, wy, hc);
+            }
+          }
+        }
+      } else {
+        scr.rect(x0 - e.glow, y0 - e.glow, x1 + e.glow, y1 + e.glow,
+                 dxn3::lerpColor(bg, c1, 0.14f));
+      }
+    }
+
     if (texty) {                                          // text plaque
       if (!off) {
         scr.rect(x0, y0, x1, y0 + 1, edgeC);              // plaque rails,
