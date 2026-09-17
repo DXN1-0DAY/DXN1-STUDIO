@@ -1,3 +1,23 @@
+## v3.1.14 — the long run, on a seeded desert
+
+- **`sdk/examples/dino.js` — an endless runner.** Space leaps (one
+  honest gravity, 90 px/s², the ground ends the fall), the desert
+  speeds up forever (+2 px/s per second), the meters pile up in the
+  HUD. The cacti come from a POOL of six parked off-screen — an
+  idle cactus costs the wire nothing — and the SPAWN LAW is SEEDED
+  (FNV-1a of the runner's name, xorshift after): the same run, the
+  same desert, forever — the studio's determinism law, now a
+  gameplay promise. Night falls at 200 m (the ground goes dark);
+  a touch speaks your meters honestly — "down at 13 m" — and `r`
+  walks again. 11 entities exactly; gate 6 roster 12 → 13, the JS
+  gallery grows to FOUR.
+- **Probed for truth** (deterministic probe): 11 entities, the
+  leap is set on the key frame and lifts NEXT frame (the SDK's
+  dispatch order — keys land after the tick's physics — is now
+  documented in the probe), the 16-tick arc returns to earth, a
+  cactus spawns and scrolls at the run's speed, the fatal touch
+  speaks its meters, zero tracebacks.
+
 ## v3.1.13 — the margin's hygiene kit
 
 - **`:squeeze`** — wherever two or more blank lines stand together,
