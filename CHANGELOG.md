@@ -1,3 +1,27 @@
+## v3.1.6 — the saws bite, and the ascent begins
+
+- **FIXED: the hazard tag kills — the campaign's saws finally saw.**
+  Six scenes shipped with saws that could not saw: `deck-guard`,
+  `ferry-guard` and friends wear `tag: "hazard"`, but the kill rule
+  only knew the word `spike` — every saw in the vault, the gauntlet
+  and the movers was decorative, and level-5's own sign ("mind the
+  saws") was a lie. Both killing tags fire now, each speaking its
+  own name: the fang says `ouch — spike!`, the saw says `ouch — the
+  saw!`. Selftest group 4b pins the law three ways (the saw
+  respawns, the saw speaks, a saw across the room never bites —
+  888 → 891).
+- **`scenes/level-6.dxn1.json` — the ascent, the campaign's seventh
+  scene and its highest tower.** Three lifts stack the climb, five
+  terraces carry the honest ledge work, two saws guard the air at
+  jump height now that they bite, six gems mark the line, and the
+  summit — indigo, because it earned it — holds the highest door in
+  the campaign. `level-5`'s door now chains to the ascent; the
+  ascent's door brings you home to the playground. The loop is
+  seven scenes, gate 3b walks every link.
+- **Docs keep pace**: README speaks seven scenes (twice), the
+  screenshot table gains the ascent's real headless frame, and the
+  campaign field guide tells the tower's story.
+
 ## v3.1.5 — the gallery grows a snake and a starfield
 
 - **`sdk/examples/snake.py` — the classic, on the wire.** A grid

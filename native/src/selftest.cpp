@@ -124,6 +124,31 @@ int main() {
     ok(g.msg.find("ouch") != std::string::npos, "hazard says something honest");
   }
 
+  // 4b. the saw (hazard tag) kills too — the levels promise it, the
+  // engine delivers it now (a saw that cannot saw lied for six scenes)
+  {
+    Scene s;
+    s.entities.push_back(mk("player", 100, 100, 34, 44));
+    Entity& saw = s.entities.emplace_back(mk("deck-guard", 110, 110, 38, 38,
+                                             "#fb7185"));
+    saw.tag = "hazard";
+    Game g(std::move(s));
+    g.update(1.f / 60.f, {});
+    ok(g.player()->x == g.spawn().x && g.player()->y == g.spawn().y,
+       "the saw respawns the player like any fang");
+    ok(g.msg.find("saw") != std::string::npos, "the saw speaks its own name");
+    // and the saw is harmless while it stands elsewhere
+    Scene s2;
+    s2.entities.push_back(mk("player", 100, 100, 34, 44));
+    Entity& far = s2.entities.emplace_back(mk("saw-far", 600, 500, 38, 38,
+                                              "#fb7185"));
+    far.tag = "hazard";
+    Game g2(std::move(s2));
+    g2.update(1.f / 60.f, {});
+    ok(g2.msg.find("ouch") == std::string::npos,
+       "a saw across the room never bites");
+  }
+
   // 5. goal transition locks once and chains next
   {
     Scene s;
@@ -199,7 +224,7 @@ int main() {
   }
 
   // 9. the version quad rides in the binary too
-  ok(std::string(dxn3::DXN3_VERSION) == "3.1.5",
+  ok(std::string(dxn3::DXN3_VERSION) == "3.1.6",
      "native version constant matches the release");
 
   // 10. png writer: checksum vectors, real structure, byte determinism

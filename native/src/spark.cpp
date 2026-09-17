@@ -380,7 +380,12 @@ void Game::stepTags(float dt) {
     }
 
     if (!p || &e == p) continue;
-    if (e.tag == "spike" && e.alive && overlap(*p, e)) respawn("ouch — spike!");
+    // the killing tags: the fang (spike) and the saw (hazard) — the
+    // campaign's levels wear both, and a saw that cannot saw lies
+    if (e.alive && overlap(*p, e)) {
+      if (e.tag == "spike") respawn("ouch — spike!");
+      else if (e.tag == "hazard") respawn("ouch — the saw!");
+    }
     if (e.tag == "goal" && !transLocked && overlap(*p, e)) {
       transLocked = true;
       flash = 1;

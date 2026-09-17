@@ -3,7 +3,7 @@
   "bg": "#0b0f14",
   "gravity": 1500,
   "magnet": 150,
-  "next": "scenes/playground.dxn1.json",
+  "next": "scenes/level-6.dxn1.json",
   "camera": { "x": 0, "y": 0, "zoom": 0.7 },
   "entities": [
     { "name": "start-ledge", "x": -200, "y": 430, "w": 440, "h": 90, "color": "#1f2937" },

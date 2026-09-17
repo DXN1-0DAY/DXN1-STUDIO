@@ -1,0 +1,50 @@
+{
+  "name": "the ascent (level-6)",
+  "bg": "#0a0d18",
+  "gravity": 1500,
+  "magnet": 150,
+  "next": "scenes/playground.dxn1.json",
+  "camera": { "x": 100, "y": 300, "zoom": 0.8 },
+  "entities": [
+    { "name": "hero", "tag": "player", "x": 60, "y": 330, "w": 34, "h": 44, "color": "#8b5cf6" },
+
+    { "name": "start-ledge", "x": -200, "y": 430, "w": 620, "h": 90, "color": "#1f2937" },
+    { "name": "readme", "tag": "sign", "x": 170, "y": 356, "w": 30, "h": 34, "color": "#94a3b8", "text": "THE ASCENT \u2014 the saws bite now" },
+
+    { "name": "lift-1", "tag": "mover", "x": 460, "y": 400, "w": 110, "h": 20, "color": "#38bdf8",
+      "path": [ { "x": 460, "y": 400 }, { "x": 460, "y": 230 } ], "pspeed": 75 },
+
+    { "name": "terrace-1", "x": 620, "y": 250, "w": 240, "h": 26, "color": "#1f2937" },
+    { "name": "fang-1", "tag": "spike", "x": 700, "y": 222, "w": 34, "h": 28, "shape": "triangle", "color": "#ef4444" },
+    { "name": "gem-1", "tag": "coin", "x": 660, "y": 190, "w": 22, "h": 22, "shape": "circle", "color": "#facc15" },
+    { "name": "gem-2", "tag": "coin", "x": 820, "y": 190, "w": 22, "h": 22, "shape": "circle", "color": "#facc15" },
+
+    { "name": "terrace-2", "x": 940, "y": 170, "w": 220, "h": 26, "color": "#1f2937" },
+    { "name": "saw-1", "tag": "hazard", "x": 1060, "y": 108, "w": 38, "h": 38, "color": "#fb7185", "rot": 0, "spin": 280 },
+
+    { "name": "lift-2", "tag": "mover", "x": 1240, "y": 230, "w": 110, "h": 20, "color": "#38bdf8",
+      "path": [ { "x": 1240, "y": 230 }, { "x": 1240, "y": 420 } ], "pspeed": 95 },
+
+    { "name": "mid-deck", "x": 1400, "y": 430, "w": 300, "h": 60, "color": "#1f2937" },
+    { "name": "saw-2", "tag": "hazard", "x": 1500, "y": 368, "w": 38, "h": 38, "color": "#fb7185", "rot": 0, "spin": 300 },
+    { "name": "fang-2", "tag": "spike", "x": 1630, "y": 402, "w": 34, "h": 28, "shape": "triangle", "color": "#ef4444" },
+    { "name": "gem-3", "tag": "coin", "x": 1440, "y": 370, "w": 22, "h": 22, "shape": "circle", "color": "#facc15" },
+
+    { "name": "lift-3", "tag": "mover", "x": 1790, "y": 400, "w": 110, "h": 20, "color": "#38bdf8",
+      "path": [ { "x": 1790, "y": 400 }, { "x": 1790, "y": 180 } ], "pspeed": 85 },
+
+    { "name": "sky-ledge", "x": 1900, "y": 200, "w": 260, "h": 26, "color": "#1f2937" },
+    { "name": "fang-3", "tag": "spike", "x": 1960, "y": 172, "w": 34, "h": 28, "shape": "triangle", "color": "#ef4444" },
+    { "name": "gem-4", "tag": "coin", "x": 2060, "y": 140, "w": 22, "h": 22, "shape": "circle", "color": "#facc15" },
+
+    { "name": "summit-lift", "tag": "mover", "x": 2240, "y": 180, "w": 100, "h": 20, "color": "#38bdf8",
+      "path": [ { "x": 2240, "y": 180 }, { "x": 2240, "y": 60 } ], "pspeed": 70 },
+
+    { "name": "summit", "x": 2340, "y": 70, "w": 220, "h": 26, "color": "#312e81" },
+    { "name": "gem-5", "tag": "coin", "x": 2400, "y": 10, "w": 22, "h": 22, "shape": "circle", "color": "#facc15" },
+    { "name": "gem-6", "tag": "coin", "x": 2470, "y": 10, "w": 22, "h": 22, "shape": "circle", "color": "#facc15" },
+    { "name": "tip-summit", "tag": "sign", "x": 2350, "y": 20, "w": 26, "h": 30, "color": "#a78bfa", "text": "the top", "tsize": 16 },
+
+    { "name": "out", "tag": "goal", "x": 2510, "y": 6, "w": 30, "h": 64, "color": "#34d399" }
+  ]
+}

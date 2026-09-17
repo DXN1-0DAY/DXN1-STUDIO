@@ -1,7 +1,8 @@
 # The Campaign — a field guide
 
-Six scenes, one loop: **playground → the gap → the movers → the climb →
-the gauntlet → the vault → back home.** Every scene is a plain `.dxn1.json` file; the
+Seven scenes, one loop: **playground → the gap → the movers → the climb →
+the gauntlet → the vault → the ascent → back home.** Every scene is a plain
+`.dxn1.json` file; the
 goal door carries you to the next, and the last door brings you home. The
 HUD counts `COINS x/y · SCORE · TIME` the whole way — completionists grab
 every coin before touching a door.
@@ -62,6 +63,19 @@ ledge's single fang punishes the lazy landing. The ferry under the second
 saw asks for a crouch-run's patience — wait half a rotation, then cross.
 The isle is honest ground; the last stretch is not: two fangs, one gap,
 and the door home. Five gems, one per machine, none free.
+
+## level-6 — the ascent
+
+The tower the vault was quietly rehearsing you for. Three lifts stack the
+climb — the first a slow ride out of the yard, the second counter-phased
+against the terrace you leave, the third the longest pull — and between
+them, five terraces of honest ledge work. The saws finally bite here (the
+engine learned the hazard tag the hard way: six scenes of decorative saws
+before this one): saw-1 guards terrace-2's airspace at jump height, saw-2
+sits on the mid-deck like a toll. Both clear with a running jump; both
+punish a lazy one. Six gems — two over the first terrace, one on the deck,
+one on the sky ledge, two on the summit — and the campaign's highest door,
+painted indigo because the top of THIS world earned it.
 
 ## Design notes (for scene authors)
 
