@@ -1,3 +1,18 @@
+## v3.1.88 — the seven laws of the wire
+
+- **PROTOCOL.md mints the probe's driver lore.** The replay chapter
+  proved a script; the new "driving a live game" chapter teaches the
+  steering — seven laws paid for in failed probes across five
+  rounds: the coast law (keys land after the tick — one cell of
+  inertia in every turn), wasd rides chars, an ordered turn pair
+  rides chars ALONE (the keys dict dispatches in its own fixed order
+  and reverses the pair), the probe is the metronome (dt = the
+  game's own speed-law double, one honest step per packet),
+  deterministic coverage beats any greedy hunter (the serpentine's
+  self-safety is a theorem), console.log rides the pipe bare, and
+  the arrival body is not the present body. Every law names the
+  probe that bled for it.
+
 ## v3.1.87 — the last fuel burns
 
 - **The low-light audit's fourth transplant: the lunar gauge wears

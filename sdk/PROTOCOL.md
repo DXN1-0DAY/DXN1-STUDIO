@@ -193,6 +193,55 @@ proves the reset. The probe pins the say on the very frame the sim
 says it is born — sim and wire agree to the tick, or the pin goes
 red and the law is not done.
 
+## driving a live game — the probe's seven laws
+
+The replay pins a script; a LIVE driver plays the game — steering,
+hunting, spending. Five rounds of dark-of-night failures minted the
+laws (the snake heat probe paid for most of them):
+
+**1. The coast law — keys land after the tick.** The SDK runs a
+packet's tick handlers FIRST and its keys AFTER, so a turn sent in
+packet N first applies at packet N+2: the head (the ship, the
+lander) ALWAYS coasts one cell of inertia before any turn can land.
+Judge every safety from the coast cell — head + one cell of the
+current facing — never from the head itself.
+
+**2. wasd rides `chars`.** The `keys` dict dispatches only `left`,
+`right`, `jump`, `space` — `w`, `a`, `s`, `d` and every other
+keystroke ride the `chars` string. A probe that puts `"s"` in the
+keys dict steers NOTHING, silently.
+
+**3. A turn pair rides `chars` alone.** The keys dict dispatches in
+its own fixed order (`left, right, jump, space`) and the chars
+string dispatches after — mixing both reverses an ordered pair.
+When order matters, put the whole sequence in `chars`: the string's
+order IS the queue's order.
+
+**4. The probe is the metronome.** Send dt = the game's own speed
+law (the same expression, the same double) and every packet is
+exactly one step — no phase drift, no double steps, no fantasy
+steering. The float-timeline law above is this law's sibling:
+accumulate the game's clocks with the game's own arithmetic.
+
+**5. Deterministic coverage beats any greedy hunter.** A greedy
+chaser orbits its food (the no-reverse law plus one packet of coast
+makes the food a blind spot); pockets, lookaheads and intercept
+leads each fail in some regime. A serpentine that visits every cell
+crosses whatever cell the food occupies, and its self-safety is a
+theorem, not a hope: parallel corridors one row apart, the trail
+farther behind than the snake is long.
+
+**6. Console.log rides the pipe bare.** A wire child's `print` /
+`console.log` arrives on stdout as NON-JSON lines between the
+packets. A reader that treats a non-JSON line as a stall will hang
+on the first say; read past the chatter, time out on silence only.
+
+**7. The arrival body is not the present body.** A decision lands
+two packets after it was made — the tail-end cells of a snake's body
+will have vacated by then, mid-chain cells will have advanced. Pin
+occupancy against the body the head will MEET, or the probe hunts
+its own phantom.
+
 ## hosting any language
 
 The engine picks a runner by extension, honestly:
