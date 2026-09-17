@@ -2,7 +2,7 @@
 
 ![DXN1 STUDIO 3](assets/banner.png)
 
-![version](https://img.shields.io/badge/version-3.1.39-8b5cf6?style=flat-square)
+![version](https://img.shields.io/badge/version-3.1.40-8b5cf6?style=flat-square)
 ![gates](https://github.com/DXN1-termux/DXN1-STUDIO/actions/workflows/ci.yml/badge.svg)
 ![native](https://img.shields.io/badge/native-C%2B%2023-f97316?style=flat-square)
 ![face](https://img.shields.io/badge/face-terminal_truecolor-22d3ee?style=flat-square)
@@ -76,7 +76,9 @@ viewport refreshes — *code a background, and boom, a background.*
   to a binary the studio hosts — see `sdk/examples/pong.cpp`.
 - **Examples in `sdk/examples/`:** `background.py` (the hello world),
   `shooter.py` (bullets, score, respawning enemy), `flappy.py`
-  (gravity, pipes, one-key flying), `bounce.js`
+  (gravity, pipes, one-key flying — the pipes FADE IN from the
+  horizon, a clean pass makes the bird GLOW, and a crash BLEACHES
+  it white), `bounce.js`
   (breakout with a steering paddle), `cards.py` (balatro-lite poker
   hands vs the blind — the selected card GLOWS like a lamp, a played
   card FLASHES white as it lands in your hand row, and the score

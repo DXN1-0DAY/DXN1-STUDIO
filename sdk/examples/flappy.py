@@ -1,4 +1,6 @@
 # FLAPPY in the DXN1 STUDIO — run:  dxn3 sdk/examples/flappy.py
+# the worn pipes: pipes fade in from the horizon (alpha wears with
+# distance), a death BLEACHES the bird, a clean pass makes it GLOW.
 from dxn3 import *
 import random
 
@@ -20,6 +22,9 @@ def gap_at(p, x):                    # one pipe pair, a fresh gap, placed at x
     p["bot"].h = H - top_h - GAP
     p["passed"] = False
 
+def wear(x):                         # distance wears the pipes: far = ghost
+    return round(0.35 + 0.65 * max(0.0, min(1.0, (150 - x) / 140)), 3)
+
 for i in range(3):
     p = {"top": rect(f"ptop{i}", 0, 0, 6, 8, "#22c55e"),
          "bot": rect(f"pbot{i}", 0, 0, 6, 8, "#16a34a"),
@@ -31,6 +36,7 @@ for i in range(3):
 def die():
     global dead
     dead = True
+    bird.flash = 1.0                     # the crash bleaches the bird
     tip.text = "space to fly again"
     win(f"game over — score {score}")
     print("game over — score", score)
@@ -41,6 +47,7 @@ def on_key(k):
     if dead:
         dead, score, vy = False, 0, 0
         bird.x, bird.y = 16, H // 2
+        bird.flash, bird.glow = 0, 0          # a fresh bird wears no scars
         for i, p in enumerate(pairs):
             gap_at(p, W + 8 + i * 22)
         hud.text, tip.text = "SCORE 0", "space to flap"
@@ -59,12 +66,20 @@ def on_tick(dt2):
     for p in pairs:
         p["top"].x -= SPEED
         p["bot"].x -= SPEED
+        a = wear(p["top"].x)              # the horizon wears every pipe
+        p["top"].alpha = a
+        p["bot"].alpha = a
         if not p["passed"] and p["top"].x + 6 < bird.x:
             p["passed"] = True            # a clean pass through the gap
             score += 1
+            bird.glow = 8                 # the pass makes the bird GLOW
             hud.text = "SCORE " + str(score)
         if p["top"].x < -6:               # gone off the left — recycle it
             gap_at(p, W + 4)
+    if bird.glow:
+        bird.glow = round(bird.glow * 0.82, 3)   # the glow decays each tick
+        if bird.glow < 0.05:
+            bird.glow = 0
 
 def on_hit(a, b):
     if not dead and "bird" in (a.tag, b.tag) and "pipe" in (a.tag, b.tag):

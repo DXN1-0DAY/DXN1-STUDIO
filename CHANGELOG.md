@@ -1,3 +1,22 @@
+## v3.1.40 — the worn pipes
+
+- **flappy.py learns depth: the pipes FADE IN from the horizon.**
+  Every pipe's alpha wears with its distance — near-pipes stand at
+  full strength, the mid pipe is fainter, and far pipes clamp at a
+  0.35 floor — so each new pipe materializes out of the dark
+  instead of popping in. Restarting a flight resets the wear.
+- **A clean pass makes the bird GLOW** (glow 8, decaying 0.82 per
+  tick — the same light the cards wear), **a crash BLEACHES it**
+  (the flash field), and a fresh flight clears both scars. The
+  three engine light fields — glow, flash, alpha — now dress THREE
+  gallery examples each.
+- Probe: 10 pins green on the real wire, first run — the cards
+  round's lessons (tick-only packets, pump threads, one empty tick
+  after a key tick) applied as discipline, not discovery. The wear
+  curve is pinned at three distances plus monotonicity, the rise
+  while flying is pinned, and the restart reset (wear AND scars)
+  is pinned.
+
 ## v3.1.39 — the glow hand
 
 - **cards.py stops being a flat menu and becomes a TABLE.** The
