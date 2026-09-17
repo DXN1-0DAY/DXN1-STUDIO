@@ -15,11 +15,58 @@
 // (4) on fire and cools at eight a second, flying shots and bombs
 // carry their own halo (2), and a spent bullet parks its light with
 // its body.
+// v3.1.78 — THE SECOND WAVE COMES IN THE DARK: the moon check's last
+// fleet member goes night. Nine stars and a moon are born from their
+// OWN seeded stream ("the night sky" — the march's unseeded dice never
+// touch it), created first so the world renders over them, every star
+// a rumor at alpha 0.15 and the moon a whisper at 0.25. The first
+// cleared wave flips the sky — the say speaks it ("the sky fills
+// again, darker now") and the fade law, honest in dt, runs over two
+// seconds: nightT climbs dt/2, the stars ride 0.15 + 0.75 * nightT,
+// the moon 0.25 + 0.75 * nightT — and at the fade's end the moon
+// SHINES (glow 4) while the living march wears the cacti law's faint
+// ring (glow 1, riding the same fade). A fresh run is a fresh day:
+// restart (r) and EARTH HOLDS both pour the daylight back.
 const dxn3 = require("dxn3");
-const { rect, label, destroy, find, background, say, win, on, run } = dxn3;
+const { rect, circle, label, destroy, find, background, say, win, on, run } = dxn3;
 const W = dxn3.W, H = dxn3.H;
 
 background("#050814");
+
+// the NIGHT'S FURNITURE — created FIRST so the world renders over it.
+// Nine stars and a moon from their OWN seeded stream (the dino's
+// law): the same run grows the same sky, forever, and the march's
+// unseeded dice never shuffle it. Day: a rumor — the war starts in
+// daylight; the dark is earned.
+let nseed = 2166136261 >>> 0;
+for (const ch of "the night sky") {
+  nseed ^= ch.charCodeAt(0);
+  nseed = (nseed * 16777619) >>> 0;
+}
+const nnext = () => {
+  nseed ^= nseed << 13; nseed >>>= 0;
+  nseed ^= nseed >>> 17;
+  nseed ^= nseed << 5;  nseed >>>= 0;
+  return nseed / 4294967296;
+};
+const stars = [];
+for (let i = 0; i < 9; ++i) {
+  const s = rect(`star-${i}`, 2 + Math.floor(nnext() * (W - 6)),
+                 3 + Math.floor(nnext() * 9), 1, 1, "#e2e8f0");
+  s.alpha = 0.15;
+  stars.push(s);
+}
+const moon = circle("moon", W - 15, 4, 5, 5, "#f1f5f9");
+moon.alpha = 0.25;
+moon.glow = 0;                           // the moon waits for the dark
+let night = false, nightT = 0;           // wave two earns the dark
+function freshDay() {                    // a fresh run is a fresh day
+  night = false;
+  nightT = 0;
+  stars.forEach((s) => { s.alpha = 0.15; });
+  moon.alpha = 0.25;
+  moon.glow = 0;
+}
 
 const hud = label("hud", 2, 1, "INVADERS  ·  left/right space  ·  score 0");
 const player = rect("player", W >> 1, H - 4, 10, 4, "#8b5cf6");
@@ -141,6 +188,7 @@ function alienFire() {
 function rebuild(msg) {                  // the wave is spent — the next lands
   say(msg);
   wave += 1;
+  if (wave === 2 && !night) night = true;   // the second wave comes in the dark
   if (wave > 3) {
     win("EARTH HOLDS");
     wave = 1;
@@ -149,6 +197,7 @@ function rebuild(msg) {                  // the wave is spent — the next lands
     buildShields();                      // a fresh run pours new concrete
     park();                              // the sky empties for the new run
     shotCount = 0;
+    freshDay();                          // earth held — a fresh day dawns
   }
   deploy();
 }
@@ -162,6 +211,7 @@ function restart() {                     // r from the ashes
   buildShields();
   deploy();
   park();                                // the mystery forgets this run too
+  freshDay();                            // a fresh run is a fresh day
   shotCount = 0;
   gunCool = 0;
   hud.text = "INVADERS  ·  score 0  ·  lives 3";
@@ -187,6 +237,13 @@ on.tick((dt) => {
   const A = 0.15 + 0.85 * waveT;
   aliens.forEach((a) => { if (a.visible) a.alpha = A; });
   bunkers.forEach((s) => { s.alpha = A; });
+  if (night && nightT < 1) {             // the sky fades in over two seconds
+    nightT = Math.min(1, nightT + dt / 2);
+    stars.forEach((s) => { s.alpha = 0.15 + 0.75 * nightT; });
+    moon.alpha = 0.25 + 0.75 * nightT;
+    moon.glow = nightT >= 1 ? 4 : 0;     // and then the moon shines
+    aliens.forEach((a) => { if (a.visible) a.glow = nightT; });  // the cacti
+  }                                      //   law: the march rings faintly
   player.glow = Math.max(0, (player.glow || 0) - 8 * dt);   // the muzzle cools
   // the march: a discrete step, faster as the grid thins
   stepT += dt;
@@ -236,7 +293,10 @@ on.hit((a, b) => {
     shot.glow = 0;                     // the spent shot parks its light
     alive -= 1;
     hud.text = `INVADERS  ·  score ${score}  ·  lives ${lives}`;
-    if (alive === 0) rebuild(`wave ${wave} cleared — the sky fills again`);
+    if (alive === 0)
+      rebuild(wave === 1
+        ? "wave 1 cleared — the sky fills again, darker now"
+        : `wave ${wave} cleared — the sky fills again`);
   } else if (pair === "abomb|player") {
     const bomb = a.tag === "abomb" ? a : b;
     bomb.x = -999;

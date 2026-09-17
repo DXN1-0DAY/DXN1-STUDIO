@@ -1,3 +1,34 @@
+## v3.1.78 — the second wave comes in the dark
+
+- **The moon check's last big fleet member goes night.** invaders.js
+  — the classic march — now earns its dark: nine stars and a moon
+  born from their OWN seeded stream ("the night sky", the dino's
+  FNV-1a + xorshift law — the march's unseeded dice never shuffle
+  the sky), created first so the world renders over them, every star
+  a rumor at alpha 0.15 and the moon a whisper at 0.25 while the war
+  is young. The FIRST cleared wave flips the sky — the rebuild's say
+  speaks it ("wave 1 cleared — the sky fills again, darker now") —
+  and the fade law, honest in dt, runs over two seconds: the stars
+  ride 0.15 + 0.75 * nightT, the moon 0.25 + 0.75 * nightT, and at
+  the fade's end the moon SHINES (glow 4) while the living march
+  wears the cacti law's faint ring (glow 1, riding the same fade).
+  A fresh run is a fresh day: restart (r) and EARTH HOLDS both pour
+  the daylight back.
+- **The probe hunted three real laws on the way:** invaders_night_
+  probe.py — 14/14 pins green, including the same-sky replay and the
+  stars sitting EXACTLY where a python replication of the stream
+  deals them. The replication itself paid the round's law: JS
+  multiplies in FLOAT64 — sseed * 16777619 exceeds 2^53 and ToUint32
+  keeps only the exact float's low bits, so a clean int-math
+  replication diverges star one (got (103,10), exp (13,5)); the
+  honest copy multiplies in float and truncates. And the r-restart
+  pin re-taught the held-key grammar: letters ride chars, never
+  keys — the probe sent r as a held key and the cannon stayed dead.
+- **Census:** gate 6 invaders 52 -> 62; README's example line speaks
+  the second wave's dark. The fleet's night inventory: dino (200 m),
+  flappy (score 3), windmill (its own solar cycle), shooter (the
+  tenth hit), invaders (wave two) — five skies, one law.
+
 ## v3.1.77 — the gate learns the stream law
 
 - **Gate 6 now verifies a seeded game's respawn is its own stream's

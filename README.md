@@ -2,7 +2,7 @@
 
 ![DXN1 STUDIO 3](assets/banner.png)
 
-![version](https://img.shields.io/badge/version-3.1.77-8b5cf6?style=flat-square)
+![version](https://img.shields.io/badge/version-3.1.78-8b5cf6?style=flat-square)
 ![gates](https://github.com/DXN1-termux/DXN1-STUDIO/actions/workflows/ci.yml/badge.svg)
 ![native](https://img.shields.io/badge/native-C%2B%2023-f97316?style=flat-square)
 ![face](https://img.shields.io/badge/face-terminal_truecolor-22d3ee?style=flat-square)
@@ -121,6 +121,9 @@ viewport refreshes — *code a background, and boom, a background.*
   parked off-screen until their moment, and four SHELTERS that
   drink one hit per block — your shot, their bomb or the march
   itself — honest destroys that erode the arch to its shoulders;
+  the SECOND wave comes in the dark: nine stars and a moon fade in
+  from their own seeded stream, the moon shines at the end, and the
+  living march wears the faint ring;
   r rebuilds from the ashes), `dino.js` (an endless
   runner whose desert is SEEDED — the same run, the same cacti,
   forever — with a night that falls at 200 m: seven stars and a
