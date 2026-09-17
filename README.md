@@ -2,7 +2,7 @@
 
 ![DXN1 STUDIO 3](assets/banner.png)
 
-![version](https://img.shields.io/badge/version-3.1.75-8b5cf6?style=flat-square)
+![version](https://img.shields.io/badge/version-3.1.76-8b5cf6?style=flat-square)
 ![gates](https://github.com/DXN1-termux/DXN1-STUDIO/actions/workflows/ci.yml/badge.svg)
 ![native](https://img.shields.io/badge/native-C%2B%2023-f97316?style=flat-square)
 ![face](https://img.shields.io/badge/face-terminal_truecolor-22d3ee?style=flat-square)
@@ -75,7 +75,7 @@ viewport refreshes — *code a background, and boom, a background.*
   and the engine sees it. C++ games `#include "dxn3.hpp"` and compile
   to a binary the studio hosts — see `sdk/examples/pong.cpp`.
 - **Examples in `sdk/examples/`:** `background.py` (the hello world),
-  `shooter.py` (bullets, score, two threat classes — the bulk and the DRIFTING TWIN, smaller and faster on a sine bob and worth 25, each respawning from its OWN NAMED STREAM so the same run deals the same respawns forever), `flappy.py`
+  `shooter.py` (bullets, score, two threat classes — the bulk and the DRIFTING TWIN, smaller and faster on a sine bob and worth 25, each respawning from its OWN NAMED STREAM so the same run deals the same respawns forever — and the TENTH hit turns the sky: nine stars and a moon fade in from their own stream, the moon shines glow 4, the hunters wear a faint ring), `flappy.py`
   (gravity, pipes, one-key flying — the pipes FADE IN from the
   horizon, a clean pass makes the bird GLOW, a crash BLEACHES
   it white, and the score turns the sky: night falls at 3, dawn

@@ -1,3 +1,28 @@
+## v3.1.76 — night falls on the void
+
+- **The moon check crosses the fleet again — the shooter goes dark.**
+  The TENTH hit turns the sky: nine stars and a moon born from their
+  OWN seeded stream ("the night sky" — the threat and the twin keep
+  theirs), created first so the world renders over it, every star a
+  rumor at alpha 0.15 and the moon a whisper at 0.25 until the tenth
+  kill says "night falls at ten" — once. The fade is the dino's law,
+  honest in dt: nightT climbs dt/2 over two seconds, the stars ride
+  0.15 + 0.75 * nightT, the moon 0.25 + 0.75 * nightT — and at the
+  fade's end the moon SHINES (glow 4) while the hunters wear the
+  cacti law's faint ring (glow 2, riding the same fade). One more
+  kill says nothing new: the night is said once and holds.
+- **Probes first, promises after:** shooter_night_probe.py — 12/12
+  pins green on the real wire, including the same-sky replay (two
+  children, identical star layouts to the packet), the nine-kill
+  silence law, the float-honest fade staircase (0.15 + 0.75 * 0.025
+  then 0.15 + 0.75 * 0.05), and the eleventh-kill silence. The probe
+  also caught the law's first honest bug before the wire ever lied:
+  on_tick assigned nightT without a global — the tenth hit would have
+  crashed the game, not lit the sky.
+- **Regressions and the census:** shooter_twin_probe.py re-run green
+  (10 pins, census updated to fourteen); gate 6's conformance pin
+  shooter 4 -> 14. README's example line speaks the night.
+
 ## v3.1.75 — the epilogue
 
 - **The campaign grows its thirteenth scene and gets a real ending.**

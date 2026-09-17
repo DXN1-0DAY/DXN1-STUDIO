@@ -11,10 +11,38 @@
 # one-stream-per-concern: "the threat's return", "the twin's return")
 # so the same run deals the same respawns forever, and a replay probe
 # can predict every position to the packet.
+# v3.1.76 — NIGHT FALLS ON THE VOID: the TENTH hit turns the sky. The
+# night's furniture (nine stars and a moon) is born from its OWN
+# seeded stream ("the night sky" — the threat and the twin keep
+# theirs), created FIRST so the world renders over it, every star a
+# rumor at alpha 0.15 and the moon a whisper at 0.25 until the tenth
+# hit says otherwise. Then the fade law, honest in dt: nightT climbs
+# 0.75 over two seconds, the stars ride 0.15 + 0.75 * nightT, the moon
+# 0.25 + 0.75 * nightT — and when the fade completes the moon SHINES
+# (glow 4) and the hunters wear a faint halo of their own (the cacti
+# law: glow 2, riding the same fade). The hits are counted, the night
+# is said once — "night falls at ten" — and the streams never share a
+# draw with the sky.
 from dxn3 import *
 import random, math
 
 background("#0a0d1c")
+
+# the NIGHT'S FURNITURE — created FIRST so the world renders over it
+# (the flappy law). nine stars and a moon from their OWN seeded stream
+# ("the night sky" — the threat and the twin keep theirs): every star
+# a rumor at 0.15, the moon a whisper at 0.25, until the tenth hit.
+NS = random.Random("the night sky")
+stars = []
+for i in range(9):
+    st = circle(f"star{i}", NS.randint(2, W - 4), NS.randint(2, H // 3),
+                1, 1, "#e2e8f0")
+    st.alpha = 0.15
+    stars.append(st)
+moon = circle("moon", W - 15, 4, 5, 5, "#f1f5f9")
+moon.alpha = 0.25
+moon.glow = 0                             # the moon waits to shine
+
 ship  = rect("ship",  W // 2 - 6, H - 12, 12, 5, "#8b5cf6"); ship.tag = "ship"
 ship.glow = 0                             # declare the light before it speaks
 enemy = circle("enemy", W // 3, 6, 10, 10, "#fb7185"); enemy.tag = "enemy"
@@ -29,6 +57,9 @@ TWIN_SPEED = 0.55                        # the twin drifts nearly twice as fast
 TWIN_BOB = 4.0                           # the bob's amplitude, world px
 twb = 14.0                               # the bob's base row
 twp = 0.0                                # the bob's phase
+hits = 0                                 # every kill counts toward the night
+night = False                            # the tenth hit turns the sky
+nightT = 0.0                             # the fade's own clock, honest in dt
 TH = random.Random("the threat's return")  # one stream per concern —
 TW = random.Random("the twin's return")    # each named after what it grows
 
@@ -46,7 +77,7 @@ def on_key(k):
         live.append(s)                   # the ledger remembers its own
 
 def on_tick(dt2):
-    global twp
+    global twp, nightT
     enemy.x = enemy.x + 0.3
     if enemy.x > W - 12: enemy.x = 2
     if enemy.alpha < 1: enemy.alpha = min(1, enemy.alpha + dt2 / DRIFT)
@@ -56,6 +87,14 @@ def on_tick(dt2):
     twin.y = twb + math.sin(twp) * TWIN_BOB
     if twin.alpha < 1: twin.alpha = min(1, twin.alpha + dt2 / DRIFT)
     if ship.glow > 0: ship.glow = max(0, ship.glow - 12 * dt2)
+    if night and nightT < 1:             # the sky fades in over two seconds
+        nightT = min(1, nightT + dt2 / 2)
+        for st in stars:
+            st.alpha = 0.15 + 0.75 * nightT
+        moon.alpha = 0.25 + 0.75 * nightT
+        moon.glow = 4 if nightT >= 1 else 0   # and then the moon shines
+        enemy.glow = 2 * nightT          # the hunters wear the fade —
+        twin.glow = 2 * nightT           # the cacti law, faintly ringing
     # the bolts come home: what leaves the sky takes its light with it.
     # a shot that never dies is an entity the studio scans forever —
     # the hit-pair scan is O(n^2) over the scene, so a leak here is a
@@ -67,8 +106,12 @@ def on_tick(dt2):
     hud.text = "SCORE " + str(score)
 
 def on_hit(a, b):
-    global score, twb, twp
+    global score, twb, twp, hits, night
     pair = (a.tag, b.tag)
+    hits += 1                                # every kill counts toward the night
+    if not night and hits >= 10:
+        night = True                         # the tenth hit turns the sky
+        say("night falls at ten")            # said once, honestly
     if "shot" in pair and "enemy" in pair:
         shot = a if a.tag == "shot" else b
         score += 10
