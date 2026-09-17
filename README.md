@@ -2,7 +2,7 @@
 
 ![DXN1 STUDIO 3](assets/banner.png)
 
-![version](https://img.shields.io/badge/version-3.1.88-8b5cf6?style=flat-square)
+![version](https://img.shields.io/badge/version-3.1.89-8b5cf6?style=flat-square)
 ![gates](https://github.com/DXN1-termux/DXN1-STUDIO/actions/workflows/ci.yml/badge.svg)
 ![native](https://img.shields.io/badge/native-C%2B%2023-f97316?style=flat-square)
 ![face](https://img.shields.io/badge/face-terminal_truecolor-22d3ee?style=flat-square)
@@ -154,7 +154,12 @@ viewport refreshes — *code a background, and boom, a background.*
   COUNTS THE STREAK: consecutive clearing locks speak
   "· combo ×N" and burn brighter (the banner born at bloom
   2 + min(combo-1, 6)), while one dry lock breaks it — the next
-  lone clear speaks plain again), `lightbot.js` (the night shift: a diamond of
+  lone clear speaks plain again — and the well's RAILS wear the
+  air's countdown (the low-light law's fifth transplant: quiet
+  while the stack sleeps, a faint ring as it thins, BRIGHT through
+  the last rows, where the dregs speak once per descent — "the
+  well runs shallow — the last air burns"; a clear that opens the
+  sky pours the quiet back and re-arms the say)), `lightbot.js` (the night shift: a diamond of
   twelve unlit lamps — walk the grid, SPACE lights the lamp under
   you and every flame wears the engine's glow, the wayfinding is
   literally made of light — steps counted, wins graded, r re-runs

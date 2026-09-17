@@ -33,6 +33,16 @@
 // say's own 1.6 s at the house's 3/s. A dry lock silences the
 // suffix AND the brightness — the next lone clear speaks plain
 // again, which is the reset made visible.
+// v3.1.89 — THE LAST AIR BURNS (the low-light law's fifth transplant,
+// after the cards hand, the snake meal, the asteroids hull and the
+// lunar tank): the RAILS' glow is the headroom's countdown. The
+// stack's height — the topmost locked row, read off the well's own
+// ledger — is how much air the next orders own: quiet while the air
+// is rich (height <= 9), a faint ring 1 as it thins (10–12), BRIGHT
+// 2 through the dregs (>= 13) — and the dregs speak ONCE per
+// descent: "the well runs shallow — the last air burns". A clear
+// that opens the sky pours the quiet back (and re-arms the say);
+// reset() zeroes the rails with the well.
 const dxn3 = require("dxn3");
 const { rect, label, destroy, find, background, say, win, on, run } = dxn3;
 const W = dxn3.W, H = dxn3.H;
@@ -46,8 +56,8 @@ let bannerT = 0;                                         // only by a clear
 
 const COLS = 10, ROWS = 16, CELL = 2;    // the well: 10 wide, 16 deep
 const BX = 2, BY = 2;                    // the well's top-left corner
-rect("rail-l", BX - 1, BY - 1, 1, ROWS * CELL + 2, "#4c1d95");
-rect("rail-r", BX + COLS * CELL, BY - 1, 1, ROWS * CELL + 2, "#4c1d95");
+const railL = rect("rail-l", BX - 1, BY - 1, 1, ROWS * CELL + 2, "#4c1d95");
+const railR = rect("rail-r", BX + COLS * CELL, BY - 1, 1, ROWS * CELL + 2, "#4c1d95");
 rect("floor", BX - 1, BY + ROWS * CELL, COLS * CELL + 2, 1, "#4c1d95");
 
 const SHAPES = {                        // cells as [col,row] in the piece's box
@@ -84,6 +94,7 @@ let bag = [], dropT = 0, drop = 0.5, total = 0, level = 1, over = false, seq = 0
 let held = null, holdUsed = false;       // the vault and its one-per-drop law
 let combo = 0;                           // the streak: consecutive clearing locks
 const glows = new Map();                 // cell name -> remaining bloom
+let shallowSaid = false;                 // the dregs speak once per descent
 
 const key = (r, c) => r + "_" + c;
 const free = (r, c) =>
@@ -162,6 +173,23 @@ function showBanner(msg, bloom) {        // a clear lights the well's voice;
   banner.glow = bloom;                   // born whole at the streak's bloom
   paintBanner();
 }
+
+function paintRails() {                  // THE LAST AIR BURNS: the rails'
+  let top = ROWS;                        // glow is the headroom's countdown,
+  for (const k of well.keys()) {         // read off the well's own ledger —
+    const r = Number(k.slice(0, k.indexOf("_")));
+    if (r < top) top = r;                // the topmost locked row
+  }
+  const height = ROWS - top;             // locked rows chasing the crown
+  const tier = height >= 13 ? 2 : height >= 10 ? 1 : 0;
+  railL.glow = tier;
+  railR.glow = tier;
+  if (tier === 2 && !shallowSaid) {
+    say("the well runs shallow — the last air burns");
+    shallowSaid = true;                  // the dregs speak ONCE per descent
+  }
+  if (height < 13) shallowSaid = false;  // the sky opened — the dregs may
+}                                        // speak again on the next descent
 
 function paintHold() {                   // the vault, worn honestly
   if (held === null) {
@@ -296,6 +324,7 @@ function sweep() {                       // the law of full rows
   } else {
     combo = 0;                           // a dry lock breaks the streak
   }
+  paintRails();                          // the rails wear the air's truth
 }
 
 function slide(dc) {
@@ -330,6 +359,8 @@ function reset() {
   for (const [, nm] of well) destroy(nm);
   well.clear();
   glows.clear();
+  shallowSaid = false;                   // a fresh sky re-arms the dregs
+  paintRails();                          // the rails pour quiet again
   bannerT = 0;                           // a fresh well speaks nothing
   paintBanner();
   total = 0;

@@ -1,3 +1,38 @@
+## v3.1.89 — the last air burns
+
+- **The low-light law's FIFTH transplant: tetris's rails wear the
+  headroom's countdown.** After the cards hand, the snake meal, the
+  asteroids hull and the lunar tank, the well's own frame learns the
+  family law: the stack's height — the topmost locked row, read off
+  the well's ledger every sweep — is how much air the next orders
+  own, and the rails glow exactly that truth: quiet while the stack
+  sleeps (height <= 9), a faint ring 1 as the air thins (10-12),
+  BRIGHT 2 through the dregs (>= 13) — and the dregs speak ONCE per
+  descent: "the well runs shallow — the last air burns". A clear
+  that opens the sky pours the quiet back and re-arms the say;
+  reset() zeroes the rails with the well. No new furniture: the
+  census stays 23.
+- **tetris_headroom_probe: 13/13 pins green over the real wire.**
+  The seeded bag's straight-slam ladder (heights 1..16, no clears,
+  the streak ledger untouched) walks the whole arc: birth quiet,
+  the rich silence, the ring at ten, the ring holding at eleven,
+  the burn at thirteen WITH its say, the say's once-per-descent at
+  fourteen, rail symmetry at every frame, the deterministic top-out,
+  'r' pouring the quiet back — and the RE-ARM: the second descent
+  (the bag's seeded shuffle stream advances on reseed, so its
+  ladder is its own) rings before it burns and speaks AGAIN,
+  exactly once. Two wire truths minted on the way: the reseed
+  stream's advance, and the say rides the sweep's own frame.
+- **Two stale probes caught and re-pinned** — the fourth drift
+  catch on record. tetris_probe's scene pin still read the
+  v3.1.48-era census of 8 (red on the CLEAN v3.1.88 tree — verified
+  via git stash before blaming the law); it reads 23 now. And
+  tetris_combo_probe's "dry locks speak nothing" grew teeth: dry
+  locks speak nothing FROM THE STREAK — a dry lock that pushes the
+  stack into the dregs speaks as the air, not as the streak, and
+  the probe now pins exactly that (the dregs line, once).
+- Gates 7 green; README's tetris paragraph wears the rails' clause.
+
 ## v3.1.88 — the seven laws of the wire
 
 - **PROTOCOL.md mints the probe's driver lore.** The replay chapter
