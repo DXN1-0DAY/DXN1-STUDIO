@@ -2555,7 +2555,15 @@ int main(int argc, char** argv) {
               (ide.touched.empty()
                    ? ""
                    : " · " + std::to_string(ide.touched.size()) +
-                         " changed this session"));
+                         " changed this session") +
+              (ide.drift.empty()
+                   ? ""
+                   : " · " + std::to_string(ide.drift.size()) +
+                         " drifted from disk") +
+              (ide.marks.empty()
+                   ? ""
+                   : " · " + std::to_string(ide.marks.size()) + " pin" +
+                         (ide.marks.size() == 1 ? "" : "s")));
           ide.console.push_back(
               "engine: at Ln " + std::to_string(ide.curR + 1) + " · Col " +
               std::to_string(ide.curC + 1) + " · " +

@@ -2,7 +2,7 @@
 
 ![DXN1 STUDIO 3](assets/banner.png)
 
-![version](https://img.shields.io/badge/version-3.0.97-8b5cf6?style=flat-square)
+![version](https://img.shields.io/badge/version-3.0.98-8b5cf6?style=flat-square)
 ![gates](https://github.com/DXN1-termux/DXN1-STUDIO/actions/workflows/ci.yml/badge.svg)
 ![native](https://img.shields.io/badge/native-C%2B%2023-f97316?style=flat-square)
 ![face](https://img.shields.io/badge/face-terminal_truecolor-22d3ee?style=flat-square)
@@ -289,6 +289,7 @@ line ends · `ctrl+home`/`ctrl+end` doc edges · `del` forward-delete ·
 `:minimap` toggles the map rail · `:zen` the quiet — the rail rests ·
 `:wrap` the fold — long lines break into the pane, ↑/↓ walk its rows ·
 `:crew <n>` plants the crew — many hands, one breath, every hand writes ·
+`:crew <n>` again GROWS the crew — the new hands plant below the last ·
 `:trim` sweeps trailing whitespace ·
 `:sort` orders the selection (all-number beds count: 2 before 10) ·
 `:rsort` lands it last-first ·
@@ -383,7 +384,7 @@ accepted:
 | `:center` | the view centers on your hand — z.'s law, clamped to the edges |
 | `:zen` | the quiet — the rail rests, the body breathes; `:zen` wakes it |
 | `:wrap` | the fold — long lines break into the pane at the last space or hyphen that fits, and ↑/↓ walk the rows; a second `:wrap` wakes the slide |
-| `:crew [n]` | the crew — a number plants that many hands below yours; type once and every hand writes (typing, backspace, enter, delete); a bare `:crew` bows them out |
+| `:crew [n]` | the crew — a number plants that many hands below yours; type once and every hand writes (typing, backspace, enter, delete, `ctrl+u` the word's coat); planting again grows the crew from the last hand; a bare `:crew` bows them out |
 | `:count [word]` | the census of a query — a bare verb counts the searchlight's query everywhere; a word counts itself |
 | `:stats` | lines, words, chars, dialect, where you stand |
 | `:trim` | sweep trailing whitespace, one undo step |

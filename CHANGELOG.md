@@ -1,3 +1,19 @@
+## v3.0.98 — the dashboard's truth (:stats speaks the drift)
+
+- **`:stats` — the one-line session dashboard, extended.** The
+  census's first line now also speaks `N drifted from disk` (when
+  the diff census has heard disagreement — the amber ticks' own
+  count, in words at last) and `M pins` when the page carries them:
+  lines, words, chars, longest, changed-this-session, drifted,
+  pins — everything the session owns, one receipt.
+- Docs debt PAID: the `:crew` growth law was shipped but never
+  spoken — planting again GROWS the crew from the last hand (the
+  seed is the crew's tail, not the primary's seat). The README's
+  verbs row and the verb table now say so, and the four edit verbs'
+  list gains `ctrl+u` — the word's coat rides the crew since
+  v3.0.93.
+- Gates ALL GREEN.
+
 ## v3.0.97 — the amber drift (:diff wears the rail)
 
 - **`:diff`'s finding now lives on the map.** The census stores the
