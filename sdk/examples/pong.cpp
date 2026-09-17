@@ -6,6 +6,12 @@
 // to L1 (120). A rubber band, honest on the hud ("CPU L3"), so a set
 // stays dramatic on purpose — and the rung is VISIBLE: the AI paddle's
 // halo IS its level (glow 1..5, the C++ SDK's own light since v3.1.46).
+// and since v3.1.94 the set's TENSION rides the one light both players
+// watch — the ball: dark while either score is under three, a faint
+// ring (glow 1) when either side stands at 3, BRIGHT (glow 2) at the
+// match point (4) — the low-light law's sixth transplant, wearing its
+// countdown where a paddle's halo couldn't (the rung law owns the AI's
+// light). the scorer that lands on 4 SPEAKS it: "match point".
 // run it:  dxn3 sdk/examples/pong.cpp
 #include "../dxn3.hpp"
 
@@ -58,8 +64,8 @@ int main() {
 
         // three walls bounce; passing a paddle scores
         if (ball->y < 22 || ball->y > dxn3::H - 34) ball->vy = -ball->vy;
-        if (ball->x < 6)  { ++cpu; msg->text = "CPU scores!"; serve(ball); }
-        if (ball->x > dxn3::W - 18) { ++you; msg->text = "you score!"; serve(ball); }
+        if (ball->x < 6)  { ++cpu; msg->text = cpu == 4 ? "CPU scores — match point" : "CPU scores!"; serve(ball); }
+        if (ball->x > dxn3::W - 18) { ++you; msg->text = you == 4 ? "you score — match point!" : "you score!"; serve(ball); }
         if (you >= 5 || cpu >= 5) {
             msg->text = you > cpu ? "YOU WIN — ctrl+n for a new game"
                                   : "CPU wins — run it again";
@@ -73,6 +79,12 @@ int main() {
         lvl = std::clamp(3 + you - cpu, 1, 5);
         ai->glow = lvl;         // v3.1.46: the rung is VISIBLE — L5's
                                 // halo burns, L1's barely breathes
+        // v3.1.94: the set's tension rides the ball — dark below three,
+        // a ring at 3, bright at the match point (4). set every tick
+        // from the live scores: the light can only RISE until the set
+        // resets, and the reset pours the dark back.
+        ball->glow = (you >= 4 || cpu >= 4) ? 2.f
+                   : ((you >= 3 || cpu >= 3) ? 1.f : 0.f);
         hud->text = "YOU " + std::to_string(you) + " · CPU " +
                     std::to_string(cpu) + " · first to 5 · CPU L" +
                     std::to_string(lvl);

@@ -1,3 +1,30 @@
+## v3.1.94 — the set's tension rides the ball
+
+- **The low-light law's SIXTH transplant lands in C++** (cards hand
+  -> snake meal -> asteroids hull -> lunar tank -> tetris rails ->
+  pong ball): the set's tension is now a light you can see from
+  across the room. The ball wears the countdown — dark while either
+  score is under three, a faint ring (glow 1) when either side
+  stands at 3, BRIGHT (glow 2) at the match point (4) — set every
+  tick from the live scores, so the light can only RISE until the
+  set resets, and the reset pours the dark back.
+- The design is honest about its constraint: the candidate sketch
+  said "the paddles wear the match-point glow", but the AI paddle's
+  halo IS its ladder rung (v3.1.46's law, re-verified untouched) —
+  a paddle was spoken for. The tension rides the one light both
+  players watch.
+- The scorer that lands on 4 SPEAKS: "you score — match point!" /
+  "CPU scores — match point" (the score say and the tension say in
+  one honest line).
+- `pong_tension_probe` (NEW, 8/8 first try): the idle drive walks
+  the whole staircase in one unsteered set (the ball crosses the
+  open goal every five ticks, scorers alternate) — the tension law
+  held on all 47 parsed frames against the hud's own arithmetic,
+  both match-point says seen, the rung halo coexisting, the win
+  spoken, and the fresh set riding dark again.
+- README's pong paragraph wears the clause. Gates 8 green (50
+  probes + 7 gates).
+
 ## v3.1.93 — two prisoners of the birth directory walk free
 
 - **The cards trio is settled — two rescued, two retired, gate 8
