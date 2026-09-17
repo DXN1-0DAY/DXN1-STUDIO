@@ -1,3 +1,36 @@
+## v3.1.59 — the snake pit learns the light laws
+
+- **A real bug, the cards.py bug, found living in the snake pit: the
+  head bleached white FOREVER.** The game set `flash = 1.0` on every
+  meal (and 0.8 on milestone tails) and never decayed it — and the
+  studio KEEPS the last light a wire game sent (PROTOCOL.md, the
+  light fields: the 4/s decay is the scene path only). After meal
+  one the head was a white ghost for the rest of its life; every
+  fifth meal left one more tail segment stuck at 0.8. Fixed with
+  the honest 3/s staircase: 1.0 -> 0.7 -> 0.4 -> 0.1 -> dark, the
+  same law cards.py obeys.
+- **The meal breathes.** The food's glow rides a 4-rad sine
+  (3 +/- 1.5), every frame, even between steps — the torch's law
+  (v3.1.53) applied to the one light on the board. At the scene
+  moment the glow is exactly 3 (sin 0), so the old probe's pin
+  still speaks true.
+- **Every new life ghosts in.** A fresh snake and every newborn
+  tail segment wear alpha 0.35 and fill to 1.0 at 2/s — the
+  cards.py ghost-in law, now the snake's too. Entity count
+  unchanged (5) — the conformance pin never moved.
+- **Probe `snake_light_probe.py`: 11 pins green** — the meal
+  bleaches (1.0 on the meal frame), decays honest (dark within 3
+  frames), STAYS dark (the forever-bleach pin), the newborn ghosts
+  (0.35 -> 1.0), the glow swings, the wall banner lands. Three
+  wire laws re-learned by the driver: (1) letters ride `chars` —
+  the held-key whitelist forwards only left/right/jump/space;
+  (2) tick runs BEFORE keys, so a turn sent at packet N steers the
+  move at N+1 — plan from head + PENDING (the queued turn), or the
+  driver is one move behind its own plan; (3) the game's 180 test
+  is against the POP-TIME direction (the move this packet makes) —
+  testing against the observed heading bans every legal turn back
+  and marches the driver into the wall.
+
 ## v3.1.58 — the owl hunts the jump
 
 - **The desert grows a hunter.** At night — and ONLY at night — the

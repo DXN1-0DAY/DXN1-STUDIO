@@ -1,8 +1,13 @@
 # SNAKE in the DXN1 STUDIO — the classic, on the engine's wire.
 # run:  dxn3 sdk/examples/snake.py
 # arrows / wasd steer · eat the reds, grow the tail · wall and tail bite.
+# the LIGHT LAWS (PROTOCOL.md): the studio keeps the last light a game
+# sent — the DECAY IS THE GAME'S JOB. the meal's bleach runs the honest
+# 3/s staircase back to dark (the cards.py lesson, found living here
+# too); the meal itself BREATHES (glow 3 ± 1.5 on a 4-rad sine — the
+# torch's law); and every new life ghosts in (alpha 0.35 -> 1).
 from dxn3 import *
-import random
+import random, math
 
 CELL = 12
 COLS, ROWS = W // CELL, H // CELL
@@ -18,6 +23,7 @@ life = 0                     # each life names its segments fresh — a name
 score, step = 0, 0.0         # re-spawned AND retired in one frame would
 dirx, diry, turns = 1, 0, [] # die twice (the engine applies set before del)
 alive = True
+t = 0.0                      # the breath's clock — it never stops
 
 
 def free_cell():
@@ -39,6 +45,8 @@ def reset():
     body = [rect(f"seg{life}_{i}", midx - i * CELL, midy,
                  CELL - 2, CELL - 2, "#a78bfa" if i else "#8b5cf6")
             for i in range(3)]
+    for seg in body:                      # a fresh life ghosts in
+        seg.alpha = 0.35
     body[0].tag = "head"
     for seg in body[1:]:
         seg.tag = "body"
@@ -80,7 +88,20 @@ def rank(n):
 
 
 def on_tick(dt2):
-    global step, dirx, diry, score, alive
+    global step, dirx, diry, score, alive, t
+    t += dt2
+    # the food breathes — the one light on the board is alive (the
+    # torch's law: glow on a sine, every frame, even between steps)
+    food.glow = 3 + 1.5 * math.sin(4 * t)
+    # the honest staircase: the meal's bleach decays at 3/s and the
+    # newborn ghost fills in at 2/s — the studio keeps the last light
+    # a game sent, so the decay is THIS game's job (cards.py's lesson,
+    # found living here too: the head bleached white FOREVER)
+    for seg in body:
+        if (seg.flash or 0) > 0:
+            seg.flash = max(0.0, seg.flash - 3 * dt2)
+        if (seg.alpha or 0) < 1:
+            seg.alpha = min(1.0, (seg.alpha or 0) + 2 * dt2)
     if not alive:
         return
     step += dt2
@@ -114,6 +135,7 @@ def on_tick(dt2):
         seg = rect(f"seg{life}_{len(body)}", tx, ty, CELL - 2, CELL - 2,
                    "#a78bfa")
         seg.tag = "body"
+        seg.alpha = 0.35                      # the newborn ghosts in
         body.append(seg)                      # the meal rides the tail
         body[0].flash = 1.0                   # the head bleaches white —
         if score % 5 == 0:                    #   milestones flash the tail too
