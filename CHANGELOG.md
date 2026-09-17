@@ -1,3 +1,23 @@
+## v3.1.79 — the gate walks the campaign
+
+- **The selftest now walks the WHOLE campaign chain in-engine — 52
+  new assertions, the exact order pinned.** Gate 3b only ever checked
+  that a scene's `next` pointed at a file that exists; a fat-fingered
+  `level-11.next = level-5` would have shipped green. The new
+  selftest section loads every shipped scene through the real
+  `Game::loadScene`, plants the hero inside its door's box, takes one
+  honest tick, and requires `pendingNext` to equal the campaign's
+  documented order — playground -> level-1 -> ... -> level-11 ->
+  level-12 -> playground, the loop closing where the ball is still
+  bouncing. Every scene must load, wear a door, and wear a hero; the
+  epilogue's quiet door is included. The selftest now runs 1,035
+  assertion groups, all green.
+- **Two honest compile-level lessons on the way:** the engine's
+  `player()` returns a `const Entity*`, so the chain walk teleports
+  the hero BEFORE the Game takes the scene (both door and hero are
+  found in the raw scene, moved, then handed over — the pointers the
+  walk needs are the scene's own, not the engine's const view).
+
 ## v3.1.78 — the second wave comes in the dark
 
 - **The moon check's last big fleet member goes night.** invaders.js

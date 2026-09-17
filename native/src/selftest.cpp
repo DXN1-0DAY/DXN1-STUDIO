@@ -163,6 +163,51 @@ int main() {
     ok(g.pendingNext.size() == 1 || g.transLocked, "no double transition");
   }
 
+  // 5b. the whole campaign chain, in-engine: every shipped scene's
+  // door leads EXACTLY where the campaign promises — the documented
+  // order, not merely a file that exists (gate 3b checks existence;
+  // this pins the order). The epilogue's quiet door is included, and
+  // the loop closes: level-12 lands back at the playground.
+  {
+    static const char* CHAIN[] = {
+      "scenes/playground.dxn1.json", "scenes/level-1.dxn1.json",
+      "scenes/level-2.dxn1.json",    "scenes/level-3.dxn1.json",
+      "scenes/level-4.dxn1.json",    "scenes/level-5.dxn1.json",
+      "scenes/level-6.dxn1.json",    "scenes/level-7.dxn1.json",
+      "scenes/level-8.dxn1.json",    "scenes/level-9.dxn1.json",
+      "scenes/level-10.dxn1.json",   "scenes/level-11.dxn1.json",
+      "scenes/level-12.dxn1.json",
+    };
+    const int N = static_cast<int>(sizeof(CHAIN) / sizeof(CHAIN[0]));
+    for (int i = 0; i < N; ++i) {
+      auto loaded = Game::loadScene(repoPath(CHAIN[i]));
+      const bool loadedOk = loaded.has_value();
+      ok(loadedOk, std::string("the chain loads ") + CHAIN[i]);
+      if (!loadedOk) continue;
+      Scene s = std::move(*loaded);
+      Entity* goal = nullptr;
+      Entity* hero = nullptr;
+      for (auto& e : s.entities) {
+        if (e.tag == "goal") goal = &e;
+        if (e.tag == "player") hero = &e;
+      }
+      const bool hasDoor = goal != nullptr;
+      ok(hasDoor, std::string(CHAIN[i]) + " wears a door");
+      if (!hasDoor) continue;
+      const bool hasHero = hero != nullptr;
+      ok(hasHero, std::string(CHAIN[i]) + " wears a hero");
+      if (!hasHero) continue;
+      // the honest goal touch: the hero stands inside the door's box
+      hero->x = goal->x + (goal->w - hero->w) / 2.f;
+      hero->y = goal->y + (goal->h - hero->h) / 2.f;
+      Game g(std::move(s));
+      g.update(1.f / 60.f, {});
+      const std::string expected = CHAIN[(i + 1) % N];
+      ok(g.pendingNext == expected,
+         std::string(CHAIN[i]) + "'s door leads to " + expected);
+    }
+  }
+
   // 6. movers: ping-pong + rider carry
   {
     Scene s;
