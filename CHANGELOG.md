@@ -1,3 +1,21 @@
+## v3.1.47 — the last undressed example
+
+- **Shooter wears the engine's light** — the gallery's last example
+  to speak it: the muzzle GLOWS (5) when you fire and fades honestly
+  in tick (12/s), every bolt carries its own small halo (2), and
+  every hit respawns the next threat as a GHOST — alpha 0.15 rising
+  to full over 0.9 s, the radar-field's law, so the void announces
+  what it is about to throw at you. Even the FIRST threat drifts in.
+- Probe `shooter_light_probe.py`: 11 pins green — birth ghost, the
+  drift to full, bolt halo, muzzle rise/fall, the hit (bolt gone,
+  teleport, re-ghost, "SCORE 10", drift again). Probe lessons: a
+  python entity's light fields must be DECLARED before they are
+  read (`ship.glow = 0` at birth — missing keys read as None and
+  the comparison dies); the frame of the KEY tick itself already
+  carries the new world (handlers run before the frame is sent);
+  and the hud's score lags one frame after a hit — on_tick writes
+  BEFORE on_hit fires.
+
 ## v3.1.46 — the C++ SDK sees the light
 
 - **The compiled SDK speaks the engine's light now.** `dxn3.hpp`'s
