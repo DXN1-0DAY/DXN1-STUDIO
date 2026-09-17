@@ -1,3 +1,17 @@
+## v3.1.34 — the shelters
+
+- **invaders.js grows the classic SHELTERS — four arches of 7
+  blocks each between the cannon and the order.** Every block
+  absorbs exactly one hit and is DESTROYED for good (honest
+  destroys, not fading): your own shots eat the arch from below,
+  their bombs eat it from above, and the march grinds whatever it
+  steps on. Erosion you can watch; a fresh run pours new concrete
+  ("EARTH HOLDS" rebuilds, and a new `r` key restarts from the
+  ashes after EARTH FALLS). Gate 6: invaders entities 23 → 51.
+- Probe: invaders_probe.py extended to 19 pins — all green,
+  including a mini-host that feeds the REAL overlaps a climb makes
+  (the arch drinks the climbing shot) and the full r-rebuild cycle.
+
 ## v3.1.33 — the queue ahead
 
 - **tetris.js previews the NEXT piece** right of the well — four

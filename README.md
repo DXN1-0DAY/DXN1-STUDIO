@@ -2,7 +2,7 @@
 
 ![DXN1 STUDIO 3](assets/banner.png)
 
-![version](https://img.shields.io/badge/version-3.1.33-8b5cf6?style=flat-square)
+![version](https://img.shields.io/badge/version-3.1.34-8b5cf6?style=flat-square)
 ![gates](https://github.com/DXN1-termux/DXN1-STUDIO/actions/workflows/ci.yml/badge.svg)
 ![native](https://img.shields.io/badge/native-C%2B%2023-f97316?style=flat-square)
 ![face](https://img.shields.io/badge/face-terminal_truecolor-22d3ee?style=flat-square)
@@ -94,7 +94,10 @@ viewport refreshes — *code a background, and boom, a background.*
   their rot each tick — and the hub's little square turns itself
   with the engine's own spin), `invaders.js` (the classic march:
   a grid that steps, drops and speeds up as it thins, pooled guns
-  parked off-screen until their moment), `dino.js` (an endless
+  parked off-screen until their moment, and four SHELTERS that
+  drink one hit per block — your shot, their bomb or the march
+  itself — honest destroys that erode the arch to its shoulders;
+  r rebuilds from the ashes), `dino.js` (an endless
   runner whose desert is SEEDED — the same run, the same cacti,
   forever — with a night that falls at 200 m), `tetris.js` (the
   falling order: a 7-bag seeded like the stars, locked cells as

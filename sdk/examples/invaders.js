@@ -1,7 +1,10 @@
 // INVADERS in the DXN1 STUDIO — the classic march, on the engine's wire.
 // run:  dxn3 sdk/examples/invaders.js
 // left/right steer · space fires · the grid steps, drops and speeds up
-// as it thins · parked bullets live off-screen until their gun needs them.
+// as it thins · parked bullets live off-screen until their gun needs
+// them · four SHELTERS stand between the cannon and the order: every
+// block drinks one shot (shot, bomb or the march itself) and is gone
+// for good — honest destroys, not fading — r rebuilds from the ashes.
 const dxn3 = require("dxn3");
 const { rect, label, destroy, find, background, say, win, on, run } = dxn3;
 const W = dxn3.W, H = dxn3.H;
@@ -41,6 +44,25 @@ for (let i = 0; i < 3; ++i) {
 let wave = 1, score = 0, lives = 3, alive = 15;
 let dir = 1, stepT = 0, stepEvery = 0.8, fireT = 1.5, gunCool = 0, over = false;
 const SPEEDS = { 15: 0.8, 10: 0.55, 5: 0.35, 1: 0.2 };   // thinner = faster
+
+// the SHELTERS: four arches of 7 blocks each — every block absorbs one
+// hit (your shot, their bomb, or the march grinding through) and is
+// destroyed for good. Erosion you can SEE: the arch thins until only
+// the shoulders stand, and a fresh run pours new concrete.
+let bunkers = [];
+function buildShields() {
+  bunkers = [];
+  const SH_Y = 32, ARCH = [[0, 0], [1, 0], [2, 0], [0, 1], [0, 2], [2, 1], [2, 2]];
+  for (let k = 0; k < 4; ++k) {
+    const bx = 12 + k * 20;
+    ARCH.forEach(([cx, cy], i) => {
+      const e = rect(`shield-${k}-${i}`, bx + cx * 3, SH_Y + cy * 2, 3, 2, "#38bdf8");
+      e.tag = "shield";
+      bunkers.push(e);
+    });
+  }
+}
+buildShields();
 
 function deploy() {
   alive = ROWS_N * COLS_N;
@@ -85,11 +107,29 @@ function rebuild(msg) {                  // the wave is spent — the next lands
     wave = 1;
     score = 0;
     lives = 3;
+    buildShields();                      // a fresh run pours new concrete
   }
   deploy();
 }
 
+function restart() {                     // r from the ashes
+  over = false;
+  wave = 1;
+  score = 0;
+  lives = 3;
+  alive = ROWS_N * COLS_N;
+  buildShields();
+  deploy();
+  gunCool = 0;
+  hud.text = "INVADERS  ·  score 0  ·  lives 3";
+  say("the cannon is reborn");
+}
+
 on.key((k) => {                       // held keys fire per frame —
+  if (over) {
+    if (k === "r") restart();
+    return;
+  }
   if (k === "left") player.x = Math.max(1, player.x - 1);
   else if (k === "right") player.x = Math.min(W - 11, player.x + 1);
   else if (k === "space") fire();
@@ -147,6 +187,19 @@ on.hit((a, b) => {
     say("ouch — the cannon took one");
     hud.text = `INVADERS  ·  score ${score}  ·  lives ${lives}`;
     if (lives <= 0) { over = true; win("EARTH FALLS"); }
+  } else if (pair === "pshot|shield") {
+    const block = a.tag === "shield" ? a : b;
+    const shot = a.tag === "shield" ? b : a;
+    destroy(block.name);               // your own shot eats the shelter
+    shot.x = -999;
+  } else if (pair === "abomb|shield") {
+    const block = a.tag === "shield" ? a : b;
+    const bomb = a.tag === "abomb" ? a : b;
+    destroy(block.name);               // their bomb eats it too
+    bomb.x = -999;
+  } else if (pair === "alien|shield") {
+    const block = a.tag === "shield" ? a : b;
+    destroy(block.name);               // the march grinds what it touches
   } else if (pair === "alien|player") {
     lives = 0;
     over = true;
