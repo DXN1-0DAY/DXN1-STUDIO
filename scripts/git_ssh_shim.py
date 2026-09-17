@@ -89,7 +89,6 @@ def main():
         os.set_blocking(stdout_fd, False)
         os.set_blocking(stderr_fd, False)
         while True:
-            want_read = [channel, stdin_fd] if not channel.exit_ready else [stdin_fd]
             want_read = [x for x in (channel, stdin_fd) if x is not None]
             r, _, _ = select.select(want_read, [channel, stdout_fd, stderr_fd], [], 0.05)
             if channel in r:
