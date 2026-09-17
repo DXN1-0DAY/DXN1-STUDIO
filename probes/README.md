@@ -25,3 +25,26 @@ families come home.
 Every probe is stdlib-only python, spawns its game over the wire,
 and exits non-zero on any red pin. `REPO` resolves relative to this
 directory — the probes run from any checkout.
+
+## the drift ledger — still outside the walls
+
+Caught red (or flaky) on the clean v3.1.90/91 trees during the
+homecoming sweep; they stay external until re-pinned:
+
+- `ast_wear_probe` — FIXED at the door: its `closest == brightest`
+  pin flaked on the corner rocks' EQUIDISTANT PAIRS (min/max break
+  a float tie on opposite sides); the pin now reads the law's
+  honest content — the brightest rock stands at the closest band,
+  ties allowed.
+- `invaders_darkpays_probe` — FLAKY (~50%): a dark summon
+  occasionally pays the BASE purse; the ritual cannot yet PROVE
+  darkness at the kill frame. Re-pin it with a darkness-proof
+  before it walks.
+- `bounce_light_probe`, `cards_probe`, `cards_glow_probe`,
+  `cards_breathe_probe`, `flappy_wear_probe`, `invaders_probe`,
+  `shooter_light_probe`, `shooter_bolt_probe`, `snake_light_probe`
+  — STALE generation pins (pre-night censuses, superseded glow
+  staircases, old say formats). Re-pin or retire them one by one;
+  several have newer green siblings covering the same law.
+- `ide_door_probe` — green but 35 s; bring it home when it dieted
+  (gate 8 must stay quick).

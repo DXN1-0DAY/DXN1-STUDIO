@@ -26,7 +26,7 @@ streak x2 — and, after dry locks, an isolated clear (the reset proof):
 import json, subprocess, sys, os, time, threading, queue
 
 REPO = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-SCRIPT = json.load(open("/home/z/my-project/scripts/tetris_x2_script.json"))
+SCRIPT = json.load(open(os.path.join(os.path.dirname(os.path.abspath(__file__)), "tetris_x2_script.json")))
 EVENTS = SCRIPT["events"]
 CLEAR_EV = SCRIPT["clear_ev"]                 # [57, 64, 89]
 X1_EV, X2_EV, RESET_EV = CLEAR_EV

@@ -1,3 +1,36 @@
+## v3.1.91 — the whole fleet at home
+
+- **`probes/` grows from the tetris family to the whole stable
+  fleet: 44 law pins walked by gate 8 on every push** — the
+  asteroids, lunar, cards, dino, flappy, invaders, snake, shooter,
+  windmill, bounce, pong, lightbot, chase, raycast, stress and say
+  families all live inside the walls now. The homecoming sweep ran
+  every external probe against the clean tree first: 38 green,
+  NINE red with staleness (pre-night censuses, superseded glow
+  staircases, old say formats — the drift ledger in
+  `probes/README.md` names each and its newer green sibling), one
+  green-but-slow (ide_door, 35 s, dieting outside until quick).
+- **One probe was fixed AT THE DOOR: ast_wear_probe flaked ~50%** —
+  its `closest == brightest` pin broke on the corner rocks'
+  EQUIDISTANT PAIRS (min and max break a float tie on opposite
+  sides, and the side depends on the machine's mood). The pin now
+  reads the law's honest content: the brightest rock stands at the
+  closest band, ties allowed. A flaky pin is a broken pin — gate 8
+  must never roll dice.
+- **One probe was refused at the door: invaders_darkpays_probe
+  flakes ~50%** (a dark summon occasionally pays the base purse —
+  the ritual cannot yet PROVE darkness at the kill frame). It stays
+  external until re-pinned with a darkness-proof. The doctrine
+  bites both ways: a law without a pin is a rumor, and a flaky pin
+  is a broken one.
+- **The x2 replay script came home too** — tetris_x2_probe read its
+  90-event script from an absolute external path; it passes on this
+  machine and breaks on any other checkout. The script lives in
+  `probes/` now; the probe reads it relative to its own file. CI
+  would have caught it eventually; the doctrine caught it first.
+- Gates 8 green (44 pins + 7 gates); README's gates section and the
+  layout wear the fleet's clause.
+
 ## v3.1.90 — the probes come home
 
 - **`probes/` exists now, and gate 8 walks it.** A probe the gates
