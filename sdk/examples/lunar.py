@@ -12,6 +12,11 @@
 # born at the top of the breath (whole, no pop), and a touchdown
 # makes the pleased pad FLARE (+2 bloom) that wears at the house's
 # 3/s even while the freeze holds the world — no flash-forever.
+# v3.1.87 — THE TANK WEARS THE LOW LIGHT (the cards hand-label law,
+# fourth transplant): the gauge's GLOW is the fuel's countdown —
+# quiet while rich, a faint ring (1) under thirty, BRIGHT (2) through
+# the dregs — the last fuel burns, blinking all the while, and a dry
+# tank is a flat dark line. A fresh tank pours the quiet back.
 from dxn3 import *
 import math
 import random
@@ -177,6 +182,11 @@ def on_tick(dt2):
     fuelbar.w = max(0.0, 28 * fuel / 100)
     fuelbar.color = ("#22c55e" if fuel > 50
                      else "#facc15" if fuel > 25 else "#ef4444")
+    # the tank's LOW LIGHT: the glow is the fuel's countdown — quiet
+    # while rich, a ring under thirty, BRIGHT through the dregs (the
+    # last fuel burns), dark when the tank is gone
+    fuelbar.glow = (2 if 0 < fuel <= 15
+                    else 1 if 15 < fuel <= 30 else 0)
     if 0 < fuel <= 25:
         alarm_t = (alarm_t + dt2) % 0.8
         fuelbar.visible = 1 if alarm_t < 0.5 else 0

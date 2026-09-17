@@ -2,7 +2,7 @@
 
 ![DXN1 STUDIO 3](assets/banner.png)
 
-![version](https://img.shields.io/badge/version-3.1.86-8b5cf6?style=flat-square)
+![version](https://img.shields.io/badge/version-3.1.87-8b5cf6?style=flat-square)
 ![gates](https://github.com/DXN1-termux/DXN1-STUDIO/actions/workflows/ci.yml/badge.svg)
 ![native](https://img.shields.io/badge/native-C%2B%2023-f97316?style=flat-square)
 ![face](https://img.shields.io/badge/face-terminal_truecolor-22d3ee?style=flat-square)
@@ -118,7 +118,9 @@ viewport refreshes — *code a background, and boom, a background.*
   richer, a touchdown that makes the pleased pad FLARE and wear it
   honestly, and a fuel gauge that empties in width AND color, green
   to amber to red, blinking under a quarter tank while the warning
-  speaks),
+  speaks — and the gauge's GLOW is the tank's low light: quiet while
+  rich, a faint ring under thirty, BRIGHT through the dregs (the
+  last fuel burns), a dry tank a flat dark line),
   `raycast.py` (a Wolfenstein-style 3D view painted out of plain
   rects — the engine is a canvas, so it can be ANY canvas),
   `windmill.py` (four blades orbit the hub while the SDK drives

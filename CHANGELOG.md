@@ -1,3 +1,19 @@
+## v3.1.87 — the last fuel burns
+
+- **The low-light audit's fourth transplant: the lunar gauge wears
+  the tank's countdown.** The fuel bar already emptied in width and
+  color (green, amber, red) and blinked under a quarter tank — now
+  its GLOW is the countdown too: quiet while rich, a faint ring (1)
+  under thirty, BRIGHT (2) through the dregs — the last fuel burns,
+  blinking all the while — and a dry tank is a flat dark line (the
+  probe caught the first cut of the law lighting the dry tank's
+  ring: the boundary now reads 0 < fuel <= 15 / 15 < fuel <= 30 /
+  else dark). lunar_fuel_probe.py 8/8 pins the whole burn over the
+  real wire — the fuel read from the bar's own honest width, the
+  ring's and the dregs' readings proven honest, the brightness held
+  through the dregs, the blink hiding the bar but never its light,
+  and the dry line dark. All four lunar regression probes re-green.
+
 ## v3.1.86 — the last ship burns
 
 - **The cards hand-label law reaches its third transplant: the
