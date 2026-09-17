@@ -5,6 +5,11 @@
 // them · four SHELTERS stand between the cannon and the order: every
 // block drinks one shot (shot, bomb or the march itself) and is gone
 // for good — honest destroys, not fading — r rebuilds from the ashes.
+// the MYSTERY: every 13th shot from the gun (the old ROM's law) sums
+// the saucer — it crosses the sky as its own lantern (glow 4), pays
+// a bounty of 50/100/150/300, and the say speaks the SAME number the
+// score keeps — their bombs cannot touch it; escaped or paid, it
+// parks dark at the edge.
 // the LIGHT: every wave GHOSTS IN (alpha 0.15 -> full over 0.9 s — the
 // radar-field law; the sky literally fills again), the muzzle GLOWS
 // (4) on fire and cools at eight a second, flying shots and bombs
@@ -46,6 +51,14 @@ for (let i = 0; i < 3; ++i) {
   bombs.push(b);
 }
 
+// the MYSTERY SAUCER: parked at x -999 like the bullets until the
+// gun's 13th shot calls it — it rides ABOVE the grid (y 0..3 never
+// touches row 0 at y 5) and is its own lantern while it flies
+const saucer = rect("saucer", -999, 0, 12, 3, "#22d3ee");
+saucer.tag = "ufo";
+let shotCount = 0, saucerVx = 0;         // the gun's tally; 0 = parked
+
+const UFOS = [50, 100, 150, 300];        // the mystery's purse
 let wave = 1, score = 0, lives = 3, alive = 15;
 let dir = 1, stepT = 0, stepEvery = 0.8, fireT = 1.5, gunCool = 0, over = false;
 let waveT = 1;                           // the ghost-in clock (deploy resets it)
@@ -88,6 +101,20 @@ function grab(pool) {                    // a parked bullet, or none
   return pool.find((b) => b.x < -100) || null;
 }
 
+function summon() {                      // the mystery takes the sky
+  const fromLeft = Math.random() < 0.5;
+  saucer.x = fromLeft ? -12 : W + 2;
+  saucerVx = fromLeft ? 16 : -16;        // one crossing, then it rests
+  saucer.glow = 4;                       // it IS its own lantern
+  say("something crosses the sky…");
+}
+
+function park() {                        // the mystery rests dark, wherever it was
+  saucerVx = 0;
+  saucer.x = -999;
+  saucer.glow = 0;
+}
+
 function fire() {
   const s = grab(shots);
   if (!s || gunCool > 0) return;
@@ -96,6 +123,8 @@ function fire() {
   s.glow = 2;                            // the flying shot carries its halo
   player.glow = 4;                       // the muzzle speaks (keys fire after
   gunCool = 0.3;                         //   the tick, so the frame gets the 4)
+  shotCount += 1;
+  if (shotCount % 13 === 0 && saucerVx === 0) summon();   // every 13th shot
 }
 
 function alienFire() {
@@ -118,6 +147,8 @@ function rebuild(msg) {                  // the wave is spent — the next lands
     score = 0;
     lives = 3;
     buildShields();                      // a fresh run pours new concrete
+    park();                              // the sky empties for the new run
+    shotCount = 0;
   }
   deploy();
 }
@@ -130,6 +161,8 @@ function restart() {                     // r from the ashes
   alive = ROWS_N * COLS_N;
   buildShields();
   deploy();
+  park();                                // the mystery forgets this run too
+  shotCount = 0;
   gunCool = 0;
   hud.text = "INVADERS  ·  score 0  ·  lives 3";
   say("the cannon is reborn");
@@ -182,6 +215,12 @@ on.tick((dt) => {
   // the bullets fly; parked ones sleep off-screen, dark
   shots.forEach((s) => { if (s.x > -100) { s.y -= 40 * dt; if (s.y < 0) { s.x = -999; s.glow = 0; } } });
   bombs.forEach((b) => { if (b.x > -100) { b.y += 22 * dt; if (b.y > H) { b.x = -999; b.glow = 0; } } });
+  // the mystery crosses; past the far edge it parks dark and the
+  // gun's tally starts counting toward the next summons
+  if (saucerVx !== 0) {
+    saucer.x += saucerVx * dt;
+    if (saucer.x < -14 || saucer.x > W + 14) park();
+  }
 });
 
 on.hit((a, b) => {
@@ -221,6 +260,16 @@ on.hit((a, b) => {
   } else if (pair === "alien|shield") {
     const block = a.tag === "shield" ? a : b;
     destroy(block.name);               // the march grinds what it touches
+  } else if (pair === "pshot|ufo") {
+    const ufo = a.tag === "ufo" ? a : b;
+    const shot = a.tag === "ufo" ? b : a;
+    const pay = UFOS[Math.floor(Math.random() * UFOS.length)];
+    score += pay;
+    park();                              // the mystery rests dark, paid
+    shot.x = -999;
+    shot.glow = 0;
+    say(`the mystery pays ${pay}`);      // the say speaks the SAME number
+    hud.text = `INVADERS  ·  score ${score}  ·  lives ${lives}`;
   } else if (pair === "alien|player") {
     lives = 0;
     over = true;

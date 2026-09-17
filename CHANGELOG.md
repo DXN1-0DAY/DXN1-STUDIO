@@ -1,3 +1,25 @@
+## v3.1.54 — the mystery takes the sky
+
+- **invaders.js grows the mystery saucer — the old ROM's law,
+  reborn on the wire.** The gun keeps a tally: every 13th LAUNCHED
+  shot (muzzle glow 4 marks each launch) summons the saucer. It
+  crosses the sky ABOVE the grid (y 0..3 never touches row 0 at
+  y 5 — the geometry is proven, not hoped), rides as its own
+  lantern (glow 4) at exactly 16 px/s, and pays a bounty from the
+  purse 50/100/150/300 — and the say speaks the SAME number the
+  score keeps. Their bombs cannot touch it: the pair is refused,
+  the score stays. Escaped or paid, it parks dark at the edge like
+  every other spent body on this wire.
+- **Probe `invaders_ufo_probe.py`: 15 pins, all green.** The
+  steered host LEADS the crossing (the R21 lesson, applied: the
+  saucer walks 1.6 px per packet while the shot climbs 4 — the aim
+  is predicted, not chased) and kills it with an honest overlap.
+  The probe also pins the tally's continuation (13 more shots
+  summon it again) and the unpurchased escape (parks dark at the
+  far edge). Entity 51 -> 52; the conformance pin moved with it,
+  and the R21 light probe was re-run green after its own count pin
+  learned the new number.
+
 ## v3.1.53 — the torch breathes
 
 - **raycast.py wears the light — every example now speaks the

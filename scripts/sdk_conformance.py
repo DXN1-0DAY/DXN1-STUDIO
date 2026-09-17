@@ -114,7 +114,7 @@ def main():
               f"entities={got}")
         scene, frames, console = probe(["node", f"{EX}/invaders.js"])
         got = len(scene.get("entities", [])) if scene else 0
-        check("invaders.js", scene is not None and frames >= 3 and got == 51,
+        check("invaders.js", scene is not None and frames >= 3 and got == 52,
               f"scene={'yes' if scene else 'NO'} frames={frames} "
               f"entities={got}")
         scene, frames, console = probe(["node", f"{EX}/dino.js"])
