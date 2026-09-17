@@ -4,6 +4,11 @@
 # blades ORBIT the hub (the SDK drives x/y/rot each tick) while the
 # hub's little square turns ITSELF (the engine's own spin — no SDK
 # work at all). Two kinds of rotation, one sky.
+# the DUSK LAW: the day is measured in turns — every degree the wind
+# carries is a degree of the day (a full day per 720°). The sun's
+# alpha sweeps 1.0 → 0.45 and back, the clouds wear the dusk at a
+# third of its depth, the sun glows by day and goes dark at
+# nightfall, and holding the wind holds the sun where it stands.
 import math
 from dxn3 import *
 
@@ -37,6 +42,23 @@ for i in range(4):
 speed = 90.0                           # wind degrees per second
 wdir = 0.0                             # where the wind points now
 held = True
+daydeg = 0.0                           # the day, measured in turns
+
+
+def dusk_depth():
+    """0 at noon, 1 at the deepest nightfall — a cosine on the day."""
+    return 0.5 - 0.5 * math.cos(math.radians(daydeg))
+
+
+def phase(d):
+    if d < 0.35:
+        return "noon"
+    return "dusk" if d < 0.75 else "nightfall"
+
+
+def hud_text():
+    return (f"THE MILL  ·  wind {speed:.0f}°/s"
+            f"{' · HELD' if not held else ''}")
 
 
 def place_blades():
@@ -56,14 +78,21 @@ def on_start():
 
 
 def on_tick(dt2):
-    global wdir
+    global wdir, daydeg
     if not held:
         return
     wdir = (wdir + speed * dt2) % 360
+    daydeg = (daydeg + speed * dt2) % 720.0   # a degree of wind, a degree of day
+    d = dusk_depth()
+    sun.alpha = 1.0 - 0.55 * d              # the sun sweeps 1.0 → 0.45
+    sun.glow = 4 if d < 0.4 else 0          # a lantern by day, a coal by night
+    cloud_a.alpha = 1.0 - 0.35 * d          # the clouds wear the dusk too
+    cloud_b.alpha = 1.0 - 0.35 * d
     place_blades()
     # the clouds drift with the same wind, and wrap the sky honestly
     cloud_a.x = (cloud_a.x + dt2 * 6) % (W + 20) - 10
     cloud_b.x = (cloud_b.x + dt2 * 9) % (W + 24) - 12
+    hud.text = hud_text() + f"  ·  {phase(d)}"
 
 
 def on_key(k):
@@ -74,7 +103,7 @@ def on_key(k):
         speed = min(400.0, speed + 30.0)
     elif k == "space":
         held = not held
-    hud.text = (f"THE MILL  ·  wind {speed:.0f}°/s {'· HELD' if not held else ''}")
+    hud.text = hud_text()
 
 
 run()

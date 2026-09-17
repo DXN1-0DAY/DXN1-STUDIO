@@ -1,3 +1,41 @@
+## v3.1.51 — the comet and the dusk
+
+- **bounce.js: the wall fits the room — a REAL latent defect fixed.**
+  The old wall was authored for a ~900x200 canvas: bricks at
+  x=60..820, y=80..184 — on the host's own world (cols x
+  (rows-2)*2, e.g. 120x84) EIGHTEEN of eighteen bricks were born
+  off-screen and the win was unreachable. The gate's scene-only
+  check never saw it; the probe did. The wall is now sized from W
+  and H — twelve bricks, four across, three deep (24x8), every one
+  on screen above the floor — and the probe clears all twelve and
+  reads the win label for real. The top wall moved to y=2 (the old
+  y=30 band swallowed a third of the room); the hud's two dialects
+  merged into one.
+- **bounce.js wears the light.** The ball is the room's lantern
+  (glow 2) and leaves a COMET: six seats that slide back one each
+  tick, seat 0 standing exactly where the ball stood one tick ago
+  (bit for bit — the probe mirrors the flight), each wearing its
+  own age as alpha (0.5 down to 0.10). The pad answers a touch
+  with a glow that decays at twelve a second — and never in the
+  tick it was lit (hits fire after the tick, so the touch frame
+  carries the full 3 — the dino's birth-tick lesson, applied).
+  A lost ball parks the comet; the fresh serve re-forms it.
+- **windmill.py: the dusk law.** The day is measured in turns —
+  every degree the wind carries is a degree of the day (a full day
+  per 720 degrees). The sun's alpha sweeps 1.0 -> 0.45 -> 1.0 on
+  the cosine of the day (the probe mirrors it BIT FOR BIT — worst
+  error 0.0e+00), the clouds wear the dusk at a third of its
+  depth, the sun glows 4 by day and goes dark past dusk 0.4, the
+  hud names the hour (noon / dusk / nightfall), and HOLDING the
+  wind holds the sun where it stands — the pause key pauses the
+  sky too.
+- Probes: `bounce_light_probe.py` (16 pins — including the host
+  playing honestly: one hit per tick, an aim that alternates on
+  every save, since a perfectly centered pad makes off=0, vx=0, a
+  dead loop straight up and down) and `windmill_dusk_probe.py`
+  (12 pins). Gate 6: bounce's pin survives at 21 (12 bricks + 6
+  comet seats + pad + ball + hud); windmill's 13 untouched.
+
 ## v3.1.50 — the grace law
 
 - **Dino's jump-feel pass, in three laws.** The GRACE LAW: a press

@@ -1,5 +1,13 @@
 // bounce.js — pong-alone: a ball, walls, a paddle YOU steer, bricks to break.
 // run it from the studio:   dxn3 sdk/examples/bounce.js
+// THE WALL FITS THE ROOM: the host sends the console's own pixels
+// (one column wide, two rows tall), so the brick wall is sized from
+// W and H — twelve bricks, four across, three deep, every one on
+// screen, the win actually reachable. The ball is the room's
+// lantern and leaves a COMET behind it — six seats that slide back
+// one each tick, wearing their ages as alpha (0.5 down to 0.10);
+// the pad answers a touch with a glow that decays at twelve a
+// second; a lost ball parks the comet and the next serve re-forms it.
 const dxn3 = require("dxn3");
 const { rect, circle, label, destroy, background, on, run } = dxn3;
 const W = dxn3.W, H = dxn3.H;
@@ -11,16 +19,29 @@ pad.tag = "pad";
 const ball = circle("ball", W / 2, H - 40, 12, 12, "#f8fafc");
 ball.tag = "ball";
 ball.vx = 260; ball.vy = -300;
+ball.glow = 2;                           // the room's lantern
 
-const hud = label("hud", 16, 14, "BRICKS 12 · BALLS 3");
+// the comet: six seats behind the ball, youngest to oldest
+const TRAIL_A = [0.5, 0.42, 0.34, 0.26, 0.18, 0.10];
+const trail = [];
+for (let i = 0; i < TRAIL_A.length; ++i) {
+  const t = rect("trail-" + i, -999, -999, 6, 6, "#7dd3fc");
+  t.alpha = 0;
+  trail.push(t);
+}
+let px = ball.x, py = ball.y;            // the seat the ball just left
+
+const hud = label("hud", 2, 1, "BRICKS 12 LEFT · BALLS 3");
 let bricks = 0, balls = 3;
 
-// the wall of bricks
+// the wall of bricks — four across, three deep, sized to the room
+const COLS = 4, ROWS = 3;
+const BW = Math.max(12, Math.floor((W - 24) / COLS) - 4), BH = 8;
 let n = 0;
-for (let row = 0; row < 3; ++row)
-  for (let col = 0; col < 6; ++col) {
-    const b = rect("brick" + n, 60 + col * 130, 80 + row * 40, 110, 24,
-                   ["#fb7185", "#facc15", "#34d399"][row]);
+for (let row = 0; row < ROWS; ++row)
+  for (let col = 0; col < COLS; ++col) {
+    const b = rect("brick" + n, 8 + col * (BW + 4), 10 + row * (BH + 4),
+                   BW, BH, ["#fb7185", "#facc15", "#34d399"][row]);
     b.tag = "brick";
     ++n;
   }
@@ -31,13 +52,28 @@ on.key((k) => {
 });
 
 on.tick(() => {
-  // the ball bounces off three walls; the floor costs a ball
+  // the comet: each seat slides back one, the young seat takes the
+  // spot the ball just left; every seat wears its own age as alpha
+  for (let i = trail.length - 1; i > 0; --i) {
+    trail[i].x = trail[i - 1].x;
+    trail[i].y = trail[i - 1].y;
+  }
+  trail[0].x = px; trail[0].y = py;
+  trail.forEach((t, i) => { t.alpha = TRAIL_A[i]; });
+  px = ball.x; py = ball.y;
+  // the pad's answer fades at twelve a second — and never in the
+  // tick it was lit (hits fire after the tick, so the touch frame
+  // carries the full 3)
+  pad.glow = Math.max(0, (pad.glow || 0) - 12 * dxn3.dt);
+  // the ball bounces off the top wall; the floor costs a ball
   if (ball.x < 4 || ball.x > W - 16) ball.vx = -ball.vx;
-  if (ball.y < 30) ball.vy = -ball.vy;
+  if (ball.y < 2) ball.vy = -ball.vy;
   if (ball.y > H - 8) {
     balls -= 1;
     ball.x = W / 2; ball.y = H - 40;
     ball.vy = -300; ball.vx = 260 * (Math.random() < 0.5 ? -1 : 1);
+    px = ball.x; py = ball.y;
+    trail.forEach((t) => { t.x = -999; t.y = -999; t.alpha = 0; });
     if (balls <= 0) label("over", W / 2 - 60, H / 2 - 10,
                           "GAME OVER — ctrl+r to retry", "#fb7185");
   }
@@ -58,6 +94,7 @@ on.hit((a, b) => {
     const off = (me.x - other.x) / other.w - 0.5;
     ball.vx = 420 * off;
     if (ball.vy > 0) ball.vy = -Math.abs(ball.vy);
+    pad.glow = 3;                        // the pad answers the touch
   }
 });
 
