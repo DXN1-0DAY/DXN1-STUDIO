@@ -6,7 +6,14 @@
 # exposed), it GLOWS while burning, the pads wear halos sized to
 # their pay (the brighter the halo, the richer the touchdown), and a
 # clean landing BLEACHES the lander gold-white for a beat.
+# v3.1.65 — the halos BREATHE: one shared clock (the snake meal's
+# 4-rad sine), two amplitudes — the summit's halo breathes taller
+# because its pay is richer (the halo IS the pay, still). They are
+# born at the top of the breath (whole, no pop), and a touchdown
+# makes the pleased pad FLARE (+2 bloom) that wears at the house's
+# 3/s even while the freeze holds the world — no flash-forever.
 from dxn3 import *
+import math
 import random
 
 background("#050810")
@@ -32,11 +39,23 @@ for i, (x, y, w, h) in enumerate(HILLS):
     hill.tag = "ground"
 
 pays = {}
+blooms = {}                            # a pleased pad's flare, wearing
+pad_t = math.pi / 2                    # the halos' shared clock, born
+                                       # at the breath's TOP (no pop)
 for i, (x, y, w, h, pay) in enumerate(PADS):
     p = rect(f"pad{i}", x, y, w, h, "#22c55e")
     p.tag = "pad"
-    p.glow = 2 + pay // 50               # the halo IS the pay: 3 and 4
+    p.glow = 2 + pay // 50             # the halo IS the pay: 3 and 4
     pays[f"pad{i}"] = pay
+    blooms[f"pad{i}"] = 0.0
+
+
+def paint_halo(nm):                    # one clock, two amplitudes: the
+    e = find(nm)                       # breath is base*(0.75+0.25*sin)
+    if e:                              # and the pay still reads — the
+        base = 2 + pays[nm] // 50      # summit's halo breathes taller
+        e.glow = round(base * (0.75 + 0.25 * math.sin(pad_t))
+                       + blooms[nm], 3)
 
 land = circle("land", W // 2, 40, 14, 14, "#e9e5ff")
 land.tag = "ship"
@@ -114,7 +133,15 @@ def crash(why):
 
 
 def on_tick(dt2):
-    global flash, burn, score, alarm_t, warned_low
+    global flash, burn, score, alarm_t, warned_low, pad_t
+    # A PLEASED PAD'S FLARE WEARS at 3/s — even while the freeze holds
+    # the world (the studio keeps the last light a wire game sent, so
+    # a flare the game never wears is a flare FOREVER). The breath
+    # itself pauses with the world: the freeze holds its breath.
+    for nm in blooms:
+        if blooms[nm] > 0:
+            blooms[nm] = max(0.0, blooms[nm] - 3 * dt2)
+            paint_halo(nm)
     if burn > 0:
         burn -= dt2
         if burn <= 0:
@@ -137,6 +164,9 @@ def on_tick(dt2):
                 respawn_lander()
         return
     land.vy += G * dt2               # the moon never sleeps
+    pad_t = (pad_t + 4 * dt2) % (2 * math.pi)   # the halos breathe,
+    for nm in blooms:                # 4 rad/s — the snake meal's sine
+        paint_halo(nm)
     if land.y > H + 60:
         crash("lost to the dark below")
     elif land.x < -30 or land.x > W + 30:
@@ -179,6 +209,8 @@ def on_hit(a, b):
         say(f"+{pay} — touchdown")
         print(f"touchdown — pad pays {pay} · fuel left {int(fuel)}")
         land.flash = 1.0             # the gold-white beat the legs earned
+        blooms[other.name] = min(6.0, blooms.get(other.name, 0.0) + 2.0)
+        paint_halo(other.name)       # the pleased pad FLARES
         freeze(1.4)
 
 

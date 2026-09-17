@@ -1,3 +1,31 @@
+## v3.1.65 — the halos breathe
+
+- **lunar.py's pad halos learned the snake meal's breath.** One shared
+  clock (the 4-rad sine), two amplitudes — each pad's halo now swings
+  between half and all of its base (base = 2 + pay // 50), so the
+  summit's halo BREATHES TALLER because its pay is richer: the halo
+  IS the pay, still, and now it moves. Born at the TOP of the breath
+  (pad_t starts at pi/2) so the scene packet's honest 3 and 4 hold —
+  no pop at spawn. And a touchdown makes the pleased pad FLARE: +2
+  bloom on top of the breath, worn by the game itself at the house's
+  3/s EVEN WHILE the freeze holds the world (the flash-forever law
+  owns every light a wire game lit) — the breath itself pauses with
+  the world, because the freeze holds its breath; the flare is a
+  decay, and decays never pause.
+- lunar_pad_probe (11 pins, green): the halo IS the pay at birth
+  (3 and 4); a spawn-gentle touchdown pays +50 and its pad's halo
+  jumps +2 over the breath measured one frame before the hit; the
+  flare wears monotonically inside the freeze and empties back into
+  the band; both halos breathe inside [0.5, 1.0] x base; the
+  normalized breaths agree to 0.02 (one clock, two amplitudes); the
+  summit's swing is taller; the clock is exact — glow repeats after
+  pi/2 s. Entity count unchanged (11). Regression walk: lunar_probe,
+  lunar_beat green; lunar_lastlight was found ALREADY RED on a stale
+  pin (it expected flash 1.0 one dt-0.05 frame after the hit — the
+  v3.1.61 staircase wears it to 0.925 before any probe reads it;
+  pre-dates this round, fixed in the probe, not the game). Gates 7
+  green.
+
 ## v3.1.64 — the well learned the light laws
 
 - **tetris.js pays the house's two light debts.** Every locked cell is
