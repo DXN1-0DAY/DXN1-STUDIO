@@ -2515,6 +2515,89 @@ inline WsCensus ideWsCensus(const IdeState& s) {
   return c;
 }
 
+// ── the bracket's twin: :match walks to the other half ───────────
+// From the hand (the cursor), find the nearest bracket at or after
+// it — an opener scans forward for its twin, a closer scans back.
+// The walk is QUOTE-HONEST: a bracket inside a string literal is
+// ink, not structure (single or double quotes, backslash escapes,
+// and the quote's law ends at its own line's edge). The return is
+// the twin's seat, or silence (an unmatched bracket says so).
+struct BracketTwin {
+  bool found = false;
+  int row = 0;
+  int col = 0;
+};
+inline BracketTwin ideMatchBracket(const IdeState& s) {
+  static const std::string openers = "([{";
+  static const std::string closers = ")]}";
+  auto kind = [](char c, const std::string& set) -> int {
+    const size_t k = set.find(c);
+    return k == std::string::npos ? -1 : static_cast<int>(k);
+  };
+  auto charAt = [&](int r, int c) -> char {
+    if (r < 0 || r >= static_cast<int>(s.lines.size())) return '\0';
+    const std::string& l = s.lines[static_cast<size_t>(r)];
+    return c >= 0 && c < static_cast<int>(l.size()) ? l[static_cast<size_t>(c)]
+                                                    : '\0';
+  };
+  // quote honesty per line: is this column inside a string literal?
+  auto inString = [&](int r, int col) -> bool {
+    if (r < 0 || r >= static_cast<int>(s.lines.size())) return false;
+    const std::string& l = s.lines[static_cast<size_t>(r)];
+    bool inS = false, inD = false;
+    for (int i = 0; i < col && i < static_cast<int>(l.size()); ++i) {
+      const char c = l[static_cast<size_t>(i)];
+      if (c == '\\' && (inS || inD)) { ++i; continue; }
+      if (c == '\'' && !inD) inS = !inS;
+      else if (c == '"' && !inS) inD = !inD;
+    }
+    return inS || inD;
+  };
+
+  // step one: the nearest live bracket at or after the hand
+  int r = s.curR, c = s.curC;
+  char start = '\0';
+  int sk = -1, dir = 0;
+  for (; r < static_cast<int>(s.lines.size()); ++r, c = 0) {
+    for (; c < static_cast<int>(s.lines[static_cast<size_t>(r)].size()); ++c) {
+      const char ch = charAt(r, c);
+      if ((kind(ch, openers) >= 0 || kind(ch, closers) >= 0) &&
+          !inString(r, c)) {
+        start = ch;
+        sk = kind(ch, openers);
+        dir = sk >= 0 ? 1 : -1;
+        if (sk < 0) sk = kind(ch, closers);
+        break;
+      }
+    }
+    if (start != '\0') break;
+  }
+  if (start == '\0') return {};          // no bracket ahead — honest silence
+
+  // step two: walk the depth in the bracket's own direction, across
+  // the whole bed — cross-line twins land honestly. The starting
+  // bracket is consumed (depth 1); a same-kind bracket nests, the
+  // twin closes, and zero is the landing.
+  int depth = 1;
+  const std::string& twinSet = dir > 0 ? closers : openers;
+  for (int rr = r;
+       rr >= 0 && rr < static_cast<int>(s.lines.size()); rr += dir) {
+    const std::string& l = s.lines[static_cast<size_t>(rr)];
+    const int last = static_cast<int>(l.size()) - 1;
+    // the first row continues from just past the bracket; the rest
+    // sweeps the whole line in the walk's direction
+    for (int cc = (rr == r ? c + dir : (dir > 0 ? 0 : last));
+         cc >= 0 && cc <= last; cc += dir) {
+      const char ch = l[static_cast<size_t>(cc)];
+      if (inString(rr, cc)) continue;
+      if (ch == start) ++depth;
+      else if (kind(ch, twinSet) == sk && --depth == 0)
+        return BracketTwin{true, rr, cc};
+    }
+  }
+  return {};                             // the twin never came — say so
+}
+
 // ── the flip: the selection's lines walk end for end ────────────
 // :rev reorders — it does not judge: the bed's first line lands last,
 // the last lands first, and no alphabet has a say. The sort family's

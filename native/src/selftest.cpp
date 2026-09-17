@@ -4697,6 +4697,48 @@ int main() {
     ok(c.trailing == 1 && c.tabs == 1 && c.long_ == 1,
        "the census counts trailing, tabs and the 80-column law");
     ok(h6.lines[0] == "x  ", "the census is a mirror — it changes nothing");
+
+    // 52. the bracket's twin — :match walks to the other half,
+    // quote-honest, cross-line, and honest about never finding one
+    {
+      IdeState m1;
+      m1.lines = {"f(a(b))"};
+      m1.curR = 0;
+      m1.curC = 1;
+      const auto t1 = dxn3::ideMatchBracket(m1);
+      ok(t1.found && t1.row == 0 && t1.col == 6,
+         "match: the opener's twin is the outer closer");
+      m1.curC = 6;
+      const auto t2 = dxn3::ideMatchBracket(m1);
+      ok(t2.found && t2.row == 0 && t2.col == 1,
+         "match: the closer walks back the same road");
+      IdeState m2;
+      m2.lines = {"x = (\"(\", 1)"};      // the '(' in the string is ink
+      m2.curR = 0;
+      m2.curC = 4;
+      const auto t3 = dxn3::ideMatchBracket(m2);
+      ok(t3.found && t3.col == 11,
+         "match: a bracket inside a string literal is ink, not structure");
+      IdeState m3;
+      m3.lines = {"g = (1 +", "    2)"};
+      m3.curR = 0;
+      m3.curC = 4;
+      const auto t4 = dxn3::ideMatchBracket(m3);
+      ok(t4.found && t4.row == 1 && t4.col == 5,
+         "match: the walk crosses lines without flinching");
+      IdeState m4;
+      m4.lines = {"(o"};
+      m4.curR = 0;
+      m4.curC = 0;
+      const auto t5 = dxn3::ideMatchBracket(m4);
+      ok(!t5.found, "match: an unclosed bracket says so honestly");
+      IdeState m5;
+      m5.lines = {"quiet"};
+      m5.curR = 0;
+      m5.curC = 0;
+      ok(!dxn3::ideMatchBracket(m5).found,
+         "match: no bracket ahead is honest silence too");
+    }
   }
 
 

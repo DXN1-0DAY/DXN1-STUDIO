@@ -1,3 +1,21 @@
+## v3.1.17 — the bracket's twin
+
+- **`:match` — the hand walks to the other half.** From the
+  cursor, the nearest bracket at or after it finds its twin: an
+  opener scans forward, a closer scans back, nesting counts itself
+  honestly, and the walk crosses lines without flinching. The walk
+  is QUOTE-HONEST — a bracket inside a string literal is ink, not
+  structure (single or double quotes, backslash escapes, the
+  quote's law ending at its own line's edge). An unclosed bracket
+  says so instead of guessing; a jump takes no stage (the ledger
+  keeps its peace). Six selftest pins: the round trip, the string
+  lie, the cross-line walk, and the two honest silences. 907 →
+  913 assertion groups.
+- **A ghost verb buried**: `:chomp` still lingered in the command
+  grammar's no-argument list from v3.1.13's cut — the parser
+  accepted it while the dispatch refused it. The grammar and the
+  dispatch now agree: :trim is the one true sweep.
+
 ## v3.1.16 — the nose-dot lie retires
 
 - **`sdk/examples/asteroids.js` — the ship turns for REAL.** Since

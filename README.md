@@ -2,7 +2,7 @@
 
 ![DXN1 STUDIO 3](assets/banner.png)
 
-![version](https://img.shields.io/badge/version-3.1.16-8b5cf6?style=flat-square)
+![version](https://img.shields.io/badge/version-3.1.17-8b5cf6?style=flat-square)
 ![gates](https://github.com/DXN1-termux/DXN1-STUDIO/actions/workflows/ci.yml/badge.svg)
 ![native](https://img.shields.io/badge/native-C%2B%2023-f97316?style=flat-square)
 ![face](https://img.shields.io/badge/face-terminal_truecolor-22d3ee?style=flat-square)
@@ -321,7 +321,7 @@ line ends · `ctrl+home`/`ctrl+end` doc edges · `del` forward-delete ·
 `:sort` orders the selection (all-number beds count: 2 before 10) ·
 `:rsort` lands it last-first ·
 `:upper`/`:lower`/`:title` change the selection's voice ·
-`:uniq` collapses back-to-back repeats · `:squeeze` breathes blank runs to one · `:retab` widens leading tabs · `:ws` counts the margin's sins · `:rev` flips the order ·
+`:uniq` collapses back-to-back repeats · `:squeeze` breathes blank runs to one · `:retab` widens leading tabs · `:ws` counts the margin's sins · `:match` walks to the bracket's twin (strings respected) · `:rev` flips the order ·
 `:shuffle` deals the lines like cards, its seed replays the deal ·
 `:indent`/`:dedent` breathe the selection one level ·
 `:lift`/`:drop` ride lines up and down ·
@@ -428,6 +428,7 @@ accepted:
 | `:lower` | the selection whispers — one undo step |
 | `:title` | every word's first letter stands up |
 | `:uniq` | collapse lines that repeat back-to-back — whole doc, or the selection |
+| `:match` | jump to the bracket's twin — quote-honest, cross-line, honest when it never closes |
 | `:s/old/new` | replace every exact old with new on the selection's lines — one undo step; an EMPTY old borrows the find query as the old |
 | `:sa/old/new` | the whole document is the bed — the swap's other face; an empty old borrows the find query too |
 | `:<line>` | a bare number jumps — `:42` is the goto's absolute form |

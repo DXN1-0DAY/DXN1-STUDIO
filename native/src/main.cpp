@@ -2122,6 +2122,22 @@ int main(int argc, char** argv) {
               (c.trailing + c.tabs == 0
                    ? " — the bed is tidy"
                    : " (:trim and :retab tidy them)"));
+        } else if (cmd.verb == "match") {
+          // the bracket's twin: the hand walks to the other half. No
+          // stage — a jump is not a change, the ledger keeps its peace.
+          const dxn3::BracketTwin twin = dxn3::ideMatchBracket(ide);
+          if (twin.found) {
+            ide.curR = twin.row;
+            ide.curC = twin.col;
+            ideClamp(ide);
+            ide.console.push_back(
+                "engine: the hand lands on the bracket's twin — line " +
+                std::to_string(twin.row + 1));
+          } else {
+            ide.console.push_back(
+                "engine: no twin in sight — the nearest bracket never "
+                "closes");
+          }
         } else if (cmd.verb == "s") {
           // the swap: :s/old/new — every byte-exact occurrence traded
           // on the selection's lines (or the hand's line). The parse

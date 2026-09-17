@@ -249,6 +249,7 @@ inline Cmd parseCommand(std::string_view line) {
              c.verb == "record" ||
              c.verb == "squeeze" ||
              c.verb == "retab" || c.verb == "ws" ||
+             c.verb == "match" ||
              c.verb == "fresh") {
     if (!c.arg.empty())
       c.error = ":" + c.verb + " takes no argument";
@@ -311,6 +312,8 @@ inline std::string usageHintFor(std::string_view typed) {
     return " :retab — leading tabs widen to four spaces";
   if (verb == "ws")
     return " :ws — the whitespace census: trailing, tabs, 80+ lines";
+  if (verb == "match")
+    return " :match — walk to the bracket's twin (strings respected)";
   if (verb == "zoom") return " :zoom in | out | <0.3-4>";
   if (verb == "fit") return " :fit — zoom to fit the scene";
   if (verb == "o")
