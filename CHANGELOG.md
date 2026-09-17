@@ -1,3 +1,30 @@
+## v3.1.74 — the deck is real
+
+- **cards.py's deck stops being a lie.** The hand was five cards a
+  session could replay forever — the deck behind it was fiction. Now
+  forty honest cards shuffle under their OWN named stream ("the
+  deck's order"), dealt five at a hand; each hand's last play deals
+  the next five and the muck label counts what you spent; at the
+  40th play the dry deck RETURNS — the muck goes back, the reshuffle
+  stream ("the deck's reshuffle") reorders it, the title SPEAKS
+  "· reshuffled" (born once, not stuck), and the fresh hand ghosts
+  in with the radar-field law re-run.
+- **Two named streams, one per concern** — the seed chapter's law
+  carried from the shooter to the cards: "the deck's order" deals,
+  "the deck's reshuffle" returns, neither borrows a draw. The probe
+  replicates both to the packet: every hand is EXACTLY the stream's
+  draws, the reshuffled hand is EXACTLY the reshuffled deck's first
+  five, and the score arithmetic matches play for play (106 x 19 at
+  the 35th).
+- **The birth-frame law, deal edition**: on_key runs AFTER on_tick in
+  the SDK's tick order, so a deal inside on_key painted its fresh
+  alphas one tick late — deal() now calls redraw() itself and the
+  fresh hand's alpha 0.15 is on the deal's own frame. The probe
+  pins it there.
+- **Probes: 12 pins green** over a 45-play wire run (8 deals, one
+  reshuffle, the say's single birth). Gates 7 green; entity census
+  unchanged at 12.
+
 ## v3.1.73 — the drifting twin
 
 - **shooter.py grows a SECOND THREAT CLASS.** The drifting twin:
