@@ -2,7 +2,7 @@
 
 ![DXN1 STUDIO 3](assets/banner.png)
 
-![version](https://img.shields.io/badge/version-3.1.21-8b5cf6?style=flat-square)
+![version](https://img.shields.io/badge/version-3.1.22-8b5cf6?style=flat-square)
 ![gates](https://github.com/DXN1-termux/DXN1-STUDIO/actions/workflows/ci.yml/badge.svg)
 ![native](https://img.shields.io/badge/native-C%2B%2023-f97316?style=flat-square)
 ![face](https://img.shields.io/badge/face-terminal_truecolor-22d3ee?style=flat-square)
@@ -96,7 +96,11 @@ viewport refreshes — *code a background, and boom, a background.*
   forever — with a night that falls at 200 m), `tetris.js` (the
   falling order: a 7-bag seeded like the stars, locked cells as
   their own entities, line clears that are ten honest destroys,
-  wall-kicked turns), `pong.cpp` (a compiled C++ pong
+  wall-kicked turns), `lightbot.js` (the night shift: a diamond of
+  twelve unlit lamps — walk the grid, SPACE lights the lamp under
+  you and every flame wears the engine's glow, the wayfinding is
+  literally made of light — steps counted, wins graded, r re-runs
+  the shift), `pong.cpp` (a compiled C++ pong
   with an AI that caps its speed — the hardest SDK proof in the
   set).
 - **The editor forgives.** `ctrl+z` undoes — typing bursts coalesce the
@@ -528,9 +532,9 @@ sdk/dxn3.hpp                the C++ SDK — compiled games, deque-stable
                             entity pointers
 sdk/PROTOCOL.md             the one-page wire contract
 sdk/examples/               background · shooter · flappy · bounce ·
-                            cards · pong
+                            cards · lightbot · pong
 assets/                     the brand: emblem, banner, social card + SVG src
-scenes/*.dxn1.json          the five-scene campaign — data only
+scenes/*.dxn1.json          the nine-scene campaign — data only
 scripts/install.sh          the curl one-liner
 scripts/gates.sh            the quality gauntlet
 ```

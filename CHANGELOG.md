@@ -1,3 +1,24 @@
+## v3.1.22 — the night shift
+
+- **`lightbot.js` — the fifteenth wire example, and the first built
+  to PROVE the glow law.** A diamond of twelve unlit lamps on a 7×5
+  grid: walk with the arrows, SPACE lights the lamp under you, and
+  every flame wears the engine's glow (v3.1.20) — the wayfinding is
+  literally made of light. Steps counted honestly, wins graded
+  (a ghost of the grid / steady hands / the long way home), the done
+  shift's head-lamp breathes, and r takes the shift again. Held keys
+  are throttled by a cooldown, the walls refuse honestly
+  ("the grid ends there"), and the reset restores every tile.
+- **Two bugs the wire probe caught before shipping:** the diamond's
+  top and bottom rows were lopsided (lamps at cols 2+5 instead of
+  2+4 — the puzzle looked wrong and the shortest path made no
+  sense), and the HUD froze one count behind the win (the winning
+  frame's hud was drawn before light() ran — now the finished shift
+  reads 12/12 in gold).
+- Probe: per-step bot-position verification, greedy nearest-neighbour
+  tour over all 12 lamps, transient win-banner capture, reset and
+  wall-mash checks. Gallery 14 → 15 examples (py 8, js 6, cpp 1).
+
 ## v3.1.21 — the light learns to fall
 
 - **Glow grew a falloff.** v3.1.20's halo was flat paint; now the
