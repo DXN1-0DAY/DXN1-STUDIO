@@ -2357,6 +2357,50 @@ int main(int argc, char** argv) {
                     joined + tail);
               }
             }
+          } else if (cmd.arg == "tag") {
+            // the milestones, spoken — the cap is six with a deeper
+            // tail, the names short enough to keep whole. A repo
+            // with no tags says so honestly; a folder with no repo
+            // is refused, never guessed. Read-only, like every git
+            // mouth: the verb reads the milestones, it never cuts
+            // one.
+            const std::string probe =
+                readCmd("git rev-parse --abbrev-ref HEAD 2>/dev/null");
+            const std::string out =
+                readCmd("git tag --list 2>/dev/null");
+            if (probe.empty()) {
+              ide.console.push_back(
+                  "engine: git is not speaking here — no repository, or "
+                  "no git on the machine");
+            } else if (out.empty()) {
+              ide.console.push_back(
+                  "engine: no tags yet — the milestones wait to be cut");
+            } else {
+              std::string joined;
+              int spoke = 0;
+              for (size_t i = 0; i < out.size();) {
+                size_t e = out.find('\n', i);
+                if (e == std::string::npos) e = out.size();
+                std::string ln = out.substr(i, e - i);
+                i = e + 1;
+                if (!ln.empty() && ln.back() == '\r') ln.pop_back();
+                if (ln.empty()) continue;
+                if (ln.size() > 16) ln = ln.substr(0, 16) + "…";
+                joined += (spoke == 0 ? "" : " · ") + ln;
+                if (++spoke == 6) break;
+              }
+              size_t more = 0;
+              for (size_t i = 0; i < out.size(); ++i)
+                if (out[i] == '\n') ++more;
+              std::string tail;
+              if (static_cast<int>(more) > spoke)
+                tail = " · +" +
+                       std::to_string(static_cast<int>(more) - spoke) +
+                       " more";
+              ide.console.push_back(
+                  "engine: " + std::to_string(spoke) +
+                  (spoke == 1 ? " tag — " : " tags — ") + joined + tail);
+            }
           } else {
             const std::string branch =
                 readCmd("git rev-parse --abbrev-ref HEAD 2>/dev/null");
@@ -2841,7 +2885,7 @@ int main(int argc, char** argv) {
           takeStage();                         // every verb takes the stage —
                                                // a law, not a suggestion
           if (cmd.arg.empty()) {
-            game.say(":scene :open :recent :template :snip :goto :jumps :changes :fresh :mark :marks :bm :ruler :minimap :zen :wrap :crew :count :center :relnum :s :sa :o :e :trim :cases :sort :rsort :rev :uniq :shuffle :indent :dedent :lift :drop :dup :join :upper :lower :title :hist :undo :redo :words :todo :stats "
+            game.say(":scene :open :recent :template :snip :goto :jumps :changes :diff :drift :git :fresh :mark :marks :bm :ruler :minimap :zen :wrap :crew :count :center :relnum :s :sa :o :e :trim :cases :sort :rsort :rev :uniq :shuffle :indent :dedent :lift :drop :dup :join :upper :lower :title :hist :undo :redo :words :todo :stats "
                      ":record :macro :zoom :fit :reset :new :w :wq :q :screenshot :magnet :gravity — or :help <verb>",
                      4.f);
           } else {

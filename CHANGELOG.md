@@ -1,3 +1,21 @@
+## v3.1.4 — :git tag (the milestones, counted) and the help that keeps up
+
+- **`:git tag` — the milestones, spoken.** One receipt, the cap is
+  six with a `+k more` tail, each name held to 16 columns. A repo
+  with no tags says so honestly (`no tags yet — the milestones
+  wait to be cut`), a folder with no repo is refused, never
+  guessed — the probe speaks for the git that isn't there. Still
+  read-only: the verb reads the milestones, it never cuts one.
+  The git family is now four mouths: `:git` the present, `:git
+  log` the past, `:git branch` the paths, `:git tag` the peaks.
+- **DOCS DEBT PAID: the `:help` row keeps up.** The bare `:help`
+  listed the verbs but never named `:diff`, `:drift`, or `:git`
+  — three families shipped silent. The row speaks them now; the
+  whispers (`:help <verb>`) always worked, the front door didn't.
+- Selftest group 29 pins two more laws (886 -> 888). Smoke 13w
+  grew the tag drive — the sandbox cuts `v0.0.1`, the verb reads
+  it (217 -> 218). Gates ALL GREEN.
+
 ## v3.1.3 — :git branch (the locals, spoken)
 
 - **The branch manager's sapling.** `:git branch` — the local

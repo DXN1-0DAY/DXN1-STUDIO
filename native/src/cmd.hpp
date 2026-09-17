@@ -207,12 +207,14 @@ inline Cmd parseCommand(std::string_view line) {
           else
             c.num = static_cast<float>(tail[0] - '0');
         }
-      } else if (c.arg == "branch") {
-        // the locals, spoken — no argument, no writes
+      } else if (c.arg == "branch" || c.arg == "tag") {
+        // the locals, spoken; the milestones, counted — no argument,
+        // no writes
       } else {
-        c.error = "usage: :git [log [n] | branch] — a bare :git speaks "
-                  "the repo's truth; :git log [n] walks the last n "
-                  "commits (1 to 8); :git branch names the locals";
+        c.error = "usage: :git [log [n] | branch | tag] — a bare :git "
+                  "speaks the repo's truth; :git log [n] walks the last "
+                  "n commits (1 to 8); :git branch names the locals; "
+                  ":git tag counts the milestones";
       }
     }
   } else if (c.verb == "drift") {
@@ -422,9 +424,10 @@ inline std::string usageHintFor(std::string_view typed) {
     return " :drift [n] — the amber census: a bare verb lists the lines "
            "that disagree with the disk, a number leaps to the Nth";
   if (verb == "git")
-    return " :git [log [n] | branch] — the repo's truth: the branch, "
-           "uncommitted, the last commit's name; :git log [n] walks "
-           "the memory; :git branch names the locals (read-only)";
+    return " :git [log [n] | branch | tag] — the repo's truth: the "
+           "branch, uncommitted, the last commit's name; :git log [n] "
+           "walks the memory; :git branch names the locals; :git tag "
+           "counts the milestones (read-only)";
   if (verb == "w")
     return " :w [file] — save the session's work; a .bak is kept";
   if (verb == "wq") return " :wq — save and quit";

@@ -1603,6 +1603,13 @@ def main():
         check(":git branch speaks the locals, the current starred",
               "1 branch — * master" in scr2.text(ROWS - 2),
               repr(scr2.text(ROWS - 2)[:90]))
+        # the milestones, spoken: the sandbox cuts one, the verb reads it
+        subprocess.run(["git", "-C", SMOKE_CWD, "tag", "v0.0.1"],
+                       check=False)
+        scr2, _ = s2.run_verb("git tag", "ide")
+        check(":git tag speaks the milestones",
+              "1 tag — v0.0.1" in scr2.text(ROWS - 2),
+              repr(scr2.text(ROWS - 2)[:90]))
 
         # ── 13x. the drift that breathes ─────────────────────────────
         print("── 13x. the drift breathes — a silent beat, a spoken count")
