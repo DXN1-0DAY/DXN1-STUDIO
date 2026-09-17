@@ -40,11 +40,25 @@ homecoming sweep; they stay external until re-pinned:
   occasionally pays the BASE purse; the ritual cannot yet PROVE
   darkness at the kill frame. Re-pin it with a darkness-proof
   before it walks.
-- `bounce_light_probe`, `cards_probe`, `cards_glow_probe`,
-  `cards_breathe_probe`, `flappy_wear_probe`, `invaders_probe`,
-  `shooter_light_probe`, `shooter_bolt_probe`, `snake_light_probe`
-  — STALE generation pins (pre-night censuses, superseded glow
-  staircases, old say formats). Re-pin or retire them one by one;
-  several have newer green siblings covering the same law.
+- RESCUED in v3.1.92 and walking inside the walls:
+  `shooter_light_probe` (census 3 -> 15, the night sky included),
+  `flappy_wear_probe` (census 9 -> 11), `invaders_probe`
+  (census 51 -> 62), and `snake_light_probe` — the deep one: its
+  milestone pin sampled ONE frame (often the flash's birth, 1.0)
+  and demanded it already decayed; the wire then taught the real
+  law — the tail's bleach is a HEARTBEAT, re-bloomed by every
+  milestone meal, each bloom wearing 1.0 -> 0.4 -> 0.0 — and its
+  greedy drive may self-bite before the wall phase, so the probe
+  now falls again (space revives; three lives).
+- `chase_probe` — EVICTED in v3.1.92: green standalone, red under
+  full-gates load (the driven snake wall-bites at score 0 before
+  the chase develops — load-sensitive drive). Outside until its
+  drive is load-proof.
+- STILL OUTSIDE (re-pin or retire):
+  `bounce_light_probe` (5 stale pins, likely superseded by the
+  lantern probe), `cards_probe` + `cards_breathe_probe` (broken
+  relative-path/PYTHONPATH spawn assumptions — they only ran from
+  their birth directory), `cards_glow_probe` (say-format drift),
+  `shooter_bolt_probe` (4 stale pins).
 - `ide_door_probe` — green but 35 s; bring it home when it dieted
   (gate 8 must stay quick).

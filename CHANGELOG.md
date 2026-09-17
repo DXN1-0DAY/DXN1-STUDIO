@@ -1,3 +1,29 @@
+## v3.1.92 — the stale nine shrink to five
+
+- **Four drifted probes re-pinned to the current truth and walked
+  by gate 8 (44 -> 48):** shooter_light (census 3 -> 15, the night
+  sky included), flappy_wear (9 -> 11), invaders (51 -> 62), and
+  snake_light — the deep one, twice over: (1) its milestone pin
+  sampled ONE frame, often the flash's BIRTH (1.0), and demanded
+  it already decayed — a sampling race, ~2/3 red; the wire then
+  taught the real law, the tail's bleach is a HEARTBEAT re-bloomed
+  by every milestone meal, each bloom wearing the staircase
+  1.0 -> 0.4 -> 0.0, so the pin now follows the segment and pins
+  every COMPLETED bloom (a bloom may be in flight when the drive
+  ends); (2) its greedy drive may self-bite before the wall phase,
+  which used to forfeit the wall verdict — a self-bite is a death
+  too: space revives, up to three lives. Five runs green.
+- The drift ledger in probes/README.md tells each rescue and names
+  the five still outside: bounce_light (superseded?), the cards
+  trio (their child spawns assumed the birth directory — broken
+  PYTHONPATH/relative paths, a portability bug like the x2
+  script's), and shooter_bolt.
+- `chase_probe` was EVICTED the same hour: green standalone,
+  red under full-gates load — the driven snake wall-bites at
+  score 0 before the chase develops. Outside until its drive is
+  load-proof. Gate 8 must never roll dice under load either.
+- Gates 8 green (47 pins + 7 gates).
+
 ## v3.1.91 — the whole fleet at home
 
 - **`probes/` grows from the tetris family to the whole stable
