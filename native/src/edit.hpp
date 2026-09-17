@@ -236,13 +236,13 @@ struct IdeState {
 // Six ship inside; :theme wears one by name, unique prefix or 1-based
 // index, and the choice survives the night in $HOME/.dxn3-theme.
 struct Theme {
-  const char* name;
+  std::string name;                    // 2.0: user coats need owning names
   RGB base, comment, str, kw;
   RGB paneBg, selBg;
 };
 
-inline const std::vector<Theme>& ideThemes() {
-  static const std::vector<Theme> kThemes = {
+inline std::vector<Theme>& ideThemes() {   // mutable: :theme 2.0 appends
+  static std::vector<Theme> kThemes = {    // your coats from .dxn3-themes
       {"dxn",         rgb(226, 232, 240), rgb(96, 104, 126),  rgb(250, 204, 21),
        rgb(167, 139, 250), rgb(16, 12, 30),    rgb(30, 22, 52)},
       {"dracula",     rgb(248, 248, 242), rgb(98, 114, 164),  rgb(241, 250, 140),
@@ -259,10 +259,121 @@ inline const std::vector<Theme>& ideThemes() {
   return kThemes;
 }
 
+constexpr size_t kThemeBuiltinCount = 6;    // the house's coats, untouchable
+
+// ── the wardrobe 2.0: YOUR coats ────────────────────────────────────
+// A themes file lists one coat per line, seven ':'-joined fields:
+//   name:base:comment:string:keyword:pane:sel
+// Each color speaks decimal ("226,232,240") or hex ("#e2e8f0" or
+// "e2e8f0"). Blank lines and #comments skip. A coat wearing a SHIPPED
+// name is refused (the six built-ins are the house's, not yours);
+// redefining one of YOUR earlier coats replaces it in place.
+inline bool ideThemeParseRGB(const std::string& s, RGB& out) {
+  std::string t = s;
+  if (!t.empty() && t.front() == '#') t.erase(0, 1);
+  if (t.empty()) return false;
+  auto hexv = [](char c) -> int {
+    if (c >= '0' && c <= '9') return c - '0';
+    if (c >= 'a' && c <= 'f') return c - 'a' + 10;
+    if (c >= 'A' && c <= 'F') return c - 'A' + 10;
+    return -1;
+  };
+  if (t.size() == 6 &&
+      t.find_first_not_of("0123456789abcdefABCDEF") == std::string::npos) {
+    RGB v = 0;
+    for (char c : t) v = (v << 4) | RGB(hexv(c));
+    out = v;
+    return true;
+  }
+  int comp[3];
+  int got = 0;
+  size_t pos = 0;
+  while (got < 3) {
+    const size_t comma = t.find(',', pos);
+    std::string part = (comma == std::string::npos)
+                           ? t.substr(pos)
+                           : t.substr(pos, comma - pos);
+    // spaces hide inside components too — " 30, 41, 59 " is one color
+    const size_t pa = part.find_first_not_of(" \t");
+    if (pa == std::string::npos) return false;
+    part = part.substr(pa, part.find_last_not_of(" \t") - pa + 1);
+    if (part.empty() ||
+        part.find_first_not_of("0123456789") != std::string::npos)
+      return false;
+    const long v = std::strtol(part.c_str(), nullptr, 10);
+    if (v < 0 || v > 255) return false;
+    comp[got++] = static_cast<int>(v);
+    if (comma == std::string::npos) break;
+    pos = comma + 1;
+  }
+  if (got != 3) return false;
+  out = rgb(static_cast<std::uint8_t>(comp[0]),
+            static_cast<std::uint8_t>(comp[1]),
+            static_cast<std::uint8_t>(comp[2]));
+  return true;
+}
+
+// adopt one coat from seven parsed fields; returns nullptr on refusal
+// (bad colors, an empty name, or a SHIPPED name). A name you already
+// own is replaced in place — a wardrobe can correct itself.
+inline const Theme* ideThemeAdopt1(const std::string (&f)[7]) {
+  auto& ts = ideThemes();
+  Theme t;
+  t.name = f[0];
+  RGB* slots[6] = {&t.base, &t.comment, &t.str, &t.kw, &t.paneBg, &t.selBg};
+  for (int i = 0; i < 6; ++i)
+    if (!ideThemeParseRGB(f[1 + i], *slots[i])) return nullptr;
+  for (size_t i = 0; i < kThemeBuiltinCount && i < ts.size(); ++i)
+    if (ts[i].name == t.name) return nullptr;      // the house's, not yours
+  for (size_t i = kThemeBuiltinCount; i < ts.size(); ++i) {
+    if (ts[i].name == t.name) {                    // re-tailoring your own
+      ts[i] = std::move(t);
+      return &ts[i];
+    }
+  }
+  ts.push_back(std::move(t));
+  return &ts.back();
+}
+
+// adopt every coat in a themes FILE. Missing file: silent zero — an
+// empty wardrobe hook is not an error. Returns the adopted count.
+inline int ideThemeLoadUserFile(const std::string& path) {
+  std::ifstream f(path, std::ios::binary);
+  if (!f) return 0;
+  int n = 0;
+  std::string line;
+  while (std::getline(f, line)) {
+    if (!line.empty() && line.back() == '\r') line.pop_back();
+    const size_t s0 = line.find_first_not_of(" \t");
+    if (s0 == std::string::npos || line[s0] == '#') continue;
+    std::string fld[7];
+    size_t pos = 0;
+    bool bad = false;
+    for (int i = 0; i < 7; ++i) {
+      const size_t c = line.find(':', pos);
+      if (i < 6 && c == std::string::npos) { bad = true; break; }
+      fld[i] = (i == 6) ? line.substr(pos)
+                        : line.substr(pos, (c == std::string::npos ? line.size() : c) - pos);
+      if (c == std::string::npos) break;
+      pos = c + 1;
+    }
+    if (bad) continue;
+    for (auto& x : fld) {
+      const size_t a = x.find_first_not_of(" \t");
+      const size_t b = x.find_last_not_of(" \t");
+      x = (a == std::string::npos) ? "" : x.substr(a, b - a + 1);
+    }
+    if (fld[0].empty()) continue;
+    if (ideThemeAdopt1(fld) != nullptr) ++n;
+  }
+  return n;
+}
+
 // :theme — wear a coat by name, unique prefix or 1-based index; no
-// argument lists the wardrobe with the worn one marked. Returns the
-// receipt line either way; a bad or ambiguous name reports through
-// *err instead and the coat does not change.
+// argument lists the wardrobe with the worn one marked (your coats
+// say [user]). Returns the receipt line either way; a bad or
+// ambiguous name reports through *err instead and the coat does not
+// change.
 inline std::string ideThemeSet(IdeState& ide, const std::string& arg,
                                std::string* err = nullptr) {
   const auto& ts = ideThemes();
@@ -272,6 +383,7 @@ inline std::string ideThemeSet(IdeState& ide, const std::string& arg,
       if (!list.empty()) list += " · ";
       list += ts[i].name;
       if (static_cast<int>(i) == ide.themeIx) list += " [worn]";
+      if (i >= kThemeBuiltinCount) list += " [user]";
     }
     return list;
   }

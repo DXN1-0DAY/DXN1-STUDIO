@@ -2,7 +2,7 @@
 
 ![DXN1 STUDIO 3](assets/banner.png)
 
-![version](https://img.shields.io/badge/version-3.1.40-8b5cf6?style=flat-square)
+![version](https://img.shields.io/badge/version-3.1.41-8b5cf6?style=flat-square)
 ![gates](https://github.com/DXN1-termux/DXN1-STUDIO/actions/workflows/ci.yml/badge.svg)
 ![native](https://img.shields.io/badge/native-C%2B%2023-f97316?style=flat-square)
 ![face](https://img.shields.io/badge/face-terminal_truecolor-22d3ee?style=flat-square)
@@ -342,11 +342,16 @@ line ends · `ctrl+home`/`ctrl+end` doc edges · `del` forward-delete ·
 `:recent` lists and reopens · `:goto <line>` jumps the editor ·
 `:template <name>` loads a starter · `:snip <name>` drops boilerplate ·
 `:minimap` toggles the map rail · `:zen` the quiet — the rail rests ·
-`:theme <name|n>` wears one of the editor's six coats — dracula,
+`:theme <name|n>` wears one of the editor's coats — dracula,
 gruvbox, nord, solar-dark, solar-light or the house dxn — by name,
 unique prefix or 1-based index, a bare `:theme` lists the wardrobe
 marking what's worn, the bar whispers the coats as you type, and the
 choice keeps across nights in `~/.dxn3-theme` ·
+**and the wardrobe 2.0 takes your own coats**: one per line in
+`~/.dxn3-themes` — `name:base:comment:string:keyword:pane:sel`, each
+color speaking decimal (`30,41,59`) or hex (`#e2e8f0`); shipped
+names are refused, your own earlier coats re-tailor in place, and
+the list marks your coats `[user]` ·
 `:wrap` the fold — long lines break into the pane, ↑/↓ walk its rows ·
 `:crew <n>` plants the crew — many hands, one breath, every hand writes ·
 `:crew <n>` again GROWS the crew — the new hands plant below the last ·
@@ -454,7 +459,7 @@ accepted:
 | `:git [log [n] \| branch \| tag]` | the repo's truth in one breath — branch, uncommitted count, the last commit's name; `:git log [n]` walks the memory; `:git branch` names the locals, the current starred; `:git tag` counts the milestones (read-only; refuses honestly without git) |
 | `:ruler` | toggle the 79/99 column guides |
 | `:minimap` | toggle the document's map rail |
-| `:theme [name\|n]` | wear a coat — six ship inside (dxn, dracula, gruvbox, nord, solar-dark, solar-light); by name, unique prefix or 1-based index; a bare verb lists the wardrobe; the choice keeps across nights |
+| `:theme [name\|n]` | wear a coat — six ship inside (dxn, dracula, gruvbox, nord, solar-dark, solar-light) and YOURS load from `~/.dxn3-themes` (name:base:comment:string:keyword:pane:sel, decimal or hex); by name, unique prefix or 1-based index; a bare verb lists the wardrobe; the choice keeps across nights |
 | `:center` | the view centers on your hand — z.'s law, clamped to the edges |
 | `:zen` | the quiet — the rail rests, the body breathes; `:zen` wakes it |
 | `:wrap` | the fold — long lines break into the pane at the last space or hyphen that fits, and ↑/↓ walk the rows; a second `:wrap` wakes the slide |

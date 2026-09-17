@@ -1385,6 +1385,12 @@ int main(int argc, char** argv) {
 
   // ─── boot: the engine first. you start with nothing, you code, it runs.
   IdeState ide;
+  {   // the wardrobe 2.0: your coats load BEFORE the recall, so last
+      // night's choice can name one of them ($HOME/.dxn3-themes;
+      // no file is no news)
+    if (const char* h = std::getenv("HOME"); h && *h)
+      dxn3::ideThemeLoadUserFile(std::string(h) + "/.dxn3-themes");
+  }
   dxn3::ideThemeRecall(ide);                 // last night's coat, if it kept
   dxn3::ScriptHost host;
   // the sdk lives beside the BINARY — the studio's own installation —

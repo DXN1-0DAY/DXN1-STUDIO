@@ -346,7 +346,8 @@ inline std::string usageHintFor(std::string_view typed) {
   if (verb == "minimap") return " :minimap — toggle the document's map rail";
   if (verb == "theme")
     return " :theme [name|n] — wear a coat (bare :theme lists the "
-           "wardrobe); the choice keeps across nights";
+           "wardrobe; your own load from $HOME/.dxn3-themes and wear "
+           "[user]); the choice keeps across nights";
   if (verb == "zen")
     return " :zen — the rail rests, the body breathes; :zen wakes it and "
            "replays its ledger";

@@ -4890,6 +4890,81 @@ int main() {
        "the bar whispers the wardrobe");
   }
 
+  // 103. the wardrobe 2.0: YOUR coats — a themes file (name + six
+  // colors, ':'-joined) appends to the wardrobe; shipped names are
+  // refused, your own earlier coats re-tailor in place, hex AND
+  // decimal colors both speak, bad lines skip, and :theme wears a
+  // user coat by name, prefix and index while the list marks [user]
+  {
+    auto& ts = dxn3::ideThemes();
+    const size_t base = ts.size();           // the shipped wardrobe
+    ok(base >= 6, "the wardrobe 2.0 starts from the shipped six");
+
+    const std::string tmp = "/tmp/dxn3_themes_probe";
+    {
+      std::ofstream f(tmp, std::ios::binary | std::ios::trunc);
+      f << "# my coats — hex and decimal both speak\n";
+      f << "\n";
+      f << "midnight:#e2e8f0:#64748b:#fbbf24:#818cf8:#0b1020:#1b2540\n";
+      f << "paper: 30, 41, 59 : 148,163,184: 52,211,153: 251,191,36: 250,246,227: 235,231,218\n";
+      f << "dxn:#ff0000:#00ff00:#0000ff:#ffff00:#ffffff:#000000\n";
+      f << "broken:one:two:three\n";
+      f << "ghost:#zzzzzz:#64748b:#fbbf24:#818cf8:#0b1020:#1b2540\n";
+    }
+    const int n = dxn3::ideThemeLoadUserFile(tmp);
+    ok(n == 2, "two coats adopt (comments, blanks, bad lines skip)");
+    ok(ts.size() == base + 2, "the wardrobe grows by two, no more");
+    ok(ts[base].name == "midnight",
+       "the first user coat takes its place after the shipped six");
+    ok(ts[base].base == 0xe2e8f0u, "hex colors parse (#e2e8f0)");
+    ok(ts[base + 1].name == "paper" && ts[base + 1].base == rgb(30, 41, 59),
+       "decimal triples parse and trim");
+
+    IdeState s;
+    std::string err;
+    dxn3::ideThemeSet(s, "midnight", &err);
+    ok(err.empty() && std::string(ts[s.themeIx].name) == "midnight",
+       ":theme wears a user coat by name");
+    err.clear();
+    dxn3::ideThemeSet(s, "mid", &err);
+    ok(err.empty() && std::string(ts[s.themeIx].name) == "midnight",
+       "a unique prefix reaches a user coat (mid → midnight)");
+    err.clear();
+    const std::string idx = std::to_string(ts.size());
+    dxn3::ideThemeSet(s, idx, &err);
+    ok(err.empty() && std::string(ts[s.themeIx].name) == "paper",
+       "a 1-based index wears a user coat too");
+    err.clear();
+    dxn3::ideThemeSet(s, "dxn", &err);
+    ok(err.empty() && s.themeIx == 0,
+       "a shipped name still wears the house coat (user redefinition refused)");
+    const std::string list = dxn3::ideThemeSet(s, "", nullptr);
+    ok(list.find("[user]") != std::string::npos,
+       "the bare list marks your coats [user]");
+
+    // re-tailoring: a second file, same name, new colors — replaces in place
+    {
+      std::ofstream f(tmp, std::ios::binary | std::ios::trunc);
+      f << "midnight:#112233:#445566:#778899:#aabbcc:#ddeeff:#001122\n";
+    }
+    ok(dxn3::ideThemeLoadUserFile(tmp) == 1, "a re-tailored coat adopts");
+    ok(ts.size() == base + 2, "re-tailoring replaces, never duplicates");
+    ok(ts[base].base == 0x112233u, "the new colors wear the old name");
+
+    // the choice keeps across nights, even a user coat's
+    const std::string peg = "/tmp/dxn3_theme_user_probe";
+    dxn3::ideThemeSet(s, "midnight", nullptr);
+    dxn3::ideThemeStore(s, peg);
+    IdeState fresh;
+    dxn3::ideThemeRecall(fresh, peg);
+    ok(std::string(ts[fresh.themeIx].name) == "midnight",
+       "a user coat survives the night too (store → recall)");
+    std::filesystem::remove(tmp);
+    std::filesystem::remove(peg);
+    // shed the user coats so later groups see the shipped wardrobe
+    ts.resize(base);
+  }
+
   if (fails == 0) {
     std::println("native selftest: all green ({} assertion groups)", n);
     return 0;

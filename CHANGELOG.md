@@ -1,3 +1,26 @@
+## v3.1.41 — the wardrobe 2.0
+
+- **:theme takes YOUR coats now.** One per line in
+  `~/.dxn3-themes` — `name:base:comment:string:keyword:pane:sel` —
+  each color speaking decimal (`30,41,59`) or hex (`#e2e8f0`,
+  `#` optional). Blank lines and `#comments` skip, half-lines and
+  bad colors skip, and the file loads at boot, before the recall —
+  last night's choice can name a coat you tailored yourself.
+- **The wardrobe keeps its manners:** a user coat wearing a SHIPPED
+  name is refused (the six built-ins are the house's, not yours);
+  redefining one of YOUR earlier coats re-tailors it in place,
+  never duplicates; bare `:theme` marks your coats `[user]`; name,
+  unique prefix and 1-based index all reach them; `:theme`'s store
+  → recall round trip keeps a user coat across nights; and the bar
+  whispers them as you type.
+- **BUG the selftest caught before shipping:** the decimal color
+  parser demanded digit-only components — `" 30, 41, 59 "` (spaces
+  after the commas) was refused, so an honest coat silently failed
+  to adopt. Components now trim their own spaces. Selftest group
+  103: 15 pins (adopt counts, hex+decimal values, shipped-name
+  refusal, re-tailoring, index/prefix wear, `[user]` list mark,
+  store → recall).
+
 ## v3.1.40 — the worn pipes
 
 - **flappy.py learns depth: the pipes FADE IN from the horizon.**
