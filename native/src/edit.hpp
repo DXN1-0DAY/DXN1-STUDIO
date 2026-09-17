@@ -61,6 +61,8 @@ struct Keys {
   bool wLeft = false, wRight = false;          // IDE: ctrl+←/→ — hop word by word
   bool delWordFwd = false;                     // IDE: ctrl+del — eat the word ahead
   bool comment = false;                        // IDE: ctrl+/ — toggle the line's comment
+  bool transpose = false;                      // IDE: ctrl+T — the two
+                                               // neighbors trade places
   bool docHome = false, docEnd = false;        // IDE: ctrl+home/end — the edges
   bool sUp = false, sDown = false;             // IDE: shift+↑/↓ — extend the selection
   bool altUp = false, altDown = false;         // IDE: alt+↑/↓ — the ride:
@@ -2929,6 +2931,23 @@ inline void ideCrewFrame(IdeState& s, const Keys& k) {
   std::sort(s.crew.begin(), s.crew.end());
 }
 
+// the transpose: the two neighbors trade places — the vim xp law.
+// The hand ON a char (or between chars) swaps it with the one ahead;
+// at the line's tail (the hand ON or AFTER the last char) the LAST two
+// trade. The hand lands after the transposed pair. A line too short to
+// hold a pair refuses honestly. Returns true when it traded.
+inline bool ideTranspose(IdeState& s) {
+  std::string& l = s.lines[static_cast<size_t>(s.curR)];
+  const int len = static_cast<int>(l.size());
+  if (len < 2) return false;
+  const int a = s.curC <= len - 2 ? s.curC : len - 2;
+  const int b = a + 1;
+  std::swap(l[static_cast<size_t>(a)], l[static_cast<size_t>(b)]);
+  s.curC = b + 1;                          // after the transposed pair
+  ideTouch(s, s.curR);
+  return true;
+}
+
 inline void ideKey(IdeState& ide, const Keys& k) {
   // ── esc owns its frame. A bare ESC is a MODE key — play, search,
   // escape — and when a pty delivers it coalesced with typing (the
@@ -3366,6 +3385,17 @@ inline void ideKey(IdeState& ide, const Keys& k) {
     const auto [dr, dc] = ideDelAt(ide, ide.curR, ide.curC);
     ide.curR = dr;
     ide.curC = dc;
+  }
+  if (k.transpose) {                         // ctrl+T: the two neighbors
+                                             // trade places — the typo's
+                                             // honest fix
+    ideSelClear(ide);                        // the trade is the frame's own
+    if (ide.lines[static_cast<size_t>(ide.curR)].size() >= 2) {
+      idePushUndo(ide, "transpose");         // one honest step back
+      ideTranspose(ide);
+      ide.dirty = true;                      // the game hears about it
+      ide.idle = 0;
+    }
   }
   if (k.ctrlD) {                             // duplicate — the cursor line
                                              // alone, or EVERY line the

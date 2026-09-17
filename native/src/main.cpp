@@ -305,6 +305,7 @@ Keys pollKeys(Mode mode) {
         else if (c == 0x0c) k.ctrlL = true;               // Ctrl+L — fresh console
         else if (c == 0x06) k.ctrlF = true;               // Ctrl+F — find
         else if (c == 0x04) k.ctrlD = true;               // Ctrl+D — dup lines
+        else if (c == 0x14) k.transpose = true;           // Ctrl+T — transpose
         else if (c == 0x17) k.delWord = true;             // Ctrl+W — delete word
         else if (c == 0x1f) k.comment = true;             // Ctrl+/ — toggle comment
         else if (c == 0x10) k.shot = true;                // Ctrl+P — screenshot
@@ -2796,6 +2797,7 @@ int main(int argc, char** argv) {
       if (!ide.findOpen &&
           (!keys.typed.empty() || keys.back || keys.enter || keys.del ||
            keys.ctrlD || keys.delWord || keys.delWordFwd || keys.comment ||
+           keys.transpose ||
            keys.tab || keys.backTab || keys.ctrlX ||
            (keys.ctrlV && !ide.clip.empty()))) {
         ide.dirty = true;

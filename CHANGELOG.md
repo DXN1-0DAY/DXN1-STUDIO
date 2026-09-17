@@ -1,3 +1,22 @@
+## v3.0.89 — the transpose (the two neighbors trade places)
+
+- **`ctrl+T` — the typo's honest fix.** The two neighbors around the
+  hand trade places, the vim xp law: the hand ON a char (or between
+  chars) swaps it with the one ahead; at the line's tail (the hand ON
+  or AFTER the last char) the LAST two trade — so `teh` with the hand
+  where you left it becomes `the`. The hand lands after the
+  transposed pair. A line too short to hold a pair refuses honestly
+  (no trade, no undo step, no dirt).
+- One honest undo step ("transpose"), the census touched, the game
+  hears about it; a live selection drops — the trade is the frame's
+  own. The line-level dance already exists as alt+↑/↓ (the ride) —
+  one law per verb, no duplication.
+- Selftest group 90: seven transpose laws (822 -> 829) — the tail
+  trade, the ahead trade, the hand's landing, the head trade, the
+  short-line refusal, the named undo step and the restore. Smoke 13n:
+  TWO drives (183 -> 185): the neighbors' trade end-to-end and the
+  one-step restore. Gates ALL GREEN.
+
 ## v3.0.88 — the crew (many hands, one breath)
 
 - **`:crew <n>` plants the crew — true multi-cursor editing.** A number

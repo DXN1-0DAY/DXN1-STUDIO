@@ -1350,6 +1350,27 @@ def main():
               "one hand stands — no crew to dissolve" in scr2.text(ROWS - 2),
               repr(scr2.text(ROWS - 2)[:70]))
 
+        # ── 13n. ctrl+T — the transpose, the typo's honest fix ───────
+        print("── 13n. ctrl+T — the two neighbors trade places")
+        s2.run_verb("goto 2", "ide")           # the "ccc#..." line
+        s2.settle(0.2)
+        before = body(s2.screen(), 2)
+        s2.send(ESC + "[C")                    # right: the hand on the 'c'
+        time.sleep(0.15)
+        s2.send(ESC + "[C")                    # right again: between 'c' and '#'
+        time.sleep(0.15)
+        s2.send("\x14")                        # ctrl+T: the neighbors trade
+        s2.settle(0.4)
+        after = body(s2.screen(), 2)
+        check("ctrl+T swaps the two neighbors around the hand",
+              before[:4] == "ccc#" and after[:4] == "cc#c",
+              repr(before[:8] + " -> " + after[:8]))
+        s2.run_verb("undo", "ide")             # one honest step back
+        s2.settle(0.3)
+        restored = body(s2.screen(), 2)
+        check("the trade undoes — the neighbors sit as they sat",
+              restored == before, repr(restored[:8]))
+
         s2.send(ESC)
         time.sleep(0.3)
         s2.send("q")

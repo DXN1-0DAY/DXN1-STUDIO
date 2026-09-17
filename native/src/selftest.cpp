@@ -199,7 +199,7 @@ int main() {
   }
 
   // 9. the version quad rides in the binary too
-  ok(std::string(dxn3::DXN3_VERSION) == "3.0.88",
+  ok(std::string(dxn3::DXN3_VERSION) == "3.0.89",
      "native version constant matches the release quad");
 
   // 10. png writer: checksum vectors, real structure, byte determinism
@@ -4235,6 +4235,42 @@ int main() {
     dxn3::ideKey(vs, vk);
     ok(dxn3::ideCrewHands(vs) == 2,
        "an empty frame — the engine's breath — never dissolves the crew");
+  }
+
+
+  // 90. the transpose: ctrl+T — the two neighbors trade places
+  {
+    IdeState ts;
+    ts.lines = {"teh"};
+    ts.curR = 0;
+    ts.curC = 3;                          // the hand after the typo
+    ok(dxn3::ideTranspose(ts) && ts.lines[0] == "the" && ts.curC == 3,
+       "the hand at the tail: the last two trade, the hand stays past them");
+    ts.curC = 1;                          // the hand ON the 'h'
+    ok(dxn3::ideTranspose(ts) && ts.lines[0] == "teh",
+       "the hand on a char swaps it with the one ahead");
+    ok(ts.curC == 3, "the hand lands after the transposed pair");
+    ts.curC = 0;                          // the head: the first pair trades
+    ok(dxn3::ideTranspose(ts) && ts.lines[0] == "eth",
+       "the hand at the head swaps the first pair");
+    IdeState rs;
+    rs.lines = {"x"};
+    rs.curR = 0;
+    rs.curC = 0;
+    ok(!dxn3::ideTranspose(rs) && rs.lines[0] == "x",
+       "a line too short to hold a pair refuses honestly");
+    IdeState us;
+    us.lines = {"teh"};
+    us.curR = 0;
+    us.curC = 3;
+    dxn3::Keys uk;
+    uk.transpose = true;
+    dxn3::ideKey(us, uk);
+    ok(us.lines[0] == "the" && !us.undo.empty() &&
+           us.undo.back().what == "transpose",
+       "the trade rides one honest undo step, named");
+    ok(dxn3::ideUndo(us) && us.lines[0] == "teh",
+       "undo restores the untraded line");
   }
 
 
