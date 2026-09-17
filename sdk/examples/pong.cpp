@@ -1,6 +1,10 @@
 // pong.cpp — the C++ SDK's proof: a compiled game, hosted by the studio.
 // you steer the left paddle (w/s chars), the engine feeds keys, the AI
-// wants to win but caps its speed. run it:  dxn3 sdk/examples/pong.cpp
+// wants to win but caps its speed — and since the ladder, the cap
+// BREATHES with the set: even score → L3 (the classic 190); you lead →
+// the CPU digs in, up to L5 (285); the CPU leads → it eases off, down
+// to L1 (120). A rubber band, honest on the hud ("CPU L3"), so a set
+// stays dramatic on purpose. run it:  dxn3 sdk/examples/pong.cpp
 #include "../dxn3.hpp"
 
 int main() {
@@ -15,9 +19,15 @@ int main() {
     ball->tag = "ball";
     ball->vx = 240; ball->vy = 120;
 
-    auto* hud  = g.label("hud",  16, 12, "YOU 0 · CPU 0 · first to 5");
+    auto* hud  = g.label("hud",  16, 12, "YOU 0 · CPU 0 · first to 5 · CPU L3");
     auto* msg  = g.label("msg",  dxn3::W / 2 - 52, 40, "w/s to move — serve is live", "#fde047");
     int you = 0, cpu = 0;
+
+    // the ladder: the CPU's speed cap per score state. Index 0 = L1.
+    // L3 is the old constant 190 — an even set plays exactly as it
+    // always did; the band only breathes when someone leads.
+    const float LADDER[5] = {120.f, 155.f, 190.f, 235.f, 285.f};
+    int lvl = 3;
 
     auto serve = [&](dxn3::Ent* b) {
         b->x = dxn3::W / 2 - 6;
@@ -35,9 +45,12 @@ int main() {
     };
 
     g.onTick = [&](float) {
-        // the AI paddles with a speed cap — beatable on purpose
+        // the AI paddles with a capped speed — and the cap is the
+        // ladder's rung: behind on the score, it digs in; ahead, it
+        // eases off. The hud always names the rung it stands on.
+        lvl = std::clamp(3 + you - cpu, 1, 5);
         float want = ball->y - ai->h / 2 + 6;
-        float step = 190 * dxn3::dt;
+        float step = LADDER[lvl - 1] * dxn3::dt;
         if (ai->y < want) ai->y += std::min(step, want - ai->y);
         else              ai->y -= std::min(step, ai->y - want);
 
@@ -51,7 +64,14 @@ int main() {
             printf("%s wins the set\n", you > cpu ? "you" : "cpu");
             you = cpu = 0;
         }
-        hud->text = "YOU " + std::to_string(you) + " · CPU " + std::to_string(cpu);
+        // the hud names the rung the NEW score stands on — a point
+        // that lands this tick moves the rung with it. (The probe
+        // caught the first speech mixing the pre-score rung with
+        // post-score numbers; honesty means one score, one truth.)
+        lvl = std::clamp(3 + you - cpu, 1, 5);
+        hud->text = "YOU " + std::to_string(you) + " · CPU " +
+                    std::to_string(cpu) + " · first to 5 · CPU L" +
+                    std::to_string(lvl);
         g.var("score", you);
     };
 

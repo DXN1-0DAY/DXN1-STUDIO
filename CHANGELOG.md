@@ -1,3 +1,27 @@
+## v3.1.45 — the ladder
+
+- **Pong's CPU climbs a difficulty ladder now** — and the rung is
+  the SCORE's rubber band: an even set stands at L3 (the classic
+  190 px/s cap, so an even game plays exactly as it always did);
+  when YOU lead, the CPU digs in, up to L5 (285); when the CPU
+  leads, it eases off, down to L1 (120). A set that stays dramatic
+  on purpose. The hud always names the rung it stands on
+  ("YOU 0 · CPU 0 · first to 5 · CPU L3") — and "first to 5"
+  finally survives past the first tick.
+- **BUG the probe caught before shipping:** the first speech mixed
+  the PRE-score rung with POST-score numbers on the tick a point
+  landed — "YOU 0 · CPU 1 · CPU L3" where the law says L2. The
+  rung is now recomputed after the scoring, one score one truth.
+- Probe `pong_ladder_probe.py`: 5 pins green — hud law on every
+  tick (idle + steered rally), 3+ rungs observed in one idle set,
+  and the movement law measured across 478 ticks: the AI's move is
+  EXACTLY min(step, |gap|) toward want, no overshoot, whatever the
+  rung. Probe lessons: the engine's order is physics FIRST, then
+  onTick (the AI tracks the POST-physics ball — the probe's model
+  must too); the standalone C++ SDK detects NO overlaps (hits are
+  the host's gift — inject them, and a no-hit tick clears the pair
+  memory, so periodic injections re-fire for real).
+
 ## v3.1.44 — the census
 
 - **:stats speaks the file's weather now.** The document row gains
