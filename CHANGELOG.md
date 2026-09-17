@@ -1,3 +1,24 @@
+## v3.1.2 — :git log (the repo's memory, spoken)
+
+- **The branch manager's seed grows a root system.** `:git log [n]`
+  — the repo's memory, walked: a bare verb speaks the last three
+  commits, a number (1 to 8) speaks that many, each as `hash
+  subject`, joined into ONE receipt with a middot between them
+  (the ledger's window is two rows — a line per commit would
+  scroll itself into silence). Each subject is capped at 38
+  columns, the whole receipt at 96, honesty kept with an
+  ellipsis. Still read-only, still refused honestly without git.
+- **The grammar has edges and they bite.** `:git log banana` is
+  refused with usage; `:git log 9` is refused (the cap is eight);
+  `:git push` is refused — the verb asks, never writes. The
+  refusal's law in the smoke: a refused verb never dispatches,
+  so the stage stays in play and the usage paints over the
+  resting bar for 3.5 seconds — the drive asserts there, on its
+  own studio, and lets the elder's flow keep its stage.
+- Selftest group 29 pins five new laws (879 -> 884). Smoke 13w
+  grew three drives (213 -> 216): the walk, the honored count,
+  the honest refusal. Gates ALL GREEN.
+
 ## v3.1.1 — the drift that breathes
 
 - **The amber is no longer a photograph — it is a pulse.** On a

@@ -2273,7 +2273,42 @@ int main(int argc, char** argv) {
           };
           const std::string branch =
               readCmd("git rev-parse --abbrev-ref HEAD 2>/dev/null");
-          if (branch.empty()) {
+          if (cmd.arg.rfind("log", 0) == 0) {
+            // the repo's memory, spoken: the last N commits (a bare
+            // :git log walks three, the cap is eight), joined into
+            // ONE receipt — the ledger's window is two rows, so a
+            // line-per-commit would scroll itself into silence. Each
+            // subject is capped at 30 columns, the whole receipt at
+            // 96, honesty kept with an ellipsis. Still read-only.
+            const int want = cmd.num > 0 ? static_cast<int>(cmd.num) : 3;
+            const std::string out =
+                readCmd("git log -" + std::to_string(want) +
+                        " --format=\"%h %s\" 2>/dev/null");
+            if (out.empty()) {
+              ide.console.push_back(
+                  "engine: git is not speaking here — no commits, or "
+                  "no git on the machine");
+            } else {
+              std::string joined;
+              int spoke = 0;
+              for (size_t i = 0; i < out.size();) {
+                size_t e = out.find('\n', i);
+                if (e == std::string::npos) e = out.size();
+                std::string ln = out.substr(i, e - i);
+                i = e + 1;
+                if (!ln.empty() && ln.back() == '\r') ln.pop_back();
+                if (ln.empty()) continue;
+                if (ln.size() > 38) ln = ln.substr(0, 38) + "…";
+                joined += (spoke == 0 ? "" : " · ") + ln;
+                ++spoke;
+              }
+              if (joined.size() > 96)
+                joined = joined.substr(0, 96) + "…";
+              ide.console.push_back(
+                  "engine: the last " + std::to_string(spoke) + " — " +
+                  joined);
+            }
+          } else if (branch.empty()) {
             ide.console.push_back(
                 "engine: git is not speaking here — no repository, or "
                 "no git on the machine");

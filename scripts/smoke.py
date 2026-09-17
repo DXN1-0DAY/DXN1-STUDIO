@@ -1586,6 +1586,19 @@ def main():
               "clean" in scr2.text(ROWS - 2) and
               "uncommitted" not in scr2.text(ROWS - 2),
               repr(scr2.text(ROWS - 2)[:80]))
+        # the repo's memory, spoken: two commits were seeded above
+        scr2, _ = s2.run_verb("git log", "ide")
+        check(":git log walks the memory in one receipt",
+              "the last 2" in scr2.text(ROWS - 2) and
+              "seed v3.1.0" in scr2.text(ROWS - 2) and
+              "second breath" in scr2.text(ROWS - 2),
+              repr(scr2.text(ROWS - 2)[:90]))
+        scr2, _ = s2.run_verb("git log 1", "ide")
+        check(":git log 1 honors the count",
+              "the last 1" in scr2.text(ROWS - 2) and
+              "second breath" in scr2.text(ROWS - 2) and
+              "seed v3.1.0" not in scr2.text(ROWS - 2),
+              repr(scr2.text(ROWS - 2)[:90]))
 
         # ── 13x. the drift that breathes ─────────────────────────────
         print("── 13x. the drift breathes — a silent beat, a spoken count")
@@ -1629,6 +1642,13 @@ def main():
         check("the save swept the amber (the beat agrees, clear)",
               "no drift known" in scr3.text(ROWS - 2) or
               "no drift known" in scr3.text(ROWS - 1),
+              repr(scr3.text(ROWS - 1)[:80]))
+        # the grammar's edge, on s3's own stage: a junk count is refused
+        # with usage — and the refusal stays in play, never guessed
+        scr3, _ = s3.run_verb("git log banana", "ide")
+        scr3 = s3.settle(0.3)              # the usage paints for 3.5s
+        check(":git log with junk is refused with usage",
+              "usage" in scr3.text(ROWS - 1),
               repr(scr3.text(ROWS - 1)[:80]))
         s3.close()
 

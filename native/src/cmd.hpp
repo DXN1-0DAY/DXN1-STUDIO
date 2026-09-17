@@ -186,7 +186,31 @@ inline Cmd parseCommand(std::string_view line) {
              "usage: :crew [n] — a bare :crew bows the hands out; a number "
              "plants that many hands below");
   } else if (c.verb == "git") {
-    // a bare :git speaks the repo's truth — read-only, one receipt
+    // a bare :git speaks the repo's truth — read-only, one receipt;
+    // :git log [n] walks the last n commits (1..8), still read-only
+    if (!c.arg.empty()) {
+      if (c.arg.rfind("log", 0) != 0) {
+        c.error = "usage: :git [log [n]] — a bare :git speaks the repo's "
+                  "truth; :git log [n] walks the last n commits (1 to 8)";
+      } else {
+        const size_t b = c.arg.find_first_not_of(" \t", 3);
+        const std::string tail = b == std::string::npos
+                                     ? ""
+                                     : c.arg.substr(b);
+        if (tail.empty()) {
+          c.num = 3.f;               // a bare :git log walks three
+        } else {
+          const bool digits = std::all_of(tail.begin(), tail.end(),
+              [](unsigned char ch) { return std::isdigit(ch) != 0; });
+          if (!digits || tail.size() != 1 || tail[0] < '1' ||
+              tail[0] > '8')
+            c.error = "usage: :git log [n] — the count is a number, "
+                      "1 to 8";
+          else
+            c.num = static_cast<float>(tail[0] - '0');
+        }
+      }
+    }
   } else if (c.verb == "drift") {
     // a bare :drift lists the amber census; a number leaps to the Nth
     if (!c.arg.empty())
@@ -394,8 +418,9 @@ inline std::string usageHintFor(std::string_view typed) {
     return " :drift [n] — the amber census: a bare verb lists the lines "
            "that disagree with the disk, a number leaps to the Nth";
   if (verb == "git")
-    return " :git — the repo's truth in one breath: branch, "
-           "uncommitted, the last commit's name (read-only)";
+    return " :git [log [n]] — the repo's truth in one breath: branch, "
+           "uncommitted, the last commit's name; :git log [n] walks "
+           "the memory (read-only)";
   if (verb == "w")
     return " :w [file] — save the session's work; a .bak is kept";
   if (verb == "wq") return " :wq — save and quit";

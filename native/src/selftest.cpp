@@ -199,7 +199,7 @@ int main() {
   }
 
   // 9. the version quad rides in the binary too
-  ok(std::string(dxn3::DXN3_VERSION) == "3.1.1",
+  ok(std::string(dxn3::DXN3_VERSION) == "3.1.2",
      "native version constant matches the release");
 
   // 10. png writer: checksum vectors, real structure, byte determinism
@@ -1132,6 +1132,18 @@ int main() {
        ":ruler with an argument is refused");
     ok(dxn3::parseCommand(":stats").ok(), ":stats is well-formed");
     ok(dxn3::parseCommand(":git").ok(), ":git is well-formed bare");
+    ok(dxn3::parseCommand(":git log").ok() &&
+           dxn3::parseCommand(":git log").num == 3.f,
+       ":git log walks three by default");
+    ok(dxn3::parseCommand(":git log 5").ok() &&
+           dxn3::parseCommand(":git log 5").num == 5.f,
+       ":git log 5 walks five");
+    ok(!dxn3::parseCommand(":git log banana").ok(),
+       ":git log with junk is refused");
+    ok(!dxn3::parseCommand(":git log 9").ok(),
+       ":git log 9 is refused — the cap is eight");
+    ok(!dxn3::parseCommand(":git push").ok(),
+       ":git refuses to write — the verb is read-only");
     ok(dxn3::usageHintFor(":git").find("branch") != std::string::npos,
        "the git whisper names what it speaks");
     ok(dxn3::usageHintFor(":snip").find("fn tick") != std::string::npos,
