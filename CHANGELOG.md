@@ -1,3 +1,17 @@
+## v3.1.30 — the fog
+
+- **level-10 — the fog, the ELEVENTH scene, and the first built
+  from the alpha law.** Four platforms are made of mist
+  (`"alpha": 0.35`–`0.5`): see-through, and they hold you anyway.
+  The gate sign tells the only truth about the place — what you can
+  see through is still real. Between the mist: two saws (280/320°/s),
+  a leaning fang, one ferry. Four of seven gems float over the mist,
+  each glowing — the light marks what matters when the ground won't.
+  Chain: level-9.next → level-10 → playground (gate 3b walked, 26
+  entities).
+- Gallery row, eleven-scene counts (README ×2, CAMPAIGN), the fog's
+  own field-guide section, screenshot rendered with the real blend.
+
 ## v3.1.29 — the gradient wears the air too
 
 - **QA fix the alpha release needed:** gradient fills parsed

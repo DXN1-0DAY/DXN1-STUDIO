@@ -1,8 +1,8 @@
 # The Campaign — a field guide
 
-Ten scenes, one loop: **playground → the gap → the movers → the climb →
+Eleven scenes, one loop: **playground → the gap → the movers → the climb →
 the gauntlet → the vault → the ascent → the descent → the beacon →
-the crossing → back home.** Every scene is a plain
+the crossing → the fog → back home.** Every scene is a plain
 `.dxn1.json` file; the
 goal door carries you to the next, and the last door brings you home. The
 HUD counts `COINS x/y · SCORE · TIME` the whole way — completionists grab
@@ -116,6 +116,20 @@ nothing leans. Two saws keep the decks (300°/s and 340°/s), the last
 pull is a vertical ferry to a summit that pays two gems for the climb,
 and the door home waits at the top of the far shore. Seven gems —
 four of them lit — one timetable, no shortcuts.
+
+## level-10 — the fog
+
+The crossing taught you to trust the ferries; the fog asks you to
+trust the AIR. Four platforms in this scene are made of mist
+(`"alpha": 0.35`–`0.5` — v3.1.28's law, used as terrain): you can
+SEE THROUGH them, and they hold you anyway. The sign at the gate
+says the only true thing about this place — what you can see through
+is still real. Between the mist sits honest ground with teeth: two
+saws (280°/s, 320°/s), a fang leaning against the grain, and a ferry
+across the one gap the fog refuses to bridge. Four of the seven gems
+float over mist — every one of them glowing, so the light marks what
+matters even when the ground won't. One lift, one lit door, one ride
+home through the fog you came from.
 
 ## Design notes (for scene authors)
 

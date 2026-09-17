@@ -1,0 +1,49 @@
+{
+  "name": "the fog (level-10)",
+  "bg": "#0a0c12",
+  "gravity": 1500,
+  "magnet": 150,
+  "next": "scenes/playground.dxn1.json",
+  "camera": { "x": 100, "y": 300, "zoom": 0.8 },
+  "entities": [
+    { "name": "hero", "tag": "player", "x": 60, "y": 360, "w": 34, "h": 44, "color": "#8b5cf6" },
+
+    { "name": "start-ledge", "x": -200, "y": 400, "w": 560, "h": 90, "color": "#1f2937" },
+    { "name": "readme", "tag": "sign", "x": 170, "y": 326, "w": 30, "h": 34, "color": "#94a3b8", "text": "THE FOG \u2014 what you can see through is still real" },
+
+    { "name": "deck-1", "x": 400, "y": 340, "w": 150, "h": 26, "color": "#1f2937" },
+    { "name": "fog-1", "x": 620, "y": 320, "w": 110, "h": 18, "color": "#8b5cf6", "alpha": 0.4 },
+    { "name": "gem-1", "tag": "coin", "x": 655, "y": 270, "w": 22, "h": 22, "shape": "circle", "color": "#facc15", "glow": 4 },
+
+    { "name": "deck-2", "x": 820, "y": 300, "w": 140, "h": 26, "color": "#1f2937" },
+    { "name": "saw-1", "tag": "hazard", "x": 880, "y": 238, "w": 38, "h": 38, "color": "#fb7185", "rot": 0, "spin": 280 },
+    { "name": "fog-2", "x": 1050, "y": 260, "w": 100, "h": 18, "color": "#8b5cf6", "alpha": 0.35 },
+    { "name": "gem-2", "tag": "coin", "x": 1080, "y": 210, "w": 22, "h": 22, "shape": "circle", "color": "#facc15", "glow": 4 },
+
+    { "name": "mid", "x": 1240, "y": 300, "w": 180, "h": 26, "color": "#1f2937" },
+    { "name": "fang-1", "tag": "spike", "x": 1360, "y": 272, "w": 34, "h": 28, "shape": "triangle", "color": "#ef4444", "rot": 20 },
+    { "name": "gem-3", "tag": "coin", "x": 1290, "y": 250, "w": 22, "h": 22, "shape": "circle", "color": "#facc15" },
+
+    { "name": "fog-3", "x": 1500, "y": 340, "w": 120, "h": 18, "color": "#8b5cf6", "alpha": 0.5 },
+    { "name": "gem-4", "tag": "coin", "x": 1540, "y": 290, "w": 22, "h": 22, "shape": "circle", "color": "#facc15", "glow": 4 },
+
+    { "name": "ferry-1", "tag": "mover", "x": 1700, "y": 360, "w": 110, "h": 20, "color": "#38bdf8",
+      "path": [ { "x": 1700, "y": 360 }, { "x": 1950, "y": 360 } ], "pspeed": 80 },
+
+    { "name": "deck-3", "x": 2040, "y": 340, "w": 160, "h": 26, "color": "#1f2937" },
+    { "name": "saw-2", "tag": "hazard", "x": 2100, "y": 278, "w": 38, "h": 38, "color": "#fb7185", "rot": 0, "spin": 320 },
+    { "name": "fang-2", "tag": "spike", "x": 2170, "y": 312, "w": 34, "h": 28, "shape": "triangle", "color": "#ef4444", "rot": -25 },
+
+    { "name": "fog-4", "x": 2280, "y": 280, "w": 100, "h": 18, "color": "#8b5cf6", "alpha": 0.45 },
+    { "name": "gem-5", "tag": "coin", "x": 2310, "y": 230, "w": 22, "h": 22, "shape": "circle", "color": "#facc15", "glow": 4 },
+
+    { "name": "summit", "x": 2470, "y": 240, "w": 180, "h": 26, "color": "#1f2937" },
+    { "name": "gem-6", "tag": "coin", "x": 2520, "y": 190, "w": 22, "h": 22, "shape": "circle", "color": "#facc15" },
+    { "name": "gem-7", "tag": "coin", "x": 2600, "y": 190, "w": 22, "h": 22, "shape": "circle", "color": "#facc15" },
+
+    { "name": "lift-1", "tag": "mover", "x": 2720, "y": 260, "w": 110, "h": 20, "color": "#38bdf8",
+      "path": [ { "x": 2720, "y": 260 }, { "x": 2720, "y": 160 } ], "pspeed": 85 },
+
+    { "name": "out", "tag": "goal", "x": 2880, "y": 96, "w": 30, "h": 64, "color": "#34d399" }
+  ]
+}
