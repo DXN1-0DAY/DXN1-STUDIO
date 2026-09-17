@@ -2,7 +2,7 @@
 
 ![DXN1 STUDIO 3](assets/banner.png)
 
-![version](https://img.shields.io/badge/version-3.1.31-8b5cf6?style=flat-square)
+![version](https://img.shields.io/badge/version-3.1.32-8b5cf6?style=flat-square)
 ![gates](https://github.com/DXN1-termux/DXN1-STUDIO/actions/workflows/ci.yml/badge.svg)
 ![native](https://img.shields.io/badge/native-C%2B%2023-f97316?style=flat-square)
 ![face](https://img.shields.io/badge/face-terminal_truecolor-22d3ee?style=flat-square)
@@ -99,7 +99,9 @@ viewport refreshes — *code a background, and boom, a background.*
   forever — with a night that falls at 200 m), `tetris.js` (the
   falling order: a 7-bag seeded like the stars, locked cells as
   their own entities, line clears that are ten honest destroys,
-  wall-kicked turns), `lightbot.js` (the night shift: a diamond of
+  wall-kicked turns, and a GHOST that wears alpha 0.32 where the
+  order will land — the alpha law as honest wayfinding; s sinks
+  the piece, the wire's held keys never carried "down"), `lightbot.js` (the night shift: a diamond of
   twelve unlit lamps — walk the grid, SPACE lights the lamp under
   you and every flame wears the engine's glow, the wayfinding is
   literally made of light — steps counted, wins graded, r re-runs

@@ -1,3 +1,19 @@
+## v3.1.32 — the ghost
+
+- **tetris.js grows a GHOST piece — the alpha law becomes gameplay.**
+  Four ghost seats wear `"alpha": 0.32` in the piece's own color at
+  the exact landing spot, tracking slides and turns, hiding the
+  moment the order rests (gy == py). The engine's newest field, put
+  to work as honest wayfinding.
+- **BUG the ghost probe exposed:** soft-drop (`k === "down"`) was
+  UNREACHABLE over the wire — the protocol's held keys are
+  left/right/jump/space and no host ever sent "down". Soft-drop now
+  rides the letter `s` (probe-driven fix, verified end to end:
+  ghost hides exactly on landing, stays hidden at rest). Gate 6:
+  tetris entities 8 → 12.
+- Probe: scripts/tetris_ghost_probe.py (my-project side) — 6 pin
+  groups, all green. README tetris blurb updated.
+
 ## v3.1.31 — the return
 
 - **level-11 — the return, the TWELFTH scene and the campaign's

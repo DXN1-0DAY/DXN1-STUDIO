@@ -1,16 +1,20 @@
 // TETRIS in the DXN1 STUDIO — the falling order, on the engine's wire.
 // run:  dxn3 sdk/examples/tetris.js
-// left/right move · up (or jump) rotates · down soft-drops · space
-// slams · the locked cells LIVE as entities (one rect per seat, named
-// by its place) and a cleared line is ten honest destroys · the bag
-// is SEEDED: the same run, the same falls, forever.
+// left/right move · up (or jump) rotates · s soft-drops · space
+// slams · the GHOST wears alpha 0.32 where the order will land (the
+// engine's alpha law as honest wayfinding) · the locked cells LIVE
+// as entities (one rect per seat, named by its place) and a cleared
+// line is ten honest destroys · the bag is SEEDED: the same run, the
+// same falls, forever.  (soft-drop rides the LETTER s: the wire's
+// held keys are left/right/jump/space — "down" never rides it; the
+// ghost probe exposed that latent bug.)
 const dxn3 = require("dxn3");
 const { rect, label, destroy, find, background, say, win, on, run } = dxn3;
 const W = dxn3.W, H = dxn3.H;
 
 background("#0a0c16");
 
-const hud = label("hud", 2, 1, "TETRIS  ·  arrows move · up turns · space slams · 0");
+const hud = label("hud", 2, 1, "TETRIS  ·  arrows move · up turns · s sinks · space slams · ghost marks home · 0");
 
 const COLS = 10, ROWS = 16, CELL = 2;    // the well: 10 wide, 16 deep
 const BX = 2, BY = 2;                    // the well's top-left corner
@@ -44,6 +48,7 @@ const next = () => {
 
 const well = new Map();                  // "row_col" -> entity name
 const piece = [];                        // the four falling seats
+const ghost = [];                        // the four ghost seats (alpha 0.32)
 let cur = "T", rotN = 0, px = 4, py = -1, cells = [];
 let bag = [], dropT = 0, drop = 0.5, total = 0, level = 1, over = false, seq = 0;
 
@@ -73,12 +78,27 @@ function fitsAt(dr, dc) {                // the order's seats, probed at an offs
   return cells.every(([r, c]) => free(py + dr + r, px + dc + c));
 }
 
+function ghostDrop() {                   // how far the order can still fall
+  let gy = 0;
+  while (fitsAt(gy + 1, 0)) gy += 1;
+  return gy;
+}
+
 function paint() {                       // the falling order wears its seats
   piece.forEach((e, i) => {
     const [r, c] = cells[i];
     e.x = BX + (px + c) * CELL;
     e.y = BY + (py + r) * CELL;
     e.visible = py + r >= 0 ? 1 : 0;
+  });
+  const gy = py + ghostDrop();           // the ghost marks the landing
+  ghost.forEach((e, i) => {
+    const [r, c] = cells[i];
+    e.x = BX + (px + c) * CELL;
+    e.y = BY + (gy + r) * CELL;
+    e.visible = gy + r >= 0 && gy !== py ? 1 : 0;
+    e.color = SHAPES[cur].color;
+    e.alpha = 0.32;
   });
 }
 
@@ -92,6 +112,7 @@ function spawn() {
   if (!fits(cells)) {
     over = true;
     piece.forEach((e) => { e.visible = 0; });
+    ghost.forEach((e) => { e.visible = 0; });
     win(`TOPPED OUT at ${total} — r falls again`);
     return;
   }
@@ -193,9 +214,11 @@ on.key((k) => {
   if (k === "left") slide(-1);
   else if (k === "right") slide(1);
   else if (k === "up" || k === "jump") turn();
-  else if (k === "down") {
-    if (fitsAt(1, 0)) { py += 1; paint(); }
-  } else if (k === "space") slam();
+  else if (k === "down" || k === "s") {
+    if (fitsAt(1, 0)) py += 1;
+    paint();                             // always repaint: the ghost must
+  }                                      // hide the moment the order lands
+  else if (k === "space") slam();
 });
 
 on.tick((d) => {
@@ -211,10 +234,11 @@ on.tick((d) => {
       sweep();
     }
   }
-  hud.text = `TETRIS  ·  arrows move · up turns · space slams · ${total} · lv ${level}`;
+  hud.text = `TETRIS  ·  arrows move · up turns · s sinks · space slams · ghost marks home · ${total} · lv ${level}`;
 });
 
 for (let i = 0; i < 4; ++i) piece.push(rect(`fall${i}`, -999, -999, CELL, CELL, "#8b5cf6"));
+for (let i = 0; i < 4; ++i) ghost.push(rect(`ghost${i}`, -999, -999, CELL, CELL, "#8b5cf6"));
 spawn();
 
 run();
