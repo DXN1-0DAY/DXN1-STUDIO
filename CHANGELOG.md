@@ -1,3 +1,25 @@
+## v3.1.63 — the bolts come home
+
+- **A REAL LEAK, found by the light audit: shooter.py's bolts never
+  died.** Every shot rose forever (s.vy = -2.5, the engine moves
+  them) and nothing ever destroyed it — shoot fifty times and fifty
+  ghost entities ride the scene forever, and the studio's hit-pair
+  scan (O(n^2) over the scene, main.cpp) pays for every one of them
+  on every later frame. The flash-class audit came for the light
+  and stayed for the leak: the muzzle's glow decays honestly
+  (12/s) and the enemy re-drifts clean — the LIGHT was innocent,
+  the LIFETIME was the bug. Fixed: the game keeps a ledger of its
+  live bolts and destroys each one when it leaves the sky — what
+  leaves the stage takes its light with it. The hit path forgets
+  the spent bolt too.
+- shooter_bolt_probe (12 pins, green): one tap = one bolt carrying
+  glow 2; the muzzle speaks 5 and fades 2.6/0.2 at 12/s; the bolt
+  is destroyed off the top and the count returns to 3; three bolts
+  fired, all come home, the count honest; an injected hit still
+  pays (the hud lags one frame — tick runs before hits, the R23
+  law) and the ledger forgets the spent bolt. Entity count
+  unchanged; gates 7 green.
+
 ## v3.1.62 — the noon dragonfly
 
 - **"The owl owns the night — what owns noon?" is answered: the

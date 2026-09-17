@@ -15,6 +15,7 @@ enemy = circle("enemy", W // 3, 6, 10, 10, "#fb7185"); enemy.tag = "enemy"
 enemy.alpha = 0.15                       # the first threat drifts in too
 hud   = label("hud", 2, 2, "SCORE 0")
 score, shots = 0, 0
+live = []                                # the bolts still in the sky
 DRIFT = 0.9                              # seconds from ghost to full
 
 def on_key(k):
@@ -28,19 +29,32 @@ def on_key(k):
         s.tag = "shot"
         s.glow = 2                       # the bolt carries its own light
         ship.glow = 5                    # the muzzle speaks — tick fades it
+        live.append(s)                   # the ledger remembers its own
 
 def on_tick(dt2):
     enemy.x = enemy.x + 0.3
     if enemy.x > W - 12: enemy.x = 2
     if enemy.alpha < 1: enemy.alpha = min(1, enemy.alpha + dt2 / DRIFT)
     if ship.glow > 0: ship.glow = max(0, ship.glow - 12 * dt2)
+    # the bolts come home: what leaves the sky takes its light with it.
+    # a shot that never dies is an entity the studio scans forever —
+    # the hit-pair scan is O(n^2) over the scene, so a leak here is a
+    # slow-down paid on every later frame.
+    for s in live[:]:
+        if s.y < -4:
+            destroy(s.name)
+            live.remove(s)
     hud.text = "SCORE " + str(score)
 
 def on_hit(a, b):
     global score
     if "shot" in (a.tag, b.tag) and "enemy" in (a.tag, b.tag):
+        shot = a if a.tag == "shot" else b
         score += 10
-        destroy((a if a.tag == "shot" else b).name)
+        destroy(shot.name)
+        for s in live[:]:
+            if s.name == shot.name:
+                live.remove(s)           # the ledger forgets the spent bolt
         enemy.x = random.randint(2, W - 14)
         enemy.y = random.randint(2, H // 2)
         enemy.alpha = 0.15               # the next threat fades in from the void
