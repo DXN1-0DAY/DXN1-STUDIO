@@ -1,3 +1,32 @@
+## v3.1.5 — the gallery grows a snake and a starfield
+
+- **`sdk/examples/snake.py` — the classic, on the wire.** A grid
+  snake whose turn queue plays fair: a HELD key fires every frame,
+  so the queue dedupes its tail and stays three turns deep — the
+  snake steers where you LOOK, not where your keyboard drifted
+  (the bug the chase probe caught: a drowned queue kept steering
+  long after the player changed their mind). Meals grow the tail
+  and sharpen the step (0.14s down to 0.06s), the score mirrors to
+  the HUD through `vars`, the wall and your own tail bite honestly,
+  and `space` rebirths a fresh snake — each life names its segments
+  anew, because a name re-spawned AND retired in one frame dies
+  twice: the engine applies `set` before `del`, and this game is
+  built on that law instead of tripping over it.
+- **`sdk/examples/asteroids.js` — the discs drift.** A ship whose
+  facing is honest GEOMETRY — a nose dot orbits the core, because
+  the raster tells no rotational lies — with thrust, drift and
+  friction, eight bullets deep, rocks that split 13 → 8 → 5 and fly
+  faster as they shrink, a 2.2-second grace blink after a hull hit,
+  three lives, and a game over that rebuilds the whole ring under
+  fresh names. The wrap-around is the game's own math, every edge,
+  every frame. Bullets inherit half your drift; the field, once
+  cleared, deals a new ring and says so.
+- **Gate 6 grew two rows** — both games probed on the wire for real
+  (5 and 7 scene entities, counted exactly), and the full gauntlet
+  stays green: build, selftest (888), every scene renders a frame,
+  the campaign chain resolves, VERSION ↔ CHANGELOG agrees, and all
+  EIGHT examples now speak the protocol.
+
 ## v3.1.4 — :git tag (the milestones, counted) and the help that keeps up
 
 - **`:git tag` — the milestones, spoken.** One receipt, the cap is

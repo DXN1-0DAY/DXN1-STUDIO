@@ -86,7 +86,8 @@ def main():
     py_games = [("background.py", ["python3", f"{EX}/background.py"], 3),
                 ("shooter.py", ["python3", f"{EX}/shooter.py"], 3),
                 ("flappy.py", ["python3", f"{EX}/flappy.py"], 9),
-                ("cards.py", ["python3", f"{EX}/cards.py"], 12)]
+                ("cards.py", ["python3", f"{EX}/cards.py"], 12),
+                ("snake.py", ["python3", f"{EX}/snake.py"], 5)]
     if have("python3"):
         for name, cmd, ents in py_games:
             scene, frames, console = probe(cmd)
@@ -101,6 +102,11 @@ def main():
         scene, frames, console = probe(["node", f"{EX}/bounce.js"])
         got = len(scene.get("entities", [])) if scene else 0
         check("bounce.js", scene is not None and frames >= 3 and got == 21,
+              f"scene={'yes' if scene else 'NO'} frames={frames} "
+              f"entities={got}")
+        scene, frames, console = probe(["node", f"{EX}/asteroids.js"])
+        got = len(scene.get("entities", [])) if scene else 0
+        check("asteroids.js", scene is not None and frames >= 3 and got == 7,
               f"scene={'yes' if scene else 'NO'} frames={frames} "
               f"entities={got}")
     else:
