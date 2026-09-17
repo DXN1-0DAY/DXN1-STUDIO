@@ -2,7 +2,7 @@
 
 ![DXN1 STUDIO 3](assets/banner.png)
 
-![version](https://img.shields.io/badge/version-3.1.35-8b5cf6?style=flat-square)
+![version](https://img.shields.io/badge/version-3.1.36-8b5cf6?style=flat-square)
 ![gates](https://github.com/DXN1-termux/DXN1-STUDIO/actions/workflows/ci.yml/badge.svg)
 ![native](https://img.shields.io/badge/native-C%2B%2023-f97316?style=flat-square)
 ![face](https://img.shields.io/badge/face-terminal_truecolor-22d3ee?style=flat-square)
@@ -81,7 +81,9 @@ viewport refreshes — *code a background, and boom, a background.*
   hands vs the blind), `snake.py` (the classic — a turn queue that
   plays fair under held keys, meals that sharpen the step, a tail
   that grows, the meal SPEAKS on the HUD and wears the engine's
-  glow, milestones name you — the garden snake, the hunter, the
+  glow, every meal BLEACHES the head white (the flash field —
+  milestones flash the new tail too), milestones name you — the
+  garden snake, the hunter, the
   anaconda, the world eater — and every death arrives as a banner), `asteroids.js` (a hull that REALLY turns — a rotated tri,
   its thrust flame speaking only while you burn — splitting
   rocks that fly faster as they shrink, a hull hit that BLEACHES

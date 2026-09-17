@@ -1,3 +1,14 @@
+## v3.1.36 — the meal bleaches
+
+- **snake.py adopts the flash field — every meal bleaches the head
+  white** (`body[0].flash = 1.0`, the engine decays it at 4/s), and
+  every fifth meal — a rank-up — flashes the freshly grown tail
+  segment too. The last of the three engine light fields now works
+  in the gallery: glow (the food), flash (the meal), alpha (tetris
+  ghost, dino sky). Probe: the greedy driver gained a same-row-
+  behind detour, and the meal pin asserts head flash == 1.0 on the
+  eat frame.
+
 ## v3.1.35 — the night gets a sky
 
 - **dino.js: the 200 m night now arrives with seven stars and a

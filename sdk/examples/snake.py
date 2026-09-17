@@ -115,6 +115,9 @@ def on_tick(dt2):
                    "#a78bfa")
         seg.tag = "body"
         body.append(seg)                      # the meal rides the tail
+        body[0].flash = 1.0                   # the head bleaches white —
+        if score % 5 == 0:                    #   milestones flash the tail too
+            seg.flash = 0.8
         cell = free_cell()
         if cell:
             food.x, food.y = cell
