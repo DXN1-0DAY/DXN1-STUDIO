@@ -1,3 +1,19 @@
+## v3.1.28 — a body made of air
+
+- **`alpha` — a general entity field.** Any entity may carry
+  `"alpha": <0..1>` (default 1): the body blends toward the scene bg
+  in BOTH rasters — ghosts, fog banks and glass are now data, not
+  tricks. `alpha: 0` is the air itself. A wire `set` thins or
+  thickens it live (a vanishing act is a patch), `toJson` round-trips
+  it, and PROTOCOL.md + README document the law.
+- The playground ships the first ghost: `ghost-ledge` (alpha 0.45)
+  floats between ledge-a and ledge-b with a coin for anyone who
+  trusts the fog — a tutorial for the eyes, painted the same way
+  your terminal paints it. Gallery screenshot re-rendered with the
+  real blend.
+- Selftest group 101 pins: parse, the solid default, toJson, the
+  wire patch, and a PNG render. Selftest 926 → 931 assertion groups.
+
 ## v3.1.27 — every death speaks
 
 - **flappy and lunar join the banner law.** The examples were a

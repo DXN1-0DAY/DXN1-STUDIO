@@ -512,6 +512,8 @@ void drawWorld(dxn3::Screen& scr, const dxn3::Game& g) {
     const float x0 = sx(e.x), y0 = sy(e.y);
     const float x1 = x0 + e.w * z - 1, y1 = y0 + e.h * z - 1;
     RGB c1 = dxn3::parseHex(e.color, dxn3::rgb(139, 92, 246));
+    if (e.alpha < 1.f)                   // ghosts wear the scene's own air
+      c1 = dxn3::lerpColor(bg, c1, std::clamp(e.alpha, 0.f, 1.f));
     if (e.flash > 0)                     // the hit-flash bleaches the body
       c1 = dxn3::lerpColor(c1, 0xFFFFFF, std::min(1.f, e.flash));
     const bool off = x1 < 0 || x0 > cols || y1 < 0 || y0 > hr;

@@ -4808,6 +4808,29 @@ int main() {
        "a flashed scene renders in the PNG raster");
   }
 
+  // 101. the alpha: a body made of air — parsed, patched, rendered
+  {
+    Scene s = dxn3::Game::fromJson(
+        R"({"name":"ghosts","bg":"#0b0e1a","entities":[{"name":"mist","x":0,"y":0,"color":"#8b5cf6","alpha":0.4}]})");
+    ok(!s.entities.empty() && s.entities[0].alpha == 0.4f,
+       "fromJson reads an alpha");
+    Scene s1 = dxn3::Game::fromJson(
+        R"({"name":"solid","entities":[{"name":"p","x":0,"y":0}]})");
+    ok(s1.entities.empty() || s1.entities[0].alpha == 1.f,
+       "no alpha field means fully solid");
+    ok(dxn3::Game::toJson(s).find("\"alpha\": 0.4") != std::string::npos,
+       "toJson writes the alpha back");
+    Game g(s);
+    HostFrame f;
+    f.frame = true;
+    f.set = dxn3::json::parse(R"([{"name":"mist","alpha":0.9}])").value();
+    dxn3::applyFrame(g, f);
+    ok(g.scene.entities[0].alpha == 0.9f,
+       "a wire patch thins the ghost (fog is a patch)");
+    ok(dxn3::shootPNG("/tmp/dxn3_alpha.png", g).empty(),
+       "an alpha scene renders in the PNG raster");
+  }
+
   if (fails == 0) {
     std::println("native selftest: all green ({} assertion groups)", n);
     return 0;

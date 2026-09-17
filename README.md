@@ -2,7 +2,7 @@
 
 ![DXN1 STUDIO 3](assets/banner.png)
 
-![version](https://img.shields.io/badge/version-3.1.27-8b5cf6?style=flat-square)
+![version](https://img.shields.io/badge/version-3.1.28-8b5cf6?style=flat-square)
 ![gates](https://github.com/DXN1-termux/DXN1-STUDIO/actions/workflows/ci.yml/badge.svg)
 ![native](https://img.shields.io/badge/native-C%2B%2023-f97316?style=flat-square)
 ![face](https://img.shields.io/badge/face-terminal_truecolor-22d3ee?style=flat-square)
@@ -490,7 +490,11 @@ ring on circles, the coins' rect aura elsewhere), patchable per frame
 over the wire so a pulse is just a `set`. Any entity may carry
 `"flash": <0..1>` — a hit-flash that bleaches the body toward white and
 decays at 4/s inside `update`: one wire patch marks a hit, the engine
-does the fading, and both rasters agree on the bleach.
+does the fading, and both rasters agree on the bleach. Any entity may
+carry `"alpha": <0..1>` — the body blends toward the scene's own air,
+so a scene can ship ghost ledges, fog banks and glass (the playground
+hides one above its first ledge), and a wire `set` thins or thickens
+it live.
 
 ## Engine selftest + gates
 

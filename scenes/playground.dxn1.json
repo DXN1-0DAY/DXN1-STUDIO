@@ -38,6 +38,25 @@
       "solid": true
     },
     {
+      "name": "ghost-ledge",
+      "x": 430,
+      "y": 290,
+      "w": 90,
+      "h": 18,
+      "color": "#8b5cf6",
+      "alpha": 0.45
+    },
+    {
+      "name": "coin-ghost",
+      "tag": "coin",
+      "x": 460,
+      "y": 240,
+      "w": 22,
+      "h": 22,
+      "shape": "circle",
+      "color": "#facc15"
+    },
+    {
       "name": "ledge-b",
       "x": 560,
       "y": 250,
@@ -144,7 +163,7 @@
       "y": 360,
       "w": 190,
       "h": 30,
-      "text": "\u2192 find the coins",
+      "text": "→ find the coins",
       "tsize": 20,
       "color": "#9aa1b5"
     },
@@ -154,7 +173,7 @@
       "y": 300,
       "w": 150,
       "h": 30,
-      "text": "goal \u2192",
+      "text": "goal →",
       "tsize": 20,
       "color": "#9aa1b5"
     },

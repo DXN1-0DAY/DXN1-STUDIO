@@ -27,6 +27,8 @@ struct Entity {
                                       // circles ring, the rest rect-aura
   float flash = 0;                    // hit-flash: 1 = all white, decays
                                       // 4/s in update; set-patchable
+  float alpha = 1;                    // opacity 0..1: blends the body toward
+                                      // the scene bg (ghosts, fog, glass)
   std::vector<Vec2> path;             // mover waypoints (world px)
   float pathSpeed = 60;
   bool alive = true;

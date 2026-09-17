@@ -47,6 +47,8 @@ pulse is just a patch per frame.
 
 Any entity may carry `"flash": <0..1>` — a hit-flash that bleaches the body toward white and decays at 4/s in `update`; a wire `set` re-lights it, so a game marks a hit with one patch. Both rasters obey.
 
+Any entity may carry `"alpha": <0..1>` (default 1) — the body blends toward the scene bg, so a scene can ship ghosts, fog banks and glass. `alpha: 0` is the bg itself; both rasters blend identically, and a wire `set` can thin or thicken it live (a vanishing act is a patch).
+
 ## the frame packet — every tick, patch the world
 
 `set` patches entities **by name**: known names update in place, unknown
