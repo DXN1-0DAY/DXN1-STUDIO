@@ -2,7 +2,7 @@
 
 ![DXN1 STUDIO 3](assets/banner.png)
 
-![version](https://img.shields.io/badge/version-3.1.70-8b5cf6?style=flat-square)
+![version](https://img.shields.io/badge/version-3.1.71-8b5cf6?style=flat-square)
 ![gates](https://github.com/DXN1-termux/DXN1-STUDIO/actions/workflows/ci.yml/badge.svg)
 ![native](https://img.shields.io/badge/native-C%2B%2023-f97316?style=flat-square)
 ![face](https://img.shields.io/badge/face-terminal_truecolor-22d3ee?style=flat-square)
@@ -98,7 +98,8 @@ viewport refreshes — *code a background, and boom, a background.*
   its thrust flame LIT WHOLE the frame the thrust lands and worn
   down the burn's own staircase to dark — splitting rocks that fly
   faster as they shrink and BLOOM glow 2 as they're born, worn 3/s
-  by the game's own ledger, a hull hit that BLEACHES
+  by the game's own ledger, the SHOT a muzzle flash with a bloom of
+  its own (one ledger for every transient light), a hull hit that BLEACHES
   the ship with the engine's flash and says so on the HUD, a grace
   blink after), `lunar.py` (side-thrusters, one main engine,
   two pads that pay by their risk — the hills are not for landing —

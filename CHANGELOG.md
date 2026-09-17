@@ -1,3 +1,17 @@
+## v3.1.71 — the muzzle flash
+
+- **asteroids.js: every transient light rides ONE ledger.** The shot
+  is born with a bloom of glow 2 (the muzzle flash), worn by the
+  same 3/s staircase as the split blooms and the flame — and
+  forgotten the tick the shot dies or dissolves. The field's
+  vocabulary is now complete: rocks bloom when they break, the
+  flame wears with its burn, the shot flashes as it flies, the
+  hull bleaches when it pays.
+- **Probes: 21 pins green** (ast_split_probe grows the muzzle-flash
+  pins: born whole glow 2, the 1.952 wear step, the ledger
+  forgetting a shot that dies mid-flight); ast_flash_probe still
+  walks green.
+
 ## v3.1.70 — the streak law
 
 - **tetris.js counts consecutive clearing locks.** Every sweep

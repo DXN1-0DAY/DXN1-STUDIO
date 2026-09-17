@@ -20,6 +20,9 @@
 // not enough when the key arrives after the tick), the burn holds
 // it at 4 while it lasts, and release wears it down the burn's own
 // linear staircase to dark.
+// v3.1.71 — every transient light rides ONE ledger: the SHOT too is
+// born with a bloom of glow 2 (the muzzle flash), worn by the same
+// 3/s staircase, forgotten the tick the shot dies or dissolves.
 const dxn3 = require("dxn3");
 const { circle, tri, label, destroy, background, vars, say, win, on, run } = dxn3;
 const W = dxn3.W, H = dxn3.H;
@@ -37,7 +40,7 @@ let rot = 0, vx = 0, vy = 0, nowDt = 0, safe = 0, gunCool = 0, burn = 0;
 let lives = 3, score = 0, gen = 0, uid = 0, ringAge = 9;
 const rocks = new Map();                 // name -> { size }
 const bullets = new Map();               // name -> seconds left to live
-const blooms = new Map();                // name -> split bloom left (glow)
+const blooms = new Map();                // name -> transient bloom left
 const lastX = {}, lastY = {};            // where every rock last stood
 const SPEED = { 13: 20, 8: 55, 5: 90 };  // smaller rocks fly faster
 
@@ -190,7 +193,9 @@ on.key((k) => {
     const b = circle(name, nose.x + 1, nose.y + 1, 3, 3, "#facc15");
     b.vx = Math.sin(rot * Math.PI / 180) * 230 + vx * 0.5;
     b.vy = -Math.cos(rot * Math.PI / 180) * 230 + vy * 0.5;
-    bullets.set(name, 0.9);
+    b.glow = 2;                          // the muzzle flash: BORN WHOLE
+    blooms.set(name, 2);                 // (one ledger for every
+    bullets.set(name, 0.9);              // transient light), worn 3/s
   }
 });
 
