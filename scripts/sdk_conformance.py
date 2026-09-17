@@ -92,7 +92,7 @@ def main():
             fails += 1
 
     py_games = [("background.py", ["python3", f"{EX}/background.py"], 3),
-                ("shooter.py", ["python3", f"{EX}/shooter.py"], 14),
+                ("shooter.py", ["python3", f"{EX}/shooter.py"], 15),
                 ("flappy.py", ["python3", f"{EX}/flappy.py"], 11),
                 ("cards.py", ["python3", f"{EX}/cards.py"], 12),
                 ("snake.py", ["python3", f"{EX}/snake.py"], 5),

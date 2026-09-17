@@ -1,3 +1,31 @@
+## v3.1.80 — the owl hunts the flash
+
+- **The void's third threat class flies only after dark.** shooter.py
+  grows the night owl: born from its OWN seeded stream ("the night
+  owl" — the threat, the twin and the sky keep theirs), parked
+  off-screen with the drift's alpha 0.15 and a halo of its own, it
+  never stirs by day. At FULL night every shot is a real event the
+  stream may answer: one draw in three wakes the owl, and the wake
+  takes two more draws — the edge it enters from and the bolt row it
+  crosses. The drift announces it (the radar-field law — the void
+  ALWAYS shows its hand), it crosses dt-free at the hunter's pace
+  (the twin's law), and it never touches the ship: it hunts BOLTS.
+  A bolt that touches the shadow dies by it, the owl leaves fed, the
+  say speaks "the owl takes your shot" — and the score pays nothing.
+  Greed feeds it; holding fire starves it.
+- **The probe pins the stream draw for draw:** shooter_owl_probe.py
+  — 10/10 pins green, including the launch landing on EXACTLY the
+  replicated stream's shot, edge and row; the daylight-silence law
+  (no draws by day); the feed (del carries the bolt, the hud
+  unchanged); and the stream advancing after the feed. The probe's
+  first honest run caught the owl's first bug before the wire ever
+  lied: on_tick assigned owl_vx without a global — the same
+  UnboundLocalError class the night law paid for in v3.1.76, now a
+  house pattern the probes know to hunt.
+- **Census:** shooter 14 -> 15 (gate 6, twin probe, night probe all
+  re-synced and re-run green — 22 regression pins). The README's
+  example line speaks the owl.
+
 ## v3.1.79 — the gate walks the campaign
 
 - **The selftest now walks the WHOLE campaign chain in-engine — 52

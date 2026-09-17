@@ -23,6 +23,18 @@
 # law: glow 2, riding the same fade). The hits are counted, the night
 # is said once — "night falls at ten" — and the streams never share a
 # draw with the sky.
+# v3.1.80 — THE OWL HUNTS THE FLASH: the void's third threat flies
+# only after dark. The owl is born from its OWN seeded stream ("the
+# night owl" — every other stream keeps its draws), parked off-screen
+# until the night is FULL and the muzzle calls it: each shot fired at
+# full night is a real event the stream may answer — one draw in
+# three, and the launch takes two more (an edge to enter from, a row
+# in the bolt lanes to cross). The drift announces it (alpha 0.15
+# over DRIFT — the radar-field law, the void ALWAYS shows its hand),
+# it wears its own halo, and it crosses dt-free at the hunter's pace
+# (the twin's law). It never touches the ship — it hunts BOLTS: a
+# bolt that touches the shadow dies by it, the owl leaves fed, the
+# score pays nothing. Greed feeds it; holding fire starves it.
 from dxn3 import *
 import random, math
 
@@ -62,9 +74,16 @@ night = False                            # the tenth hit turns the sky
 nightT = 0.0                             # the fade's own clock, honest in dt
 TH = random.Random("the threat's return")  # one stream per concern —
 TW = random.Random("the twin's return")    # each named after what it grows
+OW = random.Random("the night owl")        # the owl draws only on real
+                                           #   shots, never while it flies
+owl = circle("owl", -999, 6, 8, 6, "#c4b5fd"); owl.tag = "owl"
+owl.alpha = 0.15                         # the drift announces every flight
+owl.glow = 2                             # and it wears its own halo
+OWL_SPEED = 2.2                          # the hunter's pace, dt-free
+owl_vx = 0.0                             # 0.0 = parked
 
 def on_key(k):
-    global shots
+    global shots, owl_vx
     if k == "left":  ship.x = ship.x - 1
     if k == "right": ship.x = ship.x + 1
     if k == "space":
@@ -75,9 +94,20 @@ def on_key(k):
         s.glow = 2                       # the bolt carries its own light
         ship.glow = 5                    # the muzzle speaks — tick fades it
         live.append(s)                   # the ledger remembers its own
+        if night and nightT >= 1 and owl_vx == 0.0:
+            # the owl hunts the flash: each full-night shot is a real
+            # event, one draw in three wakes it, and a wake takes two
+            # more draws — the edge it enters from, the bolt row it
+            # crosses. The stream rests while the owl flies.
+            if OW.randint(1, 3) == 1:
+                from_left = OW.random() < 0.5
+                owl.x = -12.0 if from_left else W + 2.0
+                owl.y = float(OW.randint(4, 10))
+                owl_vx = OWL_SPEED if from_left else -OWL_SPEED
+                owl.alpha = 0.15         # the drift announces it again
 
 def on_tick(dt2):
-    global twp, nightT
+    global twp, nightT, owl_vx
     enemy.x = enemy.x + 0.3
     if enemy.x > W - 12: enemy.x = 2
     if enemy.alpha < 1: enemy.alpha = min(1, enemy.alpha + dt2 / DRIFT)
@@ -95,6 +125,12 @@ def on_tick(dt2):
         moon.glow = 4 if nightT >= 1 else 0   # and then the moon shines
         enemy.glow = 2 * nightT          # the hunters wear the fade —
         twin.glow = 2 * nightT           # the cacti law, faintly ringing
+    if owl_vx != 0.0:                    # the owl crosses, dt-free
+        owl.x = owl.x + owl_vx
+        if owl.alpha < 1: owl.alpha = min(1, owl.alpha + dt2 / DRIFT)
+        if owl.x < -14 or owl.x > W + 14:   # it leaves hungry
+            owl.x = -999
+            owl_vx = 0.0
     # the bolts come home: what leaves the sky takes its light with it.
     # a shot that never dies is an entity the studio scans forever —
     # the hit-pair scan is O(n^2) over the scene, so a leak here is a
@@ -106,7 +142,7 @@ def on_tick(dt2):
     hud.text = "SCORE " + str(score)
 
 def on_hit(a, b):
-    global score, twb, twp, hits, night
+    global score, twb, twp, hits, night, owl_vx
     pair = (a.tag, b.tag)
     hits += 1                                # every kill counts toward the night
     if not night and hits >= 10:
@@ -136,5 +172,15 @@ def on_hit(a, b):
         twp = 0.0
         twin.alpha = 0.15                # and the void announces it again
         print("twin! score", score)
+    elif "shot" in pair and "owl" in pair:
+        shot = a if a.tag == "shot" else b
+        destroy(shot.name)               # the bolt dies by the shadow
+        for s in live[:]:
+            if s.name == shot.name:
+                live.remove(s)           # the ledger forgets it too
+        owl.x = -999                     # the owl leaves, fed
+        owl_vx = 0.0
+        say("the owl takes your shot")   # the night's due, said plainly
+        print("owl! a bolt feeds the shadow")
 
 run()
