@@ -2,7 +2,7 @@
 
 ![DXN1 STUDIO 3](assets/banner.png)
 
-![version](https://img.shields.io/badge/version-3.0.90-8b5cf6?style=flat-square)
+![version](https://img.shields.io/badge/version-3.0.91-8b5cf6?style=flat-square)
 ![gates](https://github.com/DXN1-termux/DXN1-STUDIO/actions/workflows/ci.yml/badge.svg)
 ![native](https://img.shields.io/badge/native-C%2B%2023-f97316?style=flat-square)
 ![face](https://img.shields.io/badge/face-terminal_truecolor-22d3ee?style=flat-square)
@@ -361,6 +361,7 @@ accepted:
 | `:zen` | the quiet — the rail rests, the body breathes; `:zen` wakes it |
 | `:wrap` | the fold — long lines break into the pane at the last space or hyphen that fits, and ↑/↓ walk the rows; a second `:wrap` wakes the slide |
 | `:crew [n]` | the crew — a number plants that many hands below yours; type once and every hand writes (typing, backspace, enter, delete); a bare `:crew` bows them out |
+| `:count [word]` | the census of a query — a bare verb counts the searchlight's query everywhere; a word counts itself |
 | `:stats` | lines, words, chars, dialect, where you stand |
 | `:trim` | sweep trailing whitespace, one undo step |
 | `:sort` | order the selected lines, one undo step |

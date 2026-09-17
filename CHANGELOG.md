@@ -1,3 +1,18 @@
+## v3.0.91 — the census (:count, the find's law as a number)
+
+- **`:count [word]` — the census of a query.** A bare `:count` counts
+  the searchlight's query everywhere in the document — no bar, no
+  aim, just the number; `:count <word>` counts the word itself. The
+  receipt speaks the case law honestly ("case-honest" or "the
+  beginner way (case sleeps)"), the counting is the FIND's own law
+  (`ideFindAll`: non-overlapping, like every editor) — one law, two
+  windows. A look, never an edit: nothing dirties, nothing undoes.
+  An empty query refuses with the honest pointer.
+- Selftest group 92: three census laws (833 -> 836) — non-overlap,
+  the case-honest shout, the sleeping case. Smoke 13p: TWO drives
+  (188 -> 190) — the word's census and the borrowed query. The :help
+  list and the verbs table carry :count. Gates ALL GREEN.
+
 ## v3.0.90 — the honest home (first non-blank, then the head)
 
 - **`home` learned the three-way toggle.** The hand's first breath

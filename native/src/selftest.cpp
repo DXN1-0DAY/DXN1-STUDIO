@@ -199,7 +199,7 @@ int main() {
   }
 
   // 9. the version quad rides in the binary too
-  ok(std::string(dxn3::DXN3_VERSION) == "3.0.90",
+  ok(std::string(dxn3::DXN3_VERSION) == "3.0.91",
      "native version constant matches the release quad");
 
   // 10. png writer: checksum vectors, real structure, byte determinism
@@ -4300,6 +4300,22 @@ int main() {
     h4.home = true;
     dxn3::ideKey(bs, h4);
     ok(bs.curC == 0, "a blank line's home is the head, honestly");
+  }
+
+
+  // 92. the census: :count speaks the find's own law
+  {
+    IdeState cs;
+    cs.lines = {"abab", "ba"};
+    cs.findCase = false;
+    ok(static_cast<int>(dxn3::ideFindAll(cs, "ab").size()) == 2,
+       "the census counts non-overlapping, like every editor");
+    cs.findCase = true;
+    ok(static_cast<int>(dxn3::ideFindAll(cs, "AB").size()) == 0,
+       "case-honest: the shout finds nothing the page never shouted");
+    cs.findCase = false;
+    ok(static_cast<int>(dxn3::ideFindAll(cs, "AB").size()) == 2,
+       "case sleeps: the shout finds the whisper's work");
   }
 
 

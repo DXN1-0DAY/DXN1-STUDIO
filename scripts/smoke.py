@@ -1397,6 +1397,23 @@ def main():
         s2.run_verb("undo", "ide")             # the pure air swept away
         s2.settle(0.3)
 
+        # ── 13p. :count — the census of a query ──────────────────────
+        print("── 13p. :count — the find's law, spoken as a number")
+        scr2, _ = s2.run_verb("count ccc", "ide")
+        check(":count names the census for a word",
+              "1 match for 'ccc'" in scr2.text(ROWS - 2),
+              repr(scr2.text(ROWS - 2)[:70]))
+        s2.send("\x06")                        # ctrl+f: the searchlight asks
+        s2.settle(0.2)
+        s2.send("DXN")                         # the query rides the page
+        s2.settle(0.2)
+        s2.send("\x06")                        # ctrl+f again: the light rests
+        s2.settle(0.2)
+        scr2, _ = s2.run_verb("count", "ide")
+        check("a bare :count borrows the searchlight's query",
+              "2 matches for 'DXN'" in scr2.text(ROWS - 2),
+              repr(scr2.text(ROWS - 2)[:70]))
+
         s2.send(ESC)
         time.sleep(0.3)
         s2.send("q")

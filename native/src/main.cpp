@@ -2415,6 +2415,25 @@ int main(int argc, char** argv) {
                     "every hand writes (a bare :crew bows them out)");
             }
           }
+        } else if (cmd.verb == "count") {
+          // the census of a query: the find's own law, spoken as a number —
+          // a bare :count counts the searchlight's query, a word counts
+          // itself. A look, never an edit.
+          takeStage();
+          const std::string needle = cmd.arg.empty() ? ide.findQ : cmd.arg;
+          if (needle.empty()) {
+            ide.console.push_back(
+                "engine: nothing to count — :count <word>, or ctrl+f asks "
+                "first");
+          } else {
+            const int n = static_cast<int>(
+                dxn3::ideFindAll(ide, needle).size());
+            ide.console.push_back(
+                "engine: " + std::to_string(n) + " match" +
+                (n == 1 ? "" : "es") + " for '" + needle + "'" +
+                (ide.findCase ? " — case-honest"
+                              : " — the beginner way (case sleeps)"));
+          }
         } else if (cmd.verb == "stats") {
           takeStage();
           size_t words = 0, chars = 0;
@@ -2511,7 +2530,7 @@ int main(int argc, char** argv) {
           takeStage();                         // every verb takes the stage —
                                                // a law, not a suggestion
           if (cmd.arg.empty()) {
-            game.say(":scene :open :recent :template :snip :goto :jumps :changes :fresh :mark :marks :bm :ruler :minimap :zen :wrap :crew :center :relnum :s :sa :o :e :trim :cases :sort :rsort :rev :uniq :shuffle :indent :dedent :lift :drop :dup :join :upper :lower :title :hist :undo :redo :words :todo :stats "
+            game.say(":scene :open :recent :template :snip :goto :jumps :changes :fresh :mark :marks :bm :ruler :minimap :zen :wrap :crew :count :center :relnum :s :sa :o :e :trim :cases :sort :rsort :rev :uniq :shuffle :indent :dedent :lift :drop :dup :join :upper :lower :title :hist :undo :redo :words :todo :stats "
                      ":record :macro :zoom :fit :reset :new :w :wq :q :screenshot :magnet :gravity — or :help <verb>",
                      4.f);
           } else {

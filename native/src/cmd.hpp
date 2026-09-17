@@ -173,6 +173,8 @@ inline Cmd parseCommand(std::string_view line) {
       number(1.f, 99.f,
              "usage: :crew [n] — a bare :crew bows the hands out; a number "
              "plants that many hands below");
+  } else if (c.verb == "count") {
+    // a bare :count counts the searchlight's query; :count <word> the word
   } else if (c.verb == "help") {
     // a bare :help lists every verb; :help <verb> whispers that verb's law
     if (!c.arg.empty() && c.arg.find(' ') != std::string::npos)
@@ -244,7 +246,7 @@ inline std::string usageHintFor(std::string_view typed) {
   if (!typed.empty() && typed.front() == ':') typed.remove_prefix(1);
   while (!typed.empty() && typed.front() == ' ') typed.remove_prefix(1);
   if (typed.empty())
-    return " verbs: scene open recent template snip goto zoom fit reset ruler stats minimap w wq q screenshot magnet gravity help crew";
+    return " verbs: scene open recent template snip goto zoom fit reset ruler stats minimap w wq q screenshot magnet gravity help crew count";
   const size_t sp = typed.find(' ');
   const std::string verb(sp == std::string_view::npos ? typed
                                                       : typed.substr(0, sp));
@@ -358,6 +360,9 @@ inline std::string usageHintFor(std::string_view typed) {
     return " :crew [n] — the crew: a number plants that many hands below "
            "yours; type once and every hand writes; a bare :crew bows "
            "them out";
+  if (verb == "count")
+    return " :count [word] — the census of a query: a bare :count counts "
+           "the searchlight's query everywhere; a word counts itself";
   if (verb == "stats") return " :stats — lines, words, chars, where you stand";
   if (verb == "w")
     return " :w [file] — save the session's work; a .bak is kept";
