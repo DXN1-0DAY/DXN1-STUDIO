@@ -193,7 +193,7 @@ proves the reset. The probe pins the say on the very frame the sim
 says it is born — sim and wire agree to the tick, or the pin goes
 red and the law is not done.
 
-## driving a live game — the probe's seven laws
+## driving a live game — the probe's eight laws
 
 The replay pins a script; a LIVE driver plays the game — steering,
 hunting, spending. Five rounds of dark-of-night failures minted the
@@ -209,7 +209,10 @@ current facing — never from the head itself.
 **2. wasd rides `chars`.** The `keys` dict dispatches only `left`,
 `right`, `jump`, `space` — `w`, `a`, `s`, `d` and every other
 keystroke ride the `chars` string. A probe that puts `"s"` in the
-keys dict steers NOTHING, silently.
+keys dict steers NOTHING, silently. And the fine print the chase
+probe bled for: `chars` dispatches PER CHARACTER — `"right"` as
+chars arrives as r, i, g, h, t, five wrong keystrokes. Single
+letters ride chars; multi-char names ride the keys dict or nothing.
 
 **3. A turn pair rides `chars` alone.** The keys dict dispatches in
 its own fixed order (`left, right, jump, space`) and the chars
@@ -241,6 +244,16 @@ two packets after it was made — the tail-end cells of a snake's body
 will have vacated by then, mid-chain cells will have advanced. Pin
 occupancy against the body the head will MEET, or the probe hunts
 its own phantom.
+
+**8. A command flies one tick — aim from the post-tick cell.** The
+turn a probe sends in packet N is enqueued after packet N's step and
+applies at packet N+1's step. A driver that aims from the cell the
+head just left takes every corner one step late — the chase probe
+sailed its snake through every turn and into the wall it meant to
+avoid, all while every pin checked green against its own lagging
+plan. Aim from the post-tick cell (or verify the head landed where
+the last command pointed before choosing the next one), and let dt
+carry exactly one step per packet so the flight stays predictable.
 
 ## hosting any language
 

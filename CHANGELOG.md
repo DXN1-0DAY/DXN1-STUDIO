@@ -1,3 +1,40 @@
+## v3.1.95 — the chase comes home, load-proof at last
+
+- **The evicted chase probe walks inside the walls again** — and
+  this time its load-flake is not survived but EXPLAINED. The
+  v3.1.92 eviction said "load-sensitive drive"; the truth was a
+  reader that consumed ONE line per tick, so every meal's chatter
+  line stole the next frame and the plan steered on stale state —
+  green on an idle machine, red under full-gates load, wall-biting
+  at score 0 before the chase developed.
+- The rebuild rides the metronome: a pump thread drains stdout into
+  a queue, every tick reads until the FRAME (chatter is processed in
+  place, never allowed to steal a frame), and the scene is read
+  until it actually arrives.
+- The drive is the SERPENTINE now, per the R32 lore's own verdict —
+  the trace caught the greedy hunter orbiting the meal in a perfect
+  clockwise circle (the no-reverse law plus one packet of coast
+  makes the food a blind spot). A covering walk visits every cell,
+  the meal is eaten as a byproduct of coverage, and the sweep's
+  self-safety is arithmetic: the shortest revisit gap is 24 steps,
+  the body never exceeds seven. NEW PIN: the sweep never died.
+- The restart path is exercised ON PURPOSE, not hoped for: the
+  drive stops steering, the wall takes the snake, the banner names
+  the score, exactly ONE space revives (space-when-alive is an
+  up-turn — the probe knows), the hud returns to score 0, and the
+  head walks again. 8 pins, 3x green standalone, 5x green under
+  five concurrent instances.
+- TWO WIRE LAWS minted in sdk/PROTOCOL.md (the chapter is eight
+  laws now): #2's fine print — chars dispatches PER CHARACTER, so
+  "right" as chars arrives as r,i,g,h,t garbage; and #8 — a command
+  flies one tick, so a driver must aim from the head's post-tick
+  cell (aim one cell behind and every corner is taken one step
+  late; the chase probe sailed through every turn and into the wall
+  it meant to avoid while its own lagging plan checked green).
+- README's fleet count wears 51. The outsiders shrink to two:
+  invaders_darkpays (flaky ~50%) and ide_door (green but 35 s).
+- Gates 8 green (51 probes + 7 gates).
+
 ## v3.1.94 — the set's tension rides the ball
 
 - **The low-light law's SIXTH transplant lands in C++** (cards hand

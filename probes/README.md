@@ -66,10 +66,19 @@ homecoming sweep; they stay external until re-pinned:
   hand and the seat lift are pinned by the rescued breathe), and
   `bounce_light_probe` (superseded whole by the lantern probe,
   which pins the flare, the floor, and both plaques besides).
-- `chase_probe` — EVICTED in v3.1.92: green standalone, red under
-  full-gates load (the driven snake wall-bites at score 0 before
-  the chase develops — load-sensitive drive). Outside until its
-  drive is load-proof.
+- RESCUED in v3.1.94 and walking inside the walls:
+  `chase_probe` — the load-flake finally named and killed: its drive
+  read ONE line per tick, so every meal's chatter stole the next
+  frame and the plan steered on stale state (green on an idle
+  machine, red under full-gates load, wall-biting at score 0). The
+  rebuild rides the metronome: a pump thread drains stdout, every
+  tick reads until the FRAME, the drive is the serpentine (greedy
+  hunters orbit the meal forever — the trace proved a perfect
+  clockwise circle), and the restart path is exercised ON PURPOSE:
+  stop steering, the wall speaks, exactly one space revives. Two
+  new wire laws minted in sdk/PROTOCOL.md (#2's per-character fine
+  print, #8's one-tick command flight). 8 pins, 5x green under
+  concurrent load.
 - STILL OUTSIDE (re-pin or retire):
   `invaders_darkpays_probe` — FLAKY (~50%): a dark summon
   occasionally pays the BASE purse; the ritual cannot yet PROVE
