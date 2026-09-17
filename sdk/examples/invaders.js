@@ -5,6 +5,11 @@
 // them · four SHELTERS stand between the cannon and the order: every
 // block drinks one shot (shot, bomb or the march itself) and is gone
 // for good — honest destroys, not fading — r rebuilds from the ashes.
+// the LIGHT: every wave GHOSTS IN (alpha 0.15 -> full over 0.9 s — the
+// radar-field law; the sky literally fills again), the muzzle GLOWS
+// (4) on fire and cools at eight a second, flying shots and bombs
+// carry their own halo (2), and a spent bullet parks its light with
+// its body.
 const dxn3 = require("dxn3");
 const { rect, label, destroy, find, background, say, win, on, run } = dxn3;
 const W = dxn3.W, H = dxn3.H;
@@ -43,6 +48,7 @@ for (let i = 0; i < 3; ++i) {
 
 let wave = 1, score = 0, lives = 3, alive = 15;
 let dir = 1, stepT = 0, stepEvery = 0.8, fireT = 1.5, gunCool = 0, over = false;
+let waveT = 1;                           // the ghost-in clock (deploy resets it)
 const SPEEDS = { 15: 0.8, 10: 0.55, 5: 0.35, 1: 0.2 };   // thinner = faster
 
 // the SHELTERS: four arches of 7 blocks each — every block absorbs one
@@ -68,6 +74,7 @@ function deploy() {
   alive = ROWS_N * COLS_N;
   stepEvery = SPEEDS[alive] || 0.2;
   dir = 1;
+  waveT = 0;                             // the new order arrives as ghosts
   const left = 8 + Math.min(4, wave - 1) * 2;   // each wave starts lower
   aliens.forEach((a, i) => {
     const r = Math.floor(i / COLS_N), c = i % COLS_N;
@@ -86,7 +93,9 @@ function fire() {
   if (!s || gunCool > 0) return;
   s.x = player.x + 4;
   s.y = player.y - 4;
-  gunCool = 0.3;
+  s.glow = 2;                            // the flying shot carries its halo
+  player.glow = 4;                       // the muzzle speaks (keys fire after
+  gunCool = 0.3;                         //   the tick, so the frame gets the 4)
 }
 
 function alienFire() {
@@ -97,6 +106,7 @@ function alienFire() {
   const g = gunners[Math.floor(Math.random() * gunners.length)];
   b.x = g.x + 2;
   b.y = g.y + 5;
+  b.glow = 2;                            // their bombs fly lit too
 }
 
 function rebuild(msg) {                  // the wave is spent — the next lands
@@ -138,6 +148,13 @@ on.key((k) => {                       // held keys fire per frame —
 on.tick((dt) => {
   if (over) return;
   gunCool = Math.max(0, gunCool - dt);
+  // the ghost-in: every wave (and the shelters with it) fades from
+  // alpha 0.15 to full over 0.9 s — the radar-field law
+  waveT = Math.min(1, waveT + dt / 0.9);
+  const A = 0.15 + 0.85 * waveT;
+  aliens.forEach((a) => { if (a.visible) a.alpha = A; });
+  bunkers.forEach((s) => { s.alpha = A; });
+  player.glow = Math.max(0, (player.glow || 0) - 8 * dt);   // the muzzle cools
   // the march: a discrete step, faster as the grid thins
   stepT += dt;
   if (stepT >= stepEvery) {
@@ -162,9 +179,9 @@ on.tick((dt) => {
   }
   fireT -= dt;
   if (fireT <= 0) { fireT = 0.7 + Math.random() * 1.6; alienFire(); }
-  // the bullets fly; parked ones sleep off-screen
-  shots.forEach((s) => { if (s.x > -100) { s.y -= 40 * dt; if (s.y < 0) s.x = -999; } });
-  bombs.forEach((b) => { if (b.x > -100) { b.y += 22 * dt; if (b.y > H) b.x = -999; } });
+  // the bullets fly; parked ones sleep off-screen, dark
+  shots.forEach((s) => { if (s.x > -100) { s.y -= 40 * dt; if (s.y < 0) { s.x = -999; s.glow = 0; } } });
+  bombs.forEach((b) => { if (b.x > -100) { b.y += 22 * dt; if (b.y > H) { b.x = -999; b.glow = 0; } } });
 });
 
 on.hit((a, b) => {
@@ -177,12 +194,14 @@ on.hit((a, b) => {
     alien.visible = 0;                 // the seat stays, the body is gone
     alien.y = -50;
     shot.x = -999;
+    shot.glow = 0;                     // the spent shot parks its light
     alive -= 1;
     hud.text = `INVADERS  ·  score ${score}  ·  lives ${lives}`;
     if (alive === 0) rebuild(`wave ${wave} cleared — the sky fills again`);
   } else if (pair === "abomb|player") {
     const bomb = a.tag === "abomb" ? a : b;
     bomb.x = -999;
+    bomb.glow = 0;
     lives -= 1;
     say("ouch — the cannon took one");
     hud.text = `INVADERS  ·  score ${score}  ·  lives ${lives}`;
@@ -192,11 +211,13 @@ on.hit((a, b) => {
     const shot = a.tag === "shield" ? b : a;
     destroy(block.name);               // your own shot eats the shelter
     shot.x = -999;
+    shot.glow = 0;
   } else if (pair === "abomb|shield") {
     const block = a.tag === "shield" ? a : b;
     const bomb = a.tag === "abomb" ? a : b;
     destroy(block.name);               // their bomb eats it too
     bomb.x = -999;
+    bomb.glow = 0;
   } else if (pair === "alien|shield") {
     const block = a.tag === "shield" ? a : b;
     destroy(block.name);               // the march grinds what it touches

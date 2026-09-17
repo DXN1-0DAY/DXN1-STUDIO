@@ -1,3 +1,32 @@
+## v3.1.52 — the war wears the light
+
+- **invaders.js wears the light — the last undressed example.**
+  Every wave now GHOSTS IN: the alien grid AND the four shelters
+  share one clock and fade from alpha 0.15 to full over 0.9 s (the
+  radar-field law — "the sky fills again" is finally something you
+  can SEE, every redeploy included). The muzzle GLOWS 4 on the fire
+  frame and cools at eight a second down an honest staircase
+  (3.6, 3.2 ...); flying shots and bombs carry their own halo (2);
+  and a spent bullet parks its light WITH its body — no glowing
+  ghosts sleep in the pool.
+- Entity count unchanged (51 — the light rides existing bodies), so
+  Gate 6's pin never moved. The fire frame carries the full 4
+  because keys fire after the tick (the dino birth-tick lesson,
+  applied a third time).
+- Probe `invaders_light_probe.py`: 14 pins green at the host's own
+  geometry (120x84). The kill choreography earned three hard
+  lessons: (1) LEAD the target — the grid marches 0.125 px per
+  packet and the shot's 35-packet flight lets a centered aim drift
+  4 px past; (2) a rising shot eats the target's COLUMN from below
+  (rows 2, 1, then 0 — every row crossed is an honest kill);
+  (3) each kill THINS the grid, stepEvery falls back to 0.2 and
+  the march QUADRUPLES — a fixed lead is wrong forever after. The
+  probe now measures the march rate live (a 12-packet window),
+  aims at the lowest alive alien of the column, and leads by
+  rate x flight time. The score pin sums every dead seat's row
+  price (30/20/10) against the hud — the scoring law itself is
+  pinned, not a constant.
+
 ## v3.1.51 — the comet and the dusk
 
 - **bounce.js: the wall fits the room — a REAL latent defect fixed.**
