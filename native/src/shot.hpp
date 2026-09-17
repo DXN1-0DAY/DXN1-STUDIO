@@ -245,7 +245,11 @@ inline std::string shootPNG(const std::string& path, const Game& g) {
       const int ay = std::max(0, static_cast<int>(by0) - 1);
       const int bx = std::min(W - 1, static_cast<int>(bx1) + 1);
       const int by = std::min(H - 1, static_cast<int>(by1) + 1);
-      const RGB c2 = parseHex(e.color2, c1);
+      RGB c2 = parseHex(e.color2, c1);
+      if (e.alpha < 1.f)                 // the gradient wears the air too
+        c2 = lerpColor(bg, c2, std::clamp(e.alpha, 0.f, 1.f));
+      if (e.flash > 0)
+        c2 = lerpColor(c2, 0xFFFFFF, std::min(1.f, e.flash));
       const float rw = x1 - x0, rh = y1 - y0;
       for (int py = ay; py <= by; ++py) {
         auto* line = &px[static_cast<size_t>(py) * W];

@@ -1,3 +1,12 @@
+## v3.1.29 — the gradient wears the air too
+
+- **QA fix the alpha release needed:** gradient fills parsed
+  `color2` fresh and skipped BOTH the alpha blend and the flash
+  bleach — a half-transparent gradient had one leg in the fog and
+  one on solid ground. Both rasters now run `color2` through the
+  same law as `color`: alpha blends it toward the scene bg, flash
+  bleaches it toward white. A ghost is a ghost all the way through.
+
 ## v3.1.28 — a body made of air
 
 - **`alpha` — a general entity field.** Any entity may carry

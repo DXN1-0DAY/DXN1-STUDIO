@@ -688,8 +688,14 @@ void drawWorld(dxn3::Screen& scr, const dxn3::Game& g) {
       continue;
     }
     if (off) continue;
-    if (e.fill == "gradient" && !e.color2.empty())
-      scr.rectGradient(x0, y0, x1, y1, c1, dxn3::parseHex(e.color2, c1));
+    if (e.fill == "gradient" && !e.color2.empty()) {
+      RGB c2 = dxn3::parseHex(e.color2, c1);
+      if (e.alpha < 1.f)                 // the gradient wears the air too
+        c2 = dxn3::lerpColor(bg, c2, std::clamp(e.alpha, 0.f, 1.f));
+      if (e.flash > 0)
+        c2 = dxn3::lerpColor(c2, 0xFFFFFF, std::min(1.f, e.flash));
+      scr.rectGradient(x0, y0, x1, y1, c1, c2);
+    }
     else
       scr.rect(x0, y0, x1, y1, c1);
     // frame against the void: same rule as the PNG raster — dark
