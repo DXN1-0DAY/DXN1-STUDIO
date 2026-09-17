@@ -4659,6 +4659,47 @@ int main() {
   }
 
 
+  // 51. the whitespace hygiene: :squeeze, :retab and :ws — the
+  // margin's honest tools. Shape laws, pin laws, undo laws.
+  {
+    IdeState h2;
+    h2.lines = {"a", "", " ", "", "", "b", "", "", "", "c"};
+    const int fell = dxn3::ideSqueezeSel(h2);
+    ok(fell == 5, "squeeze fells five of seven blanks (two runs keep two)");
+    ok(h2.lines.size() == 5 && h2.lines[1].empty() &&
+           h2.lines[2] == "b" && h2.lines[3].empty() && h2.lines[4] == "c",
+       "each run of blanks breathes down to exactly one");
+    ok(!h2.undo.empty() && h2.undo.back().what == "squeeze",
+       "the breathe-down is one restore point, named squeeze");
+    // the pin law: mark 1 rides home, mark 4 (on a fallen blank) DIES,
+    // mark 9 (inside the range, on kept ink) maps to its new home
+    IdeState h4;
+    h4.lines = {"a", "", " ", "", "", "b", "", "", "", "c"};
+    h4.marks = {0, 1, 4, 9};
+    dxn3::ideSqueezeSel(h4);
+    ok(h4.marks.size() == 3 && h4.marks[0] == 0 && h4.marks[1] == 1 &&
+           h4.marks[2] == 4,
+       "the pins speak uniq's law: ride home, or die with the fallen");
+
+    IdeState h5;
+    h5.lines = {"\tone", "  \ttwo", "\t\tthree", "clean", "mid\ttab"};
+    const int widened = dxn3::ideRetabSel(h5);
+    ok(widened == 3, "retab widens three indents (the mid-line tab rests)");
+    ok(h5.lines[0] == "    one" && h5.lines[1] == "      two" &&
+           h5.lines[2] == "        three",
+       "every leading tab is four spaces; mixed indents keep their cols");
+    ok(h5.lines[3] == "clean" && h5.lines[4] == "mid\ttab",
+       "ink after the indent is untouched");
+
+    IdeState h6;
+    h6.lines = {"x  ", "\ty", std::string(90, 'q'), "ok"};
+    const auto c = dxn3::ideWsCensus(h6);
+    ok(c.trailing == 1 && c.tabs == 1 && c.long_ == 1,
+       "the census counts trailing, tabs and the 80-column law");
+    ok(h6.lines[0] == "x  ", "the census is a mirror — it changes nothing");
+  }
+
+
   if (fails == 0) {
     std::println("native selftest: all green ({} assertion groups)", n);
     return 0;

@@ -2365,6 +2365,156 @@ inline int ideUniqSel(IdeState& s) {
   return removed;
 }
 
+// ── the squeeze: a run of blank lines becomes one ────────────────
+// :squeeze breathes through the bed: wherever two or more empty
+// lines stand together inside the selection, all but the first of
+// the run fall. The structural law is uniq's law — a pin ON a
+// fallen line dies, a pin on a kept line rides it home, a pin
+// beneath the bed slides up by the count that fell.
+inline int ideSqueezeSel(IdeState& s) {
+  int r0 = 0;
+  int r1 = static_cast<int>(s.lines.size()) - 1;
+  if (const auto sel = ideSelRange(s)) {
+    const auto [a, ca, b, cb] = *sel;
+    r0 = a;
+    r1 = b;
+  }
+  if (r1 <= r0) return 0;
+  auto blank = [](const std::string& l) {
+    return l.find_first_not_of(" \t") == std::string::npos;
+  };
+  int would = 0;                       // the dry pass: count the falls
+  bool prevBlank = false;
+  for (int r = r0; r <= r1; ++r) {
+    const bool b = blank(s.lines[static_cast<size_t>(r)]);
+    if (b && prevBlank) ++would;
+    prevBlank = b;
+  }
+  if (would == 0) return 0;
+  idePushUndo(s, "squeeze");
+  std::vector<int> newHome(static_cast<size_t>(r1 + 1), -1);
+  int kept = r0 - 1;                   // the compaction, run-aware
+  bool runBlank = false;
+  for (int read = r0; read <= r1; ++read) {
+    const bool b = blank(s.lines[static_cast<size_t>(read)]);
+    if (b && runBlank) continue;       // a second blank in a run falls
+    runBlank = b;
+    s.lines[static_cast<size_t>(++kept)] = s.lines[static_cast<size_t>(read)];
+    newHome[static_cast<size_t>(read)] = kept;
+  }
+  const int removed = r1 - kept;
+  s.lines.erase(s.lines.begin() + kept + 1, s.lines.begin() + r1 + 1);
+  {   // uniq's pin law, word for word
+    std::vector<int> nm;
+    nm.reserve(s.marks.size());
+    for (const int m : s.marks) {
+      if (m < r0) nm.push_back(m);
+      else if (m <= r1) {
+        const int home = newHome[static_cast<size_t>(m)];
+        if (home >= 0) nm.push_back(home);
+      } else
+        nm.push_back(m - removed);
+    }
+    s.marks = std::move(nm);
+  }
+  {
+    std::vector<int> nt;
+    nt.reserve(s.touched.size());
+    for (const int t : s.touched) {
+      if (t < r0) nt.push_back(t);
+      else if (t <= r1) {
+        const int home = newHome[static_cast<size_t>(t)];
+        if (home >= 0) nt.push_back(home);
+      } else
+        nt.push_back(t - removed);
+    }
+    std::sort(nt.begin(), nt.end());
+    nt.erase(std::unique(nt.begin(), nt.end()), nt.end());
+    s.touched = std::move(nt);
+  }
+  for (int r = r0; r <= kept; ++r)
+    ideTouch(s, r);
+  ideSelClear(s);
+  s.curR = std::min(kept + 1, static_cast<int>(s.lines.size()) - 1);
+  s.curC = 0;
+  s.dirty = true;
+  s.idle = 0;
+  return removed;
+}
+
+// ── the retab: leading tabs become honest spaces ─────────────────
+// :retab walks each selected line's INDENT — every tab at the head
+// of a line widens to four spaces (the editor's tab law). Ink after
+// the indent is untouched: a tab inside a string literal keeps its
+// meaning. Shape never changes, so the pins stay put. The return is
+// the count of lines whose indent was widened.
+inline int ideRetabSel(IdeState& s) {
+  int r0 = 0;
+  int r1 = static_cast<int>(s.lines.size()) - 1;
+  if (const auto sel = ideSelRange(s)) {
+    const auto [a, ca, b, cb] = *sel;
+    r0 = a;
+    r1 = b;
+  }
+  if (r1 < r0) return 0;
+  int would = 0;                       // the dry pass: count the widens
+  for (int r = r0; r <= r1; ++r) {
+    const std::string& l = s.lines[static_cast<size_t>(r)];
+    if (l.find('\t') != std::string::npos &&
+        l.find('\t') < l.find_first_not_of(" \t"))
+      ++would;
+  }
+  if (would == 0) return 0;
+  idePushUndo(s, "retab");
+  for (int r = r0; r <= r1; ++r) {
+    std::string& l = s.lines[static_cast<size_t>(r)];
+    const size_t ink = l.find_first_not_of(" \t");
+    if (ink == std::string::npos || l.find('\t') >= ink) continue;
+    std::string indent;
+    for (const char c : l.substr(0, ink))
+      indent += c == '\t' ? "    " : std::string(1, c);
+    s.lines[static_cast<size_t>(r)] = indent + l.substr(ink);
+  }
+  for (int r = r0; r <= r1; ++r) ideTouch(s, r);
+  ideSelClear(s);
+  s.dirty = true;
+  s.idle = 0;
+  return would;
+}
+
+// ── the whitespace census: the margin's honest mirror ────────────
+// :ws changes nothing — it counts. Three honest numbers for the
+// selection (or the whole bed): lines wearing trailing whitespace,
+// lines indented with tabs, and lines longer than the 80-column
+// law. A census is a mirror: it reports, it does not judge.
+struct WsCensus {
+  int trailing = 0;
+  int tabs = 0;
+  int long_ = 0;
+};
+inline WsCensus ideWsCensus(const IdeState& s) {
+  int r0 = 0;
+  int r1 = static_cast<int>(s.lines.size()) - 1;
+  if (const auto sel = ideSelRange(s)) {
+    const auto [a, ca, b, cb] = *sel;
+    r0 = a;
+    r1 = b;
+  }
+  WsCensus c;
+  for (int r = r0; r <= r1; ++r) {
+    const std::string& l = s.lines[static_cast<size_t>(r)];
+    const size_t ink = l.find_first_not_of(" \t");
+    if (l.find_first_not_of(" \t") != std::string::npos) {
+      if (ink != 0 && l[ink - 1] == '\t') ++c.tabs;
+    }
+    const size_t last = l.find_last_not_of(" \t");
+    if (last == std::string::npos ? !l.empty() : last + 1 != l.size())
+      ++c.trailing;
+    if (static_cast<int>(l.size()) > 80) ++c.long_;
+  }
+  return c;
+}
+
 // ── the flip: the selection's lines walk end for end ────────────
 // :rev reorders — it does not judge: the bed's first line lands last,
 // the last lands first, and no alphabet has a say. The sort family's

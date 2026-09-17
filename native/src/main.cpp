@@ -2093,6 +2093,35 @@ int main(int argc, char** argv) {
                         " collapsed — one undo step takes it back"
                   : "engine: nothing to collapse — no line repeats "
                     "back-to-back");
+        } else if (cmd.verb == "squeeze") {
+          takeStage();
+          const int fell = dxn3::ideSqueezeSel(ide);
+          ide.console.push_back(
+              fell > 0
+                  ? "engine: " + std::to_string(fell) + " blank line" +
+                        (fell == 1 ? "" : "s") +
+                        " fell — runs breathe down to one, one undo step"
+                  : "engine: no run of blanks to squeeze — the bed "
+                    "already breathes");
+        } else if (cmd.verb == "retab") {
+          takeStage();
+          const int widened = dxn3::ideRetabSel(ide);
+          ide.console.push_back(
+              widened > 0
+                  ? "engine: " + std::to_string(widened) + " line" +
+                        (widened == 1 ? "" : "s") +
+                        " widened their tabs to four spaces — one undo step"
+                  : "engine: no leading tabs — the indents are honest");
+        } else if (cmd.verb == "ws") {
+          const auto c = dxn3::ideWsCensus(ide);   // a mirror: no stage
+          ide.console.push_back(
+              "engine: whitespace census — " +
+              std::to_string(c.trailing) + " with trailing space, " +
+              std::to_string(c.tabs) + " tab-indented, " +
+              std::to_string(c.long_) + " over the 80-column law" +
+              (c.trailing + c.tabs == 0
+                   ? " — the bed is tidy"
+                   : " (:trim and :retab tidy them)"));
         } else if (cmd.verb == "s") {
           // the swap: :s/old/new — every byte-exact occurrence traded
           // on the selection's lines (or the hand's line). The parse
@@ -2937,7 +2966,7 @@ int main(int argc, char** argv) {
           takeStage();                         // every verb takes the stage —
                                                // a law, not a suggestion
           if (cmd.arg.empty()) {
-            game.say(":scene :open :recent :template :snip :goto :jumps :changes :diff :drift :git :fresh :mark :marks :bm :ruler :minimap :zen :wrap :crew :count :center :relnum :s :sa :o :e :trim :cases :sort :rsort :rev :uniq :shuffle :indent :dedent :lift :drop :dup :join :upper :lower :title :hist :undo :redo :words :todo :stats "
+            game.say(":scene :open :recent :template :snip :goto :jumps :changes :diff :drift :git :fresh :mark :marks :bm :ruler :minimap :zen :wrap :crew :count :center :relnum :s :sa :o :e :trim :cases :sort :rsort :rev :uniq :squeeze :retab :ws :shuffle :indent :dedent :lift :drop :dup :join :upper :lower :title :hist :undo :redo :words :todo :stats "
                      ":record :macro :zoom :fit :reset :new :w :wq :q :screenshot :magnet :gravity — or :help <verb>",
                      4.f);
           } else {

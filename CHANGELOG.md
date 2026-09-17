@@ -1,3 +1,28 @@
+## v3.1.13 — the margin's hygiene kit
+
+- **`:squeeze`** — wherever two or more blank lines stand together,
+  all but the first of the run fall (whole bed or the selection).
+  The pins speak uniq's structural law word for word: a pin on a
+  fallen line dies, a pin on a kept line rides it home, a pin
+  beneath the bed slides up. One honest restore point, taken only
+  when a run actually falls.
+- **`:retab`** — every leading tab widens to four spaces, the
+  editor's tab law; a tab INSIDE the line keeps its meaning (a
+  string literal is nobody's indent). Mixed indents keep their
+  columns. Shape never changes, so no pin map is needed.
+- **`:ws` — the whitespace census.** A mirror, not a broom: it
+  counts lines wearing trailing whitespace, lines indented with
+  tabs, and lines over the 80-column law, then tells you which
+  verb tidies them (:trim and :retab). It changes nothing.
+- **Duplicate verb caught and cut**: the new `:chomp` duplicated
+  the existing `:trim` (trailing-whitespace sweep) — removed before
+  it ever shipped, per the studio's one-name-one-verb law. The
+  census receipt now speaks of :trim, not of a ghost.
+- **13 → 10 new selftest pins** (911 → 907 after the chomp cut):
+  squeeze's run law and pin law, retab's four-space law and the
+  mid-line tab's immunity, the census's three honest numbers and
+  its mirror vow. ALL GATES GREEN.
+
 ## v3.1.12 — the invasion, and a rounder sky
 
 - **`sdk/examples/invaders.js` — the classic march.** Fifteen

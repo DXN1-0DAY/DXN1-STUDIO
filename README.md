@@ -2,7 +2,7 @@
 
 ![DXN1 STUDIO 3](assets/banner.png)
 
-![version](https://img.shields.io/badge/version-3.1.12-8b5cf6?style=flat-square)
+![version](https://img.shields.io/badge/version-3.1.13-8b5cf6?style=flat-square)
 ![gates](https://github.com/DXN1-termux/DXN1-STUDIO/actions/workflows/ci.yml/badge.svg)
 ![native](https://img.shields.io/badge/native-C%2B%2023-f97316?style=flat-square)
 ![face](https://img.shields.io/badge/face-terminal_truecolor-22d3ee?style=flat-square)
@@ -260,7 +260,12 @@ viewport refreshes — *code a background, and boom, a background.*
   same-line selection counts — case is an in-line edit — and
   title stands each line's word-starts up); `:uniq` collapses lines that repeat back-to-back (no selection
   means the whole document, its difference from the sort family told
-  out loud; the pins follow the survivors down); `:rev` flips the
+  out loud; the pins follow the survivors down); `:squeeze` breathes
+  runs of blank lines down to one (the pins speak uniq's law: ride
+  home, or die with the fallen); `:retab` widens every leading tab
+  to four honest spaces (a tab inside a string literal keeps its
+  meaning); `:ws` is the whitespace census — it changes nothing, it
+  counts trailing, tab-indented and 80-column-law lines; `:rev` flips the
   selection's line order end for end (no alphabet invited — the
   pins ride to their mirrors); `:indent` and `:dedent` breathe the
   selection's lines one level right or back (a line of pure air
@@ -313,7 +318,7 @@ line ends · `ctrl+home`/`ctrl+end` doc edges · `del` forward-delete ·
 `:sort` orders the selection (all-number beds count: 2 before 10) ·
 `:rsort` lands it last-first ·
 `:upper`/`:lower`/`:title` change the selection's voice ·
-`:uniq` collapses back-to-back repeats · `:rev` flips the order ·
+`:uniq` collapses back-to-back repeats · `:squeeze` breathes blank runs to one · `:retab` widens leading tabs · `:ws` counts the margin's sins · `:rev` flips the order ·
 `:shuffle` deals the lines like cards, its seed replays the deal ·
 `:indent`/`:dedent` breathe the selection one level ·
 `:lift`/`:drop` ride lines up and down ·
