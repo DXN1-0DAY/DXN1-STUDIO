@@ -1,3 +1,13 @@
+## v3.1.33 — the queue ahead
+
+- **tetris.js previews the NEXT piece** right of the well — four
+  preview seats plus a "next" label, worn in the coming piece's own
+  color. The queue is PEEKED HONESTLY: one RNG draw per piece (the
+  spawn consumes the pre-pulled piece, then pulls the next), so the
+  seeded law — the same run, the same falls — survives the preview.
+  Preview honesty is probe-pinned: what the box promises is exactly
+  what spawns after the slam. Gate 6: tetris entities 12 → 17.
+
 ## v3.1.32 — the ghost
 
 - **tetris.js grows a GHOST piece — the alpha law becomes gameplay.**

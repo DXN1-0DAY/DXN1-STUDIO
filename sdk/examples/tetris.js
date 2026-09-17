@@ -5,9 +5,11 @@
 // engine's alpha law as honest wayfinding) · the locked cells LIVE
 // as entities (one rect per seat, named by its place) and a cleared
 // line is ten honest destroys · the bag is SEEDED: the same run, the
-// same falls, forever.  (soft-drop rides the LETTER s: the wire's
-// held keys are left/right/jump/space — "down" never rides it; the
-// ghost probe exposed that latent bug.)
+// same falls, forever · the NEXT piece is previewed right of the well
+// — the queue ahead, peeked honestly (one draw per piece, never
+// re-rolled, so the seeded law survives the preview).  (soft-drop
+// rides the LETTER s: the wire's held keys are left/right/jump/space
+// — "down" never rides it; the ghost probe exposed that latent bug.)
 const dxn3 = require("dxn3");
 const { rect, label, destroy, find, background, say, win, on, run } = dxn3;
 const W = dxn3.W, H = dxn3.H;
@@ -49,7 +51,8 @@ const next = () => {
 const well = new Map();                  // "row_col" -> entity name
 const piece = [];                        // the four falling seats
 const ghost = [];                        // the four ghost seats (alpha 0.32)
-let cur = "T", rotN = 0, px = 4, py = -1, cells = [];
+const pvue = [];                         // the four preview seats (the queue)
+let cur = "T", rotN = 0, px = 4, py = -1, cells = [], nxt = null;
 let bag = [], dropT = 0, drop = 0.5, total = 0, level = 1, over = false, seq = 0;
 
 const key = (r, c) => r + "_" + c;
@@ -102,8 +105,23 @@ function paint() {                       // the falling order wears its seats
   });
 }
 
+const PX = 25, PY = 3;                   // the preview box (right of the well)
+
+function paintPreview() {                // the queue ahead, worn in advance
+  const s = SHAPES[nxt];
+  const ox = PX + ((4 - s.size) >> 1), oy = PY + ((4 - s.size) >> 1);
+  pvue.forEach((e, i) => {
+    const [c, r] = s.cells[i];
+    e.x = ox + c * CELL;
+    e.y = oy + r * CELL;
+    e.color = s.color;
+    e.visible = over ? 0 : 1;
+  });
+}
+
 function spawn() {
-  cur = pull();
+  cur = nxt === null ? pull() : nxt;     // the queue: one draw per piece,
+  nxt = pull();                          // peeked honestly, never re-rolled
   rotN = 0;
   px = COLS >> 1;
   py = -1;
@@ -113,10 +131,12 @@ function spawn() {
     over = true;
     piece.forEach((e) => { e.visible = 0; });
     ghost.forEach((e) => { e.visible = 0; });
+    pvue.forEach((e) => { e.visible = 0; });
     win(`TOPPED OUT at ${total} — r falls again`);
     return;
   }
   paint();
+  paintPreview();
 }
 
 function lock() {
@@ -203,6 +223,7 @@ function reset() {
   drop = 0.5;
   over = false;
   bag = [];
+  nxt = null;
   spawn();
 }
 
@@ -237,8 +258,10 @@ on.tick((d) => {
   hud.text = `TETRIS  ·  arrows move · up turns · s sinks · space slams · ghost marks home · ${total} · lv ${level}`;
 });
 
+label("nxl", PX, PY + 9, "next", "#94a3b8");
 for (let i = 0; i < 4; ++i) piece.push(rect(`fall${i}`, -999, -999, CELL, CELL, "#8b5cf6"));
 for (let i = 0; i < 4; ++i) ghost.push(rect(`ghost${i}`, -999, -999, CELL, CELL, "#8b5cf6"));
+for (let i = 0; i < 4; ++i) pvue.push(rect(`pv${i}`, -999, -999, CELL, CELL, "#8b5cf6"));
 spawn();
 
 run();
