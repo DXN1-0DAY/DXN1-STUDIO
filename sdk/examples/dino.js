@@ -9,7 +9,15 @@
 // 0.12 s — if the ground lands before the press expires, the leap
 // fires anyway ("kept" at the press, "grace!" on the second chance).
 // the arc is asymmetric on purpose: the rise floats at 90, the fall
-// bites at 144 — and every touchdown leaves a fading dust.
+// bites at 144 — and every touchdown leaves a fading dust. the leap
+// lifts at 36 against the rise — an apex of 7.2 — because the desert
+// grows shapes that demand it: the old apex of 5 could clear NOTHING
+// (climb 5 at best, frame-perfect; the tall sentinel climb 7 — a wall,
+// not a cactus). the skin probe survives a full run to prove it.
+// the CACTI wear three shapes from ONE draw of the seed (short 3x3,
+// the fat twin 6x4, the tall sentinel 3x5 — the stream is untouched,
+// so the same run grows the same desert) and the sky's clock dresses
+// them: green by day, pale by night with a faint halo of their own.
 // r walks again after the fall.
 const dxn3 = require("dxn3");
 const { rect, circle, label, find, background, say, win, on, run } = dxn3;
@@ -53,6 +61,7 @@ const moon = circle("moon", W - 15, 4, 5, 5, "#f1f5f9");
 moon.alpha = 0.25;
 
 const CACTI = 6;                         // the pool: parked off right
+const CACTUS_DAY = "#34d399", CACTUS_NIGHT = "#a5f3fc";
 const cacti = [];
 for (let i = 0; i < CACTI; ++i) {
   const c = rect(`cactus-${i}`, -999, H - 8, 3, 5, "#34d399");
@@ -83,8 +92,8 @@ let bufT = 0;                            // the grace memory: a kept press
 function leap() {
   if (dead) return;
   if (dino.y >= H - 9) {                 // only from the ground
-    vy = -30;
-    say("up!");
+    vy = -36;                            // an apex of 7.2 — the desert's
+    say("up!");                          // shapes are all honestly clearable
   } else {
     bufT = 0.12;                         // the early press is kept
     say("kept");
@@ -140,7 +149,7 @@ on.tick((dt) => {
     dust.alpha = 0.7;
     if (bufT > 0) {                      // the second chance fires
       bufT = 0;
-      vy = -30;
+      vy = -36;
       say("grace!");
     } else {
       vy = 0;
@@ -154,15 +163,21 @@ on.tick((dt) => {
     c.x -= (speed / 5) * dt * (i ? 1.3 : 1);
     if (c.x < -20) c.x = W + 4;
   });
-  // the spawn law: the seed decides, the pool serves
+  // the spawn law: the seed decides, the pool serves — ONE draw for
+  // the shape (short, the fat twin, tall — three bands, same stream),
+  // ONE for the rest; the sky's clock dresses the skin for free
   spawnIn -= dt;
   if (spawnIn <= 0) {
     const c = cacti[free % CACTI];
     free += 1;
     c.x = W + 2;
-    const tall = next() > 0.6;
-    c.h = tall ? 7 : 5;
+    const band = next();                 // one draw, as always
+    if (band > 0.75) { c.h = 5; c.w = 3; }          // the tall sentinel
+    else if (band > 0.4) { c.h = 4; c.w = 6; }      // the fat twin
+    else { c.h = 3; c.w = 3; }                      // the short spire
     c.y = H - 3 - c.h;
+    c.color = night ? CACTUS_NIGHT : CACTUS_DAY;    // the dress
+    c.glow = night ? 1 : 0;                         // pale skins faintly ring
     spawnIn = 1.4 + next() * (90 / speed) + 0.5;
   }
   cacti.forEach((c) => {

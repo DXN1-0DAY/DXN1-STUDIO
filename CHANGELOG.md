@@ -1,3 +1,41 @@
+## v3.1.57 — the desert grows three shapes
+
+- **A playability bug the size of the desert: the dino could clear
+  NOTHING.** The leap lifted at 30 against the rise of 90 — an apex
+  of 5 — but clearing a cactus demands climb > its height: the
+  short spire (5) needed frame-perfect contact, the tall sentinel
+  (7) was a WALL, not a cactus. Every earlier probe injected its
+  hits; none ever PLAYED the run. The fix lifts the leap to 36 —
+  an apex of 7.2 (6.3 Euler-sampled) — and the shapes resize into
+  the honest window: the short spire 3x3 (climb 3), the fat twin
+  6x4 (climb 4), the tall sentinel 3x5 (climb 5). The arc still
+  floats at 90 and bites at 144; the grace law still keeps a press
+  for 0.12 s.
+- **The desert grows variety from the seed it already had.** ONE
+  draw per spawn now picks three bands — short, the fat twin, the
+  tall sentinel — so the stream consumption is UNCHANGED and the
+  same run grows the same desert. And the sky's clock dresses the
+  skins for free: green by day, pale by night with a faint halo of
+  their own (the moon's subjects glow back). Entity count
+  unchanged (20) — the pin never moved.
+- **Probe `dino_skin_probe.py`: 7 pins — the first dino probe that
+  SURVIVES the run it pins.** It steers, leaps, and injects only
+  honest overlaps from 22 m to the night and past it; the seed is
+  mirrored BIT FOR BIT (every spawn's shape, packet and dress
+  predicted, worst drift 0 packets); the night law fires at the
+  mirrored 200 m. Three hard-won wire laws banked: (1) JS bitwise
+  ops yield SIGNED int32 — once bit 31 sets, the FNV seed
+  multiplies as a NEGATIVE double and ToUint32 wraps that; the
+  unsigned FNV everyone writes in python NEVER matches it;
+  (2) a cactus that already passed the runner must never steer —
+  its negative time-to-impact pogo-sticks the dino to death;
+  (3) a probe that reads a stale entity reference reports the
+  frame before last and lies by one packet.
+- The grace probe re-pinned for the new arc (all 16 green): the
+  discrete apex is 6.3, and the kept-press window moved to
+  gap in [1.0, 2.8] — the honest gap the new fall actually walks
+  through (2.7 -> 0.9 -> landed).
+
 ## v3.1.56 — the light field, documented honestly
 
 - **sdk/PROTOCOL.md grows "the light fields" — and loses a lie.**
