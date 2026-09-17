@@ -2271,8 +2271,6 @@ int main(int argc, char** argv) {
               out.pop_back();
             return out;
           };
-          const std::string branch =
-              readCmd("git rev-parse --abbrev-ref HEAD 2>/dev/null");
           if (cmd.arg.rfind("log", 0) == 0) {
             // the repo's memory, spoken: the last N commits (a bare
             // :git log walks three, the cap is eight), joined into
@@ -2308,33 +2306,88 @@ int main(int argc, char** argv) {
                   "engine: the last " + std::to_string(spoke) + " — " +
                   joined);
             }
-          } else if (branch.empty()) {
-            ide.console.push_back(
-                "engine: git is not speaking here — no repository, or "
-                "no git on the machine");
-          } else {
-            const std::string dirty =
-                readCmd("git status --porcelain 2>/dev/null | wc -l");
-            std::string uncommitted;
-            if (!dirty.empty()) {
-              // wc -l pads with spaces on some machines — strip them
-              size_t b = dirty.find_first_not_of(" \t");
-              uncommitted = b == std::string::npos
-                                ? ""
-                                : dirty.substr(b, dirty.size() - b);
+          } else if (cmd.arg == "branch") {
+            // the local branches, spoken — the current wears the
+            // star, the names join into ONE receipt, the cap is six
+            // with a deeper tail. Still read-only: the verb names
+            // the paths, it never walks them for you.
+            const std::string out =
+                readCmd("git branch --format=\"%(HEAD) %(refname:short)\" "
+                        "2>/dev/null");
+            if (out.empty()) {
+              ide.console.push_back(
+                  "engine: git is not speaking here — no repository, or "
+                  "no git on the machine");
+            } else {
+              std::string joined;
+              int spoke = 0;
+              for (size_t i = 0; i < out.size();) {
+                size_t e = out.find('\n', i);
+                if (e == std::string::npos) e = out.size();
+                std::string ln = out.substr(i, e - i);
+                i = e + 1;
+                if (!ln.empty() && ln.back() == '\r') ln.pop_back();
+                if (ln.empty()) continue;
+                if (ln[0] != '*') {          // the star rides; the rest
+                  const size_t b =          // lose the format's padding
+                      ln.find_first_not_of(" \t");
+                  ln = b == std::string::npos ? "" : ln.substr(b);
+                }
+                if (ln.empty()) continue;
+                if (ln.size() > 22) ln = ln.substr(0, 22) + "…";
+                joined += (spoke == 0 ? "" : " · ") + ln;
+                if (++spoke == 6) break;
+              }
+              if (spoke == 0) {
+                ide.console.push_back(
+                    "engine: git is not speaking here — no repository, or "
+                    "no git on the machine");
+              } else {
+                std::string tail;
+                size_t more = 0;
+                for (size_t i = 0; i < out.size(); ++i)
+                  if (out[i] == '\n') ++more;
+                if (static_cast<int>(more) > spoke)
+                  tail = " · +" +
+                         std::to_string(static_cast<int>(more) - spoke) +
+                         " more";
+                ide.console.push_back(
+                    "engine: " + std::to_string(spoke) +
+                    (spoke == 1 ? " branch — " : " branches — ") +
+                    joined + tail);
+              }
             }
-            // the census's zero is not a count: an empty or "0" tree
-            // speaks `clean`, in words — never "0 uncommitted"
-            const bool clean =
-                uncommitted.empty() || uncommitted == "0";
-            std::string last =
-                readCmd("git log -1 --format=\"%h %s\" 2>/dev/null");
-            if (last.size() > 52) last = last.substr(0, 52) + "…";
-            ide.console.push_back(
-                "engine: git " + branch + " · " +
-                (clean ? std::string("clean")
-                       : uncommitted + " uncommitted") +
-                (last.empty() ? "" : " · last " + last));
+          } else {
+            const std::string branch =
+                readCmd("git rev-parse --abbrev-ref HEAD 2>/dev/null");
+            if (branch.empty()) {
+              ide.console.push_back(
+                  "engine: git is not speaking here — no repository, or "
+                  "no git on the machine");
+            } else {
+              const std::string dirty =
+                  readCmd("git status --porcelain 2>/dev/null | wc -l");
+              std::string uncommitted;
+              if (!dirty.empty()) {
+                // wc -l pads with spaces on some machines — strip them
+                size_t b = dirty.find_first_not_of(" \t");
+                uncommitted = b == std::string::npos
+                                  ? ""
+                                  : dirty.substr(b, dirty.size() - b);
+              }
+              // the census's zero is not a count: an empty or "0" tree
+              // speaks `clean`, in words — never "0 uncommitted"
+              const bool clean =
+                  uncommitted.empty() || uncommitted == "0";
+              std::string last =
+                  readCmd("git log -1 --format=\"%h %s\" 2>/dev/null");
+              if (last.size() > 52) last = last.substr(0, 52) + "…";
+              ide.console.push_back(
+                  "engine: git " + branch + " · " +
+                  (clean ? std::string("clean")
+                         : uncommitted + " uncommitted") +
+                  (last.empty() ? "" : " · last " + last));
+            }
           }
         } else if (cmd.verb == "drift") {
           // the drift as addresses — the census's amber, speakable. A

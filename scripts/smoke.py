@@ -1599,6 +1599,10 @@ def main():
               "second breath" in scr2.text(ROWS - 2) and
               "seed v3.1.0" not in scr2.text(ROWS - 2),
               repr(scr2.text(ROWS - 2)[:90]))
+        scr2, _ = s2.run_verb("git branch", "ide")
+        check(":git branch speaks the locals, the current starred",
+              "1 branch — * master" in scr2.text(ROWS - 2),
+              repr(scr2.text(ROWS - 2)[:90]))
 
         # ── 13x. the drift that breathes ─────────────────────────────
         print("── 13x. the drift breathes — a silent beat, a spoken count")

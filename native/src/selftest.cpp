@@ -199,7 +199,7 @@ int main() {
   }
 
   // 9. the version quad rides in the binary too
-  ok(std::string(dxn3::DXN3_VERSION) == "3.1.2",
+  ok(std::string(dxn3::DXN3_VERSION) == "3.1.3",
      "native version constant matches the release");
 
   // 10. png writer: checksum vectors, real structure, byte determinism
@@ -1144,6 +1144,10 @@ int main() {
        ":git log 9 is refused — the cap is eight");
     ok(!dxn3::parseCommand(":git push").ok(),
        ":git refuses to write — the verb is read-only");
+    ok(dxn3::parseCommand(":git branch").ok(),
+       ":git branch is well-formed bare");
+    ok(!dxn3::parseCommand(":git branch x").ok(),
+       ":git branch takes no argument");
     ok(dxn3::usageHintFor(":git").find("branch") != std::string::npos,
        "the git whisper names what it speaks");
     ok(dxn3::usageHintFor(":snip").find("fn tick") != std::string::npos,

@@ -1,3 +1,23 @@
+## v3.1.3 — :git branch (the locals, spoken)
+
+- **The branch manager's sapling.** `:git branch` — the local
+  branches, spoken in one receipt: the current wears the star,
+  the names join with a middot, the cap is six with a `+k more`
+  tail, each name held to 22 columns. Still read-only — the verb
+  names the paths, it never walks them for you — and still
+  refused honestly without git. The trio is whole: `:git` speaks
+  the present, `:git log` the past, `:git branch` the paths.
+- **The BUG the drive caught (before any push):** the first
+  draft asked `git branch --porcelain` — no such flag on
+  `git branch` (that is `git status`'s word); exit 129, and the
+  verb's honest refusal fired in the smoke instead of the
+  listing. The real form is `--format="%(HEAD) %(refname:short)"`,
+  the star riding the current line, the padding stripped from
+  the rest.
+- Selftest group 29 pins two more laws (884 -> 886): the bare
+  verb is well-formed, and it takes no argument. Smoke 13w grew
+  the drive (216 -> 217). Gates ALL GREEN.
+
 ## v3.1.2 — :git log (the repo's memory, spoken)
 
 - **The branch manager's seed grows a root system.** `:git log [n]`
