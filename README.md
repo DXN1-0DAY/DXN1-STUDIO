@@ -2,7 +2,7 @@
 
 ![DXN1 STUDIO 3](assets/banner.png)
 
-![version](https://img.shields.io/badge/version-3.1.24-8b5cf6?style=flat-square)
+![version](https://img.shields.io/badge/version-3.1.25-8b5cf6?style=flat-square)
 ![gates](https://github.com/DXN1-termux/DXN1-STUDIO/actions/workflows/ci.yml/badge.svg)
 ![native](https://img.shields.io/badge/native-C%2B%2023-f97316?style=flat-square)
 ![face](https://img.shields.io/badge/face-terminal_truecolor-22d3ee?style=flat-square)
@@ -486,7 +486,10 @@ bounce), `sign` (floating text). Tagless entities are solid geometry.
 Colors may set `color2` + `"fill": "gradient"`, and `spin` rotates them.
 Any entity may carry `"glow": <px>` — a dim halo behind the body (a real
 ring on circles, the coins' rect aura elsewhere), patchable per frame
-over the wire so a pulse is just a `set`.
+over the wire so a pulse is just a `set`. Any entity may carry
+`"flash": <0..1>` — a hit-flash that bleaches the body toward white and
+decays at 4/s inside `update`: one wire patch marks a hit, the engine
+does the fading, and both rasters agree on the bleach.
 
 ## Engine selftest + gates
 

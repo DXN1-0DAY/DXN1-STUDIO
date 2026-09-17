@@ -25,6 +25,8 @@ struct Entity {
   float rot = 0, spin = 0, tsize = 20;
   float glow = 0;                     // halo radius in px (0 = none);
                                       // circles ring, the rest rect-aura
+  float flash = 0;                    // hit-flash: 1 = all white, decays
+                                      // 4/s in update; set-patchable
   std::vector<Vec2> path;             // mover waypoints (world px)
   float pathSpeed = 60;
   bool alive = true;

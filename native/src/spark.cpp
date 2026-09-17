@@ -65,6 +65,7 @@ Scene Game::fromJson(const std::string& text) {
       en.spin = static_cast<float>(e.at("spin").num_or(0));
       en.tsize = static_cast<float>(e.at("tsize").num_or(20));
       en.glow = static_cast<float>(e.at("glow").num_or(0));
+      en.flash = static_cast<float>(e.at("flash").num_or(0));
       en.pathSpeed = static_cast<float>(e.at("pspeed").num_or(60));
       const Value& path = e.at("path");
       if (path.is(json::Kind::Arr)) {
@@ -119,6 +120,7 @@ std::string Game::toJson(const Scene& s) {
     if (e.rot != 0) o << ", \"rot\": " << e.rot;
     if (e.spin != 0) o << ", \"spin\": " << e.spin;
     if (e.glow > 0) o << ", \"glow\": " << e.glow;
+    if (e.flash > 0) o << ", \"flash\": " << e.flash;
     if (!e.path.empty()) {
       o << ", \"path\": [";
       for (size_t j = 0; j < e.path.size(); ++j) {
@@ -420,6 +422,8 @@ void Game::update(float dt, const Input& in) {
   stepCoins(dt);
   stepTags(dt);
   stepCamera(dt);
+  for (auto& e : scene.entities)           // the hit-flash decays fast:
+    if (e.flash > 0) e.flash = std::max(0.f, e.flash - dt * 4.f);
 }
 
 } // namespace dxn3

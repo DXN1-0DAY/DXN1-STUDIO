@@ -45,6 +45,8 @@ body (a real ring on circles, the coins' rect aura elsewhere). Both
 rasters obey, and the frame's `set` can patch it like any field, so a
 pulse is just a patch per frame.
 
+Any entity may carry `"flash": <0..1>` — a hit-flash that bleaches the body toward white and decays at 4/s in `update`; a wire `set` re-lights it, so a game marks a hit with one patch. Both rasters obey.
+
 ## the frame packet — every tick, patch the world
 
 `set` patches entities **by name**: known names update in place, unknown

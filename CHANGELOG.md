@@ -1,3 +1,19 @@
+## v3.1.25 — a hit you can see
+
+- **`flash` — a general entity field.** Any entity may carry
+  `"flash": <0..1>`: the body bleaches toward white in BOTH rasters
+  (terminal and PNG agree), and `Game::update` decays it at 4/s
+  until it burns out exactly at zero — never negative. A game marks
+  a hit with ONE wire patch (`{"name":"ship","flash":1}`); the
+  engine does the fading.
+- Parsed from scenes, patchable over the wire, round-tripped by
+  `toJson`, documented in PROTOCOL.md and the README. Selftest
+  group 100 pins the whole law: parse, patch, the 4/s decay (under
+  the 1/30 dt clamp), the exact burnout, and a PNG render.
+- Selftest 919 → 926 assertion groups. Probe lesson honored: the
+  first decay pin used dt=0.1 and forgot the engine clamps dt to
+  1/30 — the ENGINE was right, the test author was sloppy (again).
+
 ## v3.1.24 — the meal speaks
 
 - **snake.py polish — the classic learns to talk.** The meal now

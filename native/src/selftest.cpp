@@ -4778,6 +4778,36 @@ int main() {
        "the halo is a pure function of state (byte-identical)");
   }
 
+  // 100. the flash: a hit you can SEE — parsed, patched, decayed, bleached
+  {
+    Scene s = dxn3::Game::fromJson(
+        R"({"name":"flash","entities":[{"name":"ship","x":0,"y":0,"color":"#8b5cf6","flash":1}]})");
+    ok(!s.entities.empty() && s.entities[0].flash == 1.f,
+       "fromJson reads a hit-flash");
+    Scene s0 = dxn3::Game::fromJson(
+        R"({"name":"calm","entities":[{"name":"p","x":0,"y":0}]})");
+    ok(s0.entities.empty() || s0.entities[0].flash == 0.f,
+       "no flash field means no flash");
+    ok(dxn3::Game::toJson(s).find("\"flash\": 1") != std::string::npos,
+       "toJson writes the flash back");
+    Game g(s);
+    HostFrame f;
+    f.frame = true;
+    f.set = dxn3::json::parse(R"([{"name":"ship","flash":0.5}])").value();
+    dxn3::applyFrame(g, f);
+    ok(g.scene.entities[0].flash == 0.5f,
+       "a wire patch sets the flash (a hit is a patch)");
+    g.update(0.02f, dxn3::Input{});      // decay is 4/s — 0.5 burns to ~0.42
+                                         // (0.02 stays under the 1/30 clamp)
+    ok(g.scene.entities[0].flash > 0.4199f && g.scene.entities[0].flash < 0.4201f,
+       "the flash decays 4 per second toward zero");
+    for (int i = 0; i < 30; ++i) g.update(0.02f, dxn3::Input{});
+    ok(g.scene.entities[0].flash == 0.f,
+       "the flash burns out exactly (never negative)");
+    ok(dxn3::shootPNG("/tmp/dxn3_flash.png", g).empty(),
+       "a flashed scene renders in the PNG raster");
+  }
+
   if (fails == 0) {
     std::println("native selftest: all green ({} assertion groups)", n);
     return 0;

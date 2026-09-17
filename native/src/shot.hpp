@@ -95,7 +95,9 @@ inline std::string shootPNG(const std::string& path, const Game& g) {
     if (!e.alive) continue;
     const float x0 = sx(e.x), y0 = sy(e.y);
     const float x1 = x0 + e.w * z - 1, y1 = y0 + e.h * z - 1;
-    const RGB c1 = parseHex(e.color, rgb(139, 92, 246));
+    RGB c1 = parseHex(e.color, rgb(139, 92, 246));
+    if (e.flash > 0)                     // the flash the terminal sees too
+      c1 = lerpColor(c1, 0xFFFFFF, std::min(1.f, e.flash));
     if (x1 < 0 || x0 > W || y1 < 0 || y0 > H) continue;
     // frame against the void: dark entities get a lighter edge so the
     // night sky never swallows the level geometry

@@ -511,7 +511,9 @@ void drawWorld(dxn3::Screen& scr, const dxn3::Game& g) {
     if (!e.alive) continue;
     const float x0 = sx(e.x), y0 = sy(e.y);
     const float x1 = x0 + e.w * z - 1, y1 = y0 + e.h * z - 1;
-    const RGB c1 = dxn3::parseHex(e.color, dxn3::rgb(139, 92, 246));
+    RGB c1 = dxn3::parseHex(e.color, dxn3::rgb(139, 92, 246));
+    if (e.flash > 0)                     // the hit-flash bleaches the body
+      c1 = dxn3::lerpColor(c1, 0xFFFFFF, std::min(1.f, e.flash));
     const bool off = x1 < 0 || x0 > cols || y1 < 0 || y0 > hr;
 
     // the shape the author asked for — circles are real discs now,
