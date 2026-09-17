@@ -122,6 +122,11 @@ def main():
         check("dino.js", scene is not None and frames >= 3 and got == 11,
               f"scene={'yes' if scene else 'NO'} frames={frames} "
               f"entities={got}")
+        scene, frames, console = probe(["node", f"{EX}/tetris.js"])
+        got = len(scene.get("entities", [])) if scene else 0
+        check("tetris.js", scene is not None and frames >= 3 and got == 8,
+              f"scene={'yes' if scene else 'NO'} frames={frames} "
+              f"entities={got}")
     else:
         print("   (skip) bounce.js — node not on this machine", flush=True)
 

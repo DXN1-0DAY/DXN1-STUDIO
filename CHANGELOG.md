@@ -1,3 +1,28 @@
+## v3.1.18 — the falling order
+
+- **`sdk/examples/tetris.js` — the classic, honestly built.** A 10×16
+  well with rail-and-floor chrome; the seven tetrominoes drawn from a
+  SEEDED 7-bag (FNV-1a + xorshift, the studio's determinism law: the
+  same run, the same falls, forever); left/right slide, up-or-jump
+  turns (with wall kicks ±1, ±2), down soft-drops, space SLAMS; the
+  drop rate tightens with the level (0.5s → 0.08s floor). The design
+  law worth reading: LOCKED CELLS ARE THEIR OWN ENTITIES — one rect
+  per seat, named by sequence — because the falling seats must stay
+  free for the next order, or a sweep would destroy the piece that is
+  falling (the probe caught exactly that draft). A cleared line is
+  ten honest destroys and everything above falls one row; TETRIS!
+  speaks its name; an untouched well tops out with its count —
+  "TOPPED OUT at 0 — r falls again" — and r, arriving through the
+  wire's chars channel, walks again. 8 entities at the scene's birth;
+  gate 6 roster 13 → 14; the JS gallery grows to FIVE.
+- **Probed end to end** (deterministic probe): the first order paints
+  its four seats, right slides, jump turns, gravity drops, the slam
+  buries four named cells, the untouched well tops out honestly, and
+  the reset re-births the falling four. The probe's findings, fixed
+  before the tag: a double-offset in the slide/gravity fits-checks
+  (seats probed at py+py), the missing cells-assignment in turn(), and
+  the lock-into-falling-seats design bug above.
+
 ## v3.1.17 — the bracket's twin
 
 - **`:match` — the hand walks to the other half.** From the
