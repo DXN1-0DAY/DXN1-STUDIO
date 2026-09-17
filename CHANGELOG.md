@@ -1,3 +1,32 @@
+## v3.1.66 — the night owns this sky too
+
+- **flappy.py grows a night of its own — and the pipes dress for it.**
+  The score turns the sky: night falls at 3, dawn at 8, and every
+  five after — one law derived from the score alone ((score + 2) //
+  5 % 2), no second seeded stream, so a run replays itself exactly
+  as the seed chapter demands. The dark fades in over two honest
+  seconds (the dino law), the moon rises with the fade and SHINES
+  only when the fade completes (glow 4, never before — a glow
+  mid-fade would be a light promising a dark that has not arrived),
+  and the pipes DRESS on the flip: pale by night with a faint halo
+  of their own (the cacti law: green by day, pale by night, glow 1),
+  so the gap stays readable in the dark — the ghost's alpha 0.32 was
+  wayfinding by honesty; the halo is wayfinding by light. Death and
+  a fresh flight restore the fresh day (night flag, fade clock, sky,
+  moon, and the pipes' green all reset — and the reset lives behind
+  the right global declaration: the restart's night= False was
+  caught writing a LOCAL shadow, the classic python trap, before it
+  could ship).
+- flappy_night_probe (16 pins, green) and the probe PLAYS: the
+  bang-bang pilot flies the seeded sky to SCORE 3 — the flip frame
+  speaks "night falls at 3", the pipes wear pale + halo — walks the
+  2 s fade (sky to 0.45, moon to 1.0, glow 4 never early), keeps
+  flying THROUGH the night to SCORE 8 ("dawn at 8", pipes green
+  again), watches the sky fade home while the bird still lives, and
+  dies + restarts into a fresh day. Entity count 9 -> 11 (sky +
+  moon), conformance re-pinned; flappy_light regression re-walked
+  green. Gates 7 green.
+
 ## v3.1.65 — the halos breathe
 
 - **lunar.py's pad halos learned the snake meal's breath.** One shared

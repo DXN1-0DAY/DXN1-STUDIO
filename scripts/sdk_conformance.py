@@ -85,7 +85,7 @@ def main():
 
     py_games = [("background.py", ["python3", f"{EX}/background.py"], 3),
                 ("shooter.py", ["python3", f"{EX}/shooter.py"], 3),
-                ("flappy.py", ["python3", f"{EX}/flappy.py"], 9),
+                ("flappy.py", ["python3", f"{EX}/flappy.py"], 11),
                 ("cards.py", ["python3", f"{EX}/cards.py"], 12),
                 ("snake.py", ["python3", f"{EX}/snake.py"], 5),
                 ("lunar.py", ["python3", f"{EX}/lunar.py"], 11),

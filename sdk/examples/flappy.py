@@ -4,11 +4,29 @@
 # 3/s while the world waits — the bird settles into a half-light
 # ghost, never a forever-statue (the wire game owns its decay),
 # a clean pass makes it GLOW on an honest 6/s staircase.
+# v3.1.66 — THE NIGHT OWNS THIS SKY TOO: the score turns it — night
+# falls at 3, dawn at 8, and every five after (the sky's own rhythm,
+# derived from the score, no second stream). The dark fades in over
+# two honest seconds (the dino law), the moon rises and SHINES when
+# the fade completes (glow 4), and the pipes DRESS FOR IT — pale by
+# night with a faint halo of their own (the cacti law), so the gap
+# stays readable in the dark. The ghost's alpha 0.32 was wayfinding
+# by honesty; the halo is wayfinding by light.
 from dxn3 import *
 import random
 
 random.seed(7)                       # honest demo pipes — same sky every run
 background("#0a0e1e")
+
+# the night's own furniture — created FIRST so the world renders over it
+sky = rect("sky", 0, 0, W, H, "#020617")
+sky.alpha = 0                        # the dark, waiting for its hours
+moon = circle("moon", W - 12, 4, 5, 5, "#e2e8f0")
+moon.alpha = 0.25                    # the moon haunts the day sky faintly
+moon.glow = 0
+night = False                        # the score turns the sky: night at 3,
+nightT = 0.0                         # dawn at 8, and every five after;
+                                     # nightT fades over two honest seconds
 
 bird = circle("bird", 16, H // 2, 6, 6, "#facc15"); bird.tag = "bird"
 hud  = label("hud", 2, 2, "SCORE 0")
@@ -53,8 +71,17 @@ def die():
     win(f"game over — score {score}")
     print("game over — score", score)
 
+def dress(night_now):                # the pipes dress for the dark (the
+    top_c = "#4ade80" if night_now else "#22c55e"    # cacti law: pale by
+    bot_c = "#34d399" if night_now else "#16a34a"    # night, faint halo)
+    for p in pairs:
+        p["top"].color = top_c
+        p["bot"].color = bot_c
+        p["top"].glow = 1 if night_now else 0
+        p["bot"].glow = 1 if night_now else 0
+
 def on_key(k):
-    global vy, dead, score
+    global vy, dead, score, night, nightT
     if k != "space": return
     if dead:
         dead, score, vy = False, 0, 0
@@ -64,12 +91,16 @@ def on_key(k):
         for i, p in enumerate(pairs):
             gap_at(p, W + 8 + i * 22)
         hud.text, tip.text = "SCORE 0", "space to flap"
+        night, nightT = False, 0.0            # a fresh flight is a fresh day
+        sky.alpha = 0
+        moon.alpha, moon.glow = 0.25, 0
+        dress(False)
         print("new flight — good luck")
     else:
         vy = -LIFT
 
 def on_tick(dt2):
-    global vy, score
+    global vy, score, night, nightT
     if dead:
         # the honest staircase (PROTOCOL.md, the who-owns-the-tick
         # law): the studio keeps the last light a wire game sent, so
@@ -105,6 +136,23 @@ def on_tick(dt2):
             hud.text = "SCORE " + str(score)
         if p["top"].x < -6:               # gone off the left — recycle it
             gap_at(p, W + 4)
+    # THE SKY'S OWN RHYTHM: night falls at 3, dawn at 8, and every five
+    # after — derived from the score alone (one law, no second stream).
+    # The dark fades over two honest seconds; the moon rises with it
+    # and SHINES only when the fade completes. The pipes dressed on
+    # the flip; the sky and the moon ride the fade.
+    now_night = ((score + 2) // 5) % 2 == 1
+    if now_night != night:
+        night = now_night
+        say(("night falls at %d" % score) if night else ("dawn at %d" % score))
+        dress(night)
+    target = 1.0 if night else 0.0
+    if nightT != target:
+        step = 0.5 * dt2 if night else -0.5 * dt2
+        nightT = round(max(0.0, min(1.0, nightT + step)), 3)
+        sky.alpha = round(0.45 * nightT, 3)
+        moon.alpha = round(0.25 + 0.75 * nightT, 3)
+        moon.glow = 4 if nightT >= 1 else 0
 
 def on_hit(a, b):
     if not dead and "bird" in (a.tag, b.tag) and "pipe" in (a.tag, b.tag):
