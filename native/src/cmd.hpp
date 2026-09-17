@@ -192,7 +192,7 @@ inline Cmd parseCommand(std::string_view line) {
     if (!c.arg.empty() && c.arg.find(' ') != std::string::npos)
       c.error = "usage: :help [verb] — one verb at a time";
   } else if (c.verb == "q" || c.verb == "wq" || c.verb == "fit" ||
-             c.verb == "reset" || c.verb == "new" ||
+             c.verb == "reset" || c.verb == "new" || c.verb == "diff" ||
              c.verb == "ruler" || c.verb == "stats" || c.verb == "minimap" ||
              c.verb == "trim" || c.verb == "cases" || c.verb == "sort" ||
              c.verb == "rsort" || c.verb == "upper" || c.verb == "lower" ||
@@ -377,6 +377,9 @@ inline std::string usageHintFor(std::string_view typed) {
     return " :count [word] — the census of a query: a bare :count counts "
            "the searchlight's query everywhere; a word counts itself";
   if (verb == "stats") return " :stats — lines, words, chars, where you stand";
+  if (verb == "diff")
+    return " :diff — the page against the disk: added, changed, removed — "
+           "a look, not a save";
   if (verb == "w")
     return " :w [file] — save the session's work; a .bak is kept";
   if (verb == "wq") return " :wq — save and quit";

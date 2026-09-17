@@ -1515,6 +1515,24 @@ def main():
         s2.run_verb("undo", "ide")             # the marker breath undone
         s2.settle(0.3)
 
+        # ── 13u. :diff — the page against the disk ───────────────────
+        print("── 13u. :diff — added, changed, removed — a look, not a save")
+        s2.run_verb("goto 2", "ide")           # the hand at work again
+        s2.settle(0.2)
+        s2.send("x")                           # the page drifts from the disk
+        s2.settle(0.4)
+        scr2, _ = s2.run_verb("diff", "ide")
+        check(":diff hears the drift",
+              "disagree" in scr2.text(ROWS - 2),
+              repr(scr2.text(ROWS - 2)[:80]))
+        s2.run_verb("undo", "ide")             # the drift undone
+        s2.settle(0.3)
+        scr2, _ = s2.run_verb("diff", "ide")
+        check(":diff hears the agreement",
+              "agree" in scr2.text(ROWS - 2) and
+              "disagree" not in scr2.text(ROWS - 2),
+              repr(scr2.text(ROWS - 2)[:60]))
+
         # ── 13p. :count — the census of a query ──────────────────────
         print("── 13p. :count — the find's law, spoken as a number")
         scr2, _ = s2.run_verb("count ccc", "ide")

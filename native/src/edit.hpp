@@ -434,6 +434,83 @@ inline std::vector<int> ideChangesAsk(const IdeState& s,
   return matches;
 }
 
+// ── the diff census: the page against the disk, one law ────────────
+// A look, never an edit. The classic LCS speaks an edit script in
+// three voices — lines the page ADDS, lines the page REMOVES, and a
+// removal standing beside an addition in the same breath, which is
+// one honest CHANGE. Line numbers speak as the gutter does (1-based):
+// additions and changes point at the PAGE's lines, a removal at
+// where the line once stood on the DISK. A bed too big to think
+// refuses honestly.
+struct IdeDiffReport {
+  int added = 0, changed = 0, removed = 0;
+  std::vector<int> addedAt, changedAt, removedAt;
+  bool same() const { return added == 0 && changed == 0 && removed == 0; }
+};
+
+inline std::optional<IdeDiffReport>
+ideDiffCensus(const std::vector<std::string>& disk,
+              const std::vector<std::string>& page) {
+  const int n = static_cast<int>(disk.size());
+  const int m = static_cast<int>(page.size());
+  if (static_cast<long long>(n) * static_cast<long long>(m) > 4000000LL)
+    return std::nullopt;                     // a bed too big: refuse
+  std::vector<std::vector<int>> lcs(
+      static_cast<size_t>(n) + 1,
+      std::vector<int>(static_cast<size_t>(m) + 1, 0));
+  for (int i = n - 1; i >= 0; --i)
+    for (int j = m - 1; j >= 0; --j)
+      lcs[static_cast<size_t>(i)][static_cast<size_t>(j)] =
+          disk[static_cast<size_t>(i)] == page[static_cast<size_t>(j)]
+              ? lcs[static_cast<size_t>(i + 1)][static_cast<size_t>(j + 1)] + 1
+              : std::max(lcs[static_cast<size_t>(i + 1)][static_cast<size_t>(j)],
+                         lcs[static_cast<size_t>(i)][static_cast<size_t>(j + 1)]);
+  struct Op { char kind; int a, b; };        // 'k'eep, 'a'dd, 'd'rop
+  std::vector<Op> script;
+  int i = 0, j = 0;
+  while (i < n && j < m) {
+    if (disk[static_cast<size_t>(i)] == page[static_cast<size_t>(j)]) {
+      script.push_back({'k', i, j});
+      ++i;
+      ++j;
+    } else if (lcs[static_cast<size_t>(i + 1)][static_cast<size_t>(j)] >=
+               lcs[static_cast<size_t>(i)][static_cast<size_t>(j + 1)]) {
+      script.push_back({'d', i, j});
+      ++i;
+    } else {
+      script.push_back({'a', i, j});
+      ++j;
+    }
+  }
+  while (i < n) { script.push_back({'d', i, j}); ++i; }
+  while (j < m) { script.push_back({'a', i, j}); ++j; }
+  IdeDiffReport rep;
+  size_t k = 0;
+  while (k < script.size()) {
+    if (script[k].kind == 'k') { ++k; continue; }
+    const size_t b0 = k;                     // a mixed block: adds and
+    while (k < script.size() && script[k].kind != 'k') ++k;  // drops in
+                                             // any order, no keep between
+    std::vector<int> aPages, dDisks;
+    for (size_t t = b0; t < k; ++t) {
+      if (script[t].kind == 'a') aPages.push_back(script[t].b + 1);
+      else dDisks.push_back(script[t].a + 1);
+    }
+    const int pairs = static_cast<int>(
+        std::min(aPages.size(), dDisks.size()));
+    for (int p = 0; p < pairs; ++p)          // a drop beside an add is a
+      rep.changedAt.push_back(aPages[static_cast<size_t>(p)]);  // change
+    for (size_t p = static_cast<size_t>(pairs); p < dDisks.size(); ++p)
+      rep.removedAt.push_back(dDisks[p]);
+    for (size_t p = static_cast<size_t>(pairs); p < aPages.size(); ++p)
+      rep.addedAt.push_back(aPages[p]);
+  }
+  rep.added = static_cast<int>(rep.addedAt.size());
+  rep.changed = static_cast<int>(rep.changedAt.size());
+  rep.removed = static_cast<int>(rep.removedAt.size());
+  return rep;
+}
+
 // the selection goes first: the range is cut, the cursor collapses to
 // its start, the anchor clears. False when there was nothing selected.
 inline bool ideSelDelete(IdeState& s) {

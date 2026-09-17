@@ -2,7 +2,7 @@
 
 ![DXN1 STUDIO 3](assets/banner.png)
 
-![version](https://img.shields.io/badge/version-3.0.95-8b5cf6?style=flat-square)
+![version](https://img.shields.io/badge/version-3.0.96-8b5cf6?style=flat-square)
 ![gates](https://github.com/DXN1-termux/DXN1-STUDIO/actions/workflows/ci.yml/badge.svg)
 ![native](https://img.shields.io/badge/native-C%2B%2023-f97316?style=flat-square)
 ![face](https://img.shields.io/badge/face-terminal_truecolor-22d3ee?style=flat-square)
@@ -132,6 +132,14 @@ viewport refreshes — *code a background, and boom, a background.*
   SPEAK the word? The find's case law answers, the pin's diamond
   rides the listing, and a bare verb still lists while a number
   still leaps.
+- **`:diff` compares the page with the disk.** A look, never a save:
+  the classic LCS speaks an edit script in three voices — lines the
+  page adds, lines it let go, and a drop standing beside an add in
+  the same breath, which is one honest change. The gutter's own
+  numbers name the lines (a removal points where the line once
+  stood), the samples cap at six with a `+k more` tail, an empty
+  path says the disk has never heard of the page, and a bed too big
+  to think refuses politely.
 - **Word hops and the partner.** `ctrl+←`/`ctrl+→` jump word by word —
   the same words `ctrl+w` bites — across line edges when they must.
   `ctrl+delete` eats exactly what a hop would cross; `ctrl+/` toggles

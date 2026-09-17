@@ -199,7 +199,7 @@ int main() {
   }
 
   // 9. the version quad rides in the binary too
-  ok(std::string(dxn3::DXN3_VERSION) == "3.0.95",
+  ok(std::string(dxn3::DXN3_VERSION) == "3.0.96",
      "native version constant matches the release quad");
 
   // 10. png writer: checksum vectors, real structure, byte determinism
@@ -4497,6 +4497,45 @@ int main() {
        "an untouched line never answers the census's question");
     const auto e = dxn3::ideChangesAsk(qs, "");
     ok(e.empty(), "an empty question refuses honestly");
+  }
+
+
+  // 97. the diff census: the page against the disk
+  {
+    const std::vector<std::string> disk = {"alpha", "beta", "gamma"};
+    const auto same = dxn3::ideDiffCensus(disk, disk);
+    ok(same && same->same(), "an honest page agrees with its disk");
+    const std::vector<std::string> midAdd = {"alpha", "new", "beta", "gamma"};
+    const auto add = dxn3::ideDiffCensus(disk, midAdd);
+    ok(add && add->added == 1 && add->changed == 0 && add->removed == 0 &&
+           add->addedAt[0] == 2,
+       "a page line the disk never held is an addition, at its gutter line");
+    const std::vector<std::string> midCut = {"alpha", "gamma"};
+    const auto cut = dxn3::ideDiffCensus(disk, midCut);
+    ok(cut && cut->removed == 1 && cut->removedAt[0] == 2,
+       "a disk line the page let go is a removal, where it once stood");
+    const std::vector<std::string> rewrite = {"alpha", "BETA", "gamma"};
+    const auto ch = dxn3::ideDiffCensus(disk, rewrite);
+    ok(ch && ch->changed == 1 && ch->added == 0 && ch->removed == 0 &&
+           ch->changedAt[0] == 2,
+       "a rewritten line is one change, not a pair of voices");
+    const std::vector<std::string> mix = {"ALPHA", "beta", "delta", "extra"};
+    const auto mx = dxn3::ideDiffCensus(disk, mix);
+    ok(mx && mx->changed == 2 && mx->added == 1 && mx->removed == 0 &&
+           mx->changedAt[0] == 1 && mx->changedAt[1] == 3,
+       "an interleaved edit pairs every drop beside its add — two changes");
+    const std::vector<std::string> grow = {"beta", "gamma", "zeta"};
+    const auto gr = dxn3::ideDiffCensus(disk, grow);
+    ok(gr && gr->removed == 1 && gr->added == 1,
+       "a block with no pair left speaks the extras honestly");
+    const std::vector<std::string> blank;
+    const auto born = dxn3::ideDiffCensus(blank, disk);
+    ok(born && born->added == 3 && born->removed == 0,
+       "a disk that never held the page hears every line as an addition");
+    const std::vector<std::string> bigA(2001, "x");
+    const std::vector<std::string> bigB(2001, "y");
+    ok(!dxn3::ideDiffCensus(bigA, bigB),
+       "a bed too big to think refuses honestly");
   }
 
 

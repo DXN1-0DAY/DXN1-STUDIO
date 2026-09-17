@@ -1,3 +1,27 @@
+## v3.0.96 — :diff (the page against the disk)
+
+- **`:diff` — the page and the disk, spoken honestly.** A look,
+  never an edit, never a save: the classic LCS builds the edit
+  script, and the script's voices are the receipt — `N added (…)` ·
+  `N changed (…)` · `N removed (…)`, the gutter's own numbers,
+  samples capped at six with a `+k more` tail. A drop standing
+  beside an add in the same block is one honest CHANGE (the
+  rewrite's law — and the pairing is block-wise, so an add that
+  walks BEFORE its drop pairs too); extras speak in their own
+  voices. A removal points where the line once stood on the disk;
+  an addition or change points at the page's line. An untitled page
+  says the disk has never heard of it; a lost disk copy says the
+  page stands alone; a bed too big to think (over ~2000 lines
+  squared) refuses politely. `ideDiffCensus` is the engine's own
+  law — pure lines in, report out.
+- Selftest group 97: EIGHT diff laws (866 -> 874) — the agreement,
+  the pure addition and removal, the rewrite as one voice, the
+  interleaved block pairing (MY BUG: the first pass only paired
+  drop-then-add; an add walking before its drop stayed unpaired —
+  the block law fixed it), the extras, the newborn page, the
+  honest refusal. Smoke 13u: TWO drives (203 -> 205) — the drift
+  heard, the agreement heard. Gates ALL GREEN.
+
 ## v3.0.95 — the census's question (:changes <word>)
 
 - **`:changes <word>` marries the census with the query.** A bare

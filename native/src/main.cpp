@@ -2232,6 +2232,67 @@ int main(int argc, char** argv) {
                   ? "engine: no jumps yet — :goto, F2 and the welcome "
                     "back plant them"
                   : "engine: the jumps, newest first — " + j);
+        } else if (cmd.verb == "diff") {
+          // the page against the disk — a look, never an edit, never
+          // a save. The census speaks in three voices: added, changed,
+          // removed; the gutter's own numbers; an honest refusal when
+          // the bed is too big to think.
+          takeStage();
+          if (ide.path.empty()) {
+            ide.console.push_back(
+                "engine: the disk has never heard of this page — :w gives "
+                "it a name");
+          } else {
+            std::ifstream f(ide.path, std::ios::binary);
+            if (!f.good()) {
+              ide.console.push_back(
+                  "engine: the disk's copy is gone — the page stands alone");
+            } else {
+              std::vector<std::string> disk;
+              std::string ln;
+              while (std::getline(f, ln)) {
+                if (!ln.empty() && ln.back() == '\r') ln.pop_back();
+                disk.push_back(ln);
+              }
+              const auto rep = dxn3::ideDiffCensus(disk, ide.lines);
+              if (!rep) {
+                ide.console.push_back(
+                    "engine: a bed too big to think — the diff census "
+                    "refuses politely");
+              } else if (rep->same()) {
+                ide.console.push_back(
+                    "engine: the page and the disk agree — nothing to save");
+              } else {
+                auto listing = [](const std::vector<int>& v) {
+                  std::string out;
+                  size_t shown = 0;
+                  for (const int t : v) {
+                    if (shown == 6) break;
+                    out += (shown == 0 ? "" : ", ") + std::to_string(t);
+                    ++shown;
+                  }
+                  if (v.size() > 6)
+                    out += " … +" + std::to_string(v.size() - 6) + " more";
+                  return out;
+                };
+                std::string parts;
+                if (rep->added)
+                  parts += std::to_string(rep->added) + " added (" +
+                           listing(rep->addedAt) + ")";
+                if (rep->changed)
+                  parts += (parts.empty() ? "" : " · ") +
+                           std::to_string(rep->changed) + " changed (" +
+                           listing(rep->changedAt) + ")";
+                if (rep->removed)
+                  parts += (parts.empty() ? "" : " · ") +
+                           std::to_string(rep->removed) + " removed (" +
+                           listing(rep->removedAt) + ")";
+                ide.console.push_back(
+                    "engine: the page and the disk disagree — " + parts +
+                    " — a look, not a save");
+              }
+            }
+          }
         } else if (cmd.verb == "changes") {
           // the census: a bare :changes LISTS the touched lines; a
           // number LEAPS to the Nth — the census is not just a mirror,
