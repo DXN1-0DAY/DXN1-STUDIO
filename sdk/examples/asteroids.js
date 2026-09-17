@@ -3,7 +3,13 @@
 // left/right turn · w (or jump) thrusts · space fires · the discs drift.
 // The ship IS facing you: a real rotated tri (the engine renders rot
 // since v3.1.10 — the nose-dot lie is retired). The nose survives as
-// a thrust flame: it speaks only while you burn.
+// a thrust flame: it speaks only while you burn, and GLOWS while it
+// does (the engine's light, spent on honest exhaust).
+// v3.1.43 — the field learned the radar law: a rock's alpha is its
+// distance to your hull (30 px burns full, 100 px ghosts to a 0.4
+// floor), so the danger literally brightens as it closes in. Fresh
+// rings DRIFT IN (1.5 s from nothing to the radar's truth), and a
+// shot dissolves over its last quarter second instead of winking out.
 const dxn3 = require("dxn3");
 const { circle, tri, label, destroy, background, vars, say, win, on, run } = dxn3;
 const W = dxn3.W, H = dxn3.H;
@@ -18,7 +24,7 @@ const nose = circle("nose", W / 2, H / 2, 3, 3, "#fbbf24");  // untagged:
                                                              // shows, the
                                                              // core is hit
 let rot = 0, vx = 0, vy = 0, nowDt = 0, safe = 0, gunCool = 0, burn = 0;
-let lives = 3, score = 0, gen = 0, uid = 0;
+let lives = 3, score = 0, gen = 0, uid = 0, ringAge = 9;
 const rocks = new Map();                 // name -> { size }
 const bullets = new Map();               // name -> seconds left to live
 const lastX = {}, lastY = {};            // where every rock last stood
@@ -50,6 +56,17 @@ function buildRocks() {
   corners.forEach(([cx, cy], i) => {
     spawnRock(`rock${gen}_${i}`, cx + Math.random() * 8, cy + Math.random() * 8, 13);
   });
+  ringAge = 0;                            // the new ring starts ghostly
+}
+
+// the radar law: alpha is proximity. Inside 30 px the rock burns at
+// full light; by 100 px it has sunk to the 0.4 floor. Danger you can
+// SEE closing in — the wear is recomputed every tick.
+function radarWear(e) {
+  const dx = e.x - (ship.x + 4), dy = e.y - (ship.y + 5);
+  const d = Math.sqrt(dx * dx + dy * dy);
+  const far = Math.max(0, Math.min(1, (d - 30) / 70));
+  e.alpha = (1 - 0.6 * far) * Math.min(1, ringAge / 1.5);
 }
 
 function split(name) {
@@ -75,6 +92,7 @@ function resetShip() {
 on.tick((d) => {
   nowDt = d;
   gunCool = Math.max(0, gunCool - d);
+  ringAge += d;                           // a fresh ring fades up to full
   if (safe > 0) {
     safe -= d;
     ship.visible = Math.floor(safe * 10) % 2 === 0 ? 1 : 0;  // the blink
@@ -89,6 +107,7 @@ on.tick((d) => {
   ship.rot = rot + 180;
   burn = Math.max(0, burn - d);
   nose.visible = burn > 0 ? 1 : 0;
+  nose.glow = burn > 0 ? 4 : 0;           // the flame's honest light
   nose.x = ship.x + Math.sin(rot * Math.PI / 180) * 7 - 1;
   nose.y = ship.y - Math.cos(rot * Math.PI / 180) * 7 - 1;
   lastX.ship = ship.x; lastY.ship = ship.y;
@@ -97,6 +116,7 @@ on.tick((d) => {
     if (!e) { rocks.delete(name); continue; }
     lastX[name] = e.x; lastY[name] = e.y;
     wrap(e, info.size);
+    radarWear(e);                         // the radar never sleeps
   }
   for (const [name, left] of [...bullets]) {
     const b = dxn3.find(name);
@@ -104,7 +124,10 @@ on.tick((d) => {
     wrap(b, 2);
     const fresh = left - d;
     if (fresh <= 0) { bullets.delete(name); destroy(name); }
-    else bullets.set(name, fresh);
+    else {
+      bullets.set(name, fresh);
+      b.alpha = Math.max(0, Math.min(1, fresh / 0.25));  // dissolve, don't wink
+    }
   }
   wrap(ship, 6);
 });

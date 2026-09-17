@@ -1,3 +1,24 @@
+## v3.1.43 — the radar field
+
+- **Asteroids wears the engine's light — all three fields, one
+  law each.** A rock's `alpha` is now its PROXIMITY: inside 30 px
+  of your hull it burns at full light, by 100 px it has sunk to a
+  0.4 floor — the danger literally brightens as it closes in. Fresh
+  rings DRIFT IN: 1.5 s from nothing to the radar's truth (the
+  console always said "a new ring drifts in"; now the screen says
+  it too). A shot DISSOLVES over its last quarter second instead
+  of winking out — `alpha = remaining/0.25`, honest to the tick.
+  And the thrust flame GLOWS (4) while it burns: the engine's
+  light, spent on honest exhaust.
+- The fourth gallery example dressed by alpha (snake's ghost,
+  flappy's worn pipes, dino's night sky, now the radar field) —
+  and the third dressed by glow.
+- Probe `ast_wear_probe.py`: 11 pins green — ring drift-in, the
+  radar law exact for every rock, closest==brightest, flame glow
+  rise/fall, the dissolve staircase (~0.2/tick), the expired
+  bullet's name honestly gone. Probe lesson: `"w"` is not an
+  engine key — thrust travels as `jump` (or chars).
+
 ## v3.1.42 — the keepsake
 
 - **The editor's habits survive the night now.** The five toggles —
