@@ -224,7 +224,7 @@ int main() {
   }
 
   // 9. the version quad rides in the binary too
-  ok(std::string(dxn3::DXN3_VERSION) == "3.1.8",
+  ok(std::string(dxn3::DXN3_VERSION) == "3.1.9",
      "native version constant matches the release");
 
   // 10. png writer: checksum vectors, real structure, byte determinism

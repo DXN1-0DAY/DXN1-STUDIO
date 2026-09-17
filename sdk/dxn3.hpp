@@ -60,6 +60,11 @@ public:
   std::function<void(Ent&, Ent&)> onHit;                   // pair ENTERS
   std::function<void()> onStart;                           // first tick
 
+  // the frame's two words: a transient HUD line and the banner + flash.
+  // they ride ONE frame and are cleared the moment it is sent.
+  void say(const std::string& m) { say_ = m; }
+  void win(const std::string& b) { win_ = b; }
+
   Game() {
     std::string line;
     if (!std::getline(std::cin, line)) {                   // the hello packet
@@ -191,12 +196,15 @@ public:
         first = false;
         std::cout << "\"" << jesc(k) << "\":" << v;   // numbers stay numbers
       }
-      std::cout << "},\"camera\":{}}\n" << std::flush;
-      dels_.clear(); vars_.clear();
+      std::cout << "},\"camera\":{},\"say\":\"" << jesc(say_)
+                << "\",\"win\":\"" << jesc(win_) << "\"}\n" << std::flush;
+      dels_.clear(); vars_.clear(); say_.clear(); win_.clear();
     }
   }
 
 private:
+  std::string say_, win_;
+
   // deque on purpose: games hold Ent* across frames (pad, ball, …) and
   // push_back must NEVER invalidate them — vector would silently dangle
   std::deque<Ent> ents_;

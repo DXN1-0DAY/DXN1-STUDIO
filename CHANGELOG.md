@@ -1,3 +1,23 @@
+## v3.1.9 — a world of rects, and the third tongue
+
+- **`sdk/examples/raycast.py` — the flagship: a 3D world out of
+  plain rects.** A Wolfenstein-style raycaster — a 16×12 grid map, a
+  DDA ray march per column, and `W/8` thin rects whose heights are
+  the walls' honest distance and whose colors sink into the dark as
+  the corridor recedes (the two wall faces wear different tones, so
+  corners read). Left/right turn, w/s walk, a wall stops you — the
+  probe walked, turned and walked back through 120 frames and the
+  perspective gradient is real: 53 → 4 → 40. The engine is a
+  canvas; this is what "any canvas" means.
+- **`sdk/dxn3.hpp` — the C++ SDK speaks too.** `g.say(...)` and
+  `g.win(...)` join their Python and JavaScript siblings: the frame
+  carries both words, the run loop clears them at send, and the
+  wire probe proved it (tick 1 speaks, tick 2 is clean). All THREE
+  SDKs now tell one story with PROTOCOL.md.
+- **Gate 6 grew the flagship** — raycast.py probed on the wire (26
+  scene entities at the probe's world, counted exactly). TEN
+  examples now speak the protocol.
+
 ## v3.1.8 — the SDKs learn to speak (say / win)
 
 - **`say(...)` and `win(...)` in BOTH SDKs** — the wire protocol

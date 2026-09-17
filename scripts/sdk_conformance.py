@@ -88,7 +88,8 @@ def main():
                 ("flappy.py", ["python3", f"{EX}/flappy.py"], 9),
                 ("cards.py", ["python3", f"{EX}/cards.py"], 12),
                 ("snake.py", ["python3", f"{EX}/snake.py"], 5),
-                ("lunar.py", ["python3", f"{EX}/lunar.py"], 10)]
+                ("lunar.py", ["python3", f"{EX}/lunar.py"], 10),
+                ("raycast.py", ["python3", f"{EX}/raycast.py"], 26)]
     if have("python3"):
         for name, cmd, ents in py_games:
             scene, frames, console = probe(cmd)
