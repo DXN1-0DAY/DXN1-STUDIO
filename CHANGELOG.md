@@ -1,3 +1,24 @@
+## v3.1.0 — :git (the repo's truth in one breath)
+
+- **The branch manager's seed: the studio knows its repo.** `:git` —
+  one breath, one receipt: the branch, the uncommitted count (or a
+  plain `clean`), and the last commit's name (hash + subject,
+  capped at 52 columns with an ellipsis for honesty). Read-only —
+  the verb asks the process's own working directory, the same
+  ground the saves land on, and never touches a thing. A machine
+  without git, or a folder that is no repository, is refused
+  honestly, never guessed.
+- **The BUG the third drive caught (before any push):** a clean
+  tree printed `0 uncommitted` — the census's zero spoke as a
+  count. The law now: zero IS clean, in words. Smoke 13w grew a
+  third drive — the sandbox's own repo is committed mid-run and
+  the receipt must say `clean` (209 -> 210 checks; the first two
+  drives seed a real repo so the read-only questions have honest
+  answers).
+- Selftest group 29 pins the grammar: `:git` is well-formed bare
+  and its whisper names what it speaks (877 -> 879 groups). The
+  README's verbs table wears the row. Gates ALL GREEN.
+
 ## v3.0.99 — :drift (the amber census as addresses)
 
 - **The drift is not just a mirror — it is a set of addresses.**

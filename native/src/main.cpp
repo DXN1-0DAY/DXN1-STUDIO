@@ -2237,6 +2237,59 @@ int main(int argc, char** argv) {
                   ? "engine: no jumps yet — :goto, F2 and the welcome "
                     "back plant them"
                   : "engine: the jumps, newest first — " + j);
+        } else if (cmd.verb == "git") {
+          // the branch manager's seed — the studio knows its repo. One
+          // breath, one receipt: the branch, the uncommitted count,
+          // the last commit's name. Read-only, spoken from the
+          // process's own working directory; a machine without git
+          // (or without a repo) is refused honestly, never guessed.
+          takeStage();
+          auto readCmd = [](const std::string& c) -> std::string {
+            FILE* p = ::popen(c.c_str(), "r");
+            if (!p) return "";
+            std::string out;
+            char buf[256];
+            while (fgets(buf, sizeof buf, p)) {
+              out += buf;
+              if (out.size() > 4096) break;
+            }
+            const int st = ::pclose(p);
+            if (st != 0) return "";
+            while (!out.empty() &&
+                   (out.back() == '\n' || out.back() == '\r'))
+              out.pop_back();
+            return out;
+          };
+          const std::string branch =
+              readCmd("git rev-parse --abbrev-ref HEAD 2>/dev/null");
+          if (branch.empty()) {
+            ide.console.push_back(
+                "engine: git is not speaking here — no repository, or "
+                "no git on the machine");
+          } else {
+            const std::string dirty =
+                readCmd("git status --porcelain 2>/dev/null | wc -l");
+            std::string uncommitted;
+            if (!dirty.empty()) {
+              // wc -l pads with spaces on some machines — strip them
+              size_t b = dirty.find_first_not_of(" \t");
+              uncommitted = b == std::string::npos
+                                ? ""
+                                : dirty.substr(b, dirty.size() - b);
+            }
+            // the census's zero is not a count: an empty or "0" tree
+            // speaks `clean`, in words — never "0 uncommitted"
+            const bool clean =
+                uncommitted.empty() || uncommitted == "0";
+            std::string last =
+                readCmd("git log -1 --format=\"%h %s\" 2>/dev/null");
+            if (last.size() > 52) last = last.substr(0, 52) + "…";
+            ide.console.push_back(
+                "engine: git " + branch + " · " +
+                (clean ? std::string("clean")
+                       : uncommitted + " uncommitted") +
+                (last.empty() ? "" : " · last " + last));
+          }
         } else if (cmd.verb == "drift") {
           // the drift as addresses — the census's amber, speakable. A
           // bare :drift LISTS the lines the last :diff heard

@@ -185,6 +185,8 @@ inline Cmd parseCommand(std::string_view line) {
       number(1.f, 99.f,
              "usage: :crew [n] — a bare :crew bows the hands out; a number "
              "plants that many hands below");
+  } else if (c.verb == "git") {
+    // a bare :git speaks the repo's truth — read-only, one receipt
   } else if (c.verb == "drift") {
     // a bare :drift lists the amber census; a number leaps to the Nth
     if (!c.arg.empty())
@@ -391,6 +393,9 @@ inline std::string usageHintFor(std::string_view typed) {
   if (verb == "drift")
     return " :drift [n] — the amber census: a bare verb lists the lines "
            "that disagree with the disk, a number leaps to the Nth";
+  if (verb == "git")
+    return " :git — the repo's truth in one breath: branch, "
+           "uncommitted, the last commit's name (read-only)";
   if (verb == "w")
     return " :w [file] — save the session's work; a .bak is kept";
   if (verb == "wq") return " :wq — save and quit";

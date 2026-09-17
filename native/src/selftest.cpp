@@ -199,8 +199,8 @@ int main() {
   }
 
   // 9. the version quad rides in the binary too
-  ok(std::string(dxn3::DXN3_VERSION) == "3.0.99",
-     "native version constant matches the release quad");
+  ok(std::string(dxn3::DXN3_VERSION) == "3.1.0",
+     "native version constant matches the release");
 
   // 10. png writer: checksum vectors, real structure, byte determinism
   {
@@ -1131,6 +1131,9 @@ int main() {
     ok(!dxn3::parseCommand(":ruler 80").ok(),
        ":ruler with an argument is refused");
     ok(dxn3::parseCommand(":stats").ok(), ":stats is well-formed");
+    ok(dxn3::parseCommand(":git").ok(), ":git is well-formed bare");
+    ok(dxn3::usageHintFor(":git").find("branch") != std::string::npos,
+       "the git whisper names what it speaks");
     ok(dxn3::usageHintFor(":snip").find("fn tick") != std::string::npos,
        "the snip whisper names the shelf");
     ok(dxn3::usageHintFor(":ruler").find("79") != std::string::npos,

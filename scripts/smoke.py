@@ -1555,6 +1555,38 @@ def main():
         s2.run_verb("undo", "ide")             # the drift's breath undone
         s2.settle(0.3)
 
+        # ── 13w. :git — the studio knows its repo ────────────────────
+        print("── 13w. :git — branch, uncommitted, the last commit's name")
+        # the sandbox is no repository by design — seed one, so the
+        # verb's read-only questions have an honest answer
+        import subprocess
+        subprocess.run(["git", "init", "-q", "-b", "master", SMOKE_CWD],
+                       check=False)
+        subprocess.run(["git", "-C", SMOKE_CWD, "-c", "user.email=s@dxn3",
+                        "-c", "user.name=s", "commit", "--allow-empty",
+                        "-q", "-m", "seed v3.1.0 the repo speaks"],
+                       check=False)
+        scr2, _ = s2.run_verb("git", "ide")
+        check(":git speaks the branch (read-only, one breath)",
+              "git master" in scr2.text(ROWS - 2) and
+              "uncommitted" in scr2.text(ROWS - 2),
+              repr(scr2.text(ROWS - 2)[:80]))
+        check(":git names the last commit",
+              "last " in scr2.text(ROWS - 2) and
+              "seed v3.1.0" in scr2.text(ROWS - 2),
+              repr(scr2.text(ROWS - 2)[40:110]))
+        # the zero is not a count: commit the sandbox's own litter and
+        # the receipt must say `clean`, in words — never "0 uncommitted"
+        subprocess.run(["git", "-C", SMOKE_CWD, "add", "-A"], check=False)
+        subprocess.run(["git", "-C", SMOKE_CWD, "-c", "user.email=s@dxn3",
+                        "-c", "user.name=s", "commit", "-q", "-m",
+                        "the sandbox's second breath"], check=False)
+        scr2, _ = s2.run_verb("git", "ide")
+        check(":git says clean when the tree is clean",
+              "clean" in scr2.text(ROWS - 2) and
+              "uncommitted" not in scr2.text(ROWS - 2),
+              repr(scr2.text(ROWS - 2)[:80]))
+
         # ── 13p. :count — the census of a query ──────────────────────
         print("── 13p. :count — the find's law, spoken as a number")
         scr2, _ = s2.run_verb("count ccc", "ide")
