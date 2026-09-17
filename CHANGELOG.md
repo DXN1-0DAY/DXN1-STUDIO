@@ -1,3 +1,37 @@
+## v3.1.93 — two prisoners of the birth directory walk free
+
+- **The cards trio is settled — two rescued, two retired, gate 8
+  grows 47 -> 49.** `cards_breathe_probe` COMES HOME REBUILT: the
+  R22 external version was broken twice over (relative spawn paths
+  that only worked from its birth directory; card identities that
+  predated the deck law — it expected 2♠ under seat 0). The
+  replicated stream taught the truth — the first hand is ALL RED
+  (6♥ 5♦ 8♦ 5♥ 2♥) and the first BLACK card leads hand two (4♠) —
+  so the rebuilt probe pins the red and black pay laws on real,
+  computed cards, plus the one shared ghost clock (bit for bit),
+  both honest staircases riding the SAME ticks (flash 3/s down,
+  bounty 6/s down), the spent seats' 0.5, the muck's memory, the
+  seat lift, the deal riding the hand's last play, and one law the
+  old probe never knew: the red bounty OUTLIVES the hand that
+  earned it, cooling across the deal into the fresh hand. 24 pins,
+  3x green.
+- `shooter_bolt_probe` COMES HOME too: the bolt ledger's one true
+  pin — bolts are destroyed off the TOP (what leaves the stage
+  takes its light with it), the count returns to 15 (the leak is
+  gone, the night sky stays put), three bolts leave the ledger
+  honest, an injected hit still pays and the spent bolt is
+  forgotten too. The R24 version died of absolute birth-checkout
+  paths and the stale census 3. 12 pins green first try.
+- RETIRED with honors, their laws living on in younger pins:
+  `cards_probe` (watched the pre-deck-law `msg` entity, gone from
+  the scene), `cards_glow_probe` (identity pins predate the
+  stream; the glow hand is the rescued breathe's law now), and
+  `bounce_light_probe` (superseded whole by the lantern probe).
+  The drift ledger in probes/README.md tells it all.
+- The outsiders now number four: invaders_darkpays (flaky ~50%),
+  chase (load-flaky), ide_door (green but 35 s), and nobody else.
+- Gates 8 green (49 probes + 7 gates).
+
 ## v3.1.92 — the stale nine shrink to five
 
 - **Four drifted probes re-pinned to the current truth and walked

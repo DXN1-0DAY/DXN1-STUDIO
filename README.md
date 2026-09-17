@@ -2,7 +2,7 @@
 
 ![DXN1 STUDIO 3](assets/banner.png)
 
-![version](https://img.shields.io/badge/version-3.1.92-8b5cf6?style=flat-square)
+![version](https://img.shields.io/badge/version-3.1.93-8b5cf6?style=flat-square)
 ![gates](https://github.com/DXN1-0DAY/DXN1-STUDIO/actions/workflows/ci.yml/badge.svg)
 ![native](https://img.shields.io/badge/native-C%2B%2023-f97316?style=flat-square)
 ![face](https://img.shields.io/badge/face-terminal_truecolor-22d3ee?style=flat-square)
@@ -616,7 +616,7 @@ consistency — and, since the probes came home, **gate 8 walks every law
 pin in `probes/` on the real wire**: a probe the gates never run ages into
 a liar (four drift catches on record, nine more caught in the
 homecoming sweep), so the pins live in the repo now — the whole stable
-fleet at home, 47 probes walked every push. A law isn't shipped until
+fleet at home, 49 probes walked every push. A law isn't shipped until
 its pin walks green inside the gauntlet.
 
 ## Layout

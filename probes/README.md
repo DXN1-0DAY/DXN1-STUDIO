@@ -50,15 +50,30 @@ homecoming sweep; they stay external until re-pinned:
   milestone meal, each bloom wearing 1.0 -> 0.4 -> 0.0 — and its
   greedy drive may self-bite before the wall phase, so the probe
   now falls again (space revives; three lives).
+- RESCUED in v3.1.93 and walking inside the walls:
+  `cards_breathe_probe` (rebuilt on the replicated stream — the
+  R22 version spawned on relative paths, prisoner of its birth
+  directory, and its card identities predated the deck law; the
+  stream taught the truth: the first hand is ALL RED and the first
+  black card leads hand two) and `shooter_bolt_probe` (the bolt
+  ledger's one true home: bolts destroyed off the top, the count
+  returns to 15, the night stays put — absolute birth-checkout
+  paths and the stale census 3 fixed at the door).
+- RETIRED in v3.1.93, their laws living on in younger pins:
+  `cards_probe` (watched the pre-deck-law `msg` entity — gone from
+  the scene; the exact stream arithmetic is cards_deck's law now),
+  `cards_glow_probe` (identity pins predate the stream; the glow
+  hand and the seat lift are pinned by the rescued breathe), and
+  `bounce_light_probe` (superseded whole by the lantern probe,
+  which pins the flare, the floor, and both plaques besides).
 - `chase_probe` — EVICTED in v3.1.92: green standalone, red under
   full-gates load (the driven snake wall-bites at score 0 before
   the chase develops — load-sensitive drive). Outside until its
   drive is load-proof.
 - STILL OUTSIDE (re-pin or retire):
-  `bounce_light_probe` (5 stale pins, likely superseded by the
-  lantern probe), `cards_probe` + `cards_breathe_probe` (broken
-  relative-path/PYTHONPATH spawn assumptions — they only ran from
-  their birth directory), `cards_glow_probe` (say-format drift),
-  `shooter_bolt_probe` (4 stale pins).
+  `invaders_darkpays_probe` — FLAKY (~50%): a dark summon
+  occasionally pays the BASE purse; the ritual cannot yet PROVE
+  darkness at the kill frame. Re-pin it with a darkness-proof
+  before it walks.
 - `ide_door_probe` — green but 35 s; bring it home when it dieted
   (gate 8 must stay quick).
