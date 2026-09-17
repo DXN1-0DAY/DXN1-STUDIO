@@ -1,3 +1,14 @@
+## v3.1.68 — the catalog told the truth
+
+- **README's example catalog caught up with the light-law ports.**
+  flappy's entry now names the night (falls at 3, dawn at 8, every
+  five after; the pipes dress pale with a halo; the moon shines at
+  the completed fade), lunar's names the breathing halos and the
+  touchdown flare, tetris's names the lock bloom and the speaking
+  banner. Gate 7's law — the README never promises a ghost — runs
+  both ways: it must not promise what is not there, and it must not
+  stay silent about what is. Docs-only; gates 7 green.
+
 ## v3.1.67 — the hit-pair scan chapter
 
 - **PROTOCOL.md grows the collision chapter every SDK author was

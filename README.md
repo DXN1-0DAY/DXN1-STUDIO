@@ -2,7 +2,7 @@
 
 ![DXN1 STUDIO 3](assets/banner.png)
 
-![version](https://img.shields.io/badge/version-3.1.67-8b5cf6?style=flat-square)
+![version](https://img.shields.io/badge/version-3.1.68-8b5cf6?style=flat-square)
 ![gates](https://github.com/DXN1-termux/DXN1-STUDIO/actions/workflows/ci.yml/badge.svg)
 ![native](https://img.shields.io/badge/native-C%2B%2023-f97316?style=flat-square)
 ![face](https://img.shields.io/badge/face-terminal_truecolor-22d3ee?style=flat-square)
@@ -77,8 +77,11 @@ viewport refreshes — *code a background, and boom, a background.*
 - **Examples in `sdk/examples/`:** `background.py` (the hello world),
   `shooter.py` (bullets, score, respawning enemy), `flappy.py`
   (gravity, pipes, one-key flying — the pipes FADE IN from the
-  horizon, a clean pass makes the bird GLOW, and a crash BLEACHES
-  it white), `bounce.js`
+  horizon, a clean pass makes the bird GLOW, a crash BLEACHES
+  it white, and the score turns the sky: night falls at 3, dawn
+  at 8, and every five after — the dark fades in over two honest
+  seconds, the pipes dress pale with a faint halo so the gap reads
+  in the dark, and the moon SHINES when the fade completes), `bounce.js`
   (breakout with a steering paddle), `cards.py` (balatro-lite poker
   hands vs the blind — the selected card GLOWS like a lamp, a played
   card FLASHES white as it lands in your hand row, and the score
@@ -94,8 +97,11 @@ viewport refreshes — *code a background, and boom, a background.*
   the ship with the engine's flash and says so on the HUD, a grace
   blink after), `lunar.py` (side-thrusters, one main engine,
   two pads that pay by their risk — the hills are not for landing —
-  and a fuel gauge that empties in width AND color, green to amber
-  to red, blinking under a quarter tank while the warning speaks),
+  halos that BREATHE on a sine, the summit's taller because it pays
+  richer, a touchdown that makes the pleased pad FLARE and wear it
+  honestly, and a fuel gauge that empties in width AND color, green
+  to amber to red, blinking under a quarter tank while the warning
+  speaks),
   `raycast.py` (a Wolfenstein-style 3D view painted out of plain
   rects — the engine is a canvas, so it can be ANY canvas),
   `windmill.py` (four blades orbit the hub while the SDK drives
@@ -117,7 +123,10 @@ viewport refreshes — *code a background, and boom, a background.*
   will land — the alpha law as honest wayfinding; s sinks the
   piece, the wire's held keys never carried "down" — and the NEXT
   piece previewed right of the well, the queue ahead peeked
-  honestly so the seeded law survives the preview), `lightbot.js` (the night shift: a diamond of
+  honestly so the seeded law survives the preview; every lock
+  BLOOMS and wears at 3/s, and a cleared line SPEAKS twice — the
+  say grows a level callout while a banner over the well wears
+  linearly to invisible, never a flash-forever), `lightbot.js` (the night shift: a diamond of
   twelve unlit lamps — walk the grid, SPACE lights the lamp under
   you and every flame wears the engine's glow, the wayfinding is
   literally made of light — steps counted, wins graded, r re-runs
