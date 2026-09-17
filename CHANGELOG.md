@@ -1,3 +1,25 @@
+## v3.1.97 — the radar pin reads the law the honest way round
+
+- **ast_wear_probe's closest-brightest pin RE-PINNED** — the flake
+  hunt caught it twice in four back-to-back gate rounds (red under
+  load, green idle), and the preserved logs named the mechanism:
+  v3.1.91's repair ("the brightest rock within 2px of the closest")
+  is LAYOUT LUCK when two rocks saturate. Red once at brightest
+  d=25.0 vs closest 21.8, once at d=26.6 vs 12.3 — both pairs
+  INSIDE the 30px burn band, both wearing the same alpha 1.0;
+  max() picks an arbitrary rock and the +2px band breaks. The
+  ring's spawn jitter is honest randomness (asteroids.js rides
+  unseeded Math.random), so a law pin must hold under EVERY
+  layout. The layout-proof direction runs the other way: alpha is
+  monotone in distance (far = clamp((d-30)/70) never decreases as
+  d grows; every rock shares the one ring fade), so THE CLOSEST
+  ROCK ALWAYS WEARS THE BRIGHTEST ALPHA — the radar law read
+  directly, ties included, no slack needed. 6/6 green idle, the
+  gate's own load cycle green after.
+- Doctrine note: a pin that depends on the draw is not a law, it
+  is a horoscope. The probe fleet keeps the direction that the
+  machine itself guarantees.
+
 ## v3.1.96 — the door comes home, dieted to the answer
 
 - **ide_door_probe IS DIETED** — it had been walking inside the

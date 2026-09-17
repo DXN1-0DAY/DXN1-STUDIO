@@ -82,15 +82,23 @@ for n in rocks:
 pin("radar law holds for every rock (|a - law| < 0.03)", ok_law, worst)
 # (v3.1.91: the old pin `closest == brightest` flaked — the four
 #  corner rocks come in EQUIDISTANT PAIRS, and min()/max() break a
-#  float tie on opposite sides. The law's honest content: the
-#  brightest rock stands at the closest band — nothing strictly
-#  closer exists than the rock the radar shines on most.)
+#  float tie on opposite sides. v3.1.97: its repair — "brightest
+#  within 2px of closest" — flaked the OTHER way, because the ring's
+#  spawn jitter is honest randomness (Math.random, unseeded) and two
+#  rocks inside the 30px burn band SATURATE at the same alpha; max()
+#  then picks an arbitrary rock and the +2px band is layout luck.
+#  The law's honest, layout-proof content runs the other direction:
+#  alpha is monotone in distance (far = clamp((d-30)/70) never
+#  decreases as d grows, every rock shares the one ring fade), so
+#  THE CLOSEST ROCK ALWAYS WEARS THE BRIGHTEST ALPHA — under every
+#  layout, ties included. That is the radar law read directly.)
 d_of = {n: law(ship["x"], ship["y"], rocks[n])[1] for n in rocks}
-brightest = max(rocks, key=lambda n: rocks[n].get("alpha", -1))
-pin("the brightest rock stands at the closest band (ties allowed)",
-    d_of[brightest] <= min(d_of.values()) + 2.0,
-    f"brightest {brightest} at d={d_of[brightest]:.1f}, "
-    f"closest d={min(d_of.values()):.1f}")
+closest = min(rocks, key=lambda n: d_of[n])
+top = max(rocks[n].get("alpha", -1) for n in rocks)
+pin("the closest rock wears the brightest alpha (ties allowed)",
+    rocks[closest].get("alpha", -1) >= top - 1e-9,
+    f"closest {closest} at d={d_of[closest]:.1f} "
+    f"alpha={rocks[closest].get('alpha', -1):.3f}, max alpha={top:.3f}")
 
 # 3. the flame glows while burning, then goes dark: born WHOLE (glow
 #    4) the very key frame, then the burn's own staircase wears it —
