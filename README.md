@@ -2,7 +2,7 @@
 
 ![DXN1 STUDIO 3](assets/banner.png)
 
-![version](https://img.shields.io/badge/version-3.1.85-8b5cf6?style=flat-square)
+![version](https://img.shields.io/badge/version-3.1.86-8b5cf6?style=flat-square)
 ![gates](https://github.com/DXN1-termux/DXN1-STUDIO/actions/workflows/ci.yml/badge.svg)
 ![native](https://img.shields.io/badge/native-C%2B%2023-f97316?style=flat-square)
 ![face](https://img.shields.io/badge/face-terminal_truecolor-22d3ee?style=flat-square)
@@ -110,7 +110,9 @@ viewport refreshes — *code a background, and boom, a background.*
   by the game's own ledger, the SHOT a muzzle flash with a bloom of
   its own (one ledger for every transient light), a hull hit that BLEACHES
   the ship with the engine's flash and says so on the HUD, a grace
-  blink after), `lunar.py` (side-thrusters, one main engine,
+  blink after — and the hull's GLOW is the lives' low light: quiet
+  at three, a faint ring at two, BRIGHT when one hull stands between
+  you and the field (the last ship burns, and the say says so)), `lunar.py` (side-thrusters, one main engine,
   two pads that pay by their risk — the hills are not for landing —
   halos that BREATHE on a sine, the summit's taller because it pays
   richer, a touchdown that makes the pleased pad FLARE and wear it

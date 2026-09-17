@@ -1,3 +1,21 @@
+## v3.1.86 — the last ship burns
+
+- **The cards hand-label law reaches its third transplant: the
+  asteroid ship wears the lives' low light.** The hull's glow is the
+  lives' countdown — quiet at three, a faint ring (1) at two, BRIGHT
+  (2) when one hull stands between you and the field — and the say
+  speaks the last hull ("hull hit — 1 left — the last ship burns").
+  A fresh run pours the quiet back. ast_lives_probe.py 13/13 pins
+  the whole arc over the real wire: birth quiet, the ring after the
+  first hit, the glow PERSISTING through the 2.2 s respawn grace,
+  the burn at one life with the say, the game-over banner, and the
+  fresh run's returned quiet. The audit also caught a STALE probe:
+  ast_wear_probe still pinned the old hold-then-cut flame law — the
+  code has worn the flame from BIRTH (glow = 4 * burn / 0.12) since
+  the polish rounds; the probe now pins the honest spend-down
+  (key frame whole, one tick later 2.333, then dark) and the file
+  header tells the same truth.
+
 ## v3.1.85 — the meal wears the heat
 
 - **The cards.py low-light lesson comes to the snake's table.** Every

@@ -19,10 +19,16 @@
 // frame (the key handler may patch fields — decay-before-spawn is
 // not enough when the key arrives after the tick), the burn holds
 // it at 4 while it lasts, and release wears it down the burn's own
-// linear staircase to dark.
+// linear staircase to dark. Refined: the walk starts at BIRTH —
+// glow = 4 * burn / 0.12, an honest spend-down, not a hold-then-cut.
 // v3.1.71 — every transient light rides ONE ledger: the SHOT too is
 // born with a bloom of glow 2 (the muzzle flash), worn by the same
 // 3/s staircase, forgotten the tick the shot dies or dissolves.
+// v3.1.86 — THE SHIP WEARS THE LIVES' LOW LIGHT (the cards hand-label
+// law, third transplant): the hull's glow is the lives' countdown —
+// quiet at three, a faint ring (1) at two, BRIGHT (2) when one hull
+// stands between you and the field — the last ship burns, and the
+// say says so. A fresh run pours the quiet back.
 const dxn3 = require("dxn3");
 const { circle, tri, label, destroy, background, vars, say, win, on, run } = dxn3;
 const W = dxn3.W, H = dxn3.H;
@@ -215,14 +221,22 @@ on.hit((a, b) => {
       win("game over — the field claims another hull");
       console.log(`game over — score ${score}`);
       score = 0; lives = 3; gen += 1;
+      ship.glow = 0;                    // a fresh run pours the quiet back
       for (const name of [...rocks.keys()]) { rocks.delete(name); destroy(name); }
       buildRocks();
       hud.text = "ASTEROIDS  ·  turn w/space  ·  lives 3";
       vars({ score });
     } else {
-      say(`hull hit — ${lives} left`);
-      console.log(`hull hit — ${lives} left`);
+      say(lives === 1
+        ? "hull hit — 1 left — the last ship burns"
+        : `hull hit — ${lives} left`);
+      console.log(lives === 1
+        ? "hull hit — 1 left — the last ship burns"
+        : `hull hit — ${lives} left`);
     }
+    ship.glow = Math.max(0, Math.min(2, 3 - lives));   // the lives' low
+                                                       // light: 3 quiet,
+                                                       // 2 a ring, 1 burns
     hud.text = `ASTEROIDS  ·  turn w/space  ·  lives ${lives}`;
     resetShip();
     return;
