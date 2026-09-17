@@ -2,8 +2,8 @@
 
 ![DXN1 STUDIO 3](assets/banner.png)
 
-![version](https://img.shields.io/badge/version-3.1.89-8b5cf6?style=flat-square)
-![gates](https://github.com/DXN1-termux/DXN1-STUDIO/actions/workflows/ci.yml/badge.svg)
+![version](https://img.shields.io/badge/version-3.1.90-8b5cf6?style=flat-square)
+![gates](https://github.com/DXN1-0DAY/DXN1-STUDIO/actions/workflows/ci.yml/badge.svg)
 ![native](https://img.shields.io/badge/native-C%2B%2023-f97316?style=flat-square)
 ![face](https://img.shields.io/badge/face-terminal_truecolor-22d3ee?style=flat-square)
 ![deps](https://img.shields.io/badge/dependencies-zero-34d399?style=flat-square)
@@ -31,7 +31,7 @@ g++ **and** clang++, the engine selftest, a real headless frame for every
 scene, and a live probe of the one-liner installer.
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/DXN1-termux/DXN1-STUDIO/master/scripts/install.sh | bash
+curl -fsSL https://raw.githubusercontent.com/DXN1-0DAY/DXN1-STUDIO/master/scripts/install.sh | bash
 ```
 
 The installer checks `git` and a C++23 compiler (g++ or clang++, probing that
@@ -51,7 +51,7 @@ dxn3 --screenshot shot.png        # headless PNG of any scene
 Prefer it by hand?
 
 ```bash
-git clone https://github.com/DXN1-termux/DXN1-STUDIO.git
+git clone https://github.com/DXN1-0DAY/DXN1-STUDIO.git
 cd DXN1-STUDIO && make -C native && ./native/build/dxn3-native
 ```
 
@@ -612,7 +612,11 @@ The gates are: a zero-warning `-std=c++23` build, the selftest — including a
 pipe and reports home** — every scene must render one real headless frame,
 every `next` in the campaign chain must resolve to a real scene file (no
 ghost doors), zero electron-era files tracked, and VERSION ↔ CHANGELOG
-consistency.
+consistency — and, since the probes came home, **gate 8 walks every law
+pin in `probes/` on the real wire**: a probe the gates never run ages into
+a liar (four drift catches on record), so the pins live in the repo now,
+one game family per round, tetris first. A law isn't shipped until its pin
+walks green inside the gauntlet.
 
 ## Layout
 
@@ -645,6 +649,8 @@ sdk/dxn3.hpp                the C++ SDK — compiled games, deque-stable
 sdk/PROTOCOL.md             the one-page wire contract
 sdk/examples/               background · shooter · flappy · bounce ·
                             cards · lightbot · pong
+probes/                     the law pins, walked by gate 8 — a probe
+                            the gates never run ages into a liar
 assets/                     the brand: emblem, banner, social card + SVG src
 scenes/*.dxn1.json          the nine-scene campaign — data only
 scripts/install.sh          the curl one-liner
@@ -658,7 +664,7 @@ v3.0.05 ported the Spark engine to C++23 and played it in the terminal.
 v3.0.06 deleted the Electron, web and Python stacks for good — the studio is
 one binary now. v3.0.07 gave the studio its face: the mark descends from the
 STUDIO 2 circuit spiral (preserved on the
-[`ds2-archive`](https://github.com/DXN1-termux/DXN1-STUDIO/tree/ds2-archive)
+[`ds2-archive`](https://github.com/DXN1-0DAY/DXN1-STUDIO/tree/ds2-archive)
 branch) with a monolithic 3 carved into it, the title card greets every
 launch, the HUD counts your coins, and the command bar whispers usage hints
 while you type. v3.0.08 gave the studio somewhere to go: the campaign grew
@@ -674,4 +680,4 @@ protocol — and it runs live beside your editor; the campaign is now the
 demo, the SDKs ship in `sdk/`, and the selftest hosts a real child game
 end to end on every run.
 
-MIT — DXN1-termux
+MIT — DXN1-0DAY

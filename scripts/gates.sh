@@ -113,5 +113,33 @@ else
   echo "   (skip) python3 not on this machine — the README gate runs in CI"
 fi
 
+echo "── gate 8: the probes walk (the law pins live in the repo now)"
+if command -v python3 >/dev/null 2>&1; then
+  probe_fail=0
+  probe_n=0
+  for f in probes/*_probe.py; do
+    [ -e "$f" ] || continue
+    probe_n=$((probe_n + 1))
+    if timeout 180 python3 "$f" > /tmp/dxn1_probe_$$.log 2>&1; then
+      echo "   ok   $f"
+    else
+      echo "   FAIL $f"
+      tail -6 /tmp/dxn1_probe_$$.log
+      probe_fail=1
+    fi
+  done
+  rm -f /tmp/dxn1_probe_$$.log
+  if [ $probe_n -eq 0 ]; then
+    echo "   FAIL no probes found in probes/ — a law without its pin is a rumor"
+    FAIL=1
+  elif [ $probe_fail -eq 1 ]; then
+    FAIL=1
+  else
+    echo "   ok   $probe_n probe(s) walked, every pin green"
+  fi
+else
+  echo "   (skip) python3 not on this machine — the probes run in CI"
+fi
+
 echo
 if [ $FAIL -eq 0 ]; then echo "ALL GATES GREEN"; else echo "GATES RED"; exit 1; fi

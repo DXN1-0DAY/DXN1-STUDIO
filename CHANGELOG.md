@@ -1,3 +1,26 @@
+## v3.1.90 — the probes come home
+
+- **`probes/` exists now, and gate 8 walks it.** A probe the gates
+  never run ages into a liar — four drift catches on record, two of
+  them THIS round (tetris_probe's v3.1.48-era census of 8, red on
+  the clean v3.1.88 tree; tetris_combo_probe's dry-silence pin with
+  no answer for the dregs' air-voice). So the pins moved inside the
+  walls: the tetris family — seven probes, 40+ pins — lives in
+  `probes/` as the canonical law pins, `scripts/gates.sh` gained
+  gate 8 ("the probes walk"), and the rule is minted: a law isn't
+  shipped until its pin is in `probes/` and gate 8 walks it green.
+  `probes/README.md` tells the drift-catch ledger. One family per
+  round — asteroids, lunar, cards, bounce and shooter come home
+  next.
+- **The repo's new home:** the GitHub org renamed itself
+  (DXN1-termux -> DXN1-0DAY); README's install/clone/CI/archive
+  URLs and the remote now point at the truth (GitHub redirected
+  all along — now nothing leans on the redirect).
+- Every probe resolves REPO relative to its own file — they run
+  from any checkout, stdlib-only.
+- Gates 8 green (8 gates now); README's gates section and layout
+  wear the probes' clause.
+
 ## v3.1.89 — the last air burns
 
 - **The low-light law's FIFTH transplant: tetris's rails wear the
