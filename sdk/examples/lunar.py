@@ -1,6 +1,11 @@
 # LUNAR LANDER in the DXN1 STUDIO — gravity is the enemy, the pads forgive.
 # run:  dxn3 sdk/examples/lunar.py
 # left/right side-thrusters · space burns the main engine · land SOFT.
+# v3.1.49 — the last light: the flame FOLLOWS the lander (it used to
+# burn at the spawn point forever — a latent bug the polish round
+# exposed), it GLOWS while burning, the pads wear halos sized to
+# their pay (the brighter the halo, the richer the touchdown), and a
+# clean landing BLEACHES the lander gold-white for a beat.
 from dxn3 import *
 import random
 
@@ -30,12 +35,16 @@ pays = {}
 for i, (x, y, w, h, pay) in enumerate(PADS):
     p = rect(f"pad{i}", x, y, w, h, "#22c55e")
     p.tag = "pad"
+    p.glow = 2 + pay // 50               # the halo IS the pay: 3 and 4
     pays[f"pad{i}"] = pay
 
 land = circle("land", W // 2, 40, 14, 14, "#e9e5ff")
 land.tag = "ship"
 flame = circle("flame", W // 2, 56, 6, 6, "#facc15")
 flame.visible = 0
+flame.glow = 0
+land.flash = 0.0                        # declared before it is read (the
+                                        # shooter round's law)
 
 G = 60.0               # the moon pulls gently
 BURN = 95.0            # main engine acceleration
@@ -58,6 +67,8 @@ def respawn_lander():
     fuelbar.color = "#22c55e"
     fuelbar.visible = 1
     flame.visible = 0
+    flame.glow = 0
+    land.flash = 0.0
 
 
 def freeze(beat):
@@ -65,17 +76,20 @@ def freeze(beat):
     flash = beat
     land.vx = land.vy = 0            # the world holds its breath
     flame.visible = 0
+    flame.glow = 0
     burn = 0.0
 
 
 def on_key(k):
-    global fuel                     # the tank is the module's — without
-    if flash > 0 or fuel <= 0:      # this word the first key press died
-        return                      # (UnboundLocalError) and the lander
-    if k == "space":                # never burned a drop. A latent bug
-        land.vy -= BURN * dt        # the fuel-gauge probe just exposed.
-        fuel = max(0.0, fuel - 14 * dt)
-        burn = 0.09
+    global fuel, burn               # the tank and the flame's fuse are the
+    if flash > 0 or fuel <= 0:      # module's — without burn's word the
+        return                      # flame lit once and burned forever at
+    if k == "space":                # the spawn point (a latent bug the
+        land.vy -= BURN * dt        # last-light probe exposed: burn was a
+        fuel = max(0.0, fuel - 14 * dt)   # LOCAL — the module's fuse
+        burn = 0.09                       # never burned down)
+        flame.visible = 1
+        flame.glow = 4              # the burn's own light
     elif k == "left":
         land.vx -= SIDE * dt
         fuel = max(0.0, fuel - 4 * dt)
@@ -105,6 +119,11 @@ def on_tick(dt2):
         burn -= dt2
         if burn <= 0:
             flame.visible = 0
+            flame.glow = 0
+    # the flame RIDES the lander now — it used to burn at the spawn
+    # point forever, a fixture of the launch pad rather than the ship
+    flame.x = land.x + 4
+    flame.y = land.y + 16
     if flash > 0:
         flash -= dt2
         if flash <= 0:
@@ -153,6 +172,7 @@ def on_hit(a, b):
         vars(score=score)
         say(f"+{pay} — touchdown")
         print(f"touchdown — pad pays {pay} · fuel left {int(fuel)}")
+        land.flash = 1.0             # the gold-white beat the legs earned
         freeze(1.4)
 
 

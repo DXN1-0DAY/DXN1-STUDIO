@@ -1,3 +1,22 @@
+## v3.1.49 — the last light
+
+- **Lunar's polish round exposed a REAL latent bug:** the flame,
+  once lit, burned FOREVER at the spawn point — `on_key` wrote
+  `burn = 0.09` without `global burn`, so the module's fuse never
+  burned down and the hide-branch never ran. (The old flame was a
+  fixture of the launch pad, not a ship light.) The fuse is the
+  module's now; the flame goes dark when the burn ends.
+- **The polish, on top of the truth:** the flame RIDES the lander
+  (x+4, y+16 — it never followed the ship before), it GLOWS (4)
+  while burning, the pads wear halos sized to their pay (the valley
+  3, the summit 4 — the brighter the halo, the richer the
+  touchdown), and a clean landing BLEACHES the lander gold-white
+  (flash 1.0) for the freeze beat.
+- Probe `lunar_lastlight_probe.py`: 11 pins green — pay-sized
+  halos, the sleeping flame, the riding glow, the dark after the
+  burn, the touchdown's word on the say field (one frame only),
+  the bleach, the frozen world, the respawn's clean tank.
+
 ## v3.1.48 — the vault
 
 - **Tetris learns to hold.** `c` stashes the falling piece in a
