@@ -838,6 +838,8 @@ void drawIDE(dxn3::Screen& scr, IdeState& ide, const dxn3::Game& g, bool hostUp)
                     std::to_string(ide.curC + 1);
   if (ide.zen) pos += " · zen";               // the quiet says its name
   if (ide.wrap) pos += " · wrap";             // the fold says its name
+  if (!ide.crew.empty())                      // the crew says its count
+    pos += " · " + std::to_string(dxn3::ideCrewHands(ide)) + " hands";
   if (!ide.marks.empty())
     pos += " · pins " + std::to_string(ide.marks.size());  // the pins count,
                                                 // at a glance in big files
@@ -988,6 +990,20 @@ void drawIDE(dxn3::Screen& scr, IdeState& ide, const dxn3::Game& g, bool hostUp)
     scr.textBg(G + ide.curC - ide.hcol -
                    wrap.rowOff[static_cast<size_t>(curV)],
                row, std::string(1, ch), paneBg, dxn3::rgb(167, 139, 250));
+  }
+  // the crew's carets: every hand burns a humbled violet — the SAME
+  // cell law as the primary (visual row under the fold, the line's row
+  // under the identity), dimmed so the primary stays the brightest
+  for (const auto& [cr, cc] : ide.crew) {
+    const int v = dxn3::ideWrapRowOf(wrap, cr, cc);
+    if (v < ide.top || v >= ide.top + bodyRows) continue;
+    const std::string& l = ide.lines[static_cast<size_t>(cr)];
+    if (cc < 0 || cc > static_cast<int>(l.size())) continue;
+    const char ch = cc < static_cast<int>(l.size()) ? l[static_cast<size_t>(cc)] : ' ';
+    const int col = G + cc - ide.hcol - wrap.rowOff[static_cast<size_t>(v)];
+    if (col < G || col >= G + textW) continue;    // out of the pane
+    scr.textBg(col, bodyTop + (v - ide.top), std::string(1, ch), paneBg,
+               dxn3::rgb(96, 70, 160));
   }
   // the bracket's partner glows across the file — the cursor's own cell
   // already burns inverse video, so the glow lands on the partner (and
@@ -1466,6 +1482,7 @@ int main(int argc, char** argv) {
     ide.curR = ide.curC = ide.top = 0;
     ide.hcol = 0;                              // a fresh page, an unslid view
     dxn3::ideSelClear(ide);                    // and no stale selection
+    ide.crew.clear();                          // hands belong to the old page
     ide.marks.clear();  // pins belong to the document they were planted in
     ide.dirty = true;
     ide.idle = 0;
@@ -1509,6 +1526,7 @@ int main(int argc, char** argv) {
     ide.lastTyping = ide.lastBack = false;
     ide.curR = ide.curC = ide.top = 0;
     dxn3::ideSelClear(ide);          // no stale selection rides along
+    ide.crew.clear();                // hands belong to the page they stood on
     ide.marks.clear();  // pins belong to the document they were planted in
     ide.hcol = 0;
     ide.tpl = -1;
@@ -2361,6 +2379,41 @@ int main(int argc, char** argv) {
                     "sleeps while the fold speaks"
                   : "engine: the slide returns — long lines run past the "
                     "pane again");
+        } else if (cmd.verb == "crew") {
+          // the crew: many hands, one breath — a number plants that many
+          // hands below yours (same column, clamped honest); a bare :crew
+          // bows them out. Typing speaks through every hand at once.
+          takeStage();
+          if (cmd.arg.empty()) {
+            const int had = dxn3::ideCrewHands(ide);
+            ide.crew.clear();
+            ide.console.push_back(
+                had > 1 ? "engine: the crew bows out — one hand again"
+                        : "engine: one hand stands — no crew to dissolve");
+          } else {
+            int n = 0;
+            const auto [p, ec] = std::from_chars(
+                cmd.arg.data(), cmd.arg.data() + cmd.arg.size(), n);
+            if (ec != std::errc{} || p != cmd.arg.data() + cmd.arg.size() ||
+                n < 1 || n > 99) {
+              ide.console.push_back(
+                  "engine: usage: :crew [n] — a bare :crew bows the hands "
+                  "out; a number plants that many hands below");
+            } else {
+              const int planted = dxn3::ideCrewPlant(ide, n);
+              const int hands = dxn3::ideCrewHands(ide);
+              if (planted == 0)
+                ide.console.push_back(
+                    "engine: no room below — the document's edge refuses "
+                    "the hands");
+              else
+                ide.console.push_back(
+                    "engine: " + std::to_string(planted) + " hand" +
+                    (planted == 1 ? "" : "s") + " planted — " +
+                    std::to_string(hands) + " stand together — type once, "
+                    "every hand writes (a bare :crew bows them out)");
+            }
+          }
         } else if (cmd.verb == "stats") {
           takeStage();
           size_t words = 0, chars = 0;
@@ -2457,7 +2510,7 @@ int main(int argc, char** argv) {
           takeStage();                         // every verb takes the stage —
                                                // a law, not a suggestion
           if (cmd.arg.empty()) {
-            game.say(":scene :open :recent :template :snip :goto :jumps :changes :fresh :mark :marks :bm :ruler :minimap :zen :wrap :center :relnum :s :sa :o :e :trim :cases :sort :rsort :rev :uniq :shuffle :indent :dedent :lift :drop :dup :join :upper :lower :title :hist :undo :redo :words :todo :stats "
+            game.say(":scene :open :recent :template :snip :goto :jumps :changes :fresh :mark :marks :bm :ruler :minimap :zen :wrap :crew :center :relnum :s :sa :o :e :trim :cases :sort :rsort :rev :uniq :shuffle :indent :dedent :lift :drop :dup :join :upper :lower :title :hist :undo :redo :words :todo :stats "
                      ":record :macro :zoom :fit :reset :new :w :wq :q :screenshot :magnet :gravity — or :help <verb>",
                      4.f);
           } else {

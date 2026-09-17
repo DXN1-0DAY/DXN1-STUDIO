@@ -167,6 +167,12 @@ inline Cmd parseCommand(std::string_view line) {
       number(0.f, 999999999.f,
              "usage: :shuffle [seed] — a bare :shuffle rolls a seed; "
              "the same seed deals the same order");
+  } else if (c.verb == "crew") {
+    // a bare :crew dissolves the hands; a number plants that many more
+    if (!c.arg.empty())
+      number(1.f, 99.f,
+             "usage: :crew [n] — a bare :crew bows the hands out; a number "
+             "plants that many hands below");
   } else if (c.verb == "help") {
     // a bare :help lists every verb; :help <verb> whispers that verb's law
     if (!c.arg.empty() && c.arg.find(' ') != std::string::npos)
@@ -238,7 +244,7 @@ inline std::string usageHintFor(std::string_view typed) {
   if (!typed.empty() && typed.front() == ':') typed.remove_prefix(1);
   while (!typed.empty() && typed.front() == ' ') typed.remove_prefix(1);
   if (typed.empty())
-    return " verbs: scene open recent template snip goto zoom fit reset ruler stats minimap w wq q screenshot magnet gravity help";
+    return " verbs: scene open recent template snip goto zoom fit reset ruler stats minimap w wq q screenshot magnet gravity help crew";
   const size_t sp = typed.find(' ');
   const std::string verb(sp == std::string_view::npos ? typed
                                                       : typed.substr(0, sp));
@@ -348,6 +354,10 @@ inline std::string usageHintFor(std::string_view typed) {
   if (verb == "wrap")
     return " :wrap — the fold: long lines break into the pane at the "
            "last space that fits; a second :wrap wakes the slide";
+  if (verb == "crew")
+    return " :crew [n] — the crew: a number plants that many hands below "
+           "yours; type once and every hand writes; a bare :crew bows "
+           "them out";
   if (verb == "stats") return " :stats — lines, words, chars, where you stand";
   if (verb == "w")
     return " :w [file] — save the session's work; a .bak is kept";

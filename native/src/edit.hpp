@@ -92,6 +92,7 @@ struct IdeSnap {
   std::vector<std::string> lines;
   int curR = 0, curC = 0;
   std::vector<int> marks;                      // the pins ride the restore
+  std::vector<std::pair<int, int>> crew;       // the hands ride the restore
   std::string what;                            // the edit this step precedes
   bool operator==(const IdeSnap& o) const = default;
 };
@@ -170,6 +171,13 @@ struct IdeState {
   // the restored document. Cleared when the page opens (a fresh read
   // is a clean page) — including :fresh, whose truth is the disk's.
   std::vector<int> touched;
+  // the crew: extra hands — every one stands where a cursor stands, and
+  // the four edit verbs (typing, backspace, enter, forward delete) speak
+  // through EVERY hand at once. Sorted, unique, the primary hand
+  // (curR, curC) never listed. A transient crew: any frame that is not
+  // one of the four verbs (movement, a click, esc, a command) dissolves
+  // it back to the single hand; :crew plants it, a bare :crew bows out.
+  std::vector<std::pair<int, int>> crew;
   // the minimap: a compressed map of the whole document riding the
   // editor pane's right edge (drawn only when the terminal has room;
   // :minimap toggles it)
@@ -444,7 +452,7 @@ inline void ideClamp(IdeState& s) {
 }
 
 inline void idePushUndo(IdeState& s, std::string what = "edit") {
-  s.undo.push_back({s.lines, s.curR, s.curC, s.marks, std::move(what)});
+  s.undo.push_back({s.lines, s.curR, s.curC, s.marks, s.crew, std::move(what)});
   if (s.undo.size() > IdeState::kUndoMax)
     s.undo.erase(s.undo.begin(),
                  s.undo.begin() + static_cast<long>(s.undo.size() - IdeState::kUndoMax));
@@ -754,11 +762,12 @@ inline std::optional<std::vector<std::string>> ideSnippetFor(
 // step's edit label rides along, so redo can re-apply it by name.
 inline bool ideUndo(IdeState& s) {
   if (s.undo.empty()) return false;
-  s.redo.push_back({s.lines, s.curR, s.curC, s.marks, s.undo.back().what});
+  s.redo.push_back({s.lines, s.curR, s.curC, s.marks, s.crew, s.undo.back().what});
   s.lines = std::move(s.undo.back().lines);
   s.curR = s.undo.back().curR;
   s.curC = s.undo.back().curC;
   s.marks = s.undo.back().marks;               // the pins walk back too
+  s.crew = s.undo.back().crew;                 // the hands walk back too
   s.undo.pop_back();
   s.lastTyping = s.lastBack = false;
   ideSelClear(s);                    // the second chance drops the selection
@@ -773,11 +782,12 @@ inline bool ideUndo(IdeState& s) {
 // step forward again; false when there is nothing to redo
 inline bool ideRedo(IdeState& s) {
   if (s.redo.empty()) return false;
-  s.undo.push_back({s.lines, s.curR, s.curC, s.marks, s.redo.back().what});
+  s.undo.push_back({s.lines, s.curR, s.curC, s.marks, s.crew, s.redo.back().what});
   s.lines = std::move(s.redo.back().lines);
   s.curR = s.redo.back().curR;
   s.curC = s.redo.back().curC;
   s.marks = s.redo.back().marks;               // the pins step forward too
+  s.crew = s.redo.back().crew;                 // the hands step forward too
   s.redo.pop_back();
   s.lastTyping = s.lastBack = false;
   ideSelClear(s);
@@ -2660,6 +2670,265 @@ inline bool ideLeapToPartner(IdeState& s) {
 // the editor owns typing: chars land at the cursor, backspace joins
 // lines, enter splits them (and carries the indent down), every edit is
 // undoable
+// ── the crew: many hands, one breath ────────────────────────────────
+// The four edit verbs (typed, backspace, enter, forward delete) speak
+// through EVERY hand. Each verb below is the single hand's law pulled
+// out whole — the same bytes, the same pair rules, the same pins and
+// census rides — speaking at an (r, c) the caller names, so the single
+// hand and the crew can never drift apart: ONE law, many mouths.
+
+// one printable character typed at (r, c) — the closer you already
+// have is skipped, an opener carries its closer (quotes only when
+// neither neighbor is wordy). Returns the hand's new column.
+inline int ideTypeCharAt(std::vector<std::string>& L, int r, int c, char ch) {
+  std::string& line = L[static_cast<size_t>(r)];
+  if (ideIsCloser(ch) && c < static_cast<int>(line.size()) &&
+      line[static_cast<size_t>(c)] == ch)
+    return c + 1;                          // skipped over, never doubled
+  line.insert(line.begin() + std::min(c, static_cast<int>(line.size())), ch);
+  ++c;
+  const char closer = ideCloserFor(ch);
+  if (closer) {
+    const bool quote = ch == '"' || ch == '\'';
+    bool pair = true;
+    if (quote) {
+      const bool prevWord =
+          c >= 2 && (std::isalnum(static_cast<unsigned char>(
+                        line[static_cast<size_t>(c) - 2])) ||
+                     line[static_cast<size_t>(c) - 2] == '_');
+      const bool nextWord =
+          c < static_cast<int>(line.size()) &&
+          (std::isalnum(static_cast<unsigned char>(line[static_cast<size_t>(c)])) ||
+           line[static_cast<size_t>(c)] == '_');
+      pair = !prevWord && !nextWord;
+    }
+    if (pair)
+      line.insert(line.begin() + std::min(c, static_cast<int>(line.size())),
+                  closer);
+  }
+  return c;
+}
+
+// one backspace at (r, c) — the pair dies together, the char dies
+// alone, the line joins the one above. Returns the hand's new seat.
+inline std::pair<int, int> ideBackAt(IdeState& s, int r, int c) {
+  std::string& line = s.lines[static_cast<size_t>(r)];
+  if (c > 0 && c < static_cast<int>(line.size()) &&
+      ideCloserFor(line[static_cast<size_t>(c) - 1]) ==
+          line[static_cast<size_t>(c)]) {
+    line.erase(line.begin() + c);
+    line.erase(line.begin() + (c - 1));
+    ideTouch(s, r);
+    return {r, c - 1};
+  }
+  if (c > 0) {
+    line.erase(line.begin() + c - 1);
+    ideTouch(s, r);
+    return {r, c - 1};
+  }
+  if (r > 0) {                             // join with the line above
+    const int seam = static_cast<int>(s.lines[static_cast<size_t>(r - 1)].size());
+    s.lines[static_cast<size_t>(r - 1)] += line;
+    s.lines.erase(s.lines.begin() + r);
+    ideMarkErase(s, r, 1);                 // the joined line's pin goes
+    ideTouchErase(s, r, 1);                // its touch goes with it
+    ideTouch(s, r - 1);                    // the seam holds both lives
+    return {r - 1, seam};
+  }
+  return {r, c};                           // the document's head: nothing
+}
+
+// one forward delete at (r, c) — the char ahead dies alone, the line
+// at its end joins the one below. Returns the hand's new seat.
+inline std::pair<int, int> ideDelAt(IdeState& s, int r, int c) {
+  std::string& cur = s.lines[static_cast<size_t>(r)];
+  if (c < static_cast<int>(cur.size())) {
+    cur.erase(cur.begin() + c);
+    ideTouch(s, r);
+    return {r, c};
+  }
+  if (r + 1 < static_cast<int>(s.lines.size())) {
+    cur += s.lines[static_cast<size_t>(r) + 1];
+    s.lines.erase(s.lines.begin() + r + 1);
+    ideMarkErase(s, r + 1, 1);             // the joined line's pin rides out
+    ideTouchErase(s, r + 1, 1);            // its touch rides out too
+    ideTouch(s, r);                        // the seam holds both lives
+  }
+  return {r, c};
+}
+
+// one enter at (r, c) — the whole ceremony: the bracket's three-line
+// split, the indent inherited, the opener's bump, the closer's drop,
+// the pins and the census riding down. Returns the hand's new seat.
+inline std::pair<int, int> ideEnterAt(IdeState& s, int r, int c) {
+  std::string& cur = s.lines[static_cast<size_t>(r)];
+  const int at = std::min(c, static_cast<int>(cur.size()));
+  const bool pairSplit =
+      at > 0 && at < static_cast<int>(cur.size()) &&
+      ((cur[static_cast<size_t>(at) - 1] == '(' && cur[at] == ')') ||
+       (cur[static_cast<size_t>(at) - 1] == '[' && cur[at] == ']') ||
+       (cur[static_cast<size_t>(at) - 1] == '{' && cur[at] == '}'));
+  std::string rest = cur.substr(static_cast<size_t>(at));
+  cur.resize(static_cast<size_t>(at));
+  const size_t ws = cur.find_first_not_of(" \t");
+  const std::string base = (ws == std::string::npos) ? cur : cur.substr(0, ws);
+  std::string indent = base;
+  if (ideOpensBlock(cur) || (pairSplit && cur[static_cast<size_t>(at) - 1] == '{'))
+    indent += "    ";
+  if (ideClosesBlock(rest) && !pairSplit) {
+    const size_t cut = indent.size() >= 4 ? indent.size() - 4 : 0;
+    indent.resize(cut);
+  }
+  if (pairSplit) {
+    s.lines.insert(s.lines.begin() + r + 1, indent);
+    s.lines.insert(s.lines.begin() + r + 2, base + rest);
+    ideMarkShift(s, r + 1, 2);
+    ideTouchShift(s, r + 1, 2);
+    ideTouch(s, r);
+    ideTouch(s, r + 1);
+    ideTouch(s, r + 2);
+  } else {
+    s.lines.insert(s.lines.begin() + r + 1, indent + rest);
+    ideMarkShift(s, r + 1, 1);
+    ideTouchShift(s, r + 1, 1);
+    ideTouch(s, r);
+    ideTouch(s, r + 1);
+  }
+  return {r + 1, static_cast<int>(indent.size())};
+}
+
+// the crew's census: the primary hand plus every extra
+inline int ideCrewHands(const IdeState& s) {
+  return 1 + static_cast<int>(s.crew.size());
+}
+
+// add one hand at (r, c); refuses the primary's own seat and any seat
+// a hand already holds. Keeps the crew sorted. True when it took.
+inline bool ideCrewAdd(IdeState& s, int r, int c) {
+  if (r == s.curR && c == s.curC) return false;
+  const auto it = std::lower_bound(s.crew.begin(), s.crew.end(),
+                                   std::pair<int, int>{r, c});
+  if (it != s.crew.end() && *it == std::pair<int, int>{r, c}) return false;
+  s.crew.insert(it, {r, c});
+  return true;
+}
+
+// plant `n` more hands BELOW the lowest hand, each on the next line at
+// the same column (clamped to that line's honest end). The document's
+// edge refuses honestly. Returns how many hands were planted.
+inline int ideCrewPlant(IdeState& s, int n) {
+  const std::pair<int, int> seed =
+      s.crew.empty() ? std::pair<int, int>{s.curR, s.curC} : s.crew.back();
+  int planted = 0;
+  for (int r = seed.first; planted < n; ++planted) {
+    ++r;
+    if (r >= static_cast<int>(s.lines.size())) break;
+    const int c = std::clamp(seed.second, 0,
+                             static_cast<int>(s.lines[static_cast<size_t>(r)].size()));
+    if (!ideCrewAdd(s, r, c)) break;       // a refused seat ends the walk
+  }
+  return planted;
+}
+
+// every hand clamped to the document it stands on — after an undo, an
+// open, any reshape. Hands that land on the primary's seat dissolve.
+inline void ideCrewClamp(IdeState& s) {
+  if (s.crew.empty()) return;
+  std::vector<std::pair<int, int>> keep;
+  for (auto [r, c] : s.crew) {
+    r = std::clamp(r, 0, static_cast<int>(s.lines.size()) - 1);
+    c = std::clamp(c, 0, static_cast<int>(s.lines[static_cast<size_t>(r)].size()));
+    if (r == s.curR && c == s.curC) continue;
+    if (!keep.empty() && keep.back() == std::pair<int, int>{r, c}) continue;
+    keep.push_back({r, c});
+  }
+  s.crew = std::move(keep);
+}
+
+// one frame through every hand: the four verbs, highest hand first so
+// no hand's edit shifts another's ground. ONE restore point per frame
+// (the same quick-hands coalescing the single hand obeys). Hands that
+// land together merge; the primary keeps its identity.
+inline void ideCrewFrame(IdeState& s, const Keys& k) {
+  const bool typing = !k.typed.empty();
+  const bool quick = s.idle < 0.8;
+  const bool cont = typing ? (s.lastTyping && quick)
+                  : k.back ? ((s.lastTyping || s.lastBack) && quick)
+                           : false;
+  if (!cont)
+    idePushUndo(s, typing       ? "the crew's typing"
+                 : k.back       ? "the crew's backspace"
+                 : k.enter      ? "the crew's enter"
+                                : "the crew's delete");
+  else
+    s.redo.clear();
+  s.lastTyping = typing;
+  s.lastBack = k.back && !typing;
+
+  // the hands, highest seat first; the primary rides along — its seat
+  // is remembered and FOUND after the sort (sorting moves every entry)
+  std::vector<std::pair<int, int>> hands = s.crew;
+  hands.push_back({s.curR, s.curC});
+  const std::pair<int, int> primarySeat = {s.curR, s.curC};
+  std::sort(hands.begin(), hands.end(), std::greater<>{});
+  const int primaryIx = static_cast<int>(
+      std::find(hands.begin(), hands.end(), primarySeat) - hands.begin());
+
+  std::vector<std::pair<int, int>> landed(hands.size());
+  for (size_t i = 0; i < hands.size(); ++i) {
+    auto [r, c] = hands[i];
+    r = std::clamp(r, 0, static_cast<int>(s.lines.size()) - 1);
+    c = std::clamp(c, 0, static_cast<int>(s.lines[static_cast<size_t>(r)].size()));
+    if (typing) {
+      for (const char ch : k.typed)
+        c = ideTypeCharAt(s.lines, r, c, ch);
+      ideTouch(s, r);
+      landed[i] = {r, c};
+    } else if (k.back) {
+      const bool join = c == 0 && r > 0;     // the seam's law: a hand that
+      const int seamLen =                    // landed on the row being
+          join ? static_cast<int>(s.lines[static_cast<size_t>(r - 1)].size()) : 0;
+      landed[i] = ideBackAt(s, r, c);
+      if (join)
+        for (size_t j = 0; j < i; ++j) {     // merged into the row above
+          if (landed[j].first == r)
+            landed[j] = {r - 1, seamLen + landed[j].second};
+          else if (landed[j].first > r)
+            --landed[j].first;               // rows below the seam slide up
+        }
+    } else if (k.enter) {
+      landed[i] = ideEnterAt(s, r, c);
+      // the split pushed every seat below the seam down one — hands
+      // already landed ride the shift too
+      for (size_t j = 0; j < i; ++j)
+        if (landed[j].first > r) ++landed[j].first;
+    } else if (k.del) {
+      const bool join = c >= static_cast<int>(s.lines[static_cast<size_t>(r)].size()) &&
+                        r + 1 < static_cast<int>(s.lines.size());
+      landed[i] = ideDelAt(s, r, c);
+      if (join)
+        for (size_t j = 0; j < i; ++j) {     // merged into the row above
+          if (landed[j].first == r + 1)
+            landed[j] = {r, c + landed[j].second};
+          else if (landed[j].first > r + 1)
+            --landed[j].first;               // rows below the seam slide up
+        }
+    }
+  }
+
+  // the primary keeps its seat; the crew re-forms around it, unique
+  s.curR = landed[static_cast<size_t>(primaryIx)].first;
+  s.curC = landed[static_cast<size_t>(primaryIx)].second;
+  s.crew.clear();
+  for (size_t i = 0; i < landed.size(); ++i) {
+    if (static_cast<int>(i) == primaryIx) continue;
+    if (landed[i] == std::pair<int, int>{s.curR, s.curC}) continue;
+    if (!s.crew.empty() && s.crew.back() == landed[i]) continue;
+    s.crew.push_back(landed[i]);
+  }
+  std::sort(s.crew.begin(), s.crew.end());
+}
+
 inline void ideKey(IdeState& ide, const Keys& k) {
   // ── esc owns its frame. A bare ESC is a MODE key — play, search,
   // escape — and when a pty delivers it coalesced with typing (the
@@ -2668,8 +2937,33 @@ inline void ideKey(IdeState& ide, const Keys& k) {
   // live document exactly this way; the gate caught it. Nothing that
   // follows an ESC in the same breath may touch the document.
   if (k.esc) {
+    ide.crew.clear();                       // esc: the crew bows out too
     ide.idle = 0;
     return;
+  }
+  // the crew is transient: a frame that CARRIES a key yet speaks none
+  // of the four edit verbs dissolves it — movement, a click, esc, a
+  // command. The engine's empty breaths (a frame with no keys at all)
+  // never dissolve anything — the crew lives between keystrokes too.
+  if (!ide.crew.empty()) {
+    const bool editVerb =
+        !k.typed.empty() || k.back || k.del || k.enter;
+    const bool carriesKey =
+        k.left || k.right || k.jump || k.reset || k.fit || k.zoomIn ||
+        k.zoomOut || k.inspect || k.quit || k.esc || k.viewFile ||
+        k.cmd || k.shot || k.scroll != 0 || k.slash || k.enter ||
+        k.back || k.ctrlS || k.ctrlR || k.up || k.down || k.aLeft ||
+        k.aRight || k.tab || k.backTab || k.braille || k.ctrlN ||
+        k.pageUp || k.pageDn || k.del || k.home || k.end || k.ctrlG ||
+        k.ctrlZ || k.ctrlY || k.jumpBack || k.jumpFwd || k.ctrlL ||
+        k.ctrlF || k.ctrlD || k.delWord || k.wLeft || k.wRight ||
+        k.delWordFwd || k.comment || k.docHome || k.docEnd || k.sUp ||
+        k.sDown || k.altUp || k.altDown || k.sLeft || k.sRight ||
+        k.sWLeft || k.sWRight || k.ctrlC || k.ctrlX || k.ctrlV ||
+        k.leap || k.markToggle || k.markNext || k.markPrev ||
+        k.findJump || k.findBack || k.clickR >= 0 || k.dragR >= 0 ||
+        k.clickRelease;
+    if (carriesKey && !editVerb) ide.crew.clear();
   }
   // ── the searchlight is up: the query owns the keyboard, the buffer
   // never changes while you search
@@ -2870,6 +3164,21 @@ inline void ideKey(IdeState& ide, const Keys& k) {
   if (k.ctrlX) { ideClipCut(ide); ideClamp(ide); return; }
   if (k.ctrlV) { ideClipPaste(ide); ideClamp(ide); return; }
 
+  // ── the crew's frame: many hands, one breath. When hands are many
+  // the four edit verbs speak through every hand at once and the crew's
+  // own law IS the frame's whole edit — the single-hand path below
+  // sleeps. One restore point per frame, named after the verb.
+  if (!ide.crew.empty() &&
+      (!k.typed.empty() || k.back || k.del || k.enter)) {
+    ideSelClear(ide);                       // the crew's breath is its own
+    ideCrewFrame(ide, k);
+    ide.dirty = true;                       // the game hears about it
+    ide.idle = 0;
+    ideClamp(ide);
+    ideCrewClamp(ide);
+    return;
+  }
+
   // ── the selection and the edit keys: a typed char, backspace,
   // forward-delete or enter with a selection live REPLACES the range —
   // and that replacement is always its own restore point. NOTE: the
@@ -2908,62 +3217,15 @@ inline void ideKey(IdeState& ide, const Keys& k) {
                                   // alone — a selection replacement pushed
                                   // once above already
 
-  std::string& line = L[static_cast<size_t>(ide.curR)];   // AFTER any range cut
-
-  for (const char ch : k.typed) {
-    // a closer you already have is skipped over, never doubled
-    if (ideIsCloser(ch) && ide.curC < static_cast<int>(line.size()) &&
-        line[static_cast<size_t>(ide.curC)] == ch) {
-      ++ide.curC;
-      continue;
-    }
-    line.insert(line.begin() + std::min(ide.curC, static_cast<int>(line.size())), ch);
-    ++ide.curC;
-    // an opener carries its closer — brackets always pair; quotes pair
-    // only when NEITHER neighbor is a word character, so "don't" keeps
-    // its honest apostrophe while `x = "hello"` still wraps
-    const char closer = ideCloserFor(ch);
-    if (closer) {
-      const bool quote = ch == '"' || ch == '\'';
-      bool pair = true;
-      if (quote) {
-        const bool prevWord =
-            ide.curC >= 2 &&
-            (std::isalnum(static_cast<unsigned char>(line[static_cast<size_t>(ide.curC) - 2])) ||
-             line[static_cast<size_t>(ide.curC) - 2] == '_');
-        const bool nextWord =
-            ide.curC < static_cast<int>(line.size()) &&
-            (std::isalnum(static_cast<unsigned char>(line[static_cast<size_t>(ide.curC)])) ||
-             line[static_cast<size_t>(ide.curC)] == '_');
-        pair = !prevWord && !nextWord;
-      }
-      if (pair)
-        line.insert(line.begin() + std::min(ide.curC, static_cast<int>(line.size())),
-                    closer);
-    }
-  }
+  // the single hand's typing and backspace speak the SAME laws the crew
+  // speaks — one law, many mouths (see ideTypeCharAt / ideBackAt above)
+  for (const char ch : k.typed)
+    ide.curC = ideTypeCharAt(L, ide.curR, ide.curC, ch);
   if (!k.typed.empty()) ideTouch(ide, ide.curR);   // the hand wrote here
   if (k.back && !selEdit) {
-    // backspace between an empty pair removes BOTH halves — the pair
-    // was born together, it dies together
-    if (ide.curC > 0 && ide.curC < static_cast<int>(line.size()) &&
-        ideCloserFor(line[static_cast<size_t>(ide.curC) - 1]) ==
-            line[static_cast<size_t>(ide.curC)]) {
-      line.erase(line.begin() + ide.curC);
-      line.erase(line.begin() + (ide.curC - 1));
-      --ide.curC;
-      ideTouch(ide, ide.curR);
-    }
-    else if (ide.curC > 0) { line.erase(line.begin() + ide.curC - 1); --ide.curC; ideTouch(ide, ide.curR); }
-    else if (ide.curR > 0) {                       // join with previous line
-      ide.curC = static_cast<int>(L[static_cast<size_t>(ide.curR - 1)].size());
-      L[static_cast<size_t>(ide.curR - 1)] += line;
-      L.erase(L.begin() + ide.curR);
-      ideMarkErase(ide, ide.curR, 1);              // the joined line's pin goes
-      ideTouchErase(ide, ide.curR, 1);             // its touch goes with it
-      --ide.curR;
-      ideTouch(ide, ide.curR);                     // the seam holds both lives
-    }
+    const auto [br, bc] = ideBackAt(ide, ide.curR, ide.curC);
+    ide.curR = br;
+    ide.curC = bc;
   }
   if (k.tab || k.backTab) {                    // tab and shift+tab: the
                                                // shelf answers, or the
@@ -3055,49 +3317,10 @@ inline void ideKey(IdeState& ide, const Keys& k) {
     }
   }
   if (k.enter) {
-    // re-fetch: back may have joined lines and grown/shrunk L above
-    std::string& cur = L[static_cast<size_t>(ide.curR)];
-    const int at = std::min(ide.curC, static_cast<int>(cur.size()));
-    // enter between a bracket pair: the closer keeps its ground on a
-    // line of its own — `f(|)` becomes the three-line ceremony. Quotes
-    // stay out: breaking a string literal is just a split.
-    const bool pairSplit =
-        at > 0 && at < static_cast<int>(cur.size()) &&
-        ((cur[static_cast<size_t>(at) - 1] == '(' && cur[at] == ')') ||
-         (cur[static_cast<size_t>(at) - 1] == '[' && cur[at] == ']') ||
-         (cur[static_cast<size_t>(at) - 1] == '{' && cur[at] == '}'));
-    std::string rest = cur.substr(static_cast<size_t>(at));
-    cur.resize(static_cast<size_t>(at));
-    // the block rides down: inherit this line's leading whitespace,
-    // bump a level after an opener, drop one before a closer
-    const size_t ws = cur.find_first_not_of(" \t");
-    const std::string base = (ws == std::string::npos) ? cur : cur.substr(0, ws);
-    std::string indent = base;
-    if (ideOpensBlock(cur) || (pairSplit && cur[static_cast<size_t>(at) - 1] == '{'))
-      indent += "    ";
-    if (ideClosesBlock(rest) && !pairSplit) {
-      const size_t cut = indent.size() >= 4 ? indent.size() - 4 : 0;
-      indent.resize(cut);
-    }
-    if (pairSplit) {
-      L.insert(L.begin() + ide.curR + 1, indent);      // the naked middle line
-      L.insert(L.begin() + ide.curR + 2, base + rest); // the closer keeps its
-                                                       // ground at the base
-      ideMarkShift(ide, ide.curR + 1, 2);              // pins slide down
-      ideTouchShift(ide, ide.curR + 1, 2);             // the census rides too
-      ideTouch(ide, ide.curR);                         // the head kept the opener
-      ideTouch(ide, ide.curR + 1);                     // the middle is fresh
-      ideTouch(ide, ide.curR + 2);                     // the closer's ground
-      ++ide.curR;                              // the cursor takes the middle
-    } else {
-      L.insert(L.begin() + ide.curR + 1, indent + rest);
-      ideMarkShift(ide, ide.curR + 1, 1);
-      ideTouchShift(ide, ide.curR + 1, 1);
-      ideTouch(ide, ide.curR);                         // the head was cut
-      ideTouch(ide, ide.curR + 1);                     // the tail is fresh
-      ++ide.curR;
-    }
-    ide.curC = static_cast<int>(indent.size());
+    // the single hand's split speaks the SAME law the crew speaks
+    const auto [er, ec] = ideEnterAt(ide, ide.curR, ide.curC);
+    ide.curR = er;
+    ide.curC = ec;
   }
   // ── movement: shift extends the selection, plain moves drop it.
   // The anchor is born at the cursor on the FIRST shift-extension —
@@ -3139,18 +3362,10 @@ inline void ideKey(IdeState& ide, const Keys& k) {
   if (k.pageDn) ide.curR += ide.page;
   if (k.del && !selEdit) {                   // forward delete — with a
                                              // selection the cut already ran
-    // re-fetch: enter may have grown L above and reallocated the buffer
-    std::string& cur = L[static_cast<size_t>(ide.curR)];
-    if (ide.curC < static_cast<int>(cur.size())) {
-      cur.erase(cur.begin() + ide.curC);
-      ideTouch(ide, ide.curR);
-    } else if (ide.curR + 1 < static_cast<int>(L.size())) {
-      cur += L[static_cast<size_t>(ide.curR) + 1];
-      L.erase(L.begin() + ide.curR + 1);     // join the next line up
-      ideMarkErase(ide, ide.curR + 1, 1);    // its pin rides out
-      ideTouchErase(ide, ide.curR + 1, 1);   // its touch rides out too
-      ideTouch(ide, ide.curR);               // the seam holds both lives
-    }
+    // the single hand's delete speaks the SAME law the crew speaks
+    const auto [dr, dc] = ideDelAt(ide, ide.curR, ide.curC);
+    ide.curR = dr;
+    ide.curC = dc;
   }
   if (k.ctrlD) {                             // duplicate — the cursor line
                                              // alone, or EVERY line the

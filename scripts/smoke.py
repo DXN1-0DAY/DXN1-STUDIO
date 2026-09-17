@@ -1307,6 +1307,49 @@ def main():
               "the macro ran — 2 verbs × 3, done" in scr2.text(ROWS - 2),
               repr(scr2.text(ROWS - 2)[:70]))
 
+        # ── 13m. the crew — many hands, one breath (:crew) ───────────
+        print("── 13m. :crew — the crew writes through every hand")
+        def body(scr, row):                    # the row past the gutter
+            return scr.text(row).lstrip().split(' ', 1)[1]
+        s2.run_verb("goto 1", "ide")           # the hand to the bed's head
+        s2.settle(0.2)
+        scr2, _ = s2.run_verb("crew 2", "ide")
+        check(":crew 2 plants the crew and speaks the count",
+              "2 hands planted — 3 stand together — type once, "
+              "every hand writes" in scr2.text(ROWS - 2),
+              repr(scr2.text(ROWS - 2)[:70]))
+        s2.send("Z")                           # one breath: EVERY hand writes
+        s2.settle(0.6)
+        scr2 = s2.screen()
+        check("typed once, all three lines grew the Z",
+              body(scr2, 1).startswith("Z") and
+              body(scr2, 2).startswith("Z") and
+              body(scr2, 3).startswith("Z"),
+              repr(body(scr2, 1)[:10] + "/" + body(scr2, 2)[:10] + "/" +
+                   body(scr2, 3)[:10]))
+        s2.run_verb("undo", "ide")             # one honest step back
+        s2.settle(0.4)
+        scr2 = s2.screen()
+        check("the crew's typing undoes in one step — no Z anywhere",
+              not body(scr2, 1).startswith("Z") and
+              not body(scr2, 2).startswith("Z") and
+              not body(scr2, 3).startswith("Z"),
+              repr(body(scr2, 1)[:10] + "/" + body(scr2, 2)[:10] + "/" +
+                   body(scr2, 3)[:10]))
+        s2.send(ESC + "[D")                    # a movement frame: the crew
+        s2.settle(0.2)                         # bows out to the single hand
+        s2.send("Q")                           # now the single hand alone
+        s2.settle(0.6)
+        scr2 = s2.screen()
+        check("movement dissolved the crew — the Q lands on one line only",
+              body(scr2, 1).startswith("Q") and
+              not body(scr2, 2).startswith("Q"),
+              repr(body(scr2, 1)[:10] + "/" + body(scr2, 2)[:10]))
+        scr2, _ = s2.run_verb("crew", "ide")
+        check("a bare :crew names the truth — no crew left to dissolve",
+              "one hand stands — no crew to dissolve" in scr2.text(ROWS - 2),
+              repr(scr2.text(ROWS - 2)[:70]))
+
         s2.send(ESC)
         time.sleep(0.3)
         s2.send("q")

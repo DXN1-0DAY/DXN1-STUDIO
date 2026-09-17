@@ -199,7 +199,7 @@ int main() {
   }
 
   // 9. the version quad rides in the binary too
-  ok(std::string(dxn3::DXN3_VERSION) == "3.0.87",
+  ok(std::string(dxn3::DXN3_VERSION) == "3.0.88",
      "native version constant matches the release quad");
 
   // 10. png writer: checksum vectors, real structure, byte determinism
@@ -4096,6 +4096,145 @@ int main() {
     es.curC = 0;
     ok(!dxn3::ideVisualMove(es, -1),
        "a walk off the document's head is the caller's law too");
+  }
+
+
+  // 89. the crew: many hands, one breath (:crew, the four verbs)
+  {
+    // the plant: n hands below, same column, clamped honest
+    IdeState cs;
+    cs.lines = {"alpha", "beta", "gamma delta", "eps"};
+    cs.curR = 0;
+    cs.curC = 2;
+    ok(dxn3::ideCrewPlant(cs, 2) == 2 && cs.crew.size() == 2,
+       "planting two hands adds two seats");
+    ok(cs.crew[0] == std::pair<int, int>{1, 2} &&
+           cs.crew[1] == std::pair<int, int>{2, 2},
+       "each hand stands one line below, the eye's column kept");
+    ok(dxn3::ideCrewHands(cs) == 3, "the census counts the primary too");
+    ok(dxn3::ideCrewPlant(cs, 5) == 1 && dxn3::ideCrewHands(cs) == 4,
+       "the document's edge refuses honestly — one line, one hand left");
+    // the clamp: a hand past the line's end lands on the honest end
+    IdeState ce;
+    ce.lines = {"long line", "hi"};
+    ce.curR = 0;
+    ce.curC = 9;
+    ce.crew = {{1, 9}};
+    dxn3::ideCrewClamp(ce);
+    ok(ce.crew.size() == 1 && ce.crew[0].second == 2,
+       "a hand beyond the line's end clamps to the line's end");
+    // typing speaks through every hand
+    IdeState ts;
+    ts.lines = {"aa", "bb"};
+    ts.curR = 0;
+    ts.curC = 1;
+    ts.crew = {{1, 1}};
+    dxn3::Keys tk;
+    tk.typed = "X";
+    dxn3::ideCrewFrame(ts, tk);
+    ok(ts.lines[0] == "aXa" && ts.lines[1] == "bXb",
+       "typed once, every hand writes");
+    ok(ts.curR == 0 && ts.curC == 2 &&
+           ts.crew == std::vector<std::pair<int, int>>{{1, 2}},
+       "every hand advanced past what it wrote");
+    ok(ts.undo.size() == 1 && ts.undo.back().what == "the crew's typing",
+       "one restore point, named after the verb");
+    // the pair law rides through every hand
+    IdeState ps;
+    ps.lines = {"()", ""};
+    ps.curR = 0;
+    ps.curC = 1;
+    ps.crew = {{1, 0}};
+    dxn3::Keys pk;
+    pk.typed = "(";
+    dxn3::ideCrewFrame(ps, pk);
+    ok(ps.lines[0] == "(())" && ps.lines[1] == "()",
+       "an opener carries its closer through every hand");
+    // the bite and the join in one breath — independent hands
+    IdeState bs;
+    bs.lines = {"head", "one", "two", "tail"};
+    bs.curR = 1;
+    bs.curC = 3;
+    bs.crew = {{3, 0}};
+    dxn3::Keys bk;
+    bk.back = true;
+    dxn3::ideCrewFrame(bs, bk);
+    ok(bs.lines[0] == "head" && bs.lines[1] == "on" &&
+           bs.lines[2] == "twotail",
+       "backspace bites one hand while the other joins the tail");
+    ok(bs.curR == 1 && bs.curC == 2 &&
+           bs.crew == std::vector<std::pair<int, int>>{{2, 3}},
+       "the joiner's hand stands at the seam, the biter behind its bite");
+    // the seam's remap: a hand landed on a row another hand's join
+    // erases rides the seam — row AND column remapped honestly
+    IdeState rs;
+    rs.lines = {"KK", "abcd"};
+    rs.curR = 1;
+    rs.curC = 0;
+    rs.crew = {{1, 3}};
+    dxn3::Keys rk;
+    rk.back = true;
+    dxn3::ideCrewFrame(rs, rk);
+    ok(rs.lines.size() == 1 && rs.lines[0] == "KKabd" &&
+           rs.crew == std::vector<std::pair<int, int>>{{0, 4}},
+       "a hand landed on the merged row rides the seam");
+    // enter through hands — the second split shifts the first's landing
+    IdeState es;
+    es.lines = {"ab", "cd"};
+    es.curR = 0;
+    es.curC = 2;
+    es.crew = {{1, 2}};
+    dxn3::Keys ek;
+    ek.enter = true;
+    dxn3::ideCrewFrame(es, ek);
+    ok(es.lines.size() == 4 && es.lines[0] == "ab" && es.lines[1] == "" &&
+           es.lines[2] == "cd" && es.lines[3] == "",
+       "enter splits through every hand, highest first");
+    ok(es.curR == 1 && es.curC == 0 &&
+           es.crew == std::vector<std::pair<int, int>>{{3, 0}},
+       "every hand takes its own new line, shifts honestly ridden");
+    // undo brings the hands AND the document back
+    IdeState us;
+    us.lines = {"aa", "bb"};
+    us.curR = 0;
+    us.curC = 1;
+    us.crew = {{1, 1}};
+    dxn3::Keys uk;
+    uk.typed = "X";
+    dxn3::ideCrewFrame(us, uk);
+    ok(dxn3::ideUndo(us) && us.lines[0] == "aa" && us.lines[1] == "bb" &&
+           us.crew == std::vector<std::pair<int, int>>{{1, 1}},
+       "undo restores the document AND the crew");
+    // the dissolve: movement and esc bow the crew out
+    IdeState ds;
+    ds.lines = {"a", "b"};
+    ds.curR = 0;
+    ds.curC = 0;
+    ds.crew = {{1, 0}};
+    dxn3::Keys mk;
+    mk.aRight = true;
+    dxn3::ideKey(ds, mk);
+    ok(ds.crew.empty(), "a movement frame dissolves the crew");
+    IdeState qs;
+    qs.lines = {"a", "b"};
+    qs.curR = 0;
+    qs.curC = 0;
+    qs.crew = {{1, 0}};
+    dxn3::Keys qk;
+    qk.esc = true;
+    dxn3::ideKey(qs, qk);
+    ok(qs.crew.empty(), "esc bows the crew out");
+    // the engine's empty breaths never dissolve — the crew lives
+    // between keystrokes
+    IdeState vs;
+    vs.lines = {"a", "b"};
+    vs.curR = 0;
+    vs.curC = 0;
+    vs.crew = {{1, 0}};
+    dxn3::Keys vk;                          // no key at all this frame
+    dxn3::ideKey(vs, vk);
+    ok(dxn3::ideCrewHands(vs) == 2,
+       "an empty frame — the engine's breath — never dissolves the crew");
   }
 
 

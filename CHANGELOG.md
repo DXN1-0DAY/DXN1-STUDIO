@@ -1,3 +1,36 @@
+## v3.0.88 — the crew (many hands, one breath)
+
+- **`:crew <n>` plants the crew — true multi-cursor editing.** A number
+  plants that many extra hands straight below yours, each on the next
+  line at the same column (clamped to that line's honest end; the
+  document's edge refuses with the receipt). Type once and EVERY hand
+  writes: the four edit verbs — typing, backspace, enter, forward
+  delete — speak through every hand at once, highest hand first so no
+  hand's edit shifts another's ground.
+- **ONE law, many mouths.** The single hand's four verb laws were
+  pulled out whole (`ideTypeCharAt`, `ideBackAt`, `ideDelAt`,
+  `ideEnterAt`) and both the solo path and the crew now speak the same
+  helpers — the bracket pairs, the closer-skip, the pair-eat
+  backspace, the indent-inheriting split, the pins and the census
+  rides: byte-identical behavior, provably no drift. Crew-only laws on
+  top: hands that land together merge; a hand landed on a row another
+  hand's join erases rides the seam (row and column remapped honestly);
+  one undo step per frame, named "the crew's typing" (and kin), with
+  the same quick-hands coalescing the solo hand obeys — and the crew
+  itself rides the restore (undo brings the hands back).
+- **A transient crew.** Any frame that is not one of the four verbs —
+  movement, a click, esc, a command — dissolves it back to the single
+  hand; a bare `:crew` bows the hands out with the receipt; an undo
+  past the crew's birth or a page open leaves the hands behind. The
+  header carries the count ("· 3 hands"); every hand burns a humbled
+  violet caret on the pane — the SAME cell law as the primary
+  (visual row under the fold), dimmed so the primary stays brightest.
+- Selftest group 89: seventeen crew laws (804 -> 821) — the plant, the
+  clamp, the census, the edge's refusal, typed-through-hands, the pair
+  law riding, the bite and the join in one breath, the seam's remap,
+  the split's shift-bump, the undo restoring hands and document, the
+  dissolve on movement and on esc. Gates ALL GREEN.
+
 ## v3.0.87 — the eye's walk (up/down ride the fold's rows)
 
 - **↑/↓ walk VISUAL rows under the fold.** From a line's continuation
