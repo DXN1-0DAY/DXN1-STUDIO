@@ -1,3 +1,14 @@
+## v3.1.26 — the flash goes to war
+
+- **asteroids.js adopts the engine's flash.** A hull hit now
+  BLEACHES the ship and its thrust flame (`flash: 1` — one wire
+  patch, the engine fades it), speaks on the HUD (`hull hit — 2
+  left`), and the final death arrives as a win banner. The grace
+  blink stays — the flash is the pain, the blink is the shield.
+- The ast probe passes end to end (two hull hits, game over, rock
+  split, rebuild ring). Conformance pin unchanged (7 entities —
+  flash is a field, not an entity).
+
 ## v3.1.25 — a hit you can see
 
 - **`flash` — a general entity field.** Any entity may carry

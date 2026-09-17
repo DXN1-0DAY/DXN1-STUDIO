@@ -5,7 +5,7 @@
 // since v3.1.10 — the nose-dot lie is retired). The nose survives as
 // a thrust flame: it speaks only while you burn.
 const dxn3 = require("dxn3");
-const { circle, tri, label, destroy, background, vars, on, run } = dxn3;
+const { circle, tri, label, destroy, background, vars, say, win, on, run } = dxn3;
 const W = dxn3.W, H = dxn3.H;
 
 background("#050814");
@@ -136,7 +136,10 @@ on.hit((a, b) => {
     if (safe > 0) return;
     lives -= 1;
     split(rockName);
+    ship.flash = 1;                     // v3.1.25's law: the hit BLEACHES,
+    nose.flash = 1;                     // the engine does the fading
     if (lives <= 0) {
+      win("game over — the field claims another hull");
       console.log(`game over — score ${score}`);
       score = 0; lives = 3; gen += 1;
       for (const name of [...rocks.keys()]) { rocks.delete(name); destroy(name); }
@@ -144,6 +147,7 @@ on.hit((a, b) => {
       hud.text = "ASTEROIDS  ·  turn w/space  ·  lives 3";
       vars({ score });
     } else {
+      say(`hull hit — ${lives} left`);
       console.log(`hull hit — ${lives} left`);
     }
     hud.text = `ASTEROIDS  ·  turn w/space  ·  lives ${lives}`;

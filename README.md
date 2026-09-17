@@ -2,7 +2,7 @@
 
 ![DXN1 STUDIO 3](assets/banner.png)
 
-![version](https://img.shields.io/badge/version-3.1.25-8b5cf6?style=flat-square)
+![version](https://img.shields.io/badge/version-3.1.26-8b5cf6?style=flat-square)
 ![gates](https://github.com/DXN1-termux/DXN1-STUDIO/actions/workflows/ci.yml/badge.svg)
 ![native](https://img.shields.io/badge/native-C%2B%2023-f97316?style=flat-square)
 ![face](https://img.shields.io/badge/face-terminal_truecolor-22d3ee?style=flat-square)
@@ -84,8 +84,9 @@ viewport refreshes — *code a background, and boom, a background.*
   glow, milestones name you — the garden snake, the hunter, the
   anaconda, the world eater — and every death arrives as a banner), `asteroids.js` (a hull that REALLY turns — a rotated tri,
   its thrust flame speaking only while you burn — splitting
-  rocks that fly faster as they shrink, a grace blink after a
-  hull hit), `lunar.py` (side-thrusters, one main engine,
+  rocks that fly faster as they shrink, a hull hit that BLEACHES
+  the ship with the engine's flash and says so on the HUD, a grace
+  blink after), `lunar.py` (side-thrusters, one main engine,
   two pads that pay by their risk — the hills are not for landing),
   `raycast.py` (a Wolfenstein-style 3D view painted out of plain
   rects — the engine is a canvas, so it can be ANY canvas),
