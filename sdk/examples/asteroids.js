@@ -1,21 +1,23 @@
 // ASTEROIDS in the DXN1 STUDIO — the classic, on the engine's wire.
 // run:  dxn3 sdk/examples/asteroids.js
 // left/right turn · w (or jump) thrusts · space fires · the discs drift.
-// The ship's facing is honest geometry: a nose dot orbiting the core.
+// The ship IS facing you: a real rotated tri (the engine renders rot
+// since v3.1.10 — the nose-dot lie is retired). The nose survives as
+// a thrust flame: it speaks only while you burn.
 const dxn3 = require("dxn3");
-const { circle, label, destroy, background, vars, on, run } = dxn3;
+const { circle, tri, label, destroy, background, vars, on, run } = dxn3;
 const W = dxn3.W, H = dxn3.H;
 
 background("#050814");
 
 const hud = label("hud", 2, 2, "ASTEROIDS  ·  turn w/space  ·  lives 3");
-const ship = circle("ship", W / 2, H / 2, 9, 9, "#8b5cf6");
+const ship = tri("ship", W / 2 - 4, H / 2 - 5, 9, 11, "#8b5cf6");
 ship.tag = "ship";
-const nose = circle("nose", W / 2 + 7, H / 2, 3, 3, "#e9e5ff"); // untagged:
-                                                                // the nose
-                                                                // looks, the
-                                                                // core is hit
-let rot = 0, vx = 0, vy = 0, nowDt = 0, safe = 0, gunCool = 0;
+const nose = circle("nose", W / 2, H / 2, 3, 3, "#fbbf24");  // untagged:
+                                                             // the flame
+                                                             // shows, the
+                                                             // core is hit
+let rot = 0, vx = 0, vy = 0, nowDt = 0, safe = 0, gunCool = 0, burn = 0;
 let lives = 3, score = 0, gen = 0, uid = 0;
 const rocks = new Map();                 // name -> { size }
 const bullets = new Map();               // name -> seconds left to live
@@ -67,7 +69,7 @@ function split(name) {
 }
 
 function resetShip() {
-  ship.x = W / 2; ship.y = H / 2; vx = 0; vy = 0; rot = 0; safe = 2.2;
+  ship.x = W / 2 - 4; ship.y = H / 2 - 5; vx = 0; vy = 0; rot = 0; safe = 2.2;
 }
 
 on.tick((d) => {
@@ -82,9 +84,13 @@ on.tick((d) => {
   // friction — space is thick with it
   vx *= 1 - Math.min(0.9, 0.55 * d);
   vy *= 1 - Math.min(0.9, 0.55 * d);
-  // the nose orbits: facing you can SEE
-  nose.x = ship.x + Math.sin(rot * Math.PI / 180) * 8 - 2;
-  nose.y = ship.y - Math.cos(rot * Math.PI / 180) * 8 - 2;
+  // the hull turns for real now — the tri's apex rides the heading,
+  // and the flame answers one honest question: burning, or coasting?
+  ship.rot = rot + 180;
+  burn = Math.max(0, burn - d);
+  nose.visible = burn > 0 ? 1 : 0;
+  nose.x = ship.x + Math.sin(rot * Math.PI / 180) * 7 - 1;
+  nose.y = ship.y - Math.cos(rot * Math.PI / 180) * 7 - 1;
   lastX.ship = ship.x; lastY.ship = ship.y;
   for (const [name, info] of rocks) {
     const e = dxn3.find(name);
@@ -108,6 +114,7 @@ on.key((k) => {
   if (k === "left" || k === "a") rot -= turn;
   if (k === "right" || k === "d") rot += turn;
   if (k === "jump" || k === "w") {
+    burn = 0.12;                       // the flame lives while the burn does
     vx += Math.sin(rot * Math.PI / 180) * 190 * nowDt;
     vy += -Math.cos(rot * Math.PI / 180) * 190 * nowDt;
   }

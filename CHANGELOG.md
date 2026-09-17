@@ -1,3 +1,19 @@
+## v3.1.16 — the nose-dot lie retires
+
+- **`sdk/examples/asteroids.js` — the ship turns for REAL.** Since
+  the engine's first version the wire carried `rot`, and since
+  v3.1.10 both rasters render it — but the asteroids ship still
+  faced you with a nose dot orbiting a round core, an honest
+  geometry hack standing in for a missing feature. The hack is
+  retired: the hull is a rotated TRI whose apex rides the heading
+  (the Turn math live in the gallery), and the nose survives as a
+  THRUST FLAME — golden, and visible only while you burn, which is
+  one more bit of honest information than the old dot ever gave.
+  Entity count unchanged (the flame keeps the nose's seat), so
+  gate 6's roster stands at 13 and the deterministic probe still
+  passes: three spaced hull hits to game over, the rebuild ring
+  under fresh names, the grace timer swallowing in-window hits.
+
 ## v3.1.15 — the descent (the campaign's eighth scene)
 
 - **`scenes/level-7.dxn1.json` — "the descent".** The summit's
