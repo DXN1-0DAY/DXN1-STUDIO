@@ -4965,6 +4965,43 @@ int main() {
     ts.resize(base);
   }
 
+  // 104. the keepsake: the five toggles (ruler, minimap, zen, relnum,
+  // wrap) ride one line in $HOME/.dxn3-settings — store → recall round
+  // trips, a partial line wears only the switches it names, and
+  // garbage (bad keys, non-0/1 values) changes nothing
+  {
+    IdeState s;                               // defaults: ruler+minimap on
+    ok(s.ruler && s.minimap && !s.zen && !s.relnum && !s.wrap,
+       "the editor's birth habits: guides and map on, the rest off");
+    s.ruler = false; s.relnum = true; s.wrap = true;
+    const std::string tmp = "/tmp/dxn3_settings_probe";
+    dxn3::ideSettingsStore(s, tmp);
+    IdeState fresh;
+    dxn3::ideSettingsRecall(fresh, tmp);
+    ok(!fresh.ruler && fresh.minimap && !fresh.zen && fresh.relnum &&
+           fresh.wrap,
+       "the habits survive the night (store → recall)");
+    // a PARTIAL line wears only the switches it names
+    {
+      std::ofstream f(tmp, std::ios::binary | std::ios::trunc);
+      f << "zen=1\n";
+    }
+    IdeState part;
+    dxn3::ideSettingsRecall(part, tmp);
+    ok(part.zen && part.ruler && part.minimap && !part.relnum && !part.wrap,
+       "a partial keepsake only touches its own switches");
+    // garbage is not a crime — nothing changes
+    {
+      std::ofstream f(tmp, std::ios::binary | std::ios::trunc);
+      f << "ruler=maybe nonsense=1 zen  warp=1 relnum=true\n";
+    }
+    IdeState junk;
+    dxn3::ideSettingsRecall(junk, tmp);
+    ok(!junk.zen && junk.ruler && junk.minimap && !junk.relnum && !junk.wrap,
+       "garbage on the keepsake: the defaults stand (values must be 0/1)");
+    std::filesystem::remove(tmp);
+  }
+
   if (fails == 0) {
     std::println("native selftest: all green ({} assertion groups)", n);
     return 0;

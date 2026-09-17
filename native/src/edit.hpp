@@ -22,6 +22,7 @@
 #include <cstdlib>
 #include <fstream>
 #include <random>
+#include <sstream>
 #include <string>
 #include <vector>
 
@@ -447,6 +448,55 @@ inline void ideThemeRecall(IdeState& ide, const std::string& over = "") {
     line.pop_back();
   std::string err;
   ideThemeSet(ide, line, &err);            // silence on garbage: keep dxn
+}
+
+// ── the keepsake: the editor's habits survive the night ────────────
+// One line in $HOME/.dxn3-settings — "ruler=1 minimap=0 zen=0
+// relnum=1 wrap=0" — the five toggles as you left them. Toggling any
+// of :ruler :minimap :zen :relnum :wrap saves the whole set; boot
+// recalls it. Garbage on the line (or a missing file) changes
+// nothing: the defaults stand, and a half-known line only wears the
+// switches it actually names.
+inline std::string ideSettingsPath(const std::string& over = "") {
+  if (!over.empty()) return over;
+  const char* home = std::getenv("HOME");
+  if (!home || !*home) return {};
+  return std::string(home) + "/.dxn3-settings";
+}
+
+inline void ideSettingsStore(const IdeState& ide, const std::string& over = "") {
+  const std::string p = ideSettingsPath(over);
+  if (p.empty()) return;
+  std::ofstream f(p, std::ios::binary | std::ios::trunc);
+  if (!f) return;
+  f << "ruler=" << (ide.ruler ? 1 : 0) << " minimap=" << (ide.minimap ? 1 : 0)
+    << " zen=" << (ide.zen ? 1 : 0) << " relnum=" << (ide.relnum ? 1 : 0)
+    << " wrap=" << (ide.wrap ? 1 : 0) << '\n';
+}
+
+inline void ideSettingsRecall(IdeState& ide, const std::string& over = "") {
+  const std::string p = ideSettingsPath(over);
+  if (p.empty()) return;
+  std::ifstream f(p, std::ios::binary);
+  if (!f) return;
+  std::string line;
+  if (!std::getline(f, line)) return;
+  std::istringstream in(line);
+  std::string tok;
+  while (in >> tok) {
+    const size_t eq = tok.find('=');
+    if (eq == std::string::npos || eq == 0 || eq + 1 >= tok.size()) continue;
+    const std::string key = tok.substr(0, eq);
+    const std::string val = tok.substr(eq + 1);
+    if (val != "0" && val != "1") continue;      // honesty over guessing
+    const bool on = (val == "1");
+    if (key == "ruler") ide.ruler = on;
+    else if (key == "minimap") ide.minimap = on;
+    else if (key == "zen") ide.zen = on;
+    else if (key == "relnum") ide.relnum = on;
+    else if (key == "wrap") ide.wrap = on;
+    // an unknown key is not a crime — it just changes nothing
+  }
 }
 
 // ── the selection: anchor ↔ cursor, honestly ordered ────────────────

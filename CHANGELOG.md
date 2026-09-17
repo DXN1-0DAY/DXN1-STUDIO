@@ -1,3 +1,19 @@
+## v3.1.42 — the keepsake
+
+- **The editor's habits survive the night now.** The five toggles —
+  `:ruler` `:minimap` `:zen` `:relnum` `:wrap` — ride one line in
+  `~/.dxn3-settings` ("ruler=1 minimap=0 zen=0 relnum=1 wrap=0").
+  Toggle any one and the whole set saves itself; boot recalls it,
+  right beside the coat recall. The theme's wardrobe kept your
+  colors; the keepsake keeps your arrangement.
+- **Honesty rules, borrowed from the wardrobe:** a partial line
+  wears only the switches it names; a value that is not exactly 0
+  or 1 is ignored (no guessing what "maybe" means); unknown keys
+  are not crimes — they change nothing; a missing file or $HOME
+  changes nothing. Garbage loses, defaults stand.
+- Selftest group 104: 4 pins (birth habits, store → recall, partial
+  line, garbage line). 976 groups green.
+
 ## v3.1.41 — the wardrobe 2.0
 
 - **:theme takes YOUR coats now.** One per line in

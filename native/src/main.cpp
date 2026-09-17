@@ -1392,6 +1392,7 @@ int main(int argc, char** argv) {
       dxn3::ideThemeLoadUserFile(std::string(h) + "/.dxn3-themes");
   }
   dxn3::ideThemeRecall(ide);                 // last night's coat, if it kept
+  dxn3::ideSettingsRecall(ide);              // last night's habits, if they kept
   dxn3::ScriptHost host;
   // the sdk lives beside the BINARY — the studio's own installation —
   // not beside the user's cwd: a studio launched from anywhere hosts
@@ -2061,6 +2062,7 @@ int main(int argc, char** argv) {
           // last, so the two-row window never buries the quiet's work.
           takeStage();
           ide.zen = !ide.zen;
+          dxn3::ideSettingsStore(ide);   // the keepsake: habits survive the night
           if (ide.zen) {
             ide.zenSince = ide.console.size();  // the ledger's first page
             ide.console.push_back(
@@ -2093,12 +2095,14 @@ int main(int argc, char** argv) {
         } else if (cmd.verb == "ruler") {
           takeStage();
           ide.ruler = !ide.ruler;
+          dxn3::ideSettingsStore(ide);   // the keepsake: habits survive the night
           ide.console.push_back(ide.ruler
                                     ? "engine: ruler on — guides at 79 and 99"
                                     : "engine: ruler off");
         } else if (cmd.verb == "minimap") {
           takeStage();
           ide.minimap = !ide.minimap;
+          dxn3::ideSettingsStore(ide);   // the keepsake: habits survive the night
           ide.console.push_back(
               ide.minimap ? "engine: minimap on — the document rides the "
                             "pane's right edge"
@@ -2881,6 +2885,7 @@ int main(int argc, char** argv) {
           // own line keeps its true name, and the toggles always come back
           takeStage();
           ide.relnum = !ide.relnum;
+          dxn3::ideSettingsStore(ide);   // the keepsake: habits survive the night
           ide.console.push_back(
               ide.relnum
                   ? "engine: the gutter counts from your hand — the "
@@ -2892,6 +2897,7 @@ int main(int argc, char** argv) {
           // to chop — and a second :wrap wakes the slide again
           takeStage();
           ide.wrap = !ide.wrap;
+          dxn3::ideSettingsStore(ide);   // the keepsake: habits survive the night
           ide.console.push_back(
               ide.wrap
                   ? "engine: long lines fold into the pane — the slide "

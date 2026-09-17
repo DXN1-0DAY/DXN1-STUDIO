@@ -2,7 +2,7 @@
 
 ![DXN1 STUDIO 3](assets/banner.png)
 
-![version](https://img.shields.io/badge/version-3.1.41-8b5cf6?style=flat-square)
+![version](https://img.shields.io/badge/version-3.1.42-8b5cf6?style=flat-square)
 ![gates](https://github.com/DXN1-termux/DXN1-STUDIO/actions/workflows/ci.yml/badge.svg)
 ![native](https://img.shields.io/badge/native-C%2B%2023-f97316?style=flat-square)
 ![face](https://img.shields.io/badge/face-terminal_truecolor-22d3ee?style=flat-square)
@@ -352,6 +352,9 @@ choice keeps across nights in `~/.dxn3-theme` ·
 color speaking decimal (`30,41,59`) or hex (`#e2e8f0`); shipped
 names are refused, your own earlier coats re-tailor in place, and
 the list marks your coats `[user]` ·
+**the keepsake**: the editor's habits — `:ruler` `:minimap` `:zen`
+`:relnum` `:wrap` — ride one line in `~/.dxn3-settings` and return
+with you at boot; toggle one and the whole set keeps itself ·
 `:wrap` the fold — long lines break into the pane, ↑/↓ walk its rows ·
 `:crew <n>` plants the crew — many hands, one breath, every hand writes ·
 `:crew <n>` again GROWS the crew — the new hands plant below the last ·
