@@ -77,6 +77,45 @@ ONE frame, then the run loop clears them. Anything unparsable a child prints
 (a stray `print`, a traceback, a debug line) becomes a console line — the
 engine never crashes because a game did.
 
+## the seed chapter — determinism for game authors
+
+A seeded game replays itself: the same run grows the same desert, the
+same ghosts, the same owl. The recipe the shipped examples share:
+
+**FNV-1a of the game's name, xorshift after.** Seed with FNV-1a over a
+short name (`"the long run"`), then draw with xorshift:
+
+```
+s ^= s << 13;  s ^= s >>> 17;  s ^= s << 5;   // then s / 2^32
+```
+
+**The JS signed-int32 law — the one that bites.** JavaScript's bitwise
+ops yield SIGNED int32: once bit 31 sets, the seed multiplies as a
+NEGATIVE double and `ToUint32` wraps that. The unsigned FNV everyone
+writes in python NEVER matches it. Mirror the sign:
+
+```
+h ^= ord(ch)
+if h >= 1 << 31: h -= 1 << 32
+h = int(float(h) * 16777619) % (1 << 32)
+```
+
+**One stream per concern.** The desert's seed stays dedicated — the
+sky seeds `"the night sky"`, the owl seeds `"the night owl"`. A stream
+that shares draws with a neighbor makes every neighbor's future depend
+on it. Name the stream after what it grows.
+
+**Draw only on the event.** A spawn interval is drawn at the moment of
+the spawn, never while waiting at the door — waiting consumes no
+randomness, so a blocked gate cannot shift the stream. A probe that
+replays the stream can then predict every event to the packet, with
+zero drift.
+
+**Reseed on rebirth, continue across lives.** `walkAgain` reseeds the
+streams that name the RUN (the owl's) and lets continue the streams
+that name the WORLD (the desert's). Pick per stream, and write the
+choice down — the probe replays exactly what the game decided.
+
 ## hosting any language
 
 The engine picks a runner by extension, honestly:

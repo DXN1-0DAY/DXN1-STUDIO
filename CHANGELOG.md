@@ -1,3 +1,20 @@
+## v3.1.60 — the seed chapter
+
+- **PROTOCOL.md grows the seed chapter** — the determinism recipe the
+  shipped examples share, written down for every SDK author: FNV-1a
+  of the game's name + xorshift after; THE JS SIGNED-INT32 LAW (the
+  one that bites — the unsigned FNV everyone writes in python never
+  matches the JS mirror; the sign-fix spelled out in code); one
+  stream per concern (the desert, the sky, the owl — each seeded
+  after what it grows); draw only on the event (waiting consumes no
+  randomness — a blocked gate cannot shift the stream, so a probe
+  replays every event to the packet with zero drift); and reseed on
+  rebirth, continue across lives (walkAgain reseeds the streams
+  that name the RUN and lets continue the streams that name the
+  WORLD). Every law in the chapter was paid for by a probe this
+  sprint — dino's skin, the owl's zero-drift launches, the
+  second-run owl from the reseeded stream.
+
 ## v3.1.59 — the snake pit learns the light laws
 
 - **A real bug, the cards.py bug, found living in the snake pit: the
