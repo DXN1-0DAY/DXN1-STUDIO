@@ -1,3 +1,22 @@
+## v3.0.93 — the crew's coats (one breath, every hand's word)
+
+- **`ctrl+U` edits THROUGH the crew.** With hands planted, the cycle
+  thinks for every hand first — each rides its own word (on it,
+  behind it, ahead of it) — then all the paints land in one breath
+  behind ONE shared undo step. The cycle is length-preserving, so
+  there is no seat math at all: the crew survives the frame, every
+  hand keeping its seat. Two hands on one word think from the SAME
+  text and take one coat, not two — replace is its own idempotence.
+  A hand that cannot paint (bare digits) refuses alone; the others
+  paint. Under the hood the cycle split into plan + apply
+  (`ideCasePlanAt` / `ideCaseApply`) — the thought is per-hand, the
+  paint is shared.
+- Selftest group 94: SIX crew laws (848 -> 854) — the shared breath,
+  the crew's survival, the one named undo, the lone refusal, the
+  one-coat idempotence. Smoke 13r: THREE drives (196 -> 199) — the
+  primary's coat, the crew hand riding a gap served by the word
+  ahead, one undo peeling every coat. Gates ALL GREEN.
+
 ## v3.0.92 — the case cycle (ctrl+U, the word's three coats)
 
 - **`ctrl+U` walks the word's coat.** The word under the hand cycles

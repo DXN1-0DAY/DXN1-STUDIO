@@ -1434,6 +1434,46 @@ def main():
         check("the page sits as it sat",
               restored == coat0, repr(restored[:6]))
 
+        # ── 13r. the crew's coats — ctrl+U through every hand ────────
+        print("── 13r. the crew's coats — one breath, every hand")
+
+        def first_word(line):                  # the word a gap hand finds
+            a = 0
+            while a < len(line) and not (line[a].isalnum() or line[a] == '_'):
+                a += 1
+            b = a
+            while b < len(line) and (line[b].isalnum() or line[b] == '_'):
+                b += 1
+            return line[a:b] if b > a else None
+
+        s2.run_verb("goto 2", "ide")           # the primary on "ccc"
+        s2.settle(0.2)
+        s2.run_verb("crew 1", "ide")           # one hand below, same column
+        s2.settle(0.2)
+        before2 = body(s2.screen(), 2)
+        before3 = body(s2.screen(), 3)
+        s2.send("\x15")                        # ctrl+U through every hand
+        s2.settle(0.4)
+        after2 = body(s2.screen(), 2)
+        after3 = body(s2.screen(), 3)
+        w2 = first_word(before2)
+        w3 = first_word(before3)
+        check("one breath coats the primary's word",
+              w2 is not None and after2 == before2.replace(w2, w2.upper(), 1),
+              repr(before2[:8] + " -> " + after2[:8]))
+        check("and the crew's word with it — the hand rode a gap, the "
+              "word ahead served",
+              w3 is not None and after3 == before3.replace(w3, w3.upper(), 1),
+              repr(before3[:10] + " -> " + after3[:10]))
+        s2.run_verb("undo", "ide")             # ONE step peels BOTH coats
+        s2.settle(0.3)
+        s2.run_verb("crew", "ide")             # the hands bow out again
+        s2.settle(0.2)
+        check("one undo peels every coat",
+              body(s2.screen(), 2) == before2 and
+              body(s2.screen(), 3) == before3,
+              repr(body(s2.screen(), 2)[:8] + "/" + body(s2.screen(), 3)[:8]))
+
         # ── 13p. :count — the census of a query ──────────────────────
         print("── 13p. :count — the find's law, spoken as a number")
         scr2, _ = s2.run_verb("count ccc", "ide")

@@ -199,7 +199,7 @@ int main() {
   }
 
   // 9. the version quad rides in the binary too
-  ok(std::string(dxn3::DXN3_VERSION) == "3.0.92",
+  ok(std::string(dxn3::DXN3_VERSION) == "3.0.93",
      "native version constant matches the release quad");
 
   // 10. png writer: checksum vectors, real structure, byte determinism
@@ -4376,6 +4376,48 @@ int main() {
        "the cycle rides one honest undo step, named");
     ok(dxn3::ideUndo(us) && us.lines[0] == "hello" && us.curC == 0,
        "undo restores the uncoated word and the seat");
+  }
+
+
+  // 94. the crew's coats: ctrl+U through every hand
+  {
+    IdeState cs;
+    cs.lines = {"alpha beta", "gamma delta"};
+    cs.curR = 0;
+    cs.curC = 1;                          // the primary rides "alpha"
+    cs.crew = {{1, 2}};                   // one hand below rides "gamma"
+    dxn3::Keys ck;
+    ck.caseCycle = true;
+    dxn3::ideKey(cs, ck);
+    ok(cs.lines[0] == "ALPHA beta" && cs.lines[1] == "GAMMA delta",
+       "one breath coats every hand's word");
+    ok(cs.crew.size() == 1,
+       "the crew survives the cycle — it edits through it");
+    ok(!cs.undo.empty() && cs.undo.back().what == "case cycle",
+       "the crew's coats ride ONE named undo step");
+    ok(dxn3::ideUndo(cs) && cs.lines[0] == "alpha beta" &&
+           cs.lines[1] == "gamma delta",
+       "one undo restores every hand's word");
+    IdeState ds;                          // a hand that cannot paint
+    ds.lines = {"alpha", "123"};
+    ds.curR = 0;
+    ds.curC = 0;
+    ds.crew = {{1, 1}};                   // riding bare digits
+    dxn3::Keys dk;
+    dk.caseCycle = true;
+    dxn3::ideKey(ds, dk);
+    ok(ds.lines[0] == "ALPHA" && ds.lines[1] == "123",
+       "a hand that cannot paint refuses alone — the others paint");
+    IdeState es;                          // two hands, one word
+    es.lines = {"echo"};
+    es.curR = 0;
+    es.curC = 0;
+    es.crew = {{0, 3}};
+    dxn3::Keys ek;
+    ek.caseCycle = true;
+    dxn3::ideKey(es, ek);
+    ok(es.lines[0] == "ECHO",
+       "two hands on one word take one coat, not two");
   }
 
 

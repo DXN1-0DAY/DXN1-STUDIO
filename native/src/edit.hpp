@@ -2988,33 +2988,41 @@ inline std::string ideCaseTitle(const std::string& w) {
 // The word the hand rides: ON a word char, that word; on a gap, the
 // word BEHIND the hand; in the open (no word behind either), the word
 // AHEAD on the line. The coat never moves a letter, so the hand keeps
-// its seat — press again and the same word takes its next coat. One
-// named undo step ("case cycle"), pushed BEFORE the paint. Returns
-// true when a coat was painted.
-inline bool ideCycleCase(IdeState& s) {
-  std::string& l = s.lines[static_cast<size_t>(s.curR)];
+// its seat — press again and the same word takes its next coat.
+// The plan is the cycle's thought, the apply is its paint: split so a
+// CREW can think for every hand first, then paint all of them behind
+// one shared undo step.
+struct IdeCasePlan {
+  int a = -1, b = -1;                      // [a, b) the word's span
+  std::string next;                        // the word's next coat
+};
+
+inline std::optional<IdeCasePlan>
+ideCasePlanAt(const IdeState& s, int r, int c) {
+  if (r < 0 || r >= static_cast<int>(s.lines.size())) return std::nullopt;
+  const std::string& l = s.lines[static_cast<size_t>(r)];
   const int len = static_cast<int>(l.size());
   const auto wc = [&](int i) {
     return i >= 0 && i < len &&
            ideWordChar(l[static_cast<size_t>(i)]);
   };
   int a = -1, b = -1;                      // [a, b) the word's span
-  if (wc(s.curC)) {
-    a = s.curC;
+  if (wc(c)) {
+    a = c;
     while (a > 0 && wc(a - 1)) --a;
-    b = s.curC;
+    b = c;
     while (b < len && wc(b)) ++b;
-  } else if (wc(s.curC - 1)) {
-    b = s.curC;
+  } else if (wc(c - 1)) {
+    b = c;
     a = b;
     while (a > 0 && wc(a - 1)) --a;
   } else {
-    a = s.curC;
+    a = c;
     while (a < len && !wc(a)) ++a;
     b = a;
     while (b < len && wc(b)) ++b;
   }
-  if (a < 0 || b <= a) return false;       // no word: the refusal is honest
+  if (a < 0 || b <= a) return std::nullopt;  // no word: the refusal is honest
   const std::string w = l.substr(static_cast<size_t>(a),
                                  static_cast<size_t>(b - a));
   bool anyUpper = false, anyLower = false;
@@ -3022,22 +3030,31 @@ inline bool ideCycleCase(IdeState& s) {
     if (std::isupper(static_cast<unsigned char>(ch))) anyUpper = true;
     if (std::islower(static_cast<unsigned char>(ch))) anyLower = true;
   }
-  if (!anyUpper && !anyLower) return false;  // digits and nails wear no coat
+  if (!anyUpper && !anyLower) return std::nullopt;  // digits wear no coat
   int coat = !anyUpper ? 0 : (!anyLower ? 1 : 2);  // 0 whisper 1 shout 2 title
   static constexpr int NEXT[3] = {1, 2, 0};
-  std::string next = w;
   for (int step = 0; step < 3; ++step) {   // a coat that changes nothing
     coat = NEXT[coat];                     // bows out; the walk carries on
     const std::string cand = coat == 0 ? ideCaseWhisper(w)
                              : coat == 1 ? ideCaseShout(w)
                                          : ideCaseTitle(w);
-    if (cand != w) { next = cand; break; }
+    if (cand != w) return IdeCasePlan{a, b, cand};
   }
-  if (next == w) return false;             // armored: never paint the same
-  idePushUndo(s, "case cycle");            // the step back, before the paint
-  l.replace(static_cast<size_t>(a), static_cast<size_t>(b - a), next);
-  ideTouch(s, s.curR);                     // the census hears about it
+  return std::nullopt;                     // armored: never paint the same
+}
+
+inline bool ideCaseApply(IdeState& s, int r, const IdeCasePlan& p) {
+  std::string& l = s.lines[static_cast<size_t>(r)];
+  l.replace(static_cast<size_t>(p.a), static_cast<size_t>(p.b - p.a), p.next);
+  ideTouch(s, r);                          // the census hears about it
   return true;
+}
+
+inline bool ideCycleCase(IdeState& s) {
+  const auto p = ideCasePlanAt(s, s.curR, s.curC);
+  if (!p) return false;
+  idePushUndo(s, "case cycle");            // the step back, before the paint
+  return ideCaseApply(s, s.curR, *p);
 }
 
 inline void ideKey(IdeState& ide, const Keys& k) {
@@ -3504,9 +3521,28 @@ inline void ideKey(IdeState& ide, const Keys& k) {
                                              // seat never moves; press
                                              // again for the next coat.
     ideSelClear(ide);                        // the cycle is the frame's own
-    if (ideCycleCase(ide)) {
-      ide.dirty = true;                      // the game hears about it
-      ide.idle = 0;
+    if (ide.crew.empty()) {
+      if (ideCycleCase(ide)) {
+        ide.dirty = true;                    // the game hears about it
+        ide.idle = 0;
+      }
+    } else {
+      // many hands, one breath: every hand thinks its own coat first,
+      // then all the paints land behind ONE shared undo step. Two
+      // hands on one word think from the SAME text, so the word takes
+      // one coat, not two — replace is its own idempotence.
+      std::vector<std::pair<int, IdeCasePlan>> plans;
+      if (const auto p = ideCasePlanAt(ide, ide.curR, ide.curC))
+        plans.emplace_back(ide.curR, *p);
+      for (const auto& [r, c] : ide.crew)
+        if (const auto p = ideCasePlanAt(ide, r, c))
+          plans.emplace_back(r, *p);
+      if (!plans.empty()) {
+        idePushUndo(ide, "case cycle");      // one step back for the crew
+        for (const auto& [r, p] : plans) ideCaseApply(ide, r, p);
+        ide.dirty = true;
+        ide.idle = 0;
+      }
     }
   }
   if (k.ctrlD) {                             // duplicate — the cursor line
