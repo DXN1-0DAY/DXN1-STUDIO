@@ -199,7 +199,7 @@ int main() {
   }
 
   // 9. the version quad rides in the binary too
-  ok(std::string(dxn3::DXN3_VERSION) == "3.0.94",
+  ok(std::string(dxn3::DXN3_VERSION) == "3.0.95",
      "native version constant matches the release quad");
 
   // 10. png writer: checksum vectors, real structure, byte determinism
@@ -4473,6 +4473,30 @@ int main() {
     dxn3::ideKey(ds, dk);
     ok(ds.lines[0] == "123 456" && ds.undo.empty() && ds.anchorR < 0,
        "a span with no coatable word refuses honestly — and still drops");
+  }
+
+
+  // 96. the census's question: :changes <word>
+  {
+    IdeState qs;
+    qs.lines = {"alpha here", "beta there", "gamma alpha", "delta"};
+    qs.touched = {0, 1, 2};               // three lines carry the census
+    qs.findCase = false;                  // the beginner way: case sleeps
+    const auto a = dxn3::ideChangesAsk(qs, "alpha");
+    ok(a.size() == 2 && a[0] == 0 && a[1] == 2,
+       "the question answers with the touched lines that speak the word");
+    const auto b = dxn3::ideChangesAsk(qs, "ALPHA");
+    ok(b.size() == 2,
+       "case sleeps: the shout finds the whisper's touched work");
+    qs.findCase = true;
+    const auto c = dxn3::ideChangesAsk(qs, "ALPHA");
+    ok(c.empty(),
+       "case-honest: the shout finds nothing the page never shouted");
+    const auto d = dxn3::ideChangesAsk(qs, "delta");
+    ok(d.empty(),
+       "an untouched line never answers the census's question");
+    const auto e = dxn3::ideChangesAsk(qs, "");
+    ok(e.empty(), "an empty question refuses honestly");
   }
 
 

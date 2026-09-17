@@ -2235,13 +2235,45 @@ int main(int argc, char** argv) {
         } else if (cmd.verb == "changes") {
           // the census: a bare :changes LISTS the touched lines; a
           // number LEAPS to the Nth — the census is not just a mirror,
-          // it is a set of addresses. The leap is a real one: planted
-          // in the ledger, the selection dropped, the landing
-          // mid-screen — the same laws the pins' :bm obeys.
+          // it is a set of addresses. A WORD asks the census a
+          // question: which touched lines speak it? The leap is a real
+          // one: planted in the ledger, the selection dropped, the
+          // landing mid-screen — the same laws the pins' :bm obeys.
           takeStage();
+          const bool wordAsk = !cmd.arg.empty() &&
+              !std::all_of(cmd.arg.begin(), cmd.arg.end(), [](unsigned char c) {
+                return std::isdigit(c) != 0;
+              });
           if (ide.touched.empty()) {
             ide.console.push_back(
                 "engine: a clean page — nothing touched since it opened");
+          } else if (wordAsk) {
+            const auto matches = dxn3::ideChangesAsk(ide, cmd.arg);
+            if (matches.empty()) {
+              ide.console.push_back(
+                  "engine: no touched line speaks '" + cmd.arg + "'" +
+                  (ide.findCase ? "" : " (case sleeps)"));
+            } else {
+              const auto pinned = [&](int line) {
+                return std::binary_search(ide.marks.begin(),
+                                          ide.marks.end(), line);
+              };
+              std::string out;
+              size_t shown = 0;
+              for (const int t : matches) {
+                if (shown == 8) break;
+                out += (shown == 0 ? "" : " · ") + std::to_string(t + 1);
+                if (pinned(t)) out += "◆";
+                ++shown;
+              }
+              if (matches.size() > 8)
+                out += " … +" + std::to_string(matches.size() - 8) + " deeper";
+              ide.console.push_back(
+                  "engine: " + std::to_string(matches.size()) + " of " +
+                  std::to_string(ide.touched.size()) + " touched lines speak '" +
+                  cmd.arg + "' — " + out +
+                  (ide.findCase ? " (case-honest)" : ""));
+            }
           } else if (cmd.arg.empty()) {
             const std::string t =
                 dxn3::ideTouchWhisper(ide, ide.marks);

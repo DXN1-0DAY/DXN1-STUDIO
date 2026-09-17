@@ -150,11 +150,23 @@ inline Cmd parseCommand(std::string_view line) {
       number(1.f, 99999.f,
              "usage: :bm <pin number> — a bare :bm leaps to the next pin");
   } else if (c.verb == "changes") {
-    // a bare :changes lists the census; a number leaps to the Nth touch
-    if (!c.arg.empty())
-      number(1.f, 99999.f,
-             "usage: :changes [n] — a bare :changes lists the touched lines; "
-             "a number leaps to the Nth");
+    // a bare :changes lists the census; a number leaps to the Nth
+    // touch; a word asks which touched lines speak it
+    if (!c.arg.empty()) {
+      const bool numeric =
+          std::all_of(c.arg.begin(), c.arg.end(), [](unsigned char ch) {
+            return std::isdigit(ch) != 0;
+          });
+      if (numeric) {
+        number(1.f, 99999.f,
+               "usage: :changes [n | word] — a bare verb lists the touched "
+               "lines; a number leaps to the Nth; a word asks which "
+               "touched lines speak it");
+      } else if (c.arg.find(' ') != std::string::npos) {
+        c.error = "usage: :changes [n | word] — a number leaps, one word "
+                  "asks; the word carries no spaces";
+      }
+    }
   } else if (c.verb == "macro") {
     // a bare :macro plays the take once; :macro N runs it N times
     if (!c.arg.empty())
@@ -337,8 +349,9 @@ inline std::string usageHintFor(std::string_view typed) {
   if (verb == "jumps")
     return " :jumps — the lines the hand leapt to, newest first";
   if (verb == "changes")
-    return " :changes [n] — the lines this session wrote; a bare verb "
-           "lists, a number leaps";
+    return " :changes [n | word] — the lines this session wrote; a bare "
+           "verb lists, a number leaps, a word asks which touched lines "
+           "speak it";
   if (verb == "record")
     return " :record — the recorder: start, run verbs, :record again to "
            "end; :macro replays";

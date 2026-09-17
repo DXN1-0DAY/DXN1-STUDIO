@@ -410,6 +410,30 @@ inline std::string ideTouchWhisper(const IdeState& s,
   return out;
 }
 
+// the census's question: WHICH touched lines speak the word? The
+// find's case law answers — case-honest when the searchlight is
+// strict, the beginner way (case sleeps) when not. One law, two
+// windows: the counting is the query's, the SET is the census's.
+// A look, never an edit.
+inline std::vector<int> ideChangesAsk(const IdeState& s,
+                                      const std::string& w) {
+  std::vector<int> matches;
+  if (w.empty()) return matches;
+  auto lower = [](std::string x) {
+    for (char& c : x)
+      c = static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
+    return x;
+  };
+  const std::string needle = s.findCase ? w : lower(w);
+  for (const int t : s.touched) {
+    const std::string hay = s.findCase
+                                ? s.lines[static_cast<size_t>(t)]
+                                : lower(s.lines[static_cast<size_t>(t)]);
+    if (hay.find(needle) != std::string::npos) matches.push_back(t);
+  }
+  return matches;
+}
+
 // the selection goes first: the range is cut, the cursor collapses to
 // its start, the anchor clears. False when there was nothing selected.
 inline bool ideSelDelete(IdeState& s) {

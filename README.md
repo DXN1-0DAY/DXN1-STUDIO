@@ -2,7 +2,7 @@
 
 ![DXN1 STUDIO 3](assets/banner.png)
 
-![version](https://img.shields.io/badge/version-3.0.94-8b5cf6?style=flat-square)
+![version](https://img.shields.io/badge/version-3.0.95-8b5cf6?style=flat-square)
 ![gates](https://github.com/DXN1-termux/DXN1-STUDIO/actions/workflows/ci.yml/badge.svg)
 ![native](https://img.shields.io/badge/native-C%2B%2023-f97316?style=flat-square)
 ![face](https://img.shields.io/badge/face-terminal_truecolor-22d3ee?style=flat-square)
@@ -128,6 +128,10 @@ viewport refreshes — *code a background, and boom, a background.*
   rewinds the document but never the record; a reload restarts it
   (the disk wrote, not you). The map rail ticks your touched lines
   emerald, the header counts them, and a clean page says so kindly.
+  `:changes <word>` asks the census a question — which touched lines
+  SPEAK the word? The find's case law answers, the pin's diamond
+  rides the listing, and a bare verb still lists while a number
+  still leaps.
 - **Word hops and the partner.** `ctrl+←`/`ctrl+→` jump word by word —
   the same words `ctrl+w` bites — across line edges when they must.
   `ctrl+delete` eats exactly what a hop would cross; `ctrl+/` toggles
@@ -361,7 +365,7 @@ accepted:
 | `:mark` | plant/pull a pin on this line — F2 leaps; click the gutter's ◆ to pull |
 | `:marks` | list every pin in the file |
 | `:bm [n]` | leap to a pin; bare `:bm` takes the next, wrapping — the pins whisper as you type |
-| `:changes [n]` | the census — a bare verb lists the session's touched lines; a number leaps to the Nth |
+| `:changes [n\|word]` | the census — a bare verb lists the session's touched lines; a number leaps to the Nth; a word asks which touched lines speak it |
 | `:ruler` | toggle the 79/99 column guides |
 | `:minimap` | toggle the document's map rail |
 | `:center` | the view centers on your hand — z.'s law, clamped to the edges |

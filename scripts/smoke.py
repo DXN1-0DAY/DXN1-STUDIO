@@ -1496,6 +1496,25 @@ def main():
         check("one undo restores the span",
               body(s2.screen(), 2) == span0, repr(body(s2.screen(), 2)[:6]))
 
+        # ── 13t. the census's question — :changes <word> ─────────────
+        print("── 13t. :changes <word> — which touched lines speak it")
+        s2.run_verb("goto 10", "ide")          # a deep row, the hand at work
+        s2.settle(0.2)
+        s2.send("qqzark")                      # the marker breath: touched
+        s2.settle(0.5)
+        scr2, _ = s2.run_verb("changes qqzark", "ide")
+        check("the census answers which touched lines speak the word",
+              "1 of " in scr2.text(ROWS - 2) and
+              "speak 'qqzark'" in scr2.text(ROWS - 2) and
+              "10" in scr2.text(ROWS - 2),
+              repr(scr2.text(ROWS - 2)[:80]))
+        scr2, _ = s2.run_verb("changes zzzqq", "ide")
+        check("a word no touched line speaks is refused honestly",
+              "no touched line speaks 'zzzqq'" in scr2.text(ROWS - 2),
+              repr(scr2.text(ROWS - 2)[:60]))
+        s2.run_verb("undo", "ide")             # the marker breath undone
+        s2.settle(0.3)
+
         # ── 13p. :count — the census of a query ──────────────────────
         print("── 13p. :count — the find's law, spoken as a number")
         scr2, _ = s2.run_verb("count ccc", "ide")

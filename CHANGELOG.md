@@ -1,3 +1,23 @@
+## v3.0.95 — the census's question (:changes <word>)
+
+- **`:changes <word>` marries the census with the query.** A bare
+  `:changes` lists every line this session wrote; a number leaps to
+  the Nth; now a WORD asks the census which of those touched lines
+  speak it — `N of M touched lines speak 'word'`, the matches listed
+  in touched order, capped at eight with the `… +k deeper` tail. The
+  find's case law answers (case-honest / case sleeps, named in the
+  receipt), and the pin's diamond rides the listing (`7◆`) — one
+  marking law across `:changes`, `:jumps`, and now the question. The
+  helper `ideChangesAsk` is the engine's own law, so the selftest
+  pins it; the leap path keeps its teeth (numeric args still parse —
+  my first validation rewrite dropped the parse lambda's side
+  effect, and the smoke's census-leap drive caught the regression
+  before any push).
+- Selftest group 96: FIVE question laws (861 -> 866) — the match
+  set, the sleeping case, the honest case, the untouched line's
+  silence, the empty question. Smoke 13t: TWO drives (201 -> 203) —
+  the marker word's question, the honest refusal. Gates ALL GREEN.
+
 ## v3.0.94 — the selection's coat (ctrl+U over a live span)
 
 - **A selection changes ctrl+U's breath.** With a live span, every
