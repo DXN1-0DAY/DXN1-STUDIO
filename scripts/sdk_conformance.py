@@ -5,7 +5,7 @@ A fake engine feeds each sdk/examples game a hello + ticks and checks
 the scene and frames come back. python + node + a compiled C++ game;
 each probed only when its runner exists on this machine. Honest skips.
 """
-import json, subprocess, sys, os, time, shutil, tempfile
+import json, subprocess, sys, os, time, shutil, tempfile, random
 
 BASE = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 SDK = os.path.join(BASE, "sdk")
@@ -16,15 +16,20 @@ def have(exe):
     return shutil.which(exe) is not None
 
 
-def probe(cmd, ticks=6, hold=None, hits=None):
-    """run a child game, feed hello+ticks, return (scene, frames, console)."""
+def probe(cmd, ticks=6, hold=None, hits=None, capture_at=None):
+    """run a child game, feed hello+ticks, return (scene, frames, console).
+
+    capture_at: when set, the frame packet sent at that tick index has
+    its entity set parked in out["captured"] — a name -> patch dict —
+    so a check can read the exact state a game put on the wire.
+    """
     env = dict(os.environ)
     env["PYTHONPATH"] = SDK
     env["NODE_PATH"] = SDK
     p = subprocess.Popen(cmd, stdin=subprocess.PIPE, stdout=subprocess.PIPE,
                          stderr=subprocess.STDOUT, cwd=BASE, text=True,
                          bufsize=1, env=env)
-    out = {"scene": None, "frames": 0, "console": []}
+    out = {"scene": None, "frames": 0, "console": [], "captured": {}}
 
     def send(o):
         try:
@@ -52,6 +57,9 @@ def probe(cmd, ticks=6, hold=None, hits=None):
                 out["scene"] = pkt
             elif t == "frame":
                 out["frames"] += 1
+                if capture_at is not None and out["frames"] == capture_at:
+                    out["captured"] = {e.get("name"): e
+                                       for e in pkt.get("set", [])}
             else:
                 out["console"].append(line[:160])
             if until_frame:
@@ -71,7 +79,7 @@ def probe(cmd, ticks=6, hold=None, hits=None):
             drain(True)
     finally:
         p.kill()
-    return out["scene"], out["frames"], out["console"]
+    return (out["scene"], out["frames"], out["console"], out["captured"])
 
 
 def main():
@@ -93,7 +101,7 @@ def main():
                 ("windmill.py", ["python3", f"{EX}/windmill.py"], 13)]
     if have("python3"):
         for name, cmd, ents in py_games:
-            scene, frames, console = probe(cmd)
+            scene, frames, console, captured = probe(cmd)
             got = len(scene.get("entities", [])) if scene else 0
             check(name, scene is not None and frames >= 3 and got == ents,
                   f"scene={'yes' if scene else 'NO'} frames={frames} "
@@ -102,32 +110,32 @@ def main():
         print("   (skip) python3 games — python3 not on this machine", flush=True)
 
     if have("node"):
-        scene, frames, console = probe(["node", f"{EX}/bounce.js"])
+        scene, frames, console, captured = probe(["node", f"{EX}/bounce.js"])
         got = len(scene.get("entities", [])) if scene else 0
         check("bounce.js", scene is not None and frames >= 3 and got == 21,
               f"scene={'yes' if scene else 'NO'} frames={frames} "
               f"entities={got}")
-        scene, frames, console = probe(["node", f"{EX}/asteroids.js"])
+        scene, frames, console, captured = probe(["node", f"{EX}/asteroids.js"])
         got = len(scene.get("entities", [])) if scene else 0
         check("asteroids.js", scene is not None and frames >= 3 and got == 7,
               f"scene={'yes' if scene else 'NO'} frames={frames} "
               f"entities={got}")
-        scene, frames, console = probe(["node", f"{EX}/invaders.js"])
+        scene, frames, console, captured = probe(["node", f"{EX}/invaders.js"])
         got = len(scene.get("entities", [])) if scene else 0
         check("invaders.js", scene is not None and frames >= 3 and got == 52,
               f"scene={'yes' if scene else 'NO'} frames={frames} "
               f"entities={got}")
-        scene, frames, console = probe(["node", f"{EX}/dino.js"])
+        scene, frames, console, captured = probe(["node", f"{EX}/dino.js"])
         got = len(scene.get("entities", [])) if scene else 0
         check("dino.js", scene is not None and frames >= 3 and got == 24,
               f"scene={'yes' if scene else 'NO'} frames={frames} "
               f"entities={got}")
-        scene, frames, console = probe(["node", f"{EX}/tetris.js"])
+        scene, frames, console, captured = probe(["node", f"{EX}/tetris.js"])
         got = len(scene.get("entities", [])) if scene else 0
         check("tetris.js", scene is not None and frames >= 3 and got == 23,
               f"scene={'yes' if scene else 'NO'} frames={frames} "
               f"entities={got}")
-        scene, frames, console = probe(["node", f"{EX}/lightbot.js"])
+        scene, frames, console, captured = probe(["node", f"{EX}/lightbot.js"])
         got = len(scene.get("entities", [])) if scene else 0
         check("lightbot.js", scene is not None and frames >= 3 and got == 38,
               f"scene={'yes' if scene else 'NO'} frames={frames} "
@@ -143,7 +151,7 @@ def main():
                                capture_output=True, text=True)
         if build.returncode == 0:
             # a real hit pair: pad vs ball — the enter-only onHit must steer
-            scene, frames, console = probe([bin_], hold="w", hits=["ball", "pad"])
+            scene, frames, console, captured = probe([bin_], hold="w", hits=["ball", "pad"])
             got = len(scene.get("entities", [])) if scene else 0
             check("pong.cpp (compiled)", scene is not None and frames >= 3
                   and got == 5,
@@ -155,6 +163,28 @@ def main():
         shutil.rmtree(tmp, ignore_errors=True)
     else:
         print("   (skip) pong.cpp — g++ not on this machine", flush=True)
+
+    # the NAMED-STREAM LAW, pinned in the gate itself: a seeded game's
+    # respawn must be exactly what its own stream deals. The shooter is
+    # the template — fire one bolt, land it on the enemy, and the
+    # respawn's x/y ride the hit frame (the hit-pair timing contract:
+    # on_hit runs after on_tick, the mutated entity speaks this frame).
+    if have("python3"):
+        scene, frames, console, cap = probe(
+            ["python3", f"{EX}/shooter.py"], ticks=3, hold="space",
+            hits=["shot1", "enemy"], capture_at=3)
+        th = random.Random("the threat's return")
+        exp = (th.randint(2, 120 - 14), th.randint(2, 44 // 2))
+        en = cap.get("enemy")
+        check("shooter.py respawn = its named stream's draw",
+              en is not None and en.get("x") == exp[0]
+              and en.get("y") == exp[1],
+              f"got=({en.get('x') if en else None},"
+              f"{en.get('y') if en else None}) "
+              f"exp=({exp[0]},{exp[1]})")
+    else:
+        print("   (skip) named-stream law — python3 not on this machine",
+              flush=True)
 
     return 1 if fails else 0
 

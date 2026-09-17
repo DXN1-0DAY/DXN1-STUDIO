@@ -1,3 +1,24 @@
+## v3.1.77 — the gate learns the stream law
+
+- **Gate 6 now verifies a seeded game's respawn is its own stream's
+  draw — in the gate itself, every run, forever.** The shooter is the
+  template: the conformance harness fires one bolt (space held on
+  tick two), lands it on the enemy (the hit pair on tick three), and
+  captures the hit frame's entity set — where the respawn must be
+  EXACTLY what `random.Random("the threat's return")` deals at the
+  gate's world (120x44): `randint(2, 106)`, `randint(2, 22)`. The
+  probe() harness grew an honest `capture_at` (the frame packet's
+  entity set, parked by name) — every existing check untouched, all
+  callers now see the fourth return.
+- **The off-by-one the gate caught on its own first run:** capture_at
+  2 grabs the FIRE frame (the enemy drifting at 40 + 2*0.3), not the
+  HIT frame — the drift is dt-free (`enemy.x += 0.3` every tick, a
+  small honest quirk the gate now documents by example), the stream
+  draw overwrites it on frame three. got=(40.6, 6) -> got=(20, 18).
+  The named-stream respawn is R27's shooter_twin contract, promoted
+  from a probe pin to house law: one more way a seeded game cannot
+  quietly stop being deterministic.
+
 ## v3.1.76 — night falls on the void
 
 - **The moon check crosses the fleet again — the shooter goes dark.**
