@@ -1,3 +1,18 @@
+## v3.1.31 — the return
+
+- **level-11 — the return, the TWELFTH scene and the campaign's
+  finale.** A homecoming built from every law the road taught: three
+  mist ledges (`"alpha"`, the fog's law), a timetable ferry (the
+  crossing's), two counter-phased lifts trading the deep pit (the
+  vault's), saw tolls at 300/320°/s and a leaning fang (the
+  gauntlet's), and a beacon-style stair where the door itself wears
+  `"glow": 7` — the light marks home. Eight gems, the campaign's
+  best pay. Chain: level-10.next → level-11 → playground (gate 3b
+  walked, 29 entities).
+- Gallery pair six complete (the fog | the return); twelve-scene
+  counts (README ×2, CAMPAIGN); CAMPAIGN section "the return".
+  Screenshot is a real headless render (960×540).
+
 ## v3.1.30 — the fog
 
 - **level-10 — the fog, the ELEVENTH scene, and the first built

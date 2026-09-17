@@ -1,8 +1,8 @@
 # The Campaign — a field guide
 
-Eleven scenes, one loop: **playground → the gap → the movers → the climb →
+Twelve scenes, one loop: **playground → the gap → the movers → the climb →
 the gauntlet → the vault → the ascent → the descent → the beacon →
-the crossing → the fog → back home.** Every scene is a plain
+the crossing → the fog → the return → back home.** Every scene is a plain
 `.dxn1.json` file; the
 goal door carries you to the next, and the last door brings you home. The
 HUD counts `COINS x/y · SCORE · TIME` the whole way — completionists grab
@@ -130,6 +130,23 @@ across the one gap the fog refuses to bridge. Four of the seven gems
 float over mist — every one of them glowing, so the light marks what
 matters even when the ground won't. One lift, one lit door, one ride
 home through the fog you came from.
+
+## level-11 — the return
+
+The finale is a homecoming built from every law the road taught. The sky
+lifts a shade (#0d1220 — dawn thinks about it), and then the callbacks
+walk beside you one last time: the FOG's mist carries three ledges (what
+you can see through is still real), the CROSSING's ferry keeps its
+timetable (85 px/s) over the one gap nothing bridges, the VAULT's two
+lifts trade the deep pit counter-phased — path one rides up while path
+two falls, and the top-to-top hop between them is the campaign's last
+honest breath-hold — and the GAUNTLET's saws keep their tolls above the
+decks at 300 and 320°/s, with a leaning fang for old times' sake. The
+last stretch is a beacon-style stair of three small decks, every other
+gem glowing, and the door itself wears `"glow": 7` — the same light that
+guided you through the beacon now marks home. Eight gems, the
+campaign's best pay, and a door that lands you in the playground, where
+the ball is still bouncing and the loop closes where it began.
 
 ## Design notes (for scene authors)
 

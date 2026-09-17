@@ -1,0 +1,54 @@
+{
+  "name": "the return (level-11)",
+  "bg": "#0d1220",
+  "gravity": 1500,
+  "magnet": 150,
+  "next": "scenes/playground.dxn1.json",
+  "camera": { "x": 100, "y": 300, "zoom": 0.8 },
+  "entities": [
+    { "name": "hero", "tag": "player", "x": 60, "y": 360, "w": 34, "h": 44, "color": "#8b5cf6" },
+
+    { "name": "start-ledge", "x": -200, "y": 400, "w": 560, "h": 90, "color": "#1f2937" },
+    { "name": "sign", "tag": "sign", "x": 170, "y": 326, "w": 30, "h": 34, "color": "#94a3b8", "text": "THE RETURN \u2014 every law you learned, one road home" },
+
+    { "name": "mist-1", "x": 410, "y": 340, "w": 110, "h": 18, "color": "#8b5cf6", "alpha": 0.4 },
+    { "name": "gem-1", "tag": "coin", "x": 445, "y": 295, "w": 22, "h": 22, "shape": "circle", "color": "#facc15", "glow": 4 },
+
+    { "name": "deck-1", "x": 600, "y": 330, "w": 150, "h": 26, "color": "#1f2937" },
+    { "name": "saw-1", "tag": "hazard", "x": 660, "y": 268, "w": 38, "h": 38, "color": "#fb7185", "rot": 0, "spin": 300 },
+    { "name": "gem-2", "tag": "coin", "x": 710, "y": 270, "w": 22, "h": 22, "shape": "circle", "color": "#facc15" },
+
+    { "name": "mist-2", "x": 820, "y": 290, "w": 100, "h": 18, "color": "#8b5cf6", "alpha": 0.35 },
+    { "name": "gem-3", "tag": "coin", "x": 850, "y": 240, "w": 22, "h": 22, "shape": "circle", "color": "#facc15", "glow": 4 },
+
+    { "name": "deck-2", "x": 990, "y": 310, "w": 160, "h": 26, "color": "#1f2937" },
+    { "name": "fang-2", "tag": "spike", "x": 1060, "y": 282, "w": 34, "h": 28, "shape": "triangle", "color": "#ef4444", "rot": -20 },
+
+    { "name": "ferry-1", "tag": "mover", "x": 1230, "y": 340, "w": 110, "h": 20, "color": "#38bdf8",
+      "path": [ { "x": 1230, "y": 340 }, { "x": 1460, "y": 340 } ], "pspeed": 85 },
+
+    { "name": "deck-3", "x": 1540, "y": 330, "w": 150, "h": 26, "color": "#1f2937" },
+
+    { "name": "lift-1", "tag": "mover", "x": 1770, "y": 330, "w": 110, "h": 20, "color": "#38bdf8",
+      "path": [ { "x": 1770, "y": 330 }, { "x": 1770, "y": 190 } ], "pspeed": 80 },
+    { "name": "lift-2", "tag": "mover", "x": 1960, "y": 230, "w": 110, "h": 20, "color": "#38bdf8",
+      "path": [ { "x": 1960, "y": 230 }, { "x": 1960, "y": 350 } ], "pspeed": 80 },
+
+    { "name": "deck-4", "x": 2140, "y": 240, "w": 170, "h": 26, "color": "#1f2937" },
+    { "name": "saw-2", "tag": "hazard", "x": 2190, "y": 178, "w": 38, "h": 38, "color": "#fb7185", "rot": 0, "spin": 320 },
+    { "name": "gem-4", "tag": "coin", "x": 2260, "y": 190, "w": 22, "h": 22, "shape": "circle", "color": "#facc15" },
+
+    { "name": "mist-3", "x": 2380, "y": 230, "w": 100, "h": 18, "color": "#8b5cf6", "alpha": 0.45 },
+    { "name": "gem-5", "tag": "coin", "x": 2410, "y": 180, "w": 22, "h": 22, "shape": "circle", "color": "#facc15", "glow": 4 },
+
+    { "name": "stair-1", "x": 2550, "y": 280, "w": 90, "h": 20, "color": "#1f2937" },
+    { "name": "gem-6", "tag": "coin", "x": 2580, "y": 230, "w": 22, "h": 22, "shape": "circle", "color": "#facc15" },
+    { "name": "stair-2", "x": 2700, "y": 220, "w": 90, "h": 20, "color": "#1f2937" },
+    { "name": "gem-7", "tag": "coin", "x": 2730, "y": 170, "w": 22, "h": 22, "shape": "circle", "color": "#facc15" },
+    { "name": "stair-3", "x": 2850, "y": 160, "w": 90, "h": 20, "color": "#1f2937" },
+    { "name": "gem-8", "tag": "coin", "x": 2880, "y": 110, "w": 22, "h": 22, "shape": "circle", "color": "#facc15", "glow": 5 },
+
+    { "name": "summit", "x": 3010, "y": 140, "w": 180, "h": 26, "color": "#1f2937" },
+    { "name": "out", "tag": "goal", "x": 3120, "y": 76, "w": 30, "h": 64, "color": "#34d399", "glow": 7 }
+  ]
+}
