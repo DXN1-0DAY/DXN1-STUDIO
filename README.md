@@ -2,7 +2,7 @@
 
 ![DXN1 STUDIO 3](assets/banner.png)
 
-![version](https://img.shields.io/badge/version-3.1.10-8b5cf6?style=flat-square)
+![version](https://img.shields.io/badge/version-3.1.11-8b5cf6?style=flat-square)
 ![gates](https://github.com/DXN1-termux/DXN1-STUDIO/actions/workflows/ci.yml/badge.svg)
 ![native](https://img.shields.io/badge/native-C%2B%2023-f97316?style=flat-square)
 ![face](https://img.shields.io/badge/face-terminal_truecolor-22d3ee?style=flat-square)
@@ -86,8 +86,11 @@ viewport refreshes — *code a background, and boom, a background.*
   two pads that pay by their risk — the hills are not for landing),
   `raycast.py` (a Wolfenstein-style 3D view painted out of plain
   rects — the engine is a canvas, so it can be ANY canvas),
-  `pong.cpp` (a compiled C++ pong with an AI that
-  caps its speed — the hardest SDK proof in the set).
+  `windmill.py` (four blades orbit the hub while the SDK drives
+  their rot each tick — and the hub's little square turns itself
+  with the engine's own spin), `pong.cpp` (a compiled C++ pong
+  with an AI that caps its speed — the hardest SDK proof in the
+  set).
 - **The editor forgives.** `ctrl+z` undoes — typing bursts coalesce the
   way real editors group them, `enter`/`del` are their own restore
   points, and undo restores the document AND the cursor. `ctrl+y`

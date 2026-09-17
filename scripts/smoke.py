@@ -1765,6 +1765,18 @@ def main():
               repr(s3.exit_code))
         s3.close()
 
+        # ── 16. the newest scene boots — the ascent answers the boot
+        print("── 16. level-6 the ascent boots and quits clean")
+        l6_abs = os.path.join(REPO_ROOT, "scenes", "level-6.dxn1.json")
+        s6 = Studio(binary, ["--scene", l6_abs])
+        scr6 = s6.settle(2.4)                  # the splash eats the first key
+        check("the ascent renders a frame", scr6 is not None, "no frame")
+        s6.send("q")
+        gone6 = s6.wait_exit()
+        check("the ascent exits clean", gone6 and s6.exit_code == 0,
+              repr(s6.exit_code))
+        s6.close()
+
         return finish(s)
     except Exception as e:
         print(f"smoke: harness error: {e!r}")

@@ -119,6 +119,32 @@ inline std::string shootPNG(const std::string& path, const Game& g) {
       continue;
     }
     if (e.tag == "spike") {                               // triangle profile
+      if (e.rot != 0) {                                   // a turned spike
+        const float cx = (x0 + x1) / 2.f, cy = (y0 + y1) / 2.f;
+        const Turn turn(e.rot, cx, cy);
+        float bx0, by0, bx1, by1;
+        turn.extent(x0, y0, x1, y1, bx0, by0, bx1, by1);
+        const int ax = std::max(0, static_cast<int>(bx0) - 1);
+        const int ay = std::max(0, static_cast<int>(by0) - 1);
+        const int bx = std::min(W - 1, static_cast<int>(bx1) + 1);
+        const int by = std::min(H - 1, static_cast<int>(by1) + 1);
+        const float rw = x1 - x0, rh = y1 - y0, hw = rw / 2.f;
+        for (int py = ay; py <= by; ++py) {
+          auto* line = &px[static_cast<size_t>(py) * W];
+          for (int pxx = ax; pxx <= bx; ++pxx) {
+            const float wx = pxx + 0.5f, wy = py + 0.5f;
+            const float lx = turn.toLocalX(wx, wy);
+            const float ly = turn.toLocalY(wx, wy);
+            const float t = (ly - y0) / rh;               // 0 top → 1 apex
+            if (t < -0.01f || t > 1.01f) continue;
+            const float half = (1.f - t) * hw;
+            const float axl = std::abs(lx - cx);
+            if (axl > half + 0.5f) continue;
+            line[pxx] = (half - axl < 1.2f || t > 0.92f) ? edge : c1;
+          }
+        }
+        continue;
+      }
       const int steps = std::max(2, static_cast<int>(y1 - y0) + 1);
       for (int s = 0; s < steps; ++s) {
         const float t = steps <= 1 ? 0.f : static_cast<float>(s) / (steps - 1);

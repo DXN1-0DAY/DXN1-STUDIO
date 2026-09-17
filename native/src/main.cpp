@@ -567,6 +567,33 @@ void drawWorld(dxn3::Screen& scr, const dxn3::Game& g) {
     }
     if (tri) {                                            // triangle profile
       if (off) continue;
+      if (e.rot != 0) {                                   // a turned spike
+        const dxn3::Turn turn(e.rot, cxm, cym);
+        float bx0, by0, bx1, by1;
+        turn.extent(x0, y0, x1, y1, bx0, by0, bx1, by1);
+        if (bx1 < 0 || bx0 > cols || by1 < 0 || by0 > hr) continue;
+        const int txa = std::max(0, static_cast<int>(bx0 * 2.f) - 1);
+        const int txb = std::min(cols * 2 - 1, static_cast<int>(bx1 * 2.f) + 1);
+        const int tya = std::max(0, static_cast<int>(by0 * 2.f) - 1);
+        const int tyb = std::min(hr * 2 - 1, static_cast<int>(by1 * 2.f) + 1);
+        const float rw = x1 - x0, rh = y1 - y0, hw = rw / 2.f;
+        for (int ty = tya; ty <= tyb; ++ty) {
+          const float wy = ty * 0.5f + 0.25f;
+          for (int tx = txa; tx <= txb; ++tx) {
+            const float wx = tx * 0.5f + 0.25f;
+            const float lx = turn.toLocalX(wx, wy);
+            const float ly = turn.toLocalY(wx, wy);
+            const float t = (ly - y0) / rh;               // 0 top → 1 apex
+            if (t < -0.01f || t > 1.01f) continue;
+            const float half = (1.f - t) * hw;            // the shrinking row
+            const float axl = std::abs(lx - cxm);
+            if (axl > half + 0.3f) continue;
+            const bool edge = half - axl < 0.7f || t > 0.92f;
+            scr.pxDot(wx, wy, edge ? edgeC : c1);
+          }
+        }
+        continue;
+      }
       const int steps = std::max(2, static_cast<int>(y1 - y0) + 1);
       for (int s = 0; s < steps; ++s) {
         const float t = steps <= 1 ? 0 : static_cast<float>(s) / (steps - 1);

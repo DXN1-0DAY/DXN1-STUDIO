@@ -1,3 +1,25 @@
+## v3.1.11 — the windmill, and spikes that turn
+
+- **`sdk/examples/windmill.py` — the turn showcase.** Four blades
+  orbit the hub: the SDK drives each blade's `x`, `y` AND `rot`
+  every tick, so the thin rects stay radial as they sweep the sky
+  — the first gallery piece built on the rot path from v3.1.10.
+  The hub's little square turns ITSELF with the engine's own
+  `spin` (no SDK work at all): two kinds of rotation, one mill.
+  left/right work the wind (15–400°/s), space holds it, the clouds
+  drift and wrap, the grass wears a gradient. Probed for truth:
+  13 entities exactly, the blade orbits AND turns, rot arrives on
+  the wire, space freezes the wind, zero tracebacks.
+- **Spikes turn too** — the tri profile (terminal raster and PNG
+  poster alike) now honors `rot` with the same shared `Turn` math:
+  inverse-rotate each dot/pixel, test the shrinking row, edge the
+  slopes. A rotated spike is a real rotated spike now, in the
+  terminal and in the poster.
+- **Gate 6 roster 10 → 11** — windmill.py probed on the wire
+  (13 entities, counted exactly).
+- **smoke gains section 16** — level-6 "the ascent", the newest
+  campaign scene, boots a real frame and quits clean.
+
 ## v3.1.10 — the saws truly turn (rot renders at last)
 
 - **The engine renders `rot` — in BOTH rasters.** The wire carried
