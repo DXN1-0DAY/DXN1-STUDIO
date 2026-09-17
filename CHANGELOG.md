@@ -1,3 +1,31 @@
+## v3.1.64 — the well learned the light laws
+
+- **tetris.js pays the house's two light debts.** Every locked cell is
+  now BORN WITH A BLOOM (glow 2) that the game itself wears at the
+  honest 3/s staircase — the studio keeps the last light a wire game
+  sent, so the old cells' zero-glow birth meant a lock said nothing;
+  now a fresh lock visibly lands and its bloom fades to dark. And a
+  cleared line SPEAKS TWICE: the transient say (the say law, 1.6 s of
+  HUD) grows a level callout ("line · lv 1" ... "TETRIS! · lv 3") and
+  a new banner label over the well echoes the same words — born whole
+  at alpha 1 + glow 2, worn linearly to invisible in the say's own
+  1.6 s, hidden at zero. Never a flash-forever fixture: the decay
+  block runs FIRST on every tick (the birth-tick law) and KEEPS
+  RUNNING after game over while the world waits. Destroyed cells
+  take their bloom off the ledger; a reset silences the well.
+- tetris_light_probe (8 pin groups, green): 23 entities, banner born
+  dark; 4 cells bloom at glow 2 whole; the 3/s law reads exactly
+  2 -> 0.65 at 0.45 s; 13 silent slams never light the banner; the
+  scripted 14th slam clears row 15 and say/banner agree ("line ·
+  lv 1") born whole; the wear is monotonic, glow empties at 3/s, the
+  banner hides at zero; the hud pays (total 1 · lv 1) and the seeded
+  stream survives the script. The clear script was found by
+  tetris_clear_search.py, whose python mirror had to re-learn the R22
+  law the hard way: the JS FNV multiplies in FLOAT64 (2^31 x 16777619
+  rounds past 2^53) behind a SIGNED int32 xor — the unsigned mirror
+  diverged at draw one (again). Entity count 22 -> 23, conformance
+  re-pinned; ghost + hold probes re-walked green; gates 7 green.
+
 ## v3.1.63 — the bolts come home
 
 - **A REAL LEAK, found by the light audit: shooter.py's bolts never

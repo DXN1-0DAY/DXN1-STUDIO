@@ -14,6 +14,15 @@
 // the peeked next, exactly as a spawn would).  (soft-drop rides the
 // LETTER s: the wire's held keys are left/right/jump/space — "down"
 // never rides it; the ghost probe exposed that latent bug.)
+// THE WELL LEARNED THE LIGHT LAWS: every locked cell is born with a
+// bloom of glow 2 that wears at the house's honest 3/s (decayed by
+// the game itself — the studio keeps the last light a wire game
+// sent, so a light the game never decays is a light FOREVER), and a
+// cleared line SPEAKS twice: the transient say (the say law, 1.6 s
+// of HUD) and a banner label over the well that is born whole and
+// wears linearly to invisible in the same 1.6 s — never a
+// flash-forever fixture. The decay runs even when the world waits
+// on game over; birth shows whole because decay runs FIRST.
 const dxn3 = require("dxn3");
 const { rect, label, destroy, find, background, say, win, on, run } = dxn3;
 const W = dxn3.W, H = dxn3.H;
@@ -21,6 +30,9 @@ const W = dxn3.W, H = dxn3.H;
 background("#0a0c16");
 
 const hud = label("hud", 2, 1, "TETRIS  ·  arrows move · up turns · s sinks · space slams · c holds · ghost marks home · 0");
+const banner = label("banner", 3, 16, "", "#fde047");   // the well speaks:
+banner.visible = 0;                                      // born dark, lit
+let bannerT = 0;                                         // only by a clear
 
 const COLS = 10, ROWS = 16, CELL = 2;    // the well: 10 wide, 16 deep
 const BX = 2, BY = 2;                    // the well's top-left corner
@@ -60,6 +72,7 @@ const hv = [];                           // the four vault seats (the hold)
 let cur = "T", rotN = 0, px = 4, py = -1, cells = [], nxt = null;
 let bag = [], dropT = 0, drop = 0.5, total = 0, level = 1, over = false, seq = 0;
 let held = null, holdUsed = false;       // the vault and its one-per-drop law
+const glows = new Map();                 // cell name -> remaining bloom
 
 const key = (r, c) => r + "_" + c;
 const free = (r, c) =>
@@ -124,6 +137,19 @@ function paintPreview() {                // the queue ahead, worn in advance
     e.color = s.color;
     e.visible = over ? 0 : 1;
   });
+}
+
+function paintBanner() {                 // born whole, worn linearly:
+  const a = Math.max(0, Math.min(1, bannerT / 1.6));   // 1.6 s, the say's
+  banner.alpha = Math.round(a * 1000) / 1000;         // own dwell, worn
+  banner.visible = bannerT > 0 ? 1 : 0;               // to invisible
+}
+
+function showBanner(msg) {               // a clear lights the well's voice
+  banner.text = msg;
+  bannerT = 1.6;
+  banner.glow = 2;                       // the bloom wears 3/s below
+  paintBanner();
 }
 
 function paintHold() {                   // the vault, worn honestly
@@ -207,8 +233,10 @@ function lock() {
     if (py + r < 0) return;
     const nm = `cell${seq}`;
     seq += 1;
-    rect(nm, BX + (px + c) * CELL, BY + (py + r) * CELL, CELL, CELL,
-         SHAPES[cur].color);
+    const e = rect(nm, BX + (px + c) * CELL, BY + (py + r) * CELL, CELL,
+                   CELL, SHAPES[cur].color);
+    e.glow = 2;                          // a fresh lock BLOOMS — worn by
+    glows.set(nm, 2);                    // the tick's own 3/s staircase
     well.set(key(py + r, px + c), nm);
   });
   holdUsed = false;                      // a new drop re-arms the vault
@@ -225,7 +253,9 @@ function sweep() {                       // the law of full rows
     if (!full) continue;
     cleared += 1;
     for (let c = 0; c < COLS; ++c) {     // ten honest destroys
-      destroy(well.get(key(r, c)));
+      const nm = well.get(key(r, c));
+      glows.delete(nm);                  // a destroyed cell takes its
+      destroy(nm);                       // bloom off the ledger too
       well.delete(key(r, c));
     }
     for (let rr = r - 1; rr >= 0; --rr)  // everything above falls one row
@@ -244,8 +274,11 @@ function sweep() {                       // the law of full rows
     total += cleared;
     level = 1 + Math.floor(total / 10);
     drop = Math.max(0.08, 0.5 - (level - 1) * 0.045);
-    say(cleared === 4 ? "TETRIS!" : cleared === 3 ? "triple" :
-        cleared === 2 ? "double" : "line");
+    const word = cleared === 4 ? "TETRIS!" : cleared === 3 ? "triple" :
+                 cleared === 2 ? "double" : "line";
+    const msg = word + " · lv " + level;  // the banner carries the level
+    say(msg);                             // the say law: 1.6 s of HUD
+    showBanner(msg);                      // and the well's own echo
   }
 }
 
@@ -280,6 +313,9 @@ function slam() {
 function reset() {
   for (const [, nm] of well) destroy(nm);
   well.clear();
+  glows.clear();
+  bannerT = 0;                           // a fresh well speaks nothing
+  paintBanner();
   total = 0;
   level = 1;
   drop = 0.5;
@@ -308,6 +344,23 @@ on.key((k) => {
 });
 
 on.tick((d) => {
+  // THE LIGHT LAWS RUN EVEN WHEN THE WORLD WAITS: the banner and the
+  // locked cells' bloom wear at their honest rates on every tick,
+  // game-over or not — the studio keeps the last light a wire game
+  // sent, so a decay that stops at `over` is a flash-forever. Decay
+  // runs FIRST (the birth-tick law): a light born later this very
+  // tick shows whole.
+  if (bannerT > 0) {
+    bannerT = Math.max(0, bannerT - d);
+    banner.glow = Math.max(0, banner.glow - 3 * d);
+    paintBanner();
+  }
+  for (const [nm, g] of glows) {
+    const ng = Math.max(0, g - 3 * d);
+    if (ng === 0) glows.delete(nm); else glows.set(nm, ng);
+    const e = find(nm);
+    if (e) e.glow = ng;
+  }
   if (over) return;
   dropT += d;
   if (dropT >= drop) {
