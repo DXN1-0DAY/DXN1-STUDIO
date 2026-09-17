@@ -87,6 +87,9 @@ function split(name) {
 
 function resetShip() {
   ship.x = W / 2 - 4; ship.y = H / 2 - 5; vx = 0; vy = 0; rot = 0; safe = 2.2;
+  // NOTE: no flash reset here — resetShip runs at the END of the hit
+  // handler, AFTER the bleach is set; clearing it would kill the very
+  // scar the hit just earned. The 3/s decay in on.tick is the wear.
 }
 
 on.tick((d) => {
@@ -108,6 +111,12 @@ on.tick((d) => {
   burn = Math.max(0, burn - d);
   nose.visible = burn > 0 ? 1 : 0;
   nose.glow = burn > 0 ? 4 : 0;           // the flame's honest light
+  // the hit's bleach WEARS OFF — 3/s, the honest staircase. The old
+  // comment here claimed "the engine does the fading": a lie the
+  // cards/snake rounds buried. The studio keeps the last light a
+  // wire game sent; a flash with no decay is a bleach FOREVER.
+  if (ship.flash > 0) ship.flash = Math.max(0, Math.round((ship.flash - 3 * d) * 1000) / 1000);
+  if (nose.flash > 0) nose.flash = Math.max(0, Math.round((nose.flash - 3 * d) * 1000) / 1000);
   nose.x = ship.x + Math.sin(rot * Math.PI / 180) * 7 - 1;
   nose.y = ship.y - Math.cos(rot * Math.PI / 180) * 7 - 1;
   lastX.ship = ship.x; lastY.ship = ship.y;
@@ -159,8 +168,10 @@ on.hit((a, b) => {
     if (safe > 0) return;
     lives -= 1;
     split(rockName);
-    ship.flash = 1;                     // v3.1.25's law: the hit BLEACHES,
-    nose.flash = 1;                     // the engine does the fading
+    ship.flash = 1;                     // the hit BLEACHES — and the
+    nose.flash = 1;                     // wire game owns the decay
+                                        // (3/s in on.tick; the studio
+                                        // keeps the last light sent)
     if (lives <= 0) {
       win("game over — the field claims another hull");
       console.log(`game over — score ${score}`);

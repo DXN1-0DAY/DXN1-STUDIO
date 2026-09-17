@@ -1,3 +1,55 @@
+## v3.1.61 — the last three bleaches
+
+- **The flash-forever class is exterminated across the wire fleet.**
+  The cards round (v3.1.55) and the snake round (v3.1.59) each found
+  one bleach that never decayed; this round an audit of every
+  remaining example found THREE more, all the same disease: the
+  studio keeps the last light a wire game sent, so light set once
+  and never updated is light held forever.
+  - **flappy.py: the dead bird was a forever-statue.** die() set
+    bird.flash = 1.0 and the dead branch of on_tick returned early —
+    the bleach held at full until the player restarted. Fixed: the
+    dead bleach wears at 3/s (the honest staircase) and the bird's
+    alpha wears WITH it, settling at a 0.5 ghost; restart restores
+    alpha 1. Death also puts the glow OUT (a pulse frozen mid-air
+    would have haunted the ghost forever).
+  - **asteroids.js: "the engine does the fading" was a lie.** The hit
+    handler set ship.flash = nose.flash = 1 under a comment citing a
+    v3.1.25 law that does not exist — nothing decayed them, so the
+    first hull hit bleached the ship for the REST OF THE GAME, and
+    every game after it inherited the scar. Fixed: 3/s decay in
+    on.tick, the false comment replaced with the who-owns-the-tick
+    truth, and resetShip documents why it must NOT clear the flash
+    (it runs after the bleach is set — clearing it would kill the
+    very scar the hit just earned).
+  - **lunar.py: the touchdown held its breath.** The gold-white
+    beat set land.flash = 1.0 and the freeze branch returned early —
+    full bleach for the whole 1.4 s, then a pop back to normal on
+    respawn. Fixed: the beat DECAYS at 1.5/s during the freeze — a
+    touchdown now blooms and fades like one.
+- **flappy could never score. LIFT 2.6 was a 21px hop in a 6px
+  window.** The math: the apex plateau of ANY lift spends ~12 ticks
+  inside a 6px band, but a pipe takes 30 ticks to cross the bird —
+  no arc, no strategy, no player could ever thread it. The pass-glow
+  was dead code; every flight ended "game over — score 0". LIFT 1.1
+  bounces a 3.8px arc that FITS the window: rhythm taps hold the
+  line (the dino desert lesson of v3.1.57, learned a second time:
+  a game is only honest when a probe has PLAYED it).
+- **The pass-glow is now an honest 6/s staircase** — the old decay
+  was 0.82 PER TICK, ~0.3 s at 60 fps, a pulse no eye could catch;
+  8 -> 0 now takes a visible 1.3 s, and the decay runs BEFORE the
+  pass check so the birth-tick shows the whole 8.0.
+- Probes (all green, over the real wire): flappy_light_probe 17
+  pins — the probe PLAYS a clean pass, witnesses glow 8.0 -> 7.7 ->
+  7.4 mid-flight, then the dead staircase 0.85/0.925 -> 0.7/0.85,
+  the 0.5 ghost, and the restart; ast_flash_probe 15 pins — the
+  bleach, the staircase, the blink-outlives-the-scar law, the
+  re-bleach, the fresh game with no inherited scar; lunar_beat_probe
+  12 pins — the touchdown, the 0.976/0.952 stairs, the beat ending
+  INSIDE the freeze, the crash that mourns without bleach. Old
+  probes re-run green (flappy_wear, ast, ast_wear). Entity counts
+  unchanged; conformance pin untouched; 7 gates green.
+
 ## v3.1.60 — the seed chapter
 
 - **PROTOCOL.md grows the seed chapter** — the determinism recipe the

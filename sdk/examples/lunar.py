@@ -126,6 +126,12 @@ def on_tick(dt2):
     flame.y = land.y + 16
     if flash > 0:
         flash -= dt2
+        if land.flash > 0:
+            # the gold-white beat DECAYS — 1.5/s, the honest staircase
+            # (PROTOCOL.md). It used to hold full bleach for the whole
+            # freeze and pop back to normal on respawn: a hold, not a
+            # beat. A touchdown now blooms and fades like one.
+            land.flash = round(max(0.0, land.flash - 1.5 * dt2), 3)
         if flash <= 0:
             if lives > 0:
                 respawn_lander()
