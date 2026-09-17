@@ -1,3 +1,27 @@
+## v3.1.10 — the saws truly turn (rot renders at last)
+
+- **The engine renders `rot` — in BOTH rasters.** The wire carried
+  `rot` and `spin` from day one (scenes parsed them, the sim wound
+  them at degrees per second), but the terminal raster and the PNG
+  poster both ignored the angle when they drew: six scenes of saws
+  span in the data and stood still on the glass. Now a body with a
+  non-zero rot is painted per-dot/per-pixel through a shared
+  inverse-rotation test (`Turn`, in fx.hpp) — the same math for the
+  live terminal and the poster, so both rasters can never disagree.
+  Spinning hazards visibly tumble now; a square sweeps through its
+  diamond pose every quarter turn.
+- **Gradient bodies rotate with their fill** — a rotated rect with
+  `fill: "gradient"` samples its color ramp in the body's local
+  frame, so the gradient turns WITH the body instead of staying
+  screen-aligned (poster raster; the live view follows its own
+  gradient law).
+- **Shared math pinned by the selftest** — identity at 0°, the 90°
+  arm-sweep (screen y is down, so +x asks for local -y), a square
+  turning onto itself, the 45° diagonal extent (√2·20), a posed rot
+  holding still while nothing spins it, spin winding rot through 15
+  real engine ticks (25°), and an end-to-end poster render of a
+  turned body as a real PNG on disk. 891 → 898 assertion groups.
+
 ## v3.1.9 — a world of rects, and the third tongue
 
 - **`sdk/examples/raycast.py` — the flagship: a 3D world out of

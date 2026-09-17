@@ -587,6 +587,31 @@ void drawWorld(dxn3::Screen& scr, const dxn3::Game& g) {
       }
       continue;
     }
+    if (e.rot != 0) {                                     // the body truly turns
+      const dxn3::Turn turn(e.rot, cxm, cym);
+      float bx0, by0, bx1, by1;
+      turn.extent(x0, y0, x1, y1, bx0, by0, bx1, by1);
+      if (bx1 < 0 || bx0 > cols || by1 < 0 || by0 > hr) continue;
+      const int dxa = std::max(0, static_cast<int>(bx0 * 2.f) - 1);
+      const int dxb = std::min(cols * 2 - 1, static_cast<int>(bx1 * 2.f) + 1);
+      const int dya = std::max(0, static_cast<int>(by0 * 2.f) - 1);
+      const int dyb = std::min(hr * 2 - 1, static_cast<int>(by1 * 2.f) + 1);
+      const float rw = x1 - x0, rh = y1 - y0;
+      for (int dy = dya; dy <= dyb; ++dy) {
+        const float wy = dy * 0.5f + 0.25f;
+        for (int dxi = dxa; dxi <= dxb; ++dxi) {
+          const float wx = dxi * 0.5f + 0.25f;
+          const float axl = turn.toLocalX(wx, wy) - x0;
+          const float ayl = turn.toLocalY(wx, wy) - y0;
+          if (axl < -0.3f || axl > rw + 0.3f ||
+              ayl < -0.3f || ayl > rh + 0.3f) continue;
+          const float exd = std::min(axl, rw - axl);
+          const float eyd = std::min(ayl, rh - ayl);
+          scr.pxDot(wx, wy, std::min(exd, eyd) < 0.7f ? edgeC : c1);
+        }
+      }
+      continue;
+    }
     if (off) continue;
     if (e.fill == "gradient" && !e.color2.empty())
       scr.rectGradient(x0, y0, x1, y1, c1, dxn3::parseHex(e.color2, c1));

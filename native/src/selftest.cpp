@@ -4605,6 +4605,49 @@ int main() {
        "a save or a fresh page sweeps the amber away");
   }
 
+  // 50. the turn — rot finally renders. The wire carried rot and spin
+  // forever while both rasters ignored them: saws span in the data and
+  // stood still on the glass. Pin the shared math, then render a body
+  // through a real PNG and confirm the poster tells the same story.
+  {
+    const dxn3::Turn id(0.f, 100.f, 50.f);
+    ok(id.toLocalX(107.f, 50.f) == 107.f && id.toLocalY(107.f, 50.f) == 50.f,
+       "turn: zero degrees is the honest identity");
+    const dxn3::Turn q(90.f, 100.f, 50.f);            // y grows downward
+    ok(std::abs(q.toLocalX(110.f, 50.f) - 100.f) < 1e-3f &&
+           std::abs(q.toLocalY(110.f, 50.f) - 40.f) < 1e-3f,
+       "turn: at 90° the world +x arm asks for the local -y (up on screen)");
+    float bx0, by0, bx1, by1;
+    q.extent(90.f, 40.f, 110.f, 60.f, bx0, by0, bx1, by1);
+    const float w = bx1 - bx0, h = by1 - by0;
+    ok(w > 19.9f && w < 20.1f && h > 19.9f && h < 20.1f &&
+           std::abs((bx0 + bx1) / 2.f - 100.f) < 0.5f &&
+           std::abs((by0 + by1) / 2.f - 50.f) < 0.5f,
+       "turn: a square turns onto itself at 90° — same extent, same center");
+    const dxn3::Turn d(45.f, 0.f, 0.f);
+    d.extent(-10.f, -10.f, 10.f, 10.f, bx0, by0, bx1, by1);
+    ok(bx1 - bx0 > 28.f && bx1 - bx0 < 28.3f,
+       "turn: 45° grows the extent to the diagonal (√2·20)");
+    // end-to-end: a spinning hazard poses for the poster without a lie
+    Scene rs;
+    rs.entities.push_back(mk("saw", 200, 200, 40, 40, "#fb7185"));
+    rs.entities[0].tag = "hazard";
+    rs.entities[0].rot = 30.f;
+    Game rg(std::move(rs));
+    rg.update(0.5f, {});                    // spin? none — rot stays posed
+    ok(rg.scene.entities[0].rot == 30.f,
+       "turn: a posed rot holds still when nothing spins it");
+    rg.scene.entities[0].spin = 100.f;      // 100 deg/s
+    rg.scene.entities[0].rot = 0.f;
+    for (int i = 0; i < 15; ++i) rg.update(1.f / 60.f, {});   // a quarter
+    ok(std::abs(rg.scene.entities[0].rot - 25.f) < 1.f,
+       "turn: spin winds rot at degrees per second (15 ticks → 25°)");
+    const std::string png = "/tmp/dxn3_turn_pin.png";
+    const std::string err = dxn3::shootPNG(png, rg);
+    ok(err.empty() && std::filesystem::file_size(png) > 1000,
+       "turn: the poster renders a turned body as a real PNG");
+  }
+
 
   if (fails == 0) {
     std::println("native selftest: all green ({} assertion groups)", n);

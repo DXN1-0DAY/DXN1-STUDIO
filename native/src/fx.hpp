@@ -3,12 +3,49 @@
 // screenshots and sessions agree because nothing here is random.
 #pragma once
 
+#include <algorithm>
+#include <cmath>
 #include <string_view>
 #include <vector>
 
 #include "tui.hpp"
 
 namespace dxn3 {
+
+// The turn: a body's rotation about its own center, shared by the
+// terminal raster and the PNG poster so both rasters always agree.
+// rot lives on the wire in degrees (spin is deg/s); radians stay in here.
+struct Turn {
+  static constexpr float PI = 3.14159265358979f;
+  float cs = 1, sn = 0, cx = 0, cy = 0;
+  Turn(float deg, float cx_, float cy_)
+      : cs(std::cos(deg * PI / 180.f)), sn(std::sin(deg * PI / 180.f)),
+        cx(cx_), cy(cy_) {}
+  // a screen point, carried back into the body's unrotated frame
+  float toLocalX(float wx, float wy) const {
+    return cx + (wx - cx) * cs + (wy - cy) * sn;
+  }
+  float toLocalY(float wx, float wy) const {
+    return cy - (wx - cx) * sn + (wy - cy) * cs;
+  }
+  // the rotated corners' extent — the loop bounds for a raster sweep
+  void extent(float x0, float y0, float x1, float y1,
+              float& bx0, float& by0, float& bx1, float& by1) const {
+    const float hw = (x1 - x0) / 2.f, hh = (y1 - y0) / 2.f;
+    bx0 = by0 = 1e9f;
+    bx1 = by1 = -1e9f;
+    for (int i = 0; i < 4; ++i) {
+      const float px = cx + ((i & 1) ? hw : -hw);
+      const float py = cy + ((i & 2) ? hh : -hh);
+      const float rx = cx + (px - cx) * cs - (py - cy) * sn;
+      const float ry = cy + (px - cx) * sn + (py - cy) * cs;
+      bx0 = std::min(bx0, rx);
+      by0 = std::min(by0, ry);
+      bx1 = std::max(bx1, rx);
+      by1 = std::max(by1, ry);
+    }
+  }
+};
 
 struct Star {
   float x = 0;        // 0..1 across the sky tile
