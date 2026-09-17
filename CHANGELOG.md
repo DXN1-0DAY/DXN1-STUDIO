@@ -1,3 +1,32 @@
+## v3.1.70 — the streak law
+
+- **tetris.js counts consecutive clearing locks.** Every sweep
+  feeds the ledger: a clear on a live streak grows it, and from the
+  second consecutive clear the say and the banner carry
+  "· combo ×N" — the streak BURNS BRIGHTER too (the banner born at
+  bloom 2 + min(combo-1, 6); a lone clear keeps the honest 2). One
+  dry lock breaks it — the next lone clear speaks plain again,
+  which is the reset made visible. reset() zeroes the ledger with
+  the well.
+- **Probes: 11 pins green x2 (deterministic, the R25 slam script).**
+  tetris_combo_probe pins the x1 law (lone clears speak plain, no
+  suffix), the born-whole bloom 2, the 0.15/tick wear staircase,
+  dry-lock silence, the 1.6 s dwell, the deterministic top-out and
+  the r-restart. The R25 light probe still walks green — the x1
+  path is untouched.
+- **THE HONEST LEDGER: the x2-suffix pin is still pending.** Two
+  consecutive clearing locks are rare enough that the replay
+  script's search is its own chapter: the beam taught us two new
+  wire laws on the way (dropT is a FLOAT accumulator — ten 0.05
+  additions read 0.4999999999999999, so gravity fires every 11
+  ticks, not 10; and the game's lock() calls spawn() BEFORE sweep(),
+  so the top-out check reads the UNSWEPT well — one row taller).
+  The search now knows exactly the hand-built state it needs (a
+  pedestal with two shafts); the packing DFS lands next round and
+  the pair probe rides it. No promise without its pin — the README
+  names the law, the probes pin what they pin, and the gap is
+  written down here.
+
 ## v3.1.69 — the wear audit came for the field and the room
 
 - **asteroids.js: the split blooms, the flame wears.** A split is a

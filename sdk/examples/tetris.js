@@ -23,6 +23,16 @@
 // wears linearly to invisible in the same 1.6 s — never a
 // flash-forever fixture. The decay runs even when the world waits
 // on game over; birth shows whole because decay runs FIRST.
+// v3.1.70 — THE STREAK LAW: the well counts consecutive clearing
+// locks. A lock that clears nothing breaks the streak (combo back to
+// 0); each clear on a live streak grows it, and from the second
+// consecutive clear the say and the banner carry "· combo ×N" — the
+// streak burns brighter too: the banner is born with bloom
+// 2 + min(combo-1, 6) (a single clear keeps the honest 2; a ×3
+// streak's banner is born at glow 4), still worn to invisible in the
+// say's own 1.6 s at the house's 3/s. A dry lock silences the
+// suffix AND the brightness — the next lone clear speaks plain
+// again, which is the reset made visible.
 const dxn3 = require("dxn3");
 const { rect, label, destroy, find, background, say, win, on, run } = dxn3;
 const W = dxn3.W, H = dxn3.H;
@@ -72,6 +82,7 @@ const hv = [];                           // the four vault seats (the hold)
 let cur = "T", rotN = 0, px = 4, py = -1, cells = [], nxt = null;
 let bag = [], dropT = 0, drop = 0.5, total = 0, level = 1, over = false, seq = 0;
 let held = null, holdUsed = false;       // the vault and its one-per-drop law
+let combo = 0;                           // the streak: consecutive clearing locks
 const glows = new Map();                 // cell name -> remaining bloom
 
 const key = (r, c) => r + "_" + c;
@@ -145,10 +156,10 @@ function paintBanner() {                 // born whole, worn linearly:
   banner.visible = bannerT > 0 ? 1 : 0;               // to invisible
 }
 
-function showBanner(msg) {               // a clear lights the well's voice
-  banner.text = msg;
+function showBanner(msg, bloom) {        // a clear lights the well's voice;
+  banner.text = msg;                     // the streak burns brighter
   bannerT = 1.6;
-  banner.glow = 2;                       // the bloom wears 3/s below
+  banner.glow = bloom;                   // born whole at the streak's bloom
   paintBanner();
 }
 
@@ -274,11 +285,16 @@ function sweep() {                       // the law of full rows
     total += cleared;
     level = 1 + Math.floor(total / 10);
     drop = Math.max(0.08, 0.5 - (level - 1) * 0.045);
+    combo += 1;                          // the streak grows on a live lock
     const word = cleared === 4 ? "TETRIS!" : cleared === 3 ? "triple" :
                  cleared === 2 ? "double" : "line";
-    const msg = word + " · lv " + level;  // the banner carries the level
-    say(msg);                             // the say law: 1.6 s of HUD
-    showBanner(msg);                      // and the well's own echo
+    const msg = word + " · lv " + level +
+                (combo >= 2 ? " · combo ×" + combo : "");
+    const bloom = 2 + Math.min(combo - 1, 6);   // the streak's brightness
+    say(msg);                            // the say law: 1.6 s of HUD
+    showBanner(msg, bloom);              // and the well's own echo
+  } else {
+    combo = 0;                           // a dry lock breaks the streak
   }
 }
 
@@ -320,6 +336,7 @@ function reset() {
   level = 1;
   drop = 0.5;
   over = false;
+  combo = 0;                             // a fresh streak ledger too
   bag = [];
   nxt = null;
   held = null;
