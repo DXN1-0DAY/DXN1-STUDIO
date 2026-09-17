@@ -7,16 +7,20 @@
 // line is ten honest destroys · the bag is SEEDED: the same run, the
 // same falls, forever · the NEXT piece is previewed right of the well
 // — the queue ahead, peeked honestly (one draw per piece, never
-// re-rolled, so the seeded law survives the preview).  (soft-drop
-// rides the LETTER s: the wire's held keys are left/right/jump/space
-// — "down" never rides it; the ghost probe exposed that latent bug.)
+// re-rolled, so the seeded law survives the preview) · and since the
+// VAULT: c holds the falling piece — once per drop, honestly spent
+// (the vault itself wears the ghost's alpha 0.32 while it rests) and
+// the swap never touches the seed's queue (the first hold consumes
+// the peeked next, exactly as a spawn would).  (soft-drop rides the
+// LETTER s: the wire's held keys are left/right/jump/space — "down"
+// never rides it; the ghost probe exposed that latent bug.)
 const dxn3 = require("dxn3");
 const { rect, label, destroy, find, background, say, win, on, run } = dxn3;
 const W = dxn3.W, H = dxn3.H;
 
 background("#0a0c16");
 
-const hud = label("hud", 2, 1, "TETRIS  ·  arrows move · up turns · s sinks · space slams · ghost marks home · 0");
+const hud = label("hud", 2, 1, "TETRIS  ·  arrows move · up turns · s sinks · space slams · c holds · ghost marks home · 0");
 
 const COLS = 10, ROWS = 16, CELL = 2;    // the well: 10 wide, 16 deep
 const BX = 2, BY = 2;                    // the well's top-left corner
@@ -52,8 +56,10 @@ const well = new Map();                  // "row_col" -> entity name
 const piece = [];                        // the four falling seats
 const ghost = [];                        // the four ghost seats (alpha 0.32)
 const pvue = [];                         // the four preview seats (the queue)
+const hv = [];                           // the four vault seats (the hold)
 let cur = "T", rotN = 0, px = 4, py = -1, cells = [], nxt = null;
 let bag = [], dropT = 0, drop = 0.5, total = 0, level = 1, over = false, seq = 0;
+let held = null, holdUsed = false;       // the vault and its one-per-drop law
 
 const key = (r, c) => r + "_" + c;
 const free = (r, c) =>
@@ -106,6 +112,7 @@ function paint() {                       // the falling order wears its seats
 }
 
 const PX = 25, PY = 3;                   // the preview box (right of the well)
+const HX = 25, HY = 15;                  // the vault sits under the queue
 
 function paintPreview() {                // the queue ahead, worn in advance
   const s = SHAPES[nxt];
@@ -116,6 +123,23 @@ function paintPreview() {                // the queue ahead, worn in advance
     e.y = oy + r * CELL;
     e.color = s.color;
     e.visible = over ? 0 : 1;
+  });
+}
+
+function paintHold() {                   // the vault, worn honestly
+  if (held === null) {
+    hv.forEach((e) => { e.visible = 0; });
+    return;
+  }
+  const s = SHAPES[held];
+  const ox = HX + ((4 - s.size) >> 1), oy = HY + ((4 - s.size) >> 1);
+  hv.forEach((e, i) => {
+    const [c, r] = s.cells[i];
+    e.x = ox + c * CELL;
+    e.y = oy + r * CELL;
+    e.color = s.color;
+    e.alpha = holdUsed ? 0.32 : 1;       // a spent vault wears the ghost's
+    e.visible = over ? 0 : 1;            // alpha — spent, but readable
   });
 }
 
@@ -132,11 +156,47 @@ function spawn() {
     piece.forEach((e) => { e.visible = 0; });
     ghost.forEach((e) => { e.visible = 0; });
     pvue.forEach((e) => { e.visible = 0; });
+    hv.forEach((e) => { e.visible = 0; });
     win(`TOPPED OUT at ${total} — r falls again`);
     return;
   }
   paint();
   paintPreview();
+  paintHold();
+}
+
+function holdSwap() {
+  if (holdUsed) {
+    say("the vault already gave — one hold per drop");
+    return;
+  }
+  const stash = cur;
+  if (held === null) {
+    held = stash;
+    cur = nxt;                           // the queue's peek becomes the order —
+    nxt = pull();                        // one draw, the same law as a spawn
+  } else {
+    cur = held;                          // a straight swap: the vault gives back
+    held = stash;
+  }
+  rotN = 0;
+  px = COLS >> 1;
+  py = -1;
+  cells = shapeCells();
+  piece.forEach((e) => { e.color = SHAPES[cur].color; });
+  holdUsed = true;
+  if (!fits(cells)) {
+    over = true;
+    piece.forEach((e) => { e.visible = 0; });
+    ghost.forEach((e) => { e.visible = 0; });
+    pvue.forEach((e) => { e.visible = 0; });
+    hv.forEach((e) => { e.visible = 0; });
+    win(`TOPPED OUT at ${total} — r falls again`);
+    return;
+  }
+  paint();
+  paintPreview();
+  paintHold();
 }
 
 function lock() {
@@ -151,6 +211,8 @@ function lock() {
          SHAPES[cur].color);
     well.set(key(py + r, px + c), nm);
   });
+  holdUsed = false;                      // a new drop re-arms the vault
+  paintHold();
   spawn();
 }
 
@@ -224,6 +286,8 @@ function reset() {
   over = false;
   bag = [];
   nxt = null;
+  held = null;
+  holdUsed = false;
   spawn();
 }
 
@@ -235,6 +299,7 @@ on.key((k) => {
   if (k === "left") slide(-1);
   else if (k === "right") slide(1);
   else if (k === "up" || k === "jump") turn();
+  else if (k === "c") holdSwap();
   else if (k === "down" || k === "s") {
     if (fitsAt(1, 0)) py += 1;
     paint();                             // always repaint: the ghost must
@@ -255,13 +320,15 @@ on.tick((d) => {
       sweep();
     }
   }
-  hud.text = `TETRIS  ·  arrows move · up turns · s sinks · space slams · ghost marks home · ${total} · lv ${level}`;
+  hud.text = `TETRIS  ·  arrows move · up turns · s sinks · space slams · c holds · ghost marks home · ${total} · lv ${level}`;
 });
 
 label("nxl", PX, PY + 9, "next", "#94a3b8");
+label("hol", HX, HY + 9, "hold", "#94a3b8");
 for (let i = 0; i < 4; ++i) piece.push(rect(`fall${i}`, -999, -999, CELL, CELL, "#8b5cf6"));
 for (let i = 0; i < 4; ++i) ghost.push(rect(`ghost${i}`, -999, -999, CELL, CELL, "#8b5cf6"));
 for (let i = 0; i < 4; ++i) pvue.push(rect(`pv${i}`, -999, -999, CELL, CELL, "#8b5cf6"));
+for (let i = 0; i < 4; ++i) hv.push(rect(`hv${i}`, -999, -999, CELL, CELL, "#8b5cf6"));
 spawn();
 
 run();

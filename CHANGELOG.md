@@ -1,3 +1,23 @@
+## v3.1.48 — the vault
+
+- **Tetris learns to hold.** `c` stashes the falling piece in a
+  VAULT under the next-queue: the first hold trades the current
+  piece for the queue's peek (one draw — the seeded law survives,
+  the queue is never re-rolled), every later hold is a straight
+  swap. The vault is honest about its state: it wears the stashed
+  piece's color, and a SPENT vault wears the ghost's own alpha
+  0.32 — used, but readable. One hold per drop: a second `c` speaks
+  "the vault already gave — one hold per drop" and refuses; a lock
+  re-arms it. HUD says "c holds" now.
+- Gate 6 pin 17 → 22 (four vault seats + the vault's label).
+- Probe `tetris_hold_probe.py`: 12 pins green — the sleeping vault,
+  the stash (vault wears the fallen color, the peek becomes the
+  order), the spent alpha, the refusal (say + nothing moves), the
+  re-arm after a lock, and the straight swap. Probe lesson: a pin
+  must honor the render law — top-row seats at py=-1 are honestly
+  hidden, so "the piece is whole" pins the COLORS, not the
+  visibility of seats above the well.
+
 ## v3.1.47 — the last undressed example
 
 - **Shooter wears the engine's light** — the gallery's last example
