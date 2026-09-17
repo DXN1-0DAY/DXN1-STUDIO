@@ -1,7 +1,8 @@
 # The Campaign — a field guide
 
-Nine scenes, one loop: **playground → the gap → the movers → the climb →
-the gauntlet → the vault → the ascent → the descent → the beacon → back home.** Every scene is a plain
+Ten scenes, one loop: **playground → the gap → the movers → the climb →
+the gauntlet → the vault → the ascent → the descent → the beacon →
+the crossing → back home.** Every scene is a plain
 `.dxn1.json` file; the
 goal door carries you to the next, and the last door brings you home. The
 HUD counts `COINS x/y · SCORE · TIME` the whole way — completionists grab
@@ -102,6 +103,19 @@ leaning against the grain at the very first step, two saws spinning at
 300°/s and 340°/s over the mid-deck, and the closing pull rides two
 counter-phased lifts plus a summit ferry. Six gems, one lit door, one
 ride home to the playground.
+
+## level-9 — the crossing
+
+After the beacon's light, the campaign asks you to TRUST it: three
+abysses with no floor at all, crossed only by ferries that keep a
+timetable (75, 85 and 90 px/s — each rung of the crossing a little
+faster than the last). The middle abyss offers the campaign's honest
+dilemma: a HIGH road over two pillars where the gems glow and a fang
+leans across the exit, or the LOW ledges where the way is longer but
+nothing leans. Two saws keep the decks (300°/s and 340°/s), the last
+pull is a vertical ferry to a summit that pays two gems for the climb,
+and the door home waits at the top of the far shore. Seven gems —
+four of them lit — one timetable, no shortcuts.
 
 ## Design notes (for scene authors)
 

@@ -1,0 +1,48 @@
+{
+  "name": "the crossing (level-9)",
+  "bg": "#061014",
+  "gravity": 1500,
+  "magnet": 150,
+  "next": "scenes/playground.dxn1.json",
+  "camera": { "x": 100, "y": 300, "zoom": 0.8 },
+  "entities": [
+    { "name": "hero", "tag": "player", "x": 60, "y": 360, "w": 34, "h": 44, "color": "#8b5cf6" },
+
+    { "name": "start-ledge", "x": -200, "y": 400, "w": 560, "h": 90, "color": "#1f2937" },
+    { "name": "readme", "tag": "sign", "x": 170, "y": 326, "w": 30, "h": 34, "color": "#94a3b8", "text": "THE CROSSING \u2014 the ferries keep the timetable" },
+
+    { "name": "ferry-1", "tag": "mover", "x": 480, "y": 360, "w": 110, "h": 20, "color": "#38bdf8",
+      "path": [ { "x": 480, "y": 360 }, { "x": 760, "y": 360 } ], "pspeed": 75 },
+    { "name": "gem-1", "tag": "coin", "x": 640, "y": 300, "w": 22, "h": 22, "shape": "circle", "color": "#facc15", "glow": 6 },
+
+    { "name": "deck-1", "x": 860, "y": 340, "w": 180, "h": 26, "color": "#1f2937" },
+    { "name": "saw-1", "tag": "hazard", "x": 930, "y": 278, "w": 38, "h": 38, "color": "#fb7185", "rot": 0, "spin": 300 },
+
+    { "name": "pillar-a", "x": 1130, "y": 220, "w": 90, "h": 22, "color": "#1f2937" },
+    { "name": "pillar-b", "x": 1330, "y": 180, "w": 90, "h": 22, "color": "#1f2937" },
+    { "name": "gem-2", "tag": "coin", "x": 1180, "y": 170, "w": 22, "h": 22, "shape": "circle", "color": "#facc15", "glow": 6 },
+    { "name": "gem-3", "tag": "coin", "x": 1370, "y": 130, "w": 22, "h": 22, "shape": "circle", "color": "#facc15", "glow": 6 },
+    { "name": "fang-1", "tag": "spike", "x": 1420, "y": 152, "w": 34, "h": 28, "shape": "triangle", "color": "#ef4444", "rot": 25 },
+
+    { "name": "ledge-2", "x": 1150, "y": 420, "w": 200, "h": 24, "color": "#1f2937" },
+    { "name": "ledge-3", "x": 1450, "y": 400, "w": 160, "h": 24, "color": "#1f2937" },
+    { "name": "gem-4", "tag": "coin", "x": 1250, "y": 370, "w": 22, "h": 22, "shape": "circle", "color": "#facc15" },
+
+    { "name": "ferry-2", "tag": "mover", "x": 1700, "y": 380, "w": 110, "h": 20, "color": "#38bdf8",
+      "path": [ { "x": 1700, "y": 380 }, { "x": 1980, "y": 380 } ], "pspeed": 85 },
+
+    { "name": "deck-2", "x": 2080, "y": 360, "w": 200, "h": 26, "color": "#1f2937" },
+    { "name": "saw-2", "tag": "hazard", "x": 2150, "y": 298, "w": 38, "h": 38, "color": "#fb7185", "rot": 0, "spin": 340 },
+    { "name": "fang-2", "tag": "spike", "x": 2230, "y": 332, "w": 34, "h": 28, "shape": "triangle", "color": "#ef4444", "rot": -30 },
+    { "name": "gem-5", "tag": "coin", "x": 2110, "y": 300, "w": 22, "h": 22, "shape": "circle", "color": "#facc15", "glow": 6 },
+
+    { "name": "ferry-3", "tag": "mover", "x": 2350, "y": 330, "w": 110, "h": 20, "color": "#38bdf8",
+      "path": [ { "x": 2350, "y": 330 }, { "x": 2350, "y": 190 } ], "pspeed": 90 },
+
+    { "name": "summit", "x": 2500, "y": 180, "w": 220, "h": 24, "color": "#1f2937" },
+    { "name": "gem-6", "tag": "coin", "x": 2560, "y": 130, "w": 22, "h": 22, "shape": "circle", "color": "#facc15" },
+    { "name": "gem-7", "tag": "coin", "x": 2650, "y": 130, "w": 22, "h": 22, "shape": "circle", "color": "#facc15" },
+
+    { "name": "out", "tag": "goal", "x": 2790, "y": 96, "w": 30, "h": 64, "color": "#34d399" }
+  ]
+}

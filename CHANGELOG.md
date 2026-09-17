@@ -1,3 +1,18 @@
+## v3.1.23 — the crossing
+
+- **level-9 — the crossing, the TENTH scene.** Three abysses with no
+  floor, crossed only by ferries that keep a timetable (75 → 85 →
+  90 px/s, each rung faster than the last). The middle abyss forks
+  into the campaign's honest dilemma: a HIGH road over two pillars —
+  glowing gems, a fang leaning across the exit — or the LOW ledges,
+  longer but nothing leans. Two saws keep the decks, a vertical ferry
+  pays out a two-gem summit, and the door home tops the far shore.
+  Seven gems, four of them lit. Chain: level-8.next → level-9 →
+  playground (gate 3b walked, 25 entities).
+- Gallery completes its fifth pair (level-8 | level-9), ten-scene
+  counts in README and CAMPAIGN, the crossing's own field-guide
+  section. The screenshot is a real headless render (960×540).
+
 ## v3.1.22 — the night shift
 
 - **`lightbot.js` — the fifteenth wire example, and the first built
