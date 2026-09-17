@@ -1,3 +1,23 @@
+## v3.1.84 — the dark pays double
+
+- **The owl's twin visits the invaders' purse.** In the shooter the
+  night is a HAZARD (the owl eats your shots); in invaders the night
+  is now a HARVEST: the mystery saucer's bounty is checked at
+  PAYMENT time against the FULL night (the night flag AND
+  nightT >= 1 — the owl's own threshold), and under the full dark
+  the purse's coin is paid twice — 100/200/300/600 — with the say
+  speaking it ("the mystery pays N — the dark pays double"). By
+  day, inside the fade, or after a fresh dawn, the honest purse
+  stands. invaders_darkpays_probe.py 18/18 pins the whole arc over
+  the real wire: the day kill pays single with no suffix, the
+  wave-1 clear speaks the darker sky, the fade is honest in dt
+  (moon glow 4 at alpha 1.0, stars at 0.9, the march in its cacti
+  ring), the tally continues across the wave break, and the full-
+  dark kill pays the doubled purse — the say's number the score's
+  delta, saucer and shot both resting dark. Two stale census pins
+  in the older invaders probes (52, pre-sky) were caught drifting
+  and re-pinned to 62.
+
 ## v3.1.83 — the gate watches the sky
 
 - **The invaders' named-stream law is promoted to gate 6.** The

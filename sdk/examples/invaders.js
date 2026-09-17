@@ -27,6 +27,14 @@
 // SHINES (glow 4) while the living march wears the cacti law's faint
 // ring (glow 1, riding the same fade). A fresh run is a fresh day:
 // restart (r) and EARTH HOLDS both pour the daylight back.
+// v3.1.84 — THE DARK PAYS DOUBLE: the owl's twin visits the purse.
+// The bounty is checked at PAYMENT time against the FULL night (the
+// night flag AND nightT >= 1 — the owl's own threshold): under the
+// full dark the purse's coin is paid twice — 100/200/300/600 — and
+// the say says so ("the dark pays double"). By day, inside the fade,
+// or after a fresh dawn, the honest purse stands. In the shooter the
+// night is a hazard (the owl eats your shots); here the night is a
+// harvest — clear the wave, and the sky pays you back.
 const dxn3 = require("dxn3");
 const { rect, circle, label, destroy, find, background, say, win, on, run } = dxn3;
 const W = dxn3.W, H = dxn3.H;
@@ -324,11 +332,15 @@ on.hit((a, b) => {
     const ufo = a.tag === "ufo" ? a : b;
     const shot = a.tag === "ufo" ? b : a;
     const pay = UFOS[Math.floor(Math.random() * UFOS.length)];
-    score += pay;
+    const dark = night && nightT >= 1;   // the owl's law: only the FULL dark
+    const paid = dark ? pay * 2 : pay;   // the dark pays double — the night
+    score += paid;                       //   is a harvest, not a hazard
     park();                              // the mystery rests dark, paid
     shot.x = -999;
     shot.glow = 0;
-    say(`the mystery pays ${pay}`);      // the say speaks the SAME number
+    say(dark
+      ? `the mystery pays ${paid} — the dark pays double`
+      : `the mystery pays ${paid}`);     // the say speaks the SAME number
     hud.text = `INVADERS  ·  score ${score}  ·  lives ${lives}`;
   } else if (pair === "alien|player") {
     lives = 0;
