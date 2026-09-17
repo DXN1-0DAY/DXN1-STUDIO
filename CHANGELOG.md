@@ -1,3 +1,25 @@
+## v3.0.97 — the amber drift (:diff wears the rail)
+
+- **`:diff`'s finding now lives on the map.** The census stores the
+  page lines that disagree with the disk (`ideDriftStore` — the
+  additions and changes, sorted, unique, 0-based; a removal no
+  longer stands on the page, so it cannot wear a tick), and the
+  minimap's edge wears them AMBER — the pin's bar and the session's
+  emerald keep their own edges, but now a drifted line announces
+  itself at a glance until you act. The law of the leaving: `:w`
+  sweeps the amber (the disk heard the page), a fresh page never
+  inherits it, and an agreeing census clears it. A look, never an
+  edit — the drift is the census's memory, nothing more.
+- Docs debt PAID: the README gallery showed the playground twice
+  and never showed level-2 (the movers) — all six scenes now sit in
+  the table, and the headless renders were regenerated to prove the
+  determinism (byte-identical to the shipped set).
+- Selftest group 98: THREE drift laws (874 -> 877) — the sorted
+  0-based store with its dedup, the rail's honest ask with the
+  edges, the sweep. MY BUG (build): the drift helpers were placed
+  before IdeDiffReport's definition — the compiler spoke; the
+  helpers moved below the law they serve. Gates ALL GREEN.
+
 ## v3.0.96 — :diff (the page against the disk)
 
 - **`:diff` — the page and the disk, spoken honestly.** A look,

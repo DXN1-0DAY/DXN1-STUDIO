@@ -199,7 +199,7 @@ int main() {
   }
 
   // 9. the version quad rides in the binary too
-  ok(std::string(dxn3::DXN3_VERSION) == "3.0.96",
+  ok(std::string(dxn3::DXN3_VERSION) == "3.0.97",
      "native version constant matches the release quad");
 
   // 10. png writer: checksum vectors, real structure, byte determinism
@@ -4536,6 +4536,26 @@ int main() {
     const std::vector<std::string> bigB(2001, "y");
     ok(!dxn3::ideDiffCensus(bigA, bigB),
        "a bed too big to think refuses honestly");
+  }
+
+
+  // 98. the drift: :diff's memory, worn amber on the rail
+  {
+    IdeState ds;
+    dxn3::IdeDiffReport rep;
+    rep.addedAt = {5, 2};                 // unsorted on purpose
+    rep.changedAt = {2};                  // line 2 twice: add + change meet
+    rep.removedAt = {9};                  // a removal wears no tick
+    dxn3::ideDriftStore(ds, rep);
+    ok(ds.drift.size() == 2 && ds.drift[0] == 1 && ds.drift[1] == 4,
+       "the drift stores the page's lines, sorted and unique, 0-based");
+    ok(dxn3::ideDriftHas(ds, 1) && dxn3::ideDriftHas(ds, 4) &&
+           !dxn3::ideDriftHas(ds, 0) && !dxn3::ideDriftHas(ds, 8) &&
+           !dxn3::ideDriftHas(ds, -1),
+       "the rail's ask answers honestly, edges included");
+    dxn3::ideDriftClear(ds);
+    ok(ds.drift.empty() && !dxn3::ideDriftHas(ds, 1),
+       "a save or a fresh page sweeps the amber away");
   }
 
 

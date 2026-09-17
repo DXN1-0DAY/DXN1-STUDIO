@@ -1107,6 +1107,9 @@ void drawIDE(dxn3::Screen& scr, IdeState& ide, const dxn3::Game& g, bool hostUp)
       if (mr.mark)                             // the pin: an amber bar at the
         scr.text(mapX, row, "▌",               // map's edge, drawn last so it
                  dxn3::rgb(250, 204, 21));     // never drowns in the bars
+      else if (dxn3::ideDriftHas(ide, li))     // the drift: the census's
+        scr.text(mapX, row, "·",               // amber tick — this line
+                 dxn3::rgb(250, 204, 21));     // and the disk disagree
       else if (dxn3::ideTouchHas(ide, li))     // the session's hand: an
         scr.text(mapX, row, "·",               // emerald tick on the map's
                  dxn3::rgb(52, 211, 153));     // edge — see where you wrote
@@ -1526,6 +1529,8 @@ int main(int argc, char** argv) {
     if (!keepJumps) ide.jumps.clear();
     dxn3::ideTouchClear(ide);        // a page just opened is a clean page —
                                      // the census counts THIS session's hand
+    dxn3::ideDriftClear(ide);        // and the fresh read agrees with the
+                                     // disk — no stale amber may ride
     ide.lastTyping = ide.lastBack = false;
     ide.curR = ide.curC = ide.top = 0;
     dxn3::ideSelClear(ide);          // no stale selection rides along
@@ -2260,9 +2265,11 @@ int main(int argc, char** argv) {
                     "engine: a bed too big to think — the diff census "
                     "refuses politely");
               } else if (rep->same()) {
+                dxn3::ideDriftClear(ide);      // the census heard: agree
                 ide.console.push_back(
                     "engine: the page and the disk agree — nothing to save");
               } else {
+                dxn3::ideDriftStore(ide, *rep);  // the rail wears the drift
                 auto listing = [](const std::vector<int>& v) {
                   std::string out;
                   size_t shown = 0;
@@ -2289,7 +2296,7 @@ int main(int argc, char** argv) {
                            listing(rep->removedAt) + ")";
                 ide.console.push_back(
                     "engine: the page and the disk disagree — " + parts +
-                    " — a look, not a save");
+                    " — a look, not a save; the rail wears it amber");
               }
             }
           }
@@ -2581,6 +2588,7 @@ int main(int argc, char** argv) {
               const std::string old = ide.path;
               ide.path = cmd.arg;
               if (ideSave(ide, &err, &bak)) {
+                dxn3::ideDriftClear(ide);  // the disk heard the page
                 dxn3::ideRecentPush(ide.recent, ide.path);
                 ide.console.push_back("engine: saved as " + ide.path +
                                       (bak ? "  (.bak kept)" : ""));
@@ -2592,6 +2600,7 @@ int main(int argc, char** argv) {
                 cmdErrT = 3.5f;
               }
             } else if (ideSave(ide, &err, &bak)) {
+              dxn3::ideDriftClear(ide);      // the disk heard the page
               ide.console.push_back("engine: saved " + ide.path +
                                     (bak ? "  (.bak kept)" : ""));
             } else { cmdErr = err; cmdErrT = 3.5f; }

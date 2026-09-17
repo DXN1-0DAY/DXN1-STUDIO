@@ -2,7 +2,7 @@
 
 ![DXN1 STUDIO 3](assets/banner.png)
 
-![version](https://img.shields.io/badge/version-3.0.96-8b5cf6?style=flat-square)
+![version](https://img.shields.io/badge/version-3.0.97-8b5cf6?style=flat-square)
 ![gates](https://github.com/DXN1-termux/DXN1-STUDIO/actions/workflows/ci.yml/badge.svg)
 ![native](https://img.shields.io/badge/native-C%2B%2023-f97316?style=flat-square)
 ![face](https://img.shields.io/badge/face-terminal_truecolor-22d3ee?style=flat-square)
@@ -139,7 +139,11 @@ viewport refreshes — *code a background, and boom, a background.*
   numbers name the lines (a removal points where the line once
   stood), the samples cap at six with a `+k more` tail, an empty
   path says the disk has never heard of the page, and a bed too big
-  to think refuses politely.
+  to think refuses politely. The map rail
+  wears the census's finding amber — a drifted line carries the
+  amber tick until `:w` speaks it to the disk (the pin's bar and the
+  session's emerald keep their own edges); a save or a fresh page
+  sweeps the amber away.
 - **Word hops and the partner.** `ctrl+←`/`ctrl+→` jump word by word —
   the same words `ctrl+w` bites — across line edges when they must.
   `ctrl+delete` eats exactly what a hop would cross; `ctrl+/` toggles
@@ -311,10 +315,10 @@ of the renderer; your games are the product:
 | the playground | the gap (level-1) |
 |---|---|
 | ![playground](docs/img/shot-playground.png) | ![level-1](docs/img/shot-level-1.png) |
-| **the climb (level-3)** | **the gauntlet (level-4)** |
-| ![level-3](docs/img/shot-level-3.png) | ![level-4](docs/img/shot-level-4.png) |
-| **the vault (level-5)** | **the playground** |
-| ![level-5](docs/img/shot-level-5.png) | ![playground](docs/img/shot-playground.png) |
+| **the movers (level-2)** | **the climb (level-3)** |
+| ![level-2](docs/img/shot-level-2.png) | ![level-3](docs/img/shot-level-3.png) |
+| **the gauntlet (level-4)** | **the vault (level-5)** |
+| ![level-4](docs/img/shot-level-4.png) | ![level-5](docs/img/shot-level-5.png) |
 
 Goals chain the scenes into a six-scene campaign: **playground → level-1 (the
 gap) → level-2 (the movers) → level-3 (the climb) → level-4 (the gauntlet) →

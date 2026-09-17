@@ -175,6 +175,11 @@ struct IdeState {
   // the restored document. Cleared when the page opens (a fresh read
   // is a clean page) — including :fresh, whose truth is the disk's.
   std::vector<int> touched;
+  // the drift: the page lines the last :diff heard disagreeing with
+  // the disk — sorted, unique, 0-based. The map rail wears them amber
+  // until :w speaks them to the disk (or the page reopens). The
+  // census's own memory, never edited by it.
+  std::vector<int> drift;
   // the crew: extra hands — every one stands where a cursor stands, and
   // the four edit verbs (typing, backspace, enter, forward delete) speak
   // through EVERY hand at once. Sorted, unique, the primary hand
@@ -509,6 +514,24 @@ ideDiffCensus(const std::vector<std::string>& disk,
   rep.changed = static_cast<int>(rep.changedAt.size());
   rep.removed = static_cast<int>(rep.removedAt.size());
   return rep;
+}
+
+// the drift's law: :diff stores what it heard (the page lines that
+// disagree — additions and changes; a removal no longer stands on the
+// page, so it cannot wear a tick), :w clears it (the disk heard), a
+// fresh page clears it. Sorted, unique — the rail's per-row ask is a
+// binary search, the same as the touch's.
+inline void ideDriftStore(IdeState& s, const IdeDiffReport& rep) {
+  s.drift.clear();
+  for (const int t : rep.addedAt) s.drift.push_back(t - 1);
+  for (const int t : rep.changedAt) s.drift.push_back(t - 1);
+  std::sort(s.drift.begin(), s.drift.end());
+  s.drift.erase(std::unique(s.drift.begin(), s.drift.end()), s.drift.end());
+}
+inline void ideDriftClear(IdeState& s) { s.drift.clear(); }
+inline bool ideDriftHas(const IdeState& s, int line) {
+  return line >= 0 &&
+         std::binary_search(s.drift.begin(), s.drift.end(), line);
 }
 
 // the selection goes first: the range is cut, the cursor collapses to
