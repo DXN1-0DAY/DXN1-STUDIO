@@ -5,6 +5,11 @@
 // the NIGHT SKY (stars + moon) comes from its OWN seed — the desert's
 // seed stays dedicated — and the alpha law fades it in at 200 m:
 // day alpha 0.15, night alpha 0.9, and then the moon shines.
+// the GRACE LAW: a press that arrives while airborne is kept for
+// 0.12 s — if the ground lands before the press expires, the leap
+// fires anyway ("kept" at the press, "grace!" on the second chance).
+// the arc is asymmetric on purpose: the rise floats at 90, the fall
+// bites at 144 — and every touchdown leaves a fading dust.
 // r walks again after the fall.
 const dxn3 = require("dxn3");
 const { rect, circle, label, find, background, say, win, on, run } = dxn3;
@@ -16,6 +21,8 @@ const hud = label("hud", 2, 1, "THE LONG RUN  ·  space to leap  ·  0 m");
 const ground = rect("ground", 0, H - 3, W, 3, "#5b4a3a");
 const dino = rect("dino", 6, H - 9, 7, 6, "#8b5cf6");
 dino.tag = "player";
+const dust = rect("dust", -999, H - 4, 3, 1, "#9ca3af");  // parked; the feet speak
+dust.alpha = 0;
 
 const clouds = [rect("cloud-a", 20, 6, 14, 2, "#2b3148"),
                 rect("cloud-b", 70, 10, 18, 2, "#242a40")];
@@ -70,6 +77,7 @@ const next = () => {
 let speed = 55, dist = 0, vy = 0, dead = false, night = false, nightT = 0;
 let spawnIn = 2.2;                       // seconds until the next cactus
 let free = 0;                            // round-robin over the pool
+let bufT = 0;                            // the grace memory: a kept press
 
 
 function leap() {
@@ -77,6 +85,9 @@ function leap() {
   if (dino.y >= H - 9) {                 // only from the ground
     vy = -30;
     say("up!");
+  } else {
+    bufT = 0.12;                         // the early press is kept
+    say("kept");
   }
 }
 
@@ -88,6 +99,9 @@ function walkAgain() {
   dino.y = H - 9;
   cacti.forEach((c) => { c.x = -999; });
   spawnIn = 2.2;
+  bufT = 0;                              // a fresh run keeps nothing
+  dust.x = -999;
+  dust.alpha = 0;
   night = false;                         // a fresh run is a fresh day
   nightT = 0;
   ground.color = "#5b4a3a";
@@ -109,10 +123,32 @@ on.tick((dt) => {
   speed += 2 * dt;
   dist += speed * dt;
   const meters = Math.floor(dist / 10);
-  // physics: one honest gravity, the ground ends the fall
-  vy += 90 * dt;
+  // the dust fades in its own light — never in the tick it is born
+  if (dust.alpha > 0) {
+    dust.alpha = Math.max(0, dust.alpha - 2.8 * dt);
+    if (dust.alpha === 0) dust.x = -999;
+  }
+  // physics: one honest gravity with a bite — the rise floats at 90,
+  // the fall drops at 144, the ground ends the fall, and a press
+  // that arrived early still lands (the grace law)
+  const wasAir = dino.y < H - 9;
+  vy += (vy < 0 ? 90 : 144) * dt;
   dino.y = Math.min(H - 9, dino.y + vy * dt);
-  if (dino.y >= H - 9) vy = 0;
+  if (wasAir && dino.y >= H - 9) {       // the touchdown: the feet speak
+    dust.x = dino.x + 2;
+    dust.y = H - 4;
+    dust.alpha = 0.7;
+    if (bufT > 0) {                      // the second chance fires
+      bufT = 0;
+      vy = -30;
+      say("grace!");
+    } else {
+      vy = 0;
+    }
+  } else if (dino.y >= H - 9) {
+    vy = 0;
+  }
+  bufT = Math.max(0, bufT - dt);         // the memory decays honestly
   // the clouds parallax at a fifth of the run
   clouds.forEach((c, i) => {
     c.x -= (speed / 5) * dt * (i ? 1.3 : 1);

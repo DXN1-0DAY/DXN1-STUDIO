@@ -1,3 +1,32 @@
+## v3.1.50 — the grace law
+
+- **Dino's jump-feel pass, in three laws.** The GRACE LAW: a press
+  that arrives while airborne is KEPT for 0.12 s ("kept" speaks the
+  moment it lands on the memory) — if the ground arrives before the
+  memory expires, the leap fires anyway ("grace!") and the runner
+  rises again the very next frame. The desert is flat, so this is
+  the runner's coyote time: the press that lands before the ground
+  does is not a lost press. The memory decays honestly (0.12 s,
+  gone is gone — a press kept high above the ground is forgotten by
+  the touchdown) and `r` resets it with everything else.
+- **The arc bites.** The rise floats at gravity 90, the fall drops
+  at 144 — the apex still clears four units, but the way down is
+  measurably shorter than the way up (0.264 s against 0.333 s from
+  the same height). The probe mirrors the engine tick for tick and
+  the flight matches BIT FOR BIT — the law is exact, not approximate.
+- **The dust speaks.** Every touchdown (grace or clean) leaves a
+  dust puff at the dino's feet: alpha 0.7, descending the honest
+  staircase 0.56, 0.42, 0.28, 0.14, gone in five ticks, parked at
+  -999 when it dies. **The probe caught a real birth-tick bug here
+  before shipping:** the fade block originally ran after the spawn,
+  so the dust was born already faded to 0.56 — the fade now runs
+  before the physics, and the dust lives its first tick at 0.7.
+- Entity 19 → 20 (the dust); Gate 6's dino pin moved with it.
+  Probe `dino_grace_probe.py`: 22 pins green over the real wire —
+  including the death march, which injects the overlap itself
+  (hits are the host's gift), and the fresh-run reset (nothing
+  kept, no phantom dust, the leap still says "up!").
+
 ## v3.1.49 — the last light
 
 - **Lunar's polish round exposed a REAL latent bug:** the flame,
