@@ -1,3 +1,21 @@
+## v3.1.7 — the moon joins the gallery
+
+- **`sdk/examples/lunar.py` — the lander, the ninth proof.** Gravity
+  is the enemy and the pads forgive: side-thrusters steer, the main
+  engine burns fuel by the frame, and two pads pay by their risk —
+  the valley's easy 50 and the summit's doubled 100. Land softer
+  than 65 down and 35 across or the legs give; the hills are honest
+  ground and honest ground is lethal; drift off the moon and the
+  dark keeps you. The flame lives only while the engine burns (one
+  breath per burn, snuffed by the tick), a freeze beat holds the
+  world while a touchdown pays or a crash mourns, and three wrecks
+  end the run with an honest final score.
+- **Gate 6 grew another row** — the lander probed on the wire (10
+  scene entities, counted exactly), and the probe suite on the
+  author's side walked every path deterministically: touchdown,
+  hill-crash, game-over reset, score mirror, 800 frames, zero
+  tracebacks. NINE examples now speak the protocol.
+
 ## v3.1.6 — the saws bite, and the ascent begins
 
 - **FIXED: the hazard tag kills — the campaign's saws finally saw.**

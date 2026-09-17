@@ -2,7 +2,7 @@
 
 ![DXN1 STUDIO 3](assets/banner.png)
 
-![version](https://img.shields.io/badge/version-3.1.6-8b5cf6?style=flat-square)
+![version](https://img.shields.io/badge/version-3.1.7-8b5cf6?style=flat-square)
 ![gates](https://github.com/DXN1-termux/DXN1-STUDIO/actions/workflows/ci.yml/badge.svg)
 ![native](https://img.shields.io/badge/native-C%2B%2023-f97316?style=flat-square)
 ![face](https://img.shields.io/badge/face-terminal_truecolor-22d3ee?style=flat-square)
@@ -82,7 +82,9 @@ viewport refreshes — *code a background, and boom, a background.*
   plays fair under held keys, meals that sharpen the step, a tail
   that grows), `asteroids.js` (a nose-dot ship you can SEE turn,
   splitting rocks that fly faster as they shrink, a grace blink
-  after a hull hit), `pong.cpp` (a compiled C++ pong with an AI that
+  after a hull hit), `lunar.py` (side-thrusters, one main engine,
+  two pads that pay by their risk — the hills are not for landing),
+  `pong.cpp` (a compiled C++ pong with an AI that
   caps its speed — the hardest SDK proof in the set).
 - **The editor forgives.** `ctrl+z` undoes — typing bursts coalesce the
   way real editors group them, `enter`/`del` are their own restore
