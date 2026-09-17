@@ -1,3 +1,16 @@
+## v3.1.24 — the meal speaks
+
+- **snake.py polish — the classic learns to talk.** The meal now
+  wears the engine's glow (the one lit thing in the dark), every
+  bite says so on the HUD (`meal 4 · 5 long`), every fifth meal
+  names what you have become (the garden snake at 5, the hunter at
+  10, the anaconda at 15, the world eater at 20), and all three
+  deaths — the wall, your own tail, the snake that IS the world —
+  arrive as win banners instead of quiet console lines.
+- Wire probe: greedy driver steers the head onto the food, asserts
+  the glow pin, the per-meal say lines, and the transient wall
+  banner captured on the exact frame it flies.
+
 ## v3.1.23 — the crossing
 
 - **level-9 — the crossing, the TENTH scene.** Three abysses with no

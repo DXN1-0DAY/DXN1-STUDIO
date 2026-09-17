@@ -11,6 +11,7 @@ background("#070b16")
 hud = label("hud", 2, 2, "SNAKE  ·  arrows / wasd  ·  score 0")
 food = circle("food", 0, 0, CELL, CELL, "#fb7185")
 food.tag = "food"
+food.glow = 3                          # the meal is the one thing that glows
 
 body = []                    # entities, head first
 life = 0                     # each life names its segments fresh — a name
@@ -66,6 +67,18 @@ def on_key(k):
             turns.pop(0)
 
 
+RANKS = [(20, "the world eater"), (15, "the anaconda"),
+         (10, "the hunter"), (5, "the garden snake")]
+
+
+def rank(n):
+    """a name for the length you have become — the honest ladder."""
+    for need, title in RANKS:
+        if n >= need:
+            return title
+    return "the hatchling"
+
+
 def on_tick(dt2):
     global step, dirx, diry, score, alive
     if not alive:
@@ -83,11 +96,13 @@ def on_tick(dt2):
     hx, hy = body[0].x + dirx * CELL, body[0].y + diry * CELL
     if hx < 0 or hy < 0 or hx > W - CELL or hy > H - CELL:
         alive = False
+        win(f"the wall — score {score} · space for a new snake")
         print(f"the wall. score {score} — space for a new snake")
         return
     for seg in body[:-1]:                     # the tail vacates as you land
         if seg.x == hx and seg.y == hy:
             alive = False
+            win(f"you bit yourself — score {score} · space for a new snake")
             print(f"you bit yourself. score {score} — space for a new snake")
             return
     tx, ty = body[-1].x, body[-1].y
@@ -105,9 +120,15 @@ def on_tick(dt2):
             food.x, food.y = cell
         hud.text = f"SNAKE  ·  arrows / wasd  ·  score {score}"
         vars(score=score)
+        # the meal speaks: milestones get a name, the rest a census
+        if score % 5 == 0:
+            say(f"{score} meals — you are {rank(score)} now")
+        else:
+            say(f"meal {score} · {len(body)} long")
         print(f"meal {score} — the snake is {len(body)} long")
     if len(body) >= COLS * ROWS:
         alive = False
+        win("the snake IS the world — nothing left to eat. perfect")
         print("the snake IS the world. nothing left to eat — perfect")
         vars(score=score)
 
