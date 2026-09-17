@@ -1,3 +1,14 @@
+## v3.1.27 — every death speaks
+
+- **flappy and lunar join the banner law.** The examples were a
+  mixed choir: some deaths were banners (dino, invaders, tetris,
+  snake, asteroids), some were quiet console lines. Now flappy's
+  crash and lunar's last life arrive as win banners, lunar's
+  mid-flight crashes speak on the HUD — and every game in the
+  gallery mourns out loud, the same way.
+- The wire probes pass; the mixed-choir audit is written down so
+  the next example starts with a banner, not a print.
+
 ## v3.1.26 — the flash goes to war
 
 - **asteroids.js adopts the engine's flash.** A hull hit now

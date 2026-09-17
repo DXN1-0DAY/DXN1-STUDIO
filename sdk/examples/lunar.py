@@ -80,10 +80,12 @@ def crash(why):
     global lives, score, flash
     lives -= 1
     if lives <= 0:
+        win(f"game over — final score {score}")
         print(f"game over — final score {score}")
         score = 0
         lives = 3
     else:
+        say(f"crash — {why}")
         print(f"crash — {why}")
     vars(score=score)
     freeze(1.2)

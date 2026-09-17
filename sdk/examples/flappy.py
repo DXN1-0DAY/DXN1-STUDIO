@@ -32,6 +32,7 @@ def die():
     global dead
     dead = True
     tip.text = "space to fly again"
+    win(f"game over — score {score}")
     print("game over — score", score)
 
 def on_key(k):
