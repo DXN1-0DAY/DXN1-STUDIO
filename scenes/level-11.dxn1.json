@@ -3,7 +3,7 @@
   "bg": "#0d1220",
   "gravity": 1500,
   "magnet": 150,
-  "next": "scenes/playground.dxn1.json",
+  "next": "scenes/level-12.dxn1.json",
   "camera": { "x": 100, "y": 300, "zoom": 0.8 },
   "entities": [
     { "name": "hero", "tag": "player", "x": 60, "y": 360, "w": 34, "h": 44, "color": "#8b5cf6" },

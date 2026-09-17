@@ -2,7 +2,7 @@
 
 ![DXN1 STUDIO 3](assets/banner.png)
 
-![version](https://img.shields.io/badge/version-3.1.74-8b5cf6?style=flat-square)
+![version](https://img.shields.io/badge/version-3.1.75-8b5cf6?style=flat-square)
 ![gates](https://github.com/DXN1-termux/DXN1-STUDIO/actions/workflows/ci.yml/badge.svg)
 ![native](https://img.shields.io/badge/native-C%2B%2023-f97316?style=flat-square)
 ![face](https://img.shields.io/badge/face-terminal_truecolor-22d3ee?style=flat-square)
@@ -398,7 +398,7 @@ whisper as you type) ·
 `:scene <name>` loads a demo (with
 completion whispers) · `:q` quit.
 
-## The built-in demo: a twelve-scene campaign
+## The built-in demo: a thirteen-scene campaign
 
 The Spark engine ships with a chained platformer — real headless renders
 of the shipped scenes, the same frames your terminal draws. It is a demo
@@ -417,12 +417,14 @@ of the renderer; your games are the product:
 | ![level-8](docs/img/shot-level-8.png) | ![level-9](docs/img/shot-level-9.png) |
 | **the fog (level-10)** | **the return (level-11)** |
 | ![level-10](docs/img/shot-level-10.png) | ![level-11](docs/img/shot-level-11.png) |
+| **the epilogue (level-12)** — one scene stands alone, like the quiet after |
+| ![level-12](docs/img/shot-level-12.png) | *the door home wears glow 9 — the brightest the campaign has ever shipped* |
 
-Goals chain the scenes into a twelve-scene campaign: **playground → level-1 (the
+Goals chain the scenes into a thirteen-scene campaign: **playground → level-1 (the
 gap) → level-2 (the movers) → level-3 (the climb) → level-4 (the gauntlet) →
 level-5 (the vault) → level-6 (the ascent) → level-7 (the descent) →
 level-8 (the beacon) → level-9 (the crossing) → level-10 (the fog) →
-level-11 (the return) → back home.** Coins score (+10, magnetized inside the scene's radius), spikes
+level-11 (the return) → level-12 (the epilogue) → back home.** Coins score (+10, magnetized inside the scene's radius), spikes
 respawn you with a camera shake, movers carry you across the gaps — and the
 HUD counts it all: `COINS x/y · SCORE · TIME`, scene name on the right.
 Level-3 goes vertical — two lifts, a springboard shortcut and a gradient
@@ -432,7 +434,10 @@ counter-phased lifts, a saw-patrolled high deck, a ferry under a saw
 and a fang-lined last stretch. Level-6 is the ascent: three lifts up a
 five-terrace tower where the saws finally bite — jump them, ride past
 them, and the summit door is the highest the campaign has ever reached.
-The full walkthrough lives in the
+Level-12 is the epilogue: a walking-pace victory lap that replays every
+law the road taught — mist, ferry, saw, counter lifts, a leaning fang,
+a glowing stair — and ends at the door home wearing glow 9. The full
+walkthrough lives in the
 [campaign field guide](docs/CAMPAIGN.md).
 
 ## Play

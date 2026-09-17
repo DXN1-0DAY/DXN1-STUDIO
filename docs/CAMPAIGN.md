@@ -1,8 +1,8 @@
 # The Campaign — a field guide
 
-Twelve scenes, one loop: **playground → the gap → the movers → the climb →
+Thirteen scenes, one loop: **playground → the gap → the movers → the climb →
 the gauntlet → the vault → the ascent → the descent → the beacon →
-the crossing → the fog → the return → back home.** Every scene is a plain
+the crossing → the fog → the return → the epilogue → back home.** Every scene is a plain
 `.dxn1.json` file; the
 goal door carries you to the next, and the last door brings you home. The
 HUD counts `COINS x/y · SCORE · TIME` the whole way — completionists grab
@@ -145,8 +145,27 @@ decks at 300 and 320°/s, with a leaning fang for old times' sake. The
 last stretch is a beacon-style stair of three small decks, every other
 gem glowing, and the door itself wears `"glow": 7` — the same light that
 guided you through the beacon now marks home. Eight gems, the
-campaign's best pay, and a door that lands you in the playground, where
-the ball is still bouncing and the loop closes where it began.
+campaign's best pay, and a door that lands you past the credits — in
+the epilogue, where the road says goodbye properly.
+
+## level-12 — the epilogue
+
+The thirteenth scene is not a test — it is a thanks. The sky drops to
+the quiet hour (#0b1020, darker than the fog ever asked you to read),
+and then the campaign replays itself at walking pace, one law at a
+time, nothing stacked: two mist ledges open the walk (the FOG's
+*what you can see through is still real*, one last time), a slower
+ferry crosses the honest gap (75 px/s — the CROSSING's timetable with
+nowhere to be), one saw keeps its 280°/s toll above the east dock, and
+the VAULT's two lifts ride you up to the high deck where a leaning fang
+waits for old times' sake. The way down is mist again, then the
+BEACON's stair of three decks carries every other gem glowing to the
+summit — where the farewell sign (*thank you for playing — the door is
+home*) stands beside the door itself: glow 9, the brightest light the
+campaign has ever shipped, outshining the beacon's 7 because an ending
+deserves to be seen. Eight gems again, the door drops you in the
+playground, the ball is still bouncing, and the loop closes where it
+began — the epilogue's quiet last word before the road starts over.
 
 ## Design notes (for scene authors)
 

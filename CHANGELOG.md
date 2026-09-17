@@ -1,3 +1,28 @@
+## v3.1.75 — the epilogue
+
+- **The campaign grows its thirteenth scene and gets a real ending.**
+  `scenes/level-12.dxn1.json` — "the epilogue (level-12)" — is a
+  walking-pace victory lap through every law the road taught, in the
+  order it taught them: two mist ledges (the fog, one last time), a
+  slower ferry (75 px/s — the crossing's timetable with nowhere to
+  be), one 280°/s saw over the east dock, the vault's two
+  counter-phased lifts up to a leaning fang, mist on the way down, and
+  the beacon's stair of three decks with every other gem glowing. The
+  farewell sign — *thank you for playing — the door is home* — stands
+  beside the door wearing `"glow": 9`, the brightest light the
+  campaign has ever shipped. Eight gems, 28 entities, the quiet hour
+  sky (`#0b1020`).
+- **The chain is rewired to close the grand cycle:** level-11's door
+  now lands you in the epilogue, and the epilogue's door lands you in
+  the playground — the road ends where it began, ball still bouncing.
+  Gate 3b verifies every hop: `playground → level-1 … level-11 →
+  level-12 → playground`.
+- **Docs walk the walk:** the README's campaign section is now
+  "a thirteen-scene campaign" with the epilogue's real headless render
+  (`docs/img/shot-level-12.png`) standing alone in the gallery like
+  the quiet after; the field guide gains a full level-12 section and
+  the return's last sentence finally admits where its door goes.
+
 ## v3.1.74 — the deck is real
 
 - **cards.py's deck stops being a lie.** The hand was five cards a
