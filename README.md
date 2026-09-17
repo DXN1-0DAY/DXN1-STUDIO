@@ -2,7 +2,7 @@
 
 ![DXN1 STUDIO 3](assets/banner.png)
 
-![version](https://img.shields.io/badge/version-3.0.91-8b5cf6?style=flat-square)
+![version](https://img.shields.io/badge/version-3.0.92-8b5cf6?style=flat-square)
 ![gates](https://github.com/DXN1-termux/DXN1-STUDIO/actions/workflows/ci.yml/badge.svg)
 ![native](https://img.shields.io/badge/native-C%2B%2023-f97316?style=flat-square)
 ![face](https://img.shields.io/badge/face-terminal_truecolor-22d3ee?style=flat-square)
@@ -101,7 +101,9 @@ viewport refreshes — *code a background, and boom, a background.*
   apostrophe inside a word (`don't`) stays honest. `ctrl+d`
   duplicates the line under the cursor in one undo step. `ctrl+t`
   transposes the two neighbors around the hand — `teh` becomes `the`
-  with the hand where you left it.
+  with the hand where you left it. `ctrl+u` walks the word's coat —
+  `hello` → `HELLO` → `Hello` → `hello` — the hand never moves, and
+  a coat that paints nothing (a lone `V2`) bows out honestly.
 - **`:open` learned the ledger.** `:open <file>` loads any script on
   the machine — your own games and the `sdk/examples/` gallery
   whisper their names as you type, and the LEDGER of files you had
@@ -246,6 +248,8 @@ Keys: `ctrl+r` run · `ctrl+s` save · `ctrl+z` undo · `ctrl+y` redo ·
 the walk outlives the bar ·
 `ctrl+d` duplicate lines · `ctrl+t` transpose — the two neighbors
 around the hand trade places (the typo's fix) ·
+`ctrl+u` the word's coat — `whisper → SHOUT → Title`, the seat never
+moves ·
 `ctrl+w` delete word · `ctrl+del` delete word ahead · `ctrl+/`
 comment toggle (multi-line with a selection) ·
 `shift+arrows` select · `shift+ctrl+←`/`→` select words ·

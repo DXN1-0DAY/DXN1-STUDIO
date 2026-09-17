@@ -63,6 +63,8 @@ struct Keys {
   bool comment = false;                        // IDE: ctrl+/ — toggle the line's comment
   bool transpose = false;                      // IDE: ctrl+T — the two
                                                // neighbors trade places
+  bool caseCycle = false;                      // IDE: ctrl+U — the word's
+                                               // coat: whisper → SHOUT → Title
   bool docHome = false, docEnd = false;        // IDE: ctrl+home/end — the edges
   bool sUp = false, sDown = false;             // IDE: shift+↑/↓ — extend the selection
   bool altUp = false, altDown = false;         // IDE: alt+↑/↓ — the ride:
@@ -2948,6 +2950,96 @@ inline bool ideTranspose(IdeState& s) {
   return true;
 }
 
+// ── the case cycle: the word's three coats, one breath apart ────────
+// A word wears a coat: the whisper (no upper letter), the SHOUT (no
+// lower letter), or the Title (its first letter raised, the rest
+// hushed) — anything between (camelCase, the shouts with a digit's
+// tail) is the mixed coat. ctrl+U walks the wheel: whisper → SHOUT →
+// Title → whisper. A coat that would change nothing bows out and the
+// walk takes the next — a one-letter word (V2, A) honestly lives a
+// two-coat life. Digits and underscores ride along untouched.
+inline std::string ideCaseWhisper(const std::string& w) {
+  std::string r = w;
+  for (char& ch : r)
+    if (std::isalpha(static_cast<unsigned char>(ch)))
+      ch = static_cast<char>(std::tolower(static_cast<unsigned char>(ch)));
+  return r;
+}
+inline std::string ideCaseShout(const std::string& w) {
+  std::string r = w;
+  for (char& ch : r)
+    if (std::isalpha(static_cast<unsigned char>(ch)))
+      ch = static_cast<char>(std::toupper(static_cast<unsigned char>(ch)));
+  return r;
+}
+inline std::string ideCaseTitle(const std::string& w) {
+  std::string r = w;
+  bool first = true;
+  for (char& ch : r)
+    if (std::isalpha(static_cast<unsigned char>(ch))) {
+      ch = first
+               ? static_cast<char>(std::toupper(static_cast<unsigned char>(ch)))
+               : static_cast<char>(std::tolower(static_cast<unsigned char>(ch)));
+      first = false;
+    }
+  return r;
+}
+
+// The word the hand rides: ON a word char, that word; on a gap, the
+// word BEHIND the hand; in the open (no word behind either), the word
+// AHEAD on the line. The coat never moves a letter, so the hand keeps
+// its seat — press again and the same word takes its next coat. One
+// named undo step ("case cycle"), pushed BEFORE the paint. Returns
+// true when a coat was painted.
+inline bool ideCycleCase(IdeState& s) {
+  std::string& l = s.lines[static_cast<size_t>(s.curR)];
+  const int len = static_cast<int>(l.size());
+  const auto wc = [&](int i) {
+    return i >= 0 && i < len &&
+           ideWordChar(l[static_cast<size_t>(i)]);
+  };
+  int a = -1, b = -1;                      // [a, b) the word's span
+  if (wc(s.curC)) {
+    a = s.curC;
+    while (a > 0 && wc(a - 1)) --a;
+    b = s.curC;
+    while (b < len && wc(b)) ++b;
+  } else if (wc(s.curC - 1)) {
+    b = s.curC;
+    a = b;
+    while (a > 0 && wc(a - 1)) --a;
+  } else {
+    a = s.curC;
+    while (a < len && !wc(a)) ++a;
+    b = a;
+    while (b < len && wc(b)) ++b;
+  }
+  if (a < 0 || b <= a) return false;       // no word: the refusal is honest
+  const std::string w = l.substr(static_cast<size_t>(a),
+                                 static_cast<size_t>(b - a));
+  bool anyUpper = false, anyLower = false;
+  for (const char ch : w) {
+    if (std::isupper(static_cast<unsigned char>(ch))) anyUpper = true;
+    if (std::islower(static_cast<unsigned char>(ch))) anyLower = true;
+  }
+  if (!anyUpper && !anyLower) return false;  // digits and nails wear no coat
+  int coat = !anyUpper ? 0 : (!anyLower ? 1 : 2);  // 0 whisper 1 shout 2 title
+  static constexpr int NEXT[3] = {1, 2, 0};
+  std::string next = w;
+  for (int step = 0; step < 3; ++step) {   // a coat that changes nothing
+    coat = NEXT[coat];                     // bows out; the walk carries on
+    const std::string cand = coat == 0 ? ideCaseWhisper(w)
+                             : coat == 1 ? ideCaseShout(w)
+                                         : ideCaseTitle(w);
+    if (cand != w) { next = cand; break; }
+  }
+  if (next == w) return false;             // armored: never paint the same
+  idePushUndo(s, "case cycle");            // the step back, before the paint
+  l.replace(static_cast<size_t>(a), static_cast<size_t>(b - a), next);
+  ideTouch(s, s.curR);                     // the census hears about it
+  return true;
+}
+
 inline void ideKey(IdeState& ide, const Keys& k) {
   // ── esc owns its frame. A bare ESC is a MODE key — play, search,
   // escape — and when a pty delivers it coalesced with typing (the
@@ -3403,6 +3495,16 @@ inline void ideKey(IdeState& ide, const Keys& k) {
     if (ide.lines[static_cast<size_t>(ide.curR)].size() >= 2) {
       idePushUndo(ide, "transpose");         // one honest step back
       ideTranspose(ide);
+      ide.dirty = true;                      // the game hears about it
+      ide.idle = 0;
+    }
+  }
+  if (k.caseCycle) {                         // ctrl+U: the word's coat —
+                                             // whisper, SHOUT, Title. The
+                                             // seat never moves; press
+                                             // again for the next coat.
+    ideSelClear(ide);                        // the cycle is the frame's own
+    if (ideCycleCase(ide)) {
       ide.dirty = true;                      // the game hears about it
       ide.idle = 0;
     }

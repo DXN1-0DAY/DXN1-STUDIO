@@ -1397,6 +1397,43 @@ def main():
         s2.run_verb("undo", "ide")             # the pure air swept away
         s2.settle(0.3)
 
+        # ── 13q. ctrl+U — the case cycle, the word's coat ────────────
+        print("── 13q. ctrl+U — the word's coat: whisper, SHOUT, Title")
+        s2.run_verb("goto 2", "ide")           # the "ccc#..." line
+        s2.settle(0.2)
+        coat0 = body(s2.screen(), 2)
+        s2.send("\x15")                        # ctrl+U: the whisper shouts
+        s2.settle(0.4)
+        coat1 = body(s2.screen(), 2)
+        check("ctrl+U shouts the word under the hand",
+              coat0[:3] == "ccc" and coat1[:3] == "CCC",
+              repr(coat0[:6] + " -> " + coat1[:6]))
+        s2.send("\x15")                        # again: the shout titles
+        s2.settle(0.4)
+        coat2 = body(s2.screen(), 2)
+        check("the second press titles it",
+              coat2[:4] == "Ccc#", repr(coat2[:6]))
+        s2.send("\x15")                        # again: the title whispers
+        s2.settle(0.4)
+        coat3 = body(s2.screen(), 2)
+        check("the third press whispers it — the wheel closes",
+              coat3[:3] == "ccc", repr(coat3[:6]))
+        s2.run_verb("undo", "ide")             # each press peels one step
+        s2.settle(0.3)
+        peeled = body(s2.screen(), 2)
+        check("one undo peels one coat",
+              peeled[:4] == "Ccc#", repr(peeled[:6]))
+        s2.run_verb("undo", "ide")             # and the next lands on the shout
+        s2.settle(0.3)
+        peeled2 = body(s2.screen(), 2)
+        check("the next peel lands on the shout",
+              peeled2[:3] == "CCC", repr(peeled2[:6]))
+        s2.run_verb("undo", "ide")             # the wheel unwound whole
+        s2.settle(0.3)
+        restored = body(s2.screen(), 2)
+        check("the page sits as it sat",
+              restored == coat0, repr(restored[:6]))
+
         # ── 13p. :count — the census of a query ──────────────────────
         print("── 13p. :count — the find's law, spoken as a number")
         scr2, _ = s2.run_verb("count ccc", "ide")

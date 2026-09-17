@@ -1,3 +1,25 @@
+## v3.0.92 — the case cycle (ctrl+U, the word's three coats)
+
+- **`ctrl+U` walks the word's coat.** The word under the hand cycles
+  `hello` -> `HELLO` -> `Hello` -> `hello`, one breath per press: the
+  whisper shouts, the SHOUT titles, the Title whispers — the wheel
+  closes on itself. The hand rides a word ON it, BEHIND it (the open
+  past the tail), or AHEAD of it (a hand before the words). The coat
+  never moves a letter, so the seat never moves — press again and the
+  same word takes its next coat. Digits and underscores ride along
+  (`v2` <-> `V2`); a coat that would paint nothing bows out and the
+  walk takes the next; a word with no letter at all (`123`) refuses
+  honestly — no undo, no dirt. One named undo step ("case cycle"),
+  pushed BEFORE the paint.
+- Selftest group 93: TWELVE coat laws (836 -> 848) — the full wheel,
+  the seat's promise, the word behind and ahead, the two-coat life of
+  `V2`, the digit refusal, the empty line's refusal, the named undo
+  and its restore. Smoke 13q: SIX drives (190 -> 196) — the wheel
+  end-to-end, the undo peeling one coat at a time (the console's two
+  rows bury the receipt under the re-run's breath; the name is the
+  selftest's law), the page sitting as it sat. `--help` speaks ctrl+t (docs debt from v3.0.89,
+  paid) and ctrl+u together. Gates ALL GREEN.
+
 ## v3.0.91 — the census (:count, the find's law as a number)
 
 - **`:count [word]` — the census of a query.** A bare `:count` counts

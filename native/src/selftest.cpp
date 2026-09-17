@@ -199,7 +199,7 @@ int main() {
   }
 
   // 9. the version quad rides in the binary too
-  ok(std::string(dxn3::DXN3_VERSION) == "3.0.91",
+  ok(std::string(dxn3::DXN3_VERSION) == "3.0.92",
      "native version constant matches the release quad");
 
   // 10. png writer: checksum vectors, real structure, byte determinism
@@ -4316,6 +4316,66 @@ int main() {
     cs.findCase = false;
     ok(static_cast<int>(dxn3::ideFindAll(cs, "AB").size()) == 2,
        "case sleeps: the shout finds the whisper's work");
+  }
+
+
+  // 93. the case cycle: ctrl+U — the word's coat, one breath apart
+  {
+    IdeState cs;
+    cs.lines = {"hello"};
+    cs.curR = 0;
+    cs.curC = 1;                          // the hand ON the word
+    ok(dxn3::ideCycleCase(cs) && cs.lines[0] == "HELLO",
+       "the whisper shouts: hello becomes HELLO");
+    ok(cs.curC == 1, "the coat never moves a letter — the hand keeps its seat");
+    ok(dxn3::ideCycleCase(cs) && cs.lines[0] == "Hello",
+       "the shout titles: HELLO becomes Hello");
+    ok(dxn3::ideCycleCase(cs) && cs.lines[0] == "hello",
+       "the title whispers: Hello becomes hello — the wheel closes");
+    IdeState bs;                          // the word BEHIND the hand
+    bs.lines = {"foo bar"};
+    bs.curR = 0;
+    bs.curC = 7;                          // the hand past the tail
+    ok(dxn3::ideCycleCase(bs) && bs.lines[0] == "foo BAR",
+       "the hand in the open cycles the word behind it");
+    IdeState as_;                         // the word AHEAD of the hand
+    as_.lines = {"  hi"};
+    as_.curR = 0;
+    as_.curC = 0;
+    ok(dxn3::ideCycleCase(as_) && as_.lines[0] == "  HI",
+       "a hand before the words cycles the word ahead");
+    IdeState vs;                          // the two-coat life: V2
+    vs.lines = {"v2"};
+    vs.curR = 0;
+    vs.curC = 0;
+    ok(dxn3::ideCycleCase(vs) && vs.lines[0] == "V2",
+       "the whisper shouts through the digit: v2 becomes V2");
+    ok(dxn3::ideCycleCase(vs) && vs.lines[0] == "v2",
+       "a coat that paints nothing bows out — V2 lands back at v2");
+    IdeState ns;                          // digits and nails wear no coat
+    ns.lines = {"123"};
+    ns.curR = 0;
+    ns.curC = 1;
+    ok(!dxn3::ideCycleCase(ns) && ns.lines[0] == "123" && ns.undo.empty(),
+       "a word with no letter refuses honestly — no undo, no dirt");
+    IdeState es;                          // the empty line refuses
+    es.lines = {"", "x"};
+    es.curR = 0;
+    es.curC = 0;
+    ok(!dxn3::ideCycleCase(es) && es.undo.empty(),
+       "an empty line refuses honestly too");
+    IdeState us;                          // the named undo step
+    us.lines = {"hello"};
+    us.curR = 0;
+    us.curC = 0;
+    dxn3::Keys uk;
+    uk.caseCycle = true;
+    dxn3::ideKey(us, uk);
+    ok(us.lines[0] == "HELLO" && !us.undo.empty() &&
+           us.undo.back().what == "case cycle",
+       "the cycle rides one honest undo step, named");
+    ok(dxn3::ideUndo(us) && us.lines[0] == "hello" && us.curC == 0,
+       "undo restores the uncoated word and the seat");
   }
 
 
