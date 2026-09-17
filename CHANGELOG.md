@@ -1,3 +1,46 @@
+## v3.1.62 — the noon dragonfly
+
+- **"The owl owns the night — what owns noon?" is answered: the
+  dragonfly, the owl turned generous.** dino.js grows the DAY
+  BONUS: an amber dragonfly (own seeded stream "the noon dragonfly"
+  — the desert's and the owl's stay theirs) crosses a band (rows
+  H-15/H-14) that only a leap's shoulders reach — time the leap and
+  the run PAYS: +1 snack, the runner glows, the hud tallies. The
+  mirror of the owl's design, law for law: it launches only
+  feet-down with nothing ahead (the owl's launch law, the draw only
+  on a real launch), it buzzes its own 0.09 s wing, it crosses at
+  1.2x (a bonus must be makeable — the owl swoops at 1.8x), and it
+  NEVER KILLS: tag "snack", not "hazard" — a missed crossing is a
+  snack unearned, never a death.
+- **AND THE DESERT NEVER STOPS FOR IT.** The owl's window FORBIDS
+  the jump, so while it flies the desert holds its breath (no
+  cactus spawns — v3.1.58). The fly's window INVITES the jump — no
+  freeze: a cactus spawned mid-crossing arrives only after the fly
+  has passed (1.2x beats 1x to the runner), always visible, never a
+  trap. A snack must never pause the run.
+- **LUNCH SUMMONS THE SWARM:** a catch pays one draw — the next fly
+  comes in 4-10 s instead of the launch's 10-22. The noon's stream
+  draws only on real events (a launch, a bite); without a catch the
+  countdown outlives the day and the second fly never rises (the
+  seed's honest answer, witnessed).
+- The hit handler grew the honest branch order: snack first (pay),
+  hazard second (die) — and the snake/cards round's light law holds
+  here too: the bite's glow wears at 6/s (the honest staircase).
+- Entities 22 -> 24; conformance re-pinned. The probe that proves
+  it (dino_fly_probe, 18 pins green) paid TWO wire laws on the way:
+  (1) a bare wire child does NO collision detection — the STUDIO
+  scans the last frame's tagged pairs and forwards them in the next
+  packet, so a probe harness must inject the hits itself; (2) the
+  FNV seed multiplies in FLOAT64 and SIGNED int32 — the unsigned
+  python FNV diverges at draw one (the R22 law, re-learned by a
+  mirror that refused to match until it went signed + float).
+  Pins include: the catch witnessed (glow 6 whole, 5.7/5.4 stairs,
+  hud "1 snack"), every spawn on the mirrored packet (zero drift —
+  the desert truly never stops), the summons never early and never
+  skipping an eligible tick, no launch at night, the owl still
+  hooting, and the reseed on rebirth repeating the same summon.
+  All four prior dino probes re-run green.
+
 ## v3.1.61 — the last three bleaches
 
 - **The flash-forever class is exterminated across the wire fleet.**

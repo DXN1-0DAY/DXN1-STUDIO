@@ -27,6 +27,21 @@
 // and wears a halo of its own. and while an owl flies the desert
 // HOLDS ITS BREATH — no cactus spawns — so the no-jump window is
 // guaranteed clear: the owl never steals a leap a cactus demanded.
+// the NOON DRAGONFLY is the owl turned generous: it owns the DAY, its
+// own seeded stream ("the noon dragonfly" — the desert and the owl
+// keep theirs), and it crosses a band (rows H-15/H-14) only a leap's
+// shoulders reach — time the leap and the run PAYS: +1 snack, the
+// runner glows. it launches only feet-down with nothing ahead (the
+// owl's launch law, the draw only on a real launch), crosses at 1.2x
+// (a bonus must be makeable), buzzes its own wing, and NEVER KILLS —
+// tag "snack", not "hazard": a missed crossing is a snack unearned,
+// never a death. and the desert NEVER STOPS for it: the owl's window
+// forbids the jump, so the desert holds its breath; the fly's window
+// INVITES the jump — a cactus spawned mid-crossing arrives only after
+// the fly has passed (1.2x beats 1x to the runner), always visible,
+// never a trap. a snack must never pause the run. and LUNCH SUMMONS
+// THE SWARM: a catch pays one draw (4-10 s to the next fly) — the
+// noon's stream draws only on real events: a launch, a bite.
 // r walks again after the fall.
 const dxn3 = require("dxn3");
 const { rect, circle, label, find, background, say, win, on, run } = dxn3;
@@ -110,6 +125,35 @@ const onext = () => {
   return oseed / 4294967296;
 };
 
+// the NOON DRAGONFLY: two bugs parked off right, in the catch band —
+// rows H-15/H-14, above the owl's patrol, where only a leap's
+// shoulders (risen 4-7px of the 7.2 apex) can touch them.
+const FLIES = 2;
+const FLY_COLOR = "#fdba74";
+const flies = [];
+for (let i = 0; i < FLIES; ++i) {
+  const f = rect(`fly-${i}`, -999, H - 15, 4, 2, FLY_COLOR);
+  f.tag = "snack";                       // the tag IS the law: never a death
+  f.glow = 1;                            // a faint noon shimmer
+  flies.push(f);
+}
+// the fly's OWN seeded stream — the desert's and the owl's stay theirs
+let fseed = 0;
+function initFlySeed() {
+  fseed = 2166136261 >>> 0;
+  for (const ch of "the noon dragonfly") {
+    fseed ^= ch.charCodeAt(0);
+    fseed = (fseed * 16777619) >>> 0;
+  }
+}
+initFlySeed();
+const fnext = () => {
+  fseed ^= fseed << 13; fseed >>>= 0;
+  fseed ^= fseed >>> 17;
+  fseed ^= fseed << 5;  fseed >>>= 0;
+  return fseed / 4294967296;
+};
+
 // the seed: the studio's law — deterministic stars, deterministic
 // desert. FNV-1a of the runner's name, xorshift after.
 let seed = 2166136261 >>> 0;
@@ -131,6 +175,11 @@ let bufT = 0;                            // the grace memory: a kept press
 let owlIn = 0;                           // seconds until the owl may ask
 let owlFree = 0;                         // round-robin over the owl pool
 let flapT = 0, flapUp = false;           // the wingbeat's own clock
+let flyIn = 8;                           // seconds until the fly may ask —
+                                         // the first no sooner than 8 s
+let flyFree = 0;                         // round-robin over the fly pool
+let buzzT = 0, buzzUp = false;           // the buzz's own clock
+let snacks = 0;                          // the noon's tally
 
 
 function leap() {
@@ -161,6 +210,12 @@ function walkAgain() {
   owlIn = 0;                             // and the owl clock restarts
   initOwlSeed();                         // the same run, the same owl
   owlFree = 0;
+  flies.forEach((f) => { f.x = -999; }); // the noon goes home too
+  flyIn = 8;                             // and the fly clock restarts
+  initFlySeed();                         // the same run, the same dragonfly
+  flyFree = 0;
+  snacks = 0;                            // a fresh run earns fresh snacks
+  dino.glow = 0;                         // no bite's light crosses runs
   ground.color = "#5b4a3a";
   sky.forEach((s) => { s.alpha = 0.15; });
   moon.alpha = 0.25;
@@ -267,6 +322,43 @@ on.tick((dt) => {
       o.x = -999;                        // flown off: park
     }
   });
+  // the fly's day shift: the owl's launch law turned generous — it asks
+  // every flyIn seconds, launches ONLY feet-down with nothing ahead,
+  // and the draw happens only on a real launch (waiting consumes no
+  // randomness). night parks the shift: the owl owns those hours.
+  if (!night) {
+    flyIn -= dt;
+    if (flyIn <= 0) {
+      const feetDown = dino.y >= H - 9;
+      const clearAhead = cacti.every((c) => c.x <= -999 || c.x + c.w <= dino.x);
+      if (feetDown && clearAhead) {
+        const f = flies[flyFree % FLIES];
+        flyFree += 1;
+        f.x = W + 2;
+        f.y = H - 15;
+        say("bzzz");
+        flyIn = 10 + fnext() * 12;         // one draw, on the fly's stream
+      }
+    }
+  }
+  flies.forEach((f) => {
+    if (f.x > -100) {
+      f.x -= speed * 1.2 * dt;           // the bonus crosses makeably
+      buzzT += dt;
+      if (buzzT >= 0.09) {               // the buzz, its own clock
+        buzzT = 0;
+        buzzUp = !buzzUp;
+      }
+      f.y = H - 15 - (buzzUp ? 1 : 0);   // the buzz lifts, never dips
+    } else if (f.x > -999 && f.x < -100) {
+      f.x = -999;                        // crossed: park
+    }
+  });
+  // the bite's light wears at 6/s — the honest staircase (the studio
+  // keeps the last light a wire game sent; nothing decays it for us)
+  if (dino.glow > 0) {
+    dino.glow = Math.max(0, Math.round((dino.glow - 6 * dt) * 1000) / 1000);
+  }
   if (!night && meters >= 200) {         // the desert goes dark
     night = true;
     ground.color = "#2b2620";
@@ -280,15 +372,25 @@ on.tick((dt) => {
     moon.glow = nightT >= 1 ? 4 : 0;     // and then the moon shines
     clouds.forEach((c) => { c.alpha = 1 - 0.5 * nightT; });
   }
-  hud.text = `THE LONG RUN  ·  space to leap  ·  ${meters} m`;
+  hud.text = `THE LONG RUN  ·  space to leap  ·  ${meters} m` +
+             (snacks > 0 ? `  ·  ${snacks} snack${snacks > 1 ? "s" : ""}` : "");
 });
 
 on.hit((a, b) => {
   if (dead) return;
-  const hazard = a.tag === "hazard" ? a : b;
   if (a.tag !== "player" && b.tag !== "player") return;
+  const other = a.tag === "player" ? b : a;
+  if (other.tag === "snack") {           // the noon pays the bold
+    snacks += 1;
+    other.x = -999;                      // eaten: gone
+    dino.glow = 6;                       // the bite's light, whole this frame
+    say("+1 snack — lunch at noon");
+    flyIn = Math.min(flyIn, 4 + fnext() * 6); // lunch summons the swarm:
+    return;                              // one draw, on the real event
+  }
+  if (other.tag !== "hazard") return;
   dead = true;
-  hazard.x = -999;
+  other.x = -999;
   const meters = Math.floor(dist / 10);
   win(`down at ${meters} m — r walks again`);
 });
