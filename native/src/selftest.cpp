@@ -223,9 +223,19 @@ int main() {
     ok(minVy < -300, "ball bounces forever");
   }
 
-  // 9. the version quad rides in the binary too
-  ok(std::string(dxn3::DXN3_VERSION) == "3.1.9",
-     "native version constant matches the release");
+  // 9. the version quad rides in the binary too — and the binary's
+  // word agrees with the release FILE, read at runtime instead of
+  // hardcoded here: a bump can no longer forget to teach this pin
+  {
+    std::ifstream vf(repoPath("VERSION"));
+    std::string rel;
+    std::getline(vf, rel);
+    while (!rel.empty() && (rel.back() == '\r' || rel.back() == ' '))
+      rel.pop_back();
+    ok(!rel.empty() && std::string(dxn3::DXN3_VERSION) == rel,
+       "native version constant matches the release (" +
+           std::string(dxn3::DXN3_VERSION) + ")");
+  }
 
   // 10. png writer: checksum vectors, real structure, byte determinism
   {
