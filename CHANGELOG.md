@@ -1,3 +1,19 @@
+## v3.1.35 — the night gets a sky
+
+- **dino.js: the 200 m night now arrives with seven stars and a
+  moon.** The sky comes from its OWN seeded stream ("the night
+  sky" — the desert's cactus seed stays dedicated, and a probe pin
+  proves it by matching every star position against an independent
+  FNV/xorshift emulation). Day: alpha 0.15, a rumor. At 200 m the
+  alpha law fades the sky in over two seconds (stars → 0.9, moon →
+  1.0, clouds dim to half) and the moon ends at `"glow": 4` — the
+  engine's two light fields as weather. r walks again under a
+  fresh day (sky reset pinned). Gate 6: dino entities 11 → 19.
+- Probe lesson recorded: JS bitwise ops yield SIGNED int32, so the
+  seed loop multiplies a NEGATIVE double (with 2^53-exceeding
+  rounding) before >>>0 restores unsigned — the probe's emulation
+  had to match both quirks to pin the stream.
+
 ## v3.1.34 — the shelters
 
 - **invaders.js grows the classic SHELTERS — four arches of 7

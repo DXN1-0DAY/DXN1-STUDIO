@@ -2,9 +2,12 @@
 // run:  dxn3 sdk/examples/dino.js
 // space/jump leaps · the desert scrolls faster forever · the cacti
 // come from a SEEDED shuffle — the same run, the same desert, forever.
+// the NIGHT SKY (stars + moon) comes from its OWN seed — the desert's
+// seed stays dedicated — and the alpha law fades it in at 200 m:
+// day alpha 0.15, night alpha 0.9, and then the moon shines.
 // r walks again after the fall.
 const dxn3 = require("dxn3");
-const { rect, label, find, background, say, win, on, run } = dxn3;
+const { rect, circle, label, find, background, say, win, on, run } = dxn3;
 const W = dxn3.W, H = dxn3.H;
 
 background("#0f1117");
@@ -16,6 +19,31 @@ dino.tag = "player";
 
 const clouds = [rect("cloud-a", 20, 6, 14, 2, "#2b3148"),
                 rect("cloud-b", 70, 10, 18, 2, "#242a40")];
+
+// the NIGHT SKY: seven stars and a moon from their own seeded stream
+// (the cactus seed is the desert's alone — the sky never shuffles it).
+// Day: alpha 0.15, a rumor. The run passes 200 m and the alpha law
+// fades the sky in over two seconds — the engine's field as weather.
+let sseed = 2166136261 >>> 0;
+for (const ch of "the night sky") {
+  sseed ^= ch.charCodeAt(0);
+  sseed = (sseed * 16777619) >>> 0;
+}
+const snext = () => {
+  sseed ^= sseed << 13; sseed >>>= 0;
+  sseed ^= sseed >>> 17;
+  sseed ^= sseed << 5;  sseed >>>= 0;
+  return sseed / 4294967296;
+};
+const sky = [];
+for (let i = 0; i < 7; ++i) {
+  const s = rect(`star-${i}`, 2 + Math.floor(snext() * (W - 6)),
+                 3 + Math.floor(snext() * 9), 1, 1, "#e2e8f0");
+  s.alpha = 0.15;
+  sky.push(s);
+}
+const moon = circle("moon", W - 15, 4, 5, 5, "#f1f5f9");
+moon.alpha = 0.25;
 
 const CACTI = 6;                         // the pool: parked off right
 const cacti = [];
@@ -39,7 +67,7 @@ const next = () => {
   return seed / 4294967296;
 };
 
-let speed = 55, dist = 0, vy = 0, dead = false, night = false;
+let speed = 55, dist = 0, vy = 0, dead = false, night = false, nightT = 0;
 let spawnIn = 2.2;                       // seconds until the next cactus
 let free = 0;                            // round-robin over the pool
 
@@ -60,6 +88,13 @@ function walkAgain() {
   dino.y = H - 9;
   cacti.forEach((c) => { c.x = -999; });
   spawnIn = 2.2;
+  night = false;                         // a fresh run is a fresh day
+  nightT = 0;
+  ground.color = "#5b4a3a";
+  sky.forEach((s) => { s.alpha = 0.15; });
+  moon.alpha = 0.25;
+  moon.glow = 0;
+  clouds.forEach((c) => { c.alpha = 1; });
   hud.text = "THE LONG RUN  ·  space to leap  ·  0 m";
 }
 
@@ -102,6 +137,13 @@ on.tick((dt) => {
     night = true;
     ground.color = "#2b2620";
     say("night falls at 200");
+  }
+  if (night && nightT < 1) {             // the sky fades in over two seconds
+    nightT = Math.min(1, nightT + dt / 2);
+    sky.forEach((s) => { s.alpha = 0.15 + 0.75 * nightT; });
+    moon.alpha = 0.25 + 0.75 * nightT;
+    moon.glow = nightT >= 1 ? 4 : 0;     // and then the moon shines
+    clouds.forEach((c) => { c.alpha = 1 - 0.5 * nightT; });
   }
   hud.text = `THE LONG RUN  ·  space to leap  ·  ${meters} m`;
 });
