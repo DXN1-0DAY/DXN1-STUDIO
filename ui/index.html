@@ -157,6 +157,10 @@ body{background:var(--win); color:var(--text); font:var(--font); user-select:non
 .vec3 .vf input:focus{outline:none;}
 .vec3 .vf:focus-within{border-color:var(--brand);}
 .det-hint{padding:10px 12px; color:var(--faint); font-size:11px; line-height:1.6;}
+.det-actions{display:flex; gap:6px; flex-wrap:wrap; padding:2px 10px; margin-top:2px;}
+.det-actions button{flex:1; background:var(--panel2); border:1px solid var(--border);
+  color:var(--text); border-radius:4px; height:24px; font-size:11px; cursor:pointer; min-width:52px;}
+.det-actions button:hover{background:var(--hover); border-color:var(--hair);}
 .pathpt{display:flex; align-items:center; gap:6px; padding:2px 10px 2px 108px; font-size:11px;
   color:var(--dim);}
 .pathpt button{background:var(--panel2); color:var(--dim); border:1px solid var(--border);
@@ -289,6 +293,8 @@ body{background:var(--win); color:var(--text); font:var(--font); user-select:non
       <button data-act="toggle-left">Place Actors / Outliner <span class="k"></span></button>
       <button data-act="toggle-right">Details <span class="k"></span></button>
       <button data-act="toggle-bottom">Content Browser / Output Log <span class="k"></span></button>
+      <hr>
+      <button data-act="reset-layout">Reset Saved Layout <span class="k"></span></button>
     </div></div>
     <div class="menu"><button>Tools</button><div class="drop">
       <button data-act="validate">Validate Scene <span class="k"></span></button>
@@ -332,16 +338,16 @@ body{background:var(--win); color:var(--text); font:var(--font); user-select:non
       <div class="pbody" id="tab-place">
         <div class="phead">Basic</div>
         <div class="actors">
-          <div class="actor" data-tag=""><span class="ic">▣</span><span class="nm">Solid Block</span></div>
-          <div class="actor" data-tag="mover"><span class="ic">⇄</span><span class="nm">Mover</span></div>
-          <div class="actor" data-tag="goal"><span class="ic">⚑</span><span class="nm">Goal</span></div>
-          <div class="actor" data-tag="hazard"><span class="ic">☠</span><span class="nm">Hazard</span></div>
-          <div class="actor" data-tag="spike"><span class="ic">▲</span><span class="nm">Spike</span></div>
-          <div class="actor" data-tag="bouncy"><span class="ic">◎</span><span class="nm">Bouncy</span></div>
-          <div class="actor" data-tag="ball"><span class="ic">⬤</span><span class="nm">Ball</span></div>
-          <div class="actor" data-tag="coin"><span class="ic">◉</span><span class="nm">Coin</span></div>
-          <div class="actor" data-tag="sign"><span class="ic">▤</span><span class="nm">Sign</span></div>
-          <div class="actor" data-tag="player"><span class="ic">☻</span><span class="nm">Player Spawn</span></div>
+          <div class="actor" draggable="true" data-tag=""><span class="ic">▣</span><span class="nm">Solid Block</span></div>
+          <div class="actor" draggable="true" data-tag="mover"><span class="ic">⇄</span><span class="nm">Mover</span></div>
+          <div class="actor" draggable="true" data-tag="goal"><span class="ic">⚑</span><span class="nm">Goal</span></div>
+          <div class="actor" draggable="true" data-tag="hazard"><span class="ic">☠</span><span class="nm">Hazard</span></div>
+          <div class="actor" draggable="true" data-tag="spike"><span class="ic">▲</span><span class="nm">Spike</span></div>
+          <div class="actor" draggable="true" data-tag="bouncy"><span class="ic">◎</span><span class="nm">Bouncy</span></div>
+          <div class="actor" draggable="true" data-tag="ball"><span class="ic">⬤</span><span class="nm">Ball</span></div>
+          <div class="actor" draggable="true" data-tag="coin"><span class="ic">◉</span><span class="nm">Coin</span></div>
+          <div class="actor" draggable="true" data-tag="sign"><span class="ic">▤</span><span class="nm">Sign</span></div>
+          <div class="actor" draggable="true" data-tag="player"><span class="ic">☻</span><span class="nm">Player Spawn</span></div>
         </div>
         <div class="phead">Hint</div>
         <div class="det-hint">Click an actor to place it at the viewport center, or drag it onto the world. Movers ride their path at <i>pspeed</i> px/s — deterministic from scene load, just like spark.</div>
@@ -439,23 +445,23 @@ body{background:var(--win); color:var(--text); font:var(--font); user-select:non
 /* ================================================================
    DXN1 STUDIO 3 — editor brain. One file, no deps.
    ================================================================ */
-const VERSION = "3.1.119";
+const VERSION = "3.1.120";
 const GATES = "58 probes walked · all green";
 
 const SCENES = [
   {f:"playground.dxn1.json", thumb:"assets/thumb-playground.png"},
-  {f:"level-1.dxn1.json",  thumb:"assets/thumb-forest.png"},
+  {f:"level-1.dxn1.json",  thumb:"assets/thumb-l1.png"},
   {f:"level-2.dxn1.json",  thumb:"assets/thumb-forest.png"},
   {f:"level-3.dxn1.json",  thumb:"assets/thumb-forest.png"},
-  {f:"level-4.dxn1.json",  thumb:"assets/thumb-forest.png"},
-  {f:"level-5.dxn1.json",  thumb:"assets/thumb-industrial.png"},
+  {f:"level-4.dxn1.json",  thumb:"assets/thumb-l4.png"},
+  {f:"level-5.dxn1.json",  thumb:"assets/thumb-l5.png"},
   {f:"level-6.dxn1.json",  thumb:"assets/thumb-industrial.png"},
   {f:"level-7.dxn1.json",  thumb:"assets/thumb-industrial.png"},
-  {f:"level-8.dxn1.json",  thumb:"assets/thumb-industrial.png"},
-  {f:"level-9.dxn1.json",  thumb:"assets/thumb-void.png"},
+  {f:"level-8.dxn1.json",  thumb:"assets/thumb-l8.png"},
+  {f:"level-9.dxn1.json",  thumb:"assets/thumb-l9.png"},
   {f:"level-10.dxn1.json", thumb:"assets/thumb-void.png"},
   {f:"level-11.dxn1.json", thumb:"assets/thumb-void.png"},
-  {f:"level-12.dxn1.json", thumb:"assets/thumb-void.png"},
+  {f:"level-12.dxn1.json", thumb:"assets/thumb-l12.png"},
 ];
 
 const TAGCOLOR = {
@@ -490,6 +496,33 @@ const $ = id => document.getElementById(id);
 const clamp = (v,a,b)=>Math.max(a,Math.min(b,v));
 const esc = s => String(s).replace(/[&<>"]/g, c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
 const now = ()=>{const d=new Date(); return d.toTimeString().slice(0,8);};
+
+/* ── editor prefs — the studio remembers its desk (localStorage) ── */
+const PREFKEY="dxn1-studio-3-prefs";
+function savePrefs(){
+  try{ localStorage.setItem(PREFKEY, JSON.stringify({
+    v:1, cam:S.cam, snap:S.snap, grid:S.grid, gridStep:S.gridStep,
+    tool:S.tool, cur:S.cur, hidden:[...S.hidden],
+    left:$("left").style.display==="none"?"off":"on",
+    right:$("right").style.display==="none"?"off":"on",
+    bottom:$("bottom").classList.contains("min")?"min":"full",
+  })); }catch(e){ /* storage may refuse — the desk resets, no harm */ }
+}
+function loadPrefs(){
+  let p=null;
+  try{ p=JSON.parse(localStorage.getItem(PREFKEY)||"null"); }catch(e){}
+  if(!p||p.v!==1) return false;
+  if(p.cam&&typeof p.cam==="object"&&isFinite(p.cam.x)&&isFinite(p.cam.z)) S.cam=p.cam;
+  S.snap=!!p.snap; S.grid=p.grid!==false;
+  if(p.gridStep>0) S.gridStep=p.gridStep;
+  if(["select","pan","zoom"].includes(p.tool)) setTool(p.tool);
+  if(Array.isArray(p.hidden)) S.hidden=new Set(p.hidden);
+  if(p.left==="off") $("left").style.display="none";
+  if(p.right==="off") $("right").style.display="none";
+  if(p.bottom==="min") $("bottom").classList.add("min");
+  if(typeof p.cur==="string"&&S.scenes[p.cur]) S.cur=p.cur;
+  return p;
+}
 
 function toast(title,msg,kind){
   const t=document.createElement("div"); t.className="toast"+(kind?" "+kind:"");
@@ -568,7 +601,12 @@ function finishBoot(done){
   log("info","[gates] "+GATES);
   log("info","[spark] gravity "+GRAV+" · jump "+JUMP_VY+" · movers ride their path");
   buildScenePicker(); buildContent();
+  const p = loadPrefs();
   loadScene(S.scenes[S.cur] ? S.cur : Object.keys(S.scenes)[0], true);
+  if(p&&p.cam&&isFinite(p.cam.x)&&isFinite(p.cam.z)){ S.cam=p.cam; draw(); renderStats(); }
+  fitCanvas();
+  if(p){ toast("Welcome back","Editor layout restored — scene, camera, panels");
+    log("info","[prefs] restored — scene, camera, tool, grid, panels"); }
   setTimeout(()=>$("splash").classList.add("gone"), 420);
 }
 
@@ -640,7 +678,7 @@ function loadScene(f, quiet){
   S.history=[]; S.hidx=-1; pushHistory("scene load");
   $("scenepick").value=f;
   renderAll();
-  if(!quiet){ toast("Scene loaded", f); log("evt",`[scene] ${f} — ${(S.scenes[f].entities||[]).length} entities on the stage`); }
+  if(!quiet){ toast("Scene loaded", f); log("evt",`[scene] ${f} — ${(S.scenes[f].entities||[]).length} entities on the stage`); savePrefs(); }
 }
 function saveScene(){
   const d=S.scenes[S.cur];
@@ -770,6 +808,15 @@ function draw(){
       cx.fillStyle="#ff9b26"; cx.fillRect(hx,hy,5,5);
     }
   }
+  /* rubber-band overlay (screen space) */
+  if(mouse.marquee){
+    const m=mouse.marquee;
+    const [ax,ay]=world2scr(Math.min(m.x0,m.x1),Math.min(m.y0,m.y1));
+    const [bx,by]=world2scr(Math.max(m.x0,m.x1),Math.max(m.y0,m.y1));
+    cx.fillStyle="rgba(255,155,38,.13)"; cx.fillRect(ax,ay,bx-ax,by-ay);
+    cx.strokeStyle="rgba(255,155,38,.8)"; cx.lineWidth=1;
+    cx.setLineDash([4,3]); cx.strokeRect(ax,ay,bx-ax,by-ay); cx.setLineDash([]);
+  }
   /* hud sim-ready hint */
   cx.fillStyle="rgba(255,255,255,.35)"; cx.font="11px Segoe UI"; cx.textAlign="left";
   cx.fillText(`${d.name} — P plays it, drag panels, the wire is honest`, 12, H-12);
@@ -866,19 +913,67 @@ function colorField(label,get,set){
 function renderDetails(){
   const box=$("details"); box.innerHTML="";
   const sel=[...S.sel].map(byName).filter(Boolean);
+  const cat=t=>{const c=document.createElement("div"); c.className="det-cat"; c.textContent=t; box.appendChild(c);};
   if(!sel.length){
     box.innerHTML=`<div class="det-hint">Nothing selected.<br><br>
-      Click an entity in the viewport or the Outliner. Shift-click to multi-select.
-      Numeric fields scrub when you drag them sideways, like the real thing.</div>`;
+      Click an entity in the viewport or the Outliner. Shift-click to multi-select,
+      or drag a rubber band across empty ground. Drag actors from the palette
+      straight into the world. Numeric fields scrub when you drag them sideways.</div>`;
     return;
   }
   if(sel.length>1){
-    box.innerHTML=`<div class="det-hint"><b>${sel.length} entities selected.</b><br><br>
-      Drag in the viewport to move them together. Details shows single entities only.</div>`;
+    /* multi-edit — UE5 style: transforms, align, distribute, batch appearance */
+    const all=fn=>{ sel.forEach(fn); pushHistory("multi-edit"); renderAll(); savePrefs(); };
+    cat("Multi-Edit");
+    {const head=document.createElement("div"); head.className="det-hint";
+     head.innerHTML=`<b>${sel.length} entities selected.</b><br>Edits apply to every selected entity.`;
+     box.appendChild(head);}
+    cat("Transform");
+    /* scrub-safe: mutate + draw per tick; history rides numField's own pointerup */
+    box.appendChild(numField("nudge x",()=>0,(v,d)=>{ sel.forEach(e=>{e.x=S.snap?Math.round((e.x+d)/S.gridStep)*S.gridStep:e.x+d;}); draw(); renderStats(); }));
+    box.appendChild(numField("nudge y",()=>0,(v,d)=>{ sel.forEach(e=>{e.y=S.snap?Math.round((e.y+d)/S.gridStep)*S.gridStep:e.y+d;}); draw(); renderStats(); }));
+    cat("Align & Distribute");
+    const mk=(label,fn)=>{ const b=document.createElement("button"); b.textContent=label;
+      b.addEventListener("click",()=>all(fn)); return b; };
+    const rowX=document.createElement("div"); rowX.className="det-actions";
+    rowX.append(
+      mk("Left",    ()=>{const v=Math.min(...sel.map(e=>e.x)); sel.forEach(e=>e.x=v);}),
+      mk("Center X",()=>{const lo=Math.min(...sel.map(e=>e.x)), hi=Math.max(...sel.map(e=>e.x+e.w));
+                        const c=(lo+hi)/2; sel.forEach(e=>e.x=Math.round(c-e.w/2));}),
+      mk("Right",   ()=>{const v=Math.max(...sel.map(e=>e.x+e.w)); sel.forEach(e=>e.x=v-e.w);}),
+    );
+    box.appendChild(rowX);
+    const rowY=document.createElement("div"); rowY.className="det-actions";
+    rowY.append(
+      mk("Top",     ()=>{const v=Math.min(...sel.map(e=>e.y)); sel.forEach(e=>e.y=v);}),
+      mk("Middle",  ()=>{const lo=Math.min(...sel.map(e=>e.y)), hi=Math.max(...sel.map(e=>e.y+e.h));
+                        const c=(lo+hi)/2; sel.forEach(e=>e.y=Math.round(c-e.h/2));}),
+      mk("Bottom",  ()=>{const v=Math.max(...sel.map(e=>e.y+e.h)); sel.forEach(e=>e.y=v-e.h);}),
+    );
+    box.appendChild(rowY);
+    if(sel.length>2){
+      const rowD=document.createElement("div"); rowD.className="det-actions";
+      rowD.append(
+        mk("Distr X",()=>{const s=[...sel].sort((a,b)=>a.x-b.x);
+          const c0=s[0].x+s[0].w/2, c1=s[s.length-1].x+s[s.length-1].w/2;
+          s.forEach((e,i)=>{e.x=Math.round(c0+(c1-c0)*i/(s.length-1)-e.w/2);});}),
+        mk("Distr Y",()=>{const s=[...sel].sort((a,b)=>a.y-b.y);
+          const c0=s[0].y+s[0].h/2, c1=s[s.length-1].y+s[s.length-1].h/2;
+          s.forEach((e,i)=>{e.y=Math.round(c0+(c1-c0)*i/(s.length-1)-e.h/2);});}),
+      );
+      box.appendChild(rowD);
+    }
+    cat("Appearance");
+    /* scrub-safe: colorField owns its own input/change lifecycle */
+    box.appendChild(colorField("color",()=>sel[0].color||TAGCOLOR[tagOf(sel[0])],v=>sel.forEach(e=>e.color=v)));
+    cat("Actions");
+    const acts=document.createElement("div"); acts.id="det-actions";
+    const dup=document.createElement("button"); dup.textContent="Duplicate All"; dup.onclick=()=>dupSel();
+    const del=document.createElement("button"); del.textContent="Delete All"; del.className="danger"; del.onclick=()=>delSel();
+    acts.append(dup,del); box.appendChild(acts);
     return;
   }
   const e=sel[0];
-  const cat=t=>{const c=document.createElement("div"); c.className="det-cat"; c.textContent=t; box.appendChild(c);};
   cat("Transform");
   box.appendChild(numField("x",      ()=>e.x, (v,d)=>{e.x=S.snap?Math.round((v+d)/S.gridStep)*S.gridStep:v+d;}));
   box.appendChild(numField("y",      ()=>e.y, (v,d)=>{e.y=S.snap?Math.round((v+d)/S.gridStep)*S.gridStep:v+d;}));
@@ -997,7 +1092,7 @@ function makeActor(tag){
 }
 
 /* ── viewport input ───────────────────────────────────────────── */
-let mouse={x:0,y:0,down:false,dragEnt:false,panning:false,start:null,btn:0};
+let mouse={x:0,y:0,down:false,dragEnt:false,panning:false,start:null,btn:0,marquee:null};
 const entAt=(wx,wy)=>{
   for(let i=ents().length-1;i>=0;i--){
     const e=ents()[i];
@@ -1019,7 +1114,10 @@ cv.addEventListener("pointerdown",ev=>{
       if(ev.shiftKey){ S.sel.has(hit.name)?S.sel.delete(hit.name):S.sel.add(hit.name); }
       else if(!S.sel.has(hit.name)) S.sel=new Set([hit.name]);
       mouse.dragEnt={dx:wx,dy:wy,moved:false};
-    } else if(!ev.shiftKey){ S.sel.clear(); }
+    } else {
+      /* empty ground: a drag becomes a rubber band, a click clears — like the real thing */
+      mouse.marquee={x0:wx,y0:wy,x1:wx,y1:wy,add:ev.shiftKey,base:new Set(ev.shiftKey?S.sel:[])};
+    }
     renderOutliner(); renderDetails(); renderStats(); draw();
   }
 });
@@ -1033,6 +1131,7 @@ cv.addEventListener("pointermove",ev=>{
   if(mouse.panning){
     S.cam.x-=ev.movementX/S.cam.z; S.cam.y-=ev.movementY/S.cam.z; draw(); return;
   }
+  if(mouse.marquee){ mouse.marquee.x1=wx; mouse.marquee.y1=wy; draw(); return; }
   if(mouse.dragEnt){
     const dx=wx-mouse.dragEnt.dx, dy=wy-mouse.dragEnt.dy;
     if(Math.abs(dx)>0.5||Math.abs(dy)>0.5){
@@ -1049,9 +1148,26 @@ cv.addEventListener("pointermove",ev=>{
   }
 });
 cv.addEventListener("pointerup",ev=>{
-  if(mouse.dragEnt&&mouse.dragEnt.moved){ pushHistory("move"); renderStats(); }
-  mouse.down=false; mouse.panning=false; mouse.dragEnt=null;
+  if(mouse.marquee){
+    const m=mouse.marquee, x0=Math.min(m.x0,m.x1), x1=Math.max(m.x0,m.x1),
+          y0=Math.min(m.y0,m.y1), y1=Math.max(m.y0,m.y1);
+    if((x1-x0)*(y1-y0)<16){ S.sel=new Set(m.base); }   /* a click, not a band */
+    else{
+      const hits=[];
+      for(const e of ents()){
+        if(S.hidden.has(e.name)||S.filters.get(tagOf(e))===false) continue;
+        if(e.x<x1&&e.x+e.w>x0&&e.y<y1&&e.y+e.h>y0) hits.push(e.name);
+      }
+      S.sel=new Set([...m.base,...hits]);
+      if(hits.length) log("evt",`[select] band caught ${hits.length} entit${hits.length>1?"ies":"y"}`);
+    }
+    mouse.marquee=null; renderOutliner(); renderDetails(); renderStats(); draw();
+  }
+  if(mouse.dragEnt&&mouse.dragEnt.moved){ pushHistory("move"); renderStats(); savePrefs(); }
+  mouse.down=false; mouse.panning=false; mouse.dragEnt=null; mouse.marquee=null;
+  savePrefs();
 });
+const wheel={saveT:null};
 cv.addEventListener("wheel",ev=>{
   ev.preventDefault();
   const [wx,wy]=scr2world(ev.offsetX,ev.offsetY);
@@ -1059,11 +1175,29 @@ cv.addEventListener("wheel",ev=>{
   S.cam.z=clamp(S.cam.z*f,0.2,4);
   S.cam.x=wx-ev.offsetX/S.cam.z; S.cam.y=wy-ev.offsetY/S.cam.z;
   draw(); renderStats();
+  clearTimeout(wheel.saveT); wheel.saveT=setTimeout(savePrefs,400);
 },{passive:false});
 cv.addEventListener("dblclick",ev=>{
   const [wx,wy]=scr2world(ev.offsetX,ev.offsetY);
   const hit=entAt(wx,wy);
   if(hit){ S.sel=new Set([hit.name]); renderDetails(); toast("Selected",hit.name); }
+});
+/* drag-drop placement — the palette's actors land where you let go */
+cv.addEventListener("dragover",ev=>{ ev.preventDefault(); ev.dataTransfer.dropEffect="copy"; });
+cv.addEventListener("drop",ev=>{
+  ev.preventDefault();
+  if(!ev.dataTransfer.types.includes("text/dxn1-actor")) return;
+  const tag=ev.dataTransfer.getData("text/dxn1-actor");
+  const e=makeActor(tag);
+  let [wx,wy]=scr2world(ev.offsetX,ev.offsetY);
+  wx-=e.w/2; wy-=e.h/2;
+  if(S.snap){ wx=Math.round(wx/S.gridStep)*S.gridStep; wy=Math.round(wy/S.gridStep)*S.gridStep; }
+  e.x=Math.round(wx); e.y=Math.round(wy);
+  if(e.path){ for(const p of e.path){p.x+=e.x; p.y+=e.y;} }   /* path points are absolute, like the wire */
+  ents().push(e); S.sel=new Set([e.name]);
+  pushHistory("drop "+(tag||"solid")); renderAll(); savePrefs();
+  toast("Dropped",e.name+" at "+e.x+", "+e.y);
+  log("evt",`[drop] ${e.name} (${e.x}, ${e.y})`);
 });
 window.addEventListener("keydown",ev=>{
   if(ev.target.tagName==="INPUT"||ev.target.tagName==="SELECT"||ev.target.tagName==="TEXTAREA") return;
@@ -1380,11 +1514,12 @@ document.addEventListener("click",()=>document.querySelectorAll(".menu.open").fo
 document.querySelectorAll(".menu .drop button").forEach(b=>{
   b.addEventListener("click",()=>{ doAct(b.dataset.act); });
 });
-function toggleSnap(){ S.snap=!S.snap; $("btn-snap").classList.toggle("active",S.snap); renderStats(); }
+function toggleSnap(){ S.snap=!S.snap; $("btn-snap").classList.toggle("active",S.snap); renderStats(); savePrefs(); }
 function setTool(t){ S.tool=t;
   $("tool-select").classList.toggle("active",t==="select");
   $("tool-pan").classList.toggle("active",t==="pan");
   $("tool-zoom").classList.toggle("active",t==="zoom");
+  savePrefs();
 }
 function doAct(a){
   switch(a){
@@ -1397,9 +1532,17 @@ function doAct(a){
     case "dup": dupSel(); break;
     case "del": delSel(); break;
     case "deselect": S.sel.clear(); renderOutliner(); renderDetails(); renderStats(); draw(); break;
-    case "toggle-left": $("left").style.display=$("left").style.display==="none"?"flex":"none"; fitCanvas(); break;
-    case "toggle-right": $("right").style.display=$("right").style.display==="none"?"flex":"none"; fitCanvas(); break;
-    case "toggle-bottom": $("bottom").classList.toggle("min"); fitCanvas(); break;
+    case "toggle-left": $("left").style.display=$("left").style.display==="none"?"flex":"none"; fitCanvas(); savePrefs(); break;
+    case "toggle-right": $("right").style.display=$("right").style.display==="none"?"flex":"none"; fitCanvas(); savePrefs(); break;
+    case "toggle-bottom": $("bottom").classList.toggle("min"); fitCanvas(); savePrefs(); break;
+    case "reset-layout":
+      try{ localStorage.removeItem(PREFKEY); }catch(e){}
+      S.cam={x:-60,y:-40,z:1}; S.snap=false; S.grid=true; setTool("select");
+      $("left").style.display="flex"; $("right").style.display="flex";
+      $("bottom").classList.remove("min");
+      $("btn-snap").classList.remove("active");
+      fitCanvas(); draw(); renderStats(); savePrefs();
+      toast("Layout reset","The desk is factory-fresh"); break;
     case "validate": validateScene(); break;
     case "validate-report": { const out=validateScene(true);
       downloadText((S.scenes[S.cur].name||"scene")+"-report.txt",
@@ -1427,13 +1570,17 @@ $("tool-select").onclick=()=>setTool("select");
 $("tool-pan").onclick=()=>setTool("pan");
 $("tool-zoom").onclick=()=>setTool("zoom");
 $("btn-snap").onclick=toggleSnap;
-$("btn-grid").onclick=()=>{S.grid=!S.grid; draw();};
+$("btn-grid").onclick=()=>{S.grid=!S.grid; draw(); savePrefs();};
 $("btn-play").onclick=()=>togglePlay();
 $("btn-stop").onclick=stopPlay;
 $("btn-pie-stop").onclick=stopPlay;
 $("btn-newscene").onclick=newScene;
 document.querySelectorAll(".actor").forEach(a=>{
   a.addEventListener("click",()=>placeActor(a.dataset.tag));
+  a.addEventListener("dragstart",ev=>{
+    ev.dataTransfer.setData("text/dxn1-actor",a.dataset.tag||"");
+    ev.dataTransfer.effectAllowed="copy";
+  });
 });
 /* view pills */
 $("vp-lit").addEventListener("click",()=>{ S.lit=!S.lit; draw();

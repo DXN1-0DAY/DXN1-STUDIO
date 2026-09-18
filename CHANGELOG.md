@@ -1,3 +1,61 @@
+## v3.1.120 — the editor learns to touch: drag-drop, rubber bands, multi-edit, a desk that remembers
+
+*(the 17:00 UTC boundary owed a tag; the interaction round pays it —
+every promise the editor makes, it now keeps.)*
+
+- **drag-drop placement** — the Place Actors palette is live cargo:
+  every actor card is `draggable`, and dropping one onto the viewport
+  spawns it under the cursor (centered, grid-snapped when snap is on,
+  mover paths rebased like the wire stores them). The palette's own
+  hint text promised "or drag it onto the world" since the first
+  light — the promise is now code, pinned by `ui_editor_probe`'s
+  interaction law.
+- **rubber-band selection** — dragging across empty ground with the
+  select tool draws the orange marquee (translucent fill, dashed
+  edge) and catches every entity it touches; shift-drag adds to the
+  existing selection; a click that never grows stays a click and
+  clears. The band is drawn in screen space over the world, and each
+  catch is logged.
+- **multi-edit Details** — selecting several entities no longer
+  cops out with "Details shows single entities only". The Details
+  panel becomes a multi-edit bench: nudge x/y scrubbers that move
+  the whole selection (grid-aware), align Left / Center X / Right /
+  Top / Middle / Bottom, distribute X/Y for three or more, a color
+  applied to every selected entity, and Duplicate All / Delete All.
+  Scrub-safe by design — the per-tick handlers mutate and draw
+  without rebuilding the panel out from under the drag.
+- **a desk that remembers** — the editor persists its layout to
+  localStorage (`dxn1-studio-3-prefs`): scene, camera, tool, grid,
+  snap, hidden entities, panel visibility. Boot restores it and says
+  so ("Welcome back"), the wheel-zoom save is debounced, and Window ▸
+  **Reset Saved Layout** puts the desk back to factory-fresh.
+- **the truncator is named** — the mystery that sawed
+  `sdk/examples/background.py` to zero bytes "four times" (R43's tug
+  of war) was never a racing agent: `sdk_wire_probe`'s own copy step
+  opened the repo's example with `"w"` mode before reading it —
+  every gates run truncated the file itself, gate 6 failed on the
+  corpse, and the probe's pins still passed green because the
+  engine's default stage also builds 3 entities (vacuous). The copy
+  now reads the source first and writes the tmp child, a new pin
+  fails loudly if the example is ever a corpse again ("restore: git
+  show 301d388"), and the refusals' law is a real negative test once
+  more — the child carries the actual hello-world print again.
+  9 pins green, file intact after the run.
+- **per-scene thumbnails** — the four-thumb era is over: six new
+  generated thumbs (`thumb-l1/l4/l5/l8/l9/l12.png`) give the forest
+  gate, the deep grove, the foundry floor, the industrial dusk, the
+  void gate, and the epilogue their own faces in the Content Browser.
+  Every thumb is a real PNG (the JPEG-bytes law caught all six raw
+  from the generator; PIL converted them before the probe looked).
+- **`make serve`** — the studio is one command away: `make serve`
+  hosts the repo root on :8080 so `ui/index.html` rides `../scenes/`
+  with no configuration; `make gates` and `make version` round out
+  the targets.
+- **the probe grows a tooth** — `ui_editor_probe` pins 9 now: the
+  interaction law (drag-drop markers, the marquee, align+distribute,
+  persistence + reset) joins the panels, the sync law, the PNG
+  magic, the fifth-version corner, and spark's constants.
+
 ## v3.1.119 — the shell words, the release train, and the editor's first light
 
 *(two hour boundaries — 15:00 and 16:00 UTC — owed a tag; the release

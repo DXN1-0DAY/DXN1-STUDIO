@@ -90,6 +90,20 @@ pin("PIE speaks spark's physics constants",
 lint = [w for w in ("TODO", "FIXME", "XXX", "placeholder-here") if w in html]
 pin("no TODO/FIXME lint in the editor", not lint, ", ".join(lint))
 
+# pin 8 — the interaction law: drag-drop placement, rubber-band select,
+# multi-edit align/distribute, and localStorage desk persistence all exist
+INTERACTIONS = [
+    ("drag-drop placement", 'draggable="true"' in html
+        and 'addEventListener("drop"' in html and "dxn1-actor" in html),
+    ("rubber-band select", "mouse.marquee" in html and "band caught" in html),
+    ("multi-edit align+distribute", "Center X" in html and "Distr X" in html
+        and "Distr Y" in html),
+    ("desk persistence", "localStorage" in html and "dxn1-studio-3-prefs" in html
+        and "reset-layout" in html),
+]
+missing = [nm for nm, ok in INTERACTIONS if not ok]
+pin("all 4 interaction laws present", not missing, ", ".join(missing))
+
 fails = [n for n, ok in pins if not ok]
 print(f"\nui_editor_probe: {len(pins)-len(fails)}/{len(pins)} pins green "
       f"in {time.time()-t0:.1f}s")

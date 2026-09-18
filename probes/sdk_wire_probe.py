@@ -29,11 +29,21 @@ tfd, TRACE = tempfile.mkstemp(prefix="dxn3_sdk_wire_", suffix=".trace")
 os.close(tfd)
 
 # the child's copy: outside the tree, so the engine's save-before-run
-# law writes its normalization where the repo cannot hear it
+# law writes its normalization where the repo cannot hear it.
+# THE TRUNCATOR LAW (R45, caught live): this copy once read
+#   with open(SRC, "w") as f: f.write(open(SRC, "r").read())
+# — the "w" open TRUNCATED THE REPO'S OWN EXAMPLE to zero before the
+# read, every gates run sawed the file to 0 bytes, and gate 6's next
+# run failed on the corpse while the pins above still passed (the
+# engine's default stage also builds 3 entities — vacuous green).
+# The copy reads SRC first, then writes the tmp file; and the source's
+# own pin below fails LOUDLY if the example is ever a corpse again.
+with open(SRC, "r") as f:
+    src_text = f.read()
 tmpdir = tempfile.mkdtemp(prefix="dxn3_sdk_wire_run_")
 SCRIPT = os.path.join(tmpdir, "background.py")
-with open(SRC, "w") as f:
-    f.write(open(SRC, "r").read())
+with open(SCRIPT, "w") as f:
+    f.write(src_text)
 CHILD_NEEDLE = "python3 " + SCRIPT      # matches the child, never the
                                         # engine (whose argv says --scene)
 
@@ -91,6 +101,9 @@ def pin(name, cond, detail=""):
           (f"  [{detail}]" if detail and not cond else ""))
 
 pin("boot alive (the IDE opens the script; the studio renders)", alive)
+pin("the source example is real (the hello-world lives; if this fails, "
+    "restore: git show 301d388:sdk/examples/background.py)",
+    len(src_text) > 100, f"{len(src_text)} bytes")
 wm = re.search(rb"EVENT wire: hosting ([^\n]*)", tr)
 pin("the wire confesses the host: 'wire: hosting python3 <script>'",
     wm is not None and b"python3" in wm.group(1)
