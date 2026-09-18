@@ -1,3 +1,52 @@
+## v3.1.118 — the SDK's shell words confess in kind
+
+- **the host's lifecycle rides the wire's direct line** — the studio
+  hosted child games in any language (the sdk/ protocol) for rounds,
+  and its whole lifecycle spoke only to the console rail while the
+  event wire, the machine's own mouth, stayed silent. Three words
+  exist now: `wire: hosting <cmd>` (the runner and your file, named),
+  `wire: built N entities` (the child's scene packet became the
+  stage), and `wire: host exited (code N)` (the child returned or
+  died, code and all). The writer was hoisted above the spawner: the
+  host spawns BEFORE the loop, so a parked event would die in the old
+  Game's slot — the same ghost the wire probe convicted at the boot.
+- **sdk_wire_probe (gate 8's 56th walker)** pins all three off the
+  REAL wire, green x2: the engine boots a /tmp copy of background.py,
+  ctrl+R runs it, the wire names the host, the child is slain mid-run
+  and the exit's code is named. The pins include two laws in kind:
+  one-truth-two-mouths (the rail's entity count and the wire's agree)
+  and the refusals' law (the child's prints NEVER masquerade on the
+  wire — the console is their only mouth, and the probe pins the
+  silence). The probe runs the script from a /tmp copy because ctrl+R
+  SAVES before it runs — the engine's honest law — and the probe must
+  not write into the tree.
+- **campaign_walk.py retired** (the R42 debt, collected) — the family
+  folds into grand_tour_probe (gate 8, hops 1-3, green x2, ~50-55s);
+  the ungated five-minute stall was a live trap, and the family tree
+  (CAMPAIGN.md, the vocabulary's receipts column) now says so.
+- **sdk/PROTOCOL.md grows the wire's dictionary** — the host's three
+  words with their receipts, the direct-line law, and the prints'
+  honest silence, in kind with ARCHITECTURE.md's table.
+- **selftest 1067; gate 8 walks 56** — R41's debt 4 collected; every
+  debt from R42's list is now closed.
+- **the release train leaves the station** — the tags have lived on
+  the remote for rounds while GitHub's Releases page stayed a rumor.
+  `.github/workflows/release.yml` mints a Release for every pushed
+  tag with notes lifted by `scripts/release_notes.py` (the chain:
+  CHANGELOG section, else the tag's own message, else the commit's
+  subject — the honest words travel with the version), and the sweep
+  job backfills every station the train ever passed. Gate 5's law now
+  has teeth beyond the repo: the CHANGELOG's top section IS the
+  release page.
+- **the empty-script confession** — v3.1.118's SDK round shipped
+  `background.py` truncated to zero bytes (the .bak was the tell) and
+  gate 6 caught it red: the fake engine fed the hollow example and
+  got `scene=NO frames=0 entities=0`. The hello-world is restored and
+  sdk_wire_probe's refusals' law is honest again — its negative pin
+  (the child's print never rides the wire) needs the print to EXIST
+  to mean anything; an empty script made the silence vacuous. The
+  gate law proven once more: never break the gates, even by accident.
+
 ## v3.1.117 — hop 3: the sign valve and the receipt lock
 
 - **the grand tour walks level-2's interior** — the wire now pins
