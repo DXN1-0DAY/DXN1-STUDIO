@@ -207,13 +207,32 @@ inline Cmd parseCommand(std::string_view line) {
           else
             c.num = static_cast<float>(tail[0] - '0');
         }
+      } else if (c.arg.rfind("graph", 0) == 0) {
+        // the shape, drawn; an optional count rides like log's (1..8)
+        const size_t b = c.arg.find_first_not_of(" \t", 5);
+        const std::string tail = b == std::string::npos
+                                     ? ""
+                                     : c.arg.substr(b);
+        if (tail.empty()) {
+          c.num = 5.f;               // a bare :git graph draws five
+        } else {
+          const bool digits = std::all_of(tail.begin(), tail.end(),
+              [](unsigned char ch) { return std::isdigit(ch) != 0; });
+          if (!digits || tail.size() != 1 || tail[0] < '1' ||
+              tail[0] > '8')
+            c.error = "usage: :git graph [n] — the count is a number, "
+                      "1 to 8";
+          else
+            c.num = static_cast<float>(tail[0] - '0');
+        }
       } else if (c.arg == "branch" || c.arg == "tag") {
         // the locals, spoken; the milestones, counted — no argument,
         // no writes
       } else {
-        c.error = "usage: :git [log [n] | branch | tag] — a bare :git "
-                  "speaks the repo's truth; :git log [n] walks the last "
-                  "n commits (1 to 8); :git branch names the locals; "
+        c.error = "usage: :git [log [n] | graph [n] | branch | tag] — "
+                  "a bare :git speaks the repo's truth; :git log [n] "
+                  "walks the last n commits (1 to 8); :git graph [n] "
+                  "draws the shape; :git branch names the locals; "
                   ":git tag counts the milestones";
       }
     }
@@ -465,10 +484,11 @@ inline std::string usageHintFor(std::string_view typed) {
     return " :drift [n] — the amber census: a bare verb lists the lines "
            "that disagree with the disk, a number leaps to the Nth";
   if (verb == "git")
-    return " :git [log [n] | branch | tag] — the repo's truth: the "
-           "branch, uncommitted, the last commit's name; :git log [n] "
-           "walks the memory; :git branch names the locals; :git tag "
-           "counts the milestones (read-only)";
+    return " :git [log [n] | graph [n] | branch | tag] — the repo's "
+           "truth: the branch, uncommitted, the last commit's name; "
+           ":git log [n] walks the memory; :git graph [n] draws the "
+           "shape; :git branch names the locals; :git tag counts the "
+           "milestones (read-only)";
   if (verb == "w")
     return " :w [file] — save the session's work; a .bak is kept; the "
            "receipt wears the census it saved (+a ~c -r) and :journal "

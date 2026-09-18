@@ -2642,6 +2642,40 @@ int main(int argc, char** argv) {
                   "engine: the last " + std::to_string(spoke) + " — " +
                   joined);
             }
+          } else if (cmd.arg.rfind("graph", 0) == 0) {
+            // the repo's shape, drawn: git's own --graph lane, the
+            // last N commits (a bare :git graph draws five, the cap
+            // is eight), one console line per lane row — the rail is
+            // the canvas, :journal already proved multi-line speech.
+            // Each row is capped at 64 columns; a repo without git
+            // (or a machine without git) is refused honestly, like
+            // every git mouth: the verb reads the shape, it never
+            // cuts one.
+            const int want = cmd.num > 0 ? static_cast<int>(cmd.num) : 5;
+            const int cap = std::min(want, 8);
+            const std::string out =
+                readCmd("git log --graph --format=\"%h %s\" -" +
+                        std::to_string(cap) + " 2>/dev/null");
+            if (out.empty()) {
+              ide.console.push_back(
+                  "engine: git is not speaking here — no repository, or "
+                  "no git on the machine");
+            } else {
+              ide.console.push_back(
+                  "engine: the graph, the last " + std::to_string(cap) + ":");
+              int spoke = 0;
+              for (size_t i = 0; i < out.size();) {
+                size_t e = out.find('\n', i);
+                if (e == std::string::npos) e = out.size();
+                std::string ln = out.substr(i, e - i);
+                i = e + 1;
+                if (!ln.empty() && ln.back() == '\r') ln.pop_back();
+                if (ln.empty()) continue;
+                if (ln.size() > 64) ln = ln.substr(0, 64) + "…";
+                ide.console.push_back("  " + ln);
+                if (++spoke == cap) break;
+              }
+            }
           } else if (cmd.arg == "branch") {
             // the local branches, spoken — the current wears the
             // star, the names join into ONE receipt, the cap is six

@@ -217,6 +217,27 @@ w = cmd("journal junk", until=lambda b: b"usage: :journal" in b
 pin("a story is refused at the clear's door",
     b"usage: :journal" in w or b"knows only clear" in w, w[:120])
 
+# ---- 8. the repo's shape: :git graph ------------------------------------
+# the probe's cwd is a plain temp dir: no repo, and the verb must say
+# so honestly rather than guess. Then the probe plants a repo (one
+# empty commit), and the graph draws the shape on the rail.
+w = cmd("git graph", until=lambda b: b"git is not speaking" in b)
+pin("a graph in a repo-less night is refused honestly",
+    b"git is not speaking here" in w, w[:120])
+import subprocess
+subprocess.run(["git", "init", "-q", WORK], check=True)
+subprocess.run(["git", "-C", WORK, "-c", "user.email=probe@dxn3",
+                "-c", "user.name=probe", "commit", "--allow-empty", "-q",
+                "-m", "the graph's first word"], check=True)
+w = cmd("git graph", until=lambda b: b"the graph" in b)
+pin("the graph draws the commit's shape on the rail",
+    re.search(rb"the graph, the last \d+:", w) is not None and
+    re.search(rb"\* [0-9a-f]{7,} the graph's first word", w) is not None,
+    w[-200:])
+w = cmd("git graph 9", until=lambda b: b"usage" in b, takes_stage=False)
+pin("a graph that asks for nine is refused with the usage",
+    b"usage: :git graph [n]" in w, w[:120])
+
 # ---- cleanup -----------------------------------------------------------
 try: os.kill(pid, 15)
 except Exception: pass
