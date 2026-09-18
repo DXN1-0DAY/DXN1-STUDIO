@@ -1,3 +1,46 @@
+## v3.1.109 — one event wire, every save (the IDE's pen confesses)
+
+- **the save census rides the wire** — the sim had a wire (respawn,
+  the shell's chain receipts) but the IDE's saves were mute on it:
+  the rail heard the census, the wire heard nothing. Now every save
+  wears its confession on the DXN3_TRACE event wire — `ide: saved
+  <path> (+a ~c -r)` — save-as, plain :w, the keyboard's ctrl+S, and
+  :wq (whose save rides even as the studio sleeps). A storyless save
+  confesses `(same)` — the wire does not lie by omission where the
+  rail is allowed its silence — and ` bak` rides when the pen kept a
+  past (:wq grew its own bak flag for the confession; it used to
+  pass nullptr and deny the .bak the pen actually kept). The scene's
+  save speaks too: `shell: scene saved <path>`.
+- **the wire's direct line** — the wire is one slot wide, and a
+  parked event can DIE before its tick: the wire probe caught a
+  save's census parked at w=2.22, the cadence gate deferred the
+  flush, the starter's scene build landed at w=2.27 and the event
+  was wiped with the old Game object (`game = Game(...)` is a new
+  wire entirely). Saves now ride `traceEventNow`: flush whatever is
+  parked, then write THIS word straight to the file the instant the
+  pen falls. The save's truth is tied to the pen's instant, not the
+  tick's.
+- **probes/ide_wire_probe.py (11 pins, gate 8's 54th)** — drives the
+  real binary in a pty with DXN3_TRACE=<file> at 25 ms and reads the
+  wire the child itself wrote: the birth census with real adds, the
+  rail's census and the wire's census agreeing (one truth, two
+  mouths), the storyless save confessing (same) bak, the keyboard's
+  save carrying its census even behind the render flood, and the
+  :wq save riding with the kept past. Driving lessons the probe
+  paid for: typing goes one honest char at a time (a burst is a gale
+  the pty's one-frame mouth chokes on), the reflex must ride IN the
+  0.6 s idle window (the machine auto-runs — and the auto-run SAVES
+  — after 0.6 s of a dirty idle), and the pin reads the WIRE, not
+  the flood (the rail's bytes sit behind the render backlog; the
+  wire's word lands the moment the pen falls).
+- **:journal clear wears its gate pin** — the R39 debt collected:
+  ide_door_probe grows four keepsake pins (21): the count forgiven
+  spoken, the disk's ledger blank after the clear, the bare journal
+  confessing the blank night, and a story refused at the clear's
+  door. The R39 attempt died on a stale takes_stage — the journal
+  verb takes the stage since v3.1.108, and the probe's shadow walks
+  with it now.
+
 ## v3.1.108 — :journal clear (the keepsake learns to forgive)
 
 - **:journal clear** — the save ledger was forever: the last twelve

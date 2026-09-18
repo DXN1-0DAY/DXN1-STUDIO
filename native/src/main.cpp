@@ -1821,6 +1821,20 @@ int main(int argc, char** argv) {
       game.traceEv.clear();
     }
   };
+  // the wire's direct line: for receipts whose truth is tied to the
+  // instant they happened (a save's census), parking the event waits
+  // for the tick — and the tick can be BEATEN by the host's scene
+  // build, which replaces the Game (and the wire's slot with it). The
+  // wire probe caught exactly that: a save's census parked at w=2.22,
+  // the cadence gate deferred it, the starter's scene build landed at
+  // w=2.27 and the event died in the old object's slot. Flush what's
+  // parked, then write THIS word straight to the file.
+  auto traceEventNow = [&](const std::string& text) {
+    trFlushEv();
+    if (!traceF) return;
+    std::fprintf(traceF, "  EVENT %s\n", text.c_str());
+    std::fflush(traceF);
+  };
   int cols = 80, rows = 24;
   dxn3::Screen scr;
   auto doFit = [&]() {
@@ -1874,6 +1888,19 @@ int main(int argc, char** argv) {
              dxn3::ideGutterWidth(static_cast<int>(ide.lines.size())) -
              (mo ? 7 : 0);
     };
+
+  // the save's confession on the event wire (DXN3_TRACE): the census
+  // the rail speaks, one event wire for every verb. A storyless save
+  // confesses "(same)" — the wire does not lie by omission; " bak"
+  // rides when the pen kept a past. The census wears the rail's own
+  // spacing — one truth, two mouths. Rides the direct line: the
+  // save's word is tied to the pen's instant, not the tick's.
+  auto traceSave = [&](const std::string& path,
+                       const dxn3::IdeDiffReport& rep, bool bak) {
+    traceEventNow("ide: saved " + path +
+                  (rep.same() ? std::string(" (same)") : savedCounts(rep)) +
+                  (bak ? " bak" : ""));
+  };
 
   // the verb dispatch: ONE law for the bar's enter and the macro's
   // playback — parse the line, walk the chain, take the stage. Returns
@@ -3212,6 +3239,7 @@ int main(int argc, char** argv) {
                 ide.console.push_back("engine: saved as " + ide.path +
                                       savedCounts(rep) +
                                       (bak ? "  (.bak kept)" : ""));
+                traceSave(ide.path, rep, bak);
               } else {
                 ide.path = old;    // the name was refused: the doc
                 cmdErr = err;      // keeps its own
@@ -3224,26 +3252,35 @@ int main(int argc, char** argv) {
               ide.console.push_back("engine: saved " + ide.path +
                                     savedCounts(rep) +
                                     (bak ? "  (.bak kept)" : ""));
+              traceSave(ide.path, rep, bak);
             } else { cmdErr = err; cmdErrT = 3.5f; }
           } else {
             const std::string path = cmd.arg.empty() ? scenePath : cmd.arg;
             const std::string err = dxn3::Game::saveScene(path, game.scene);
-            if (err.empty()) game.say("saved " + path + "  (.bak kept)", 2.2);
+            if (err.empty()) {
+              game.say("saved " + path + "  (.bak kept)", 2.2);
+              traceEventNow("shell: scene saved " + path);
+            }
             else { cmdErr = err; cmdErrT = 3.5f; }
           }
         } else if (cmd.verb == "wq") {
           if (ideEver) {
             std::string err;
+            bool bak = false;          // the wire confesses the kept past
             dxn3::IdeDiffReport rep;   // the pen is quiet, the journal is not
-            if (ideSave(ide, &err, nullptr, &rep)) {
+            if (ideSave(ide, &err, &bak, &rep)) {
               dxn3::ideJournalPush(ide.journal,
                                    dxn3::ideJournalLine(rep, ide.path));
+              traceSave(ide.path, rep, bak);
               return true;                         // the save is the sleep
             }
             cmdErr = err; cmdErrT = 3.5f;    // a failed pen never quits
           } else {
             const std::string err = dxn3::Game::saveScene(scenePath, game.scene);
-            if (err.empty()) return true;
+            if (err.empty()) {
+              traceEventNow("shell: scene saved " + scenePath);
+              return true;
+            }
             cmdErr = err; cmdErrT = 3.5f;
           }
         } else if (cmd.verb == "q") {
@@ -3628,6 +3665,7 @@ int main(int argc, char** argv) {
           ide.console.push_back("engine: saved " + ide.path +
                                 savedCounts(rep) +
                                 (bak ? "  (.bak kept)" : ""));
+          traceSave(ide.path, rep, bak);
         } else ide.console.push_back("engine: " + err);
       } else if (keys.ctrlR) {
         ideRun();
