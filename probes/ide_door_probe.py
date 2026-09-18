@@ -58,8 +58,11 @@ def send(s):
 in_ide = True   # the boot stage is the editor
 def cmd(line, until=None, cap=2.5, takes_stage=True):
     """esc to play (only when the IDE holds the stage — esc in play
-    QUITS), ':' opens the bar (its own frame), the verb typed in one
-    honest burst, enter. Then WAIT FOR THE ANSWER: slices until the
+    QUITS), ':' opens the bar (its own frame), the verb typed ONE
+    HONEST CHAR AT A TIME (the R41 law — a burst is a gale the pty's
+    one-frame mouth chokes on; 13-char verbs lost their tails while
+    short ones survived, and the difference taught the wrong lesson),
+    enter. Then WAIT FOR THE ANSWER: slices until the
     `until` predicate matches the post-enter bytes, or `cap` — the
     receipt rides a real host re-boot, the flood never sleeps, and
     the answer arrives when it arrives."""
@@ -69,7 +72,9 @@ def cmd(line, until=None, cap=2.5, takes_stage=True):
         send(b"\x1b"); drainf(0.5)
         buf = b""
     send(":"); drainf(0.2)
-    send(line); drainf(0.15)
+    for _ch in line:
+        send(_ch); time.sleep(0.03)
+    drainf(0.15)
     send("\r")
     mark = len(buf)
     end = time.time() + cap
@@ -265,6 +270,31 @@ pw = plain(w)
 pin("the dashboard speaks the session's story",
     b"this session" in pw and b"no save the disk heard yet" in pw,
     pw[-200:])
+
+# ---- 9b. the filled branch: a save with a story fills the row ----------
+# The blank branch rode the provable blank after the clear (section 7).
+# Now the session DOES fall a save: the story is typed one honest char
+# at a time (the doc holds the stage), the auto-run's 0.6s law is
+# given its head BEFORE the save is asked (whatever the reflex does
+# with a boot page, it does it first — the bar's :w is the session's
+# LAST word in the ledger), then the row must name the newest save.
+for _ch in "the stats row wears a story":
+    send(_ch); time.sleep(0.03)
+drainf(1.2)
+# the save-as receipt itself is NOT pinned on the rail: the auto-run's
+# host owns the screen here and the console is two rows deep — the
+# receipt fell out of the paint before any needle could reach it. The
+# ROW below is the save's receipt: the ledger cannot name a save the
+# disk never heard.
+cmd("w story_b.py", until=None, cap=3.5)
+w = cmd("stats", until=lambda b: b"this session" in b)
+pw = plain(w)
+pin("the filled row names the newest save",
+    b"this session" in pw and
+    b"in the ledger \xe2\x80\x94 the last: story_b.py" in pw, pw[-220:])
+pin("the filled row keeps the undo depth",
+    re.search(rb"this session \xe2\x80\x94 \d+ undo steps? kept", pw)
+    is not None, pw[-220:])
 
 # ---- cleanup -----------------------------------------------------------
 try: os.kill(pid, 15)

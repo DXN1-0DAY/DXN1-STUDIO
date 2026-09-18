@@ -3312,18 +3312,28 @@ int main(int argc, char** argv) {
           // the session's story rides the dashboard's third row: the
           // ledger's census (the whole keepsake, this night and the
           // last), the name of the newest save, the undo depth — the
-          // usage dashboard in one breath
+          // usage dashboard in one breath. The FILLED night speaks in
+          // TWO rows: the console's rail clips at cols-3 (the paint's
+          // own law) and a long path name buried the undo depth in
+          // the old single row — the probe's filled-branch pin caught
+          // the tail dying. Two short rows live inside the two-row
+          // window; the blank night keeps one breath.
           ide.console.push_back(
               "engine: this session — " +
               (ide.journal.empty()
-                   ? std::string("no save the disk heard yet")
+                   ? std::string("no save the disk heard yet · ") +
+                         std::to_string(ide.undo.size()) + " undo step" +
+                         (ide.undo.size() == 1 ? "" : "s") + " kept"
                    : (std::to_string(ide.journal.size()) +
                       (ide.journal.size() == 1 ? " save" : " saves") +
                       " in the ledger — the last: " +
                       ide.journal.back().substr(
-                          ide.journal.back().rfind("  ") + 2))) +
-              " · " + std::to_string(ide.undo.size()) + " undo step" +
-              (ide.undo.size() == 1 ? "" : "s") + " kept");
+                          ide.journal.back().rfind("  ") + 2))));
+          if (!ide.journal.empty())
+            ide.console.push_back(
+                "engine: this session — " +
+                std::to_string(ide.undo.size()) + " undo step" +
+                (ide.undo.size() == 1 ? "" : "s") + " kept");
           if (const auto sel = dxn3::ideSelRange(ide)) {
             // the selection's own census — spoken LAST so the console's
             // two-row window shows the most specific truth newest
