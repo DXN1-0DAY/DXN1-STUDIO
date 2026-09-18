@@ -74,12 +74,13 @@ def cmd(line, until=None, cap=2.5, takes_stage=True):
     in_ide = takes_stage
     return buf
 
-def wire_events(from_off=0):
+def wire_events(from_off=0, path=None):
     """the child's own confession file, from a byte offset — the wire
     flushes on its 25 ms tick, so a short settle precedes every read."""
+    if path is None: path = TRACE
     time.sleep(0.35)
     try:
-        with open(TRACE, "rb") as f:
+        with open(path, "rb") as f:
             f.seek(from_off)
             return f.read()
     except OSError:
@@ -178,6 +179,53 @@ except ChildProcessError:
 except Exception:
     gone = False
 pin("the studio sleeps after the save", gone)
+
+# ---- 5. the scene's save confesses too (a play-mode night) -------------
+# a session where NO IDE ever opened: boot on a scene in play, :w —
+# the shell's save wears the wire as well (the IDE's saves spoke in
+# the last scenario; ideEver was true, so the play-mode :w saved the
+# DOC. This child never takes the stage: the scene belongs to the
+# shell alone). The second night gets its own trace file — the trace
+# opens trunc, and the first night's word is already read and pinned.
+TRACE2 = os.path.join(WORK, "wire2.log")
+SCENES = os.path.join(WORK, "scenes")
+os.makedirs(SCENES, exist_ok=True)
+SRC = os.path.join(REPO, "scenes", "playground.dxn1.json")
+SEEN = os.path.join(SCENES, "playground.dxn1.json")
+shutil.copyfile(SRC, SEEN)
+src_bytes = open(SRC, "rb").read()
+
+pid, fd = pty.fork()
+if pid == 0:
+    os.chdir(WORK)
+    os.environ["TERM"] = "xterm-256color"
+    os.environ["DXN3_TRACE"] = TRACE2
+    os.environ["DXN3_TRACE_MS"] = "25"
+    os.execv(BIN, [BIN, "scenes/playground.dxn1.json"])
+    os._exit(1)
+
+buf = b""
+in_ide = False                      # play mode: ':' IS the bar, no esc
+alive2 = drainf(3.0)
+pin("the play-mode studio boots alive", alive2)
+off2 = 0
+w = cmd("w", until=lambda b: b"saved" in b, takes_stage=False)
+ev2 = b""
+end = time.time() + 4.0
+while time.time() < end:
+    chunk = wire_events(off2, TRACE2)
+    off2 += len(chunk)
+    ev2 += chunk
+    if b"EVENT shell: scene saved" in ev2:
+        break
+pin("the shell's scene save rides the wire",
+    b"EVENT shell: scene saved scenes/playground.dxn1.json" in ev2,
+    ev2[-200:])
+pin("the pen kept the bytes it found (the .bak is the original)",
+    os.path.exists(SEEN + ".bak") and
+    open(SEEN + ".bak", "rb").read() == src_bytes)
+pin("the saved scene is a real scene again",
+    os.path.exists(SEEN) and open(SEEN, "rb").read().startswith(b"{"))
 
 # ---- cleanup -----------------------------------------------------------
 try: os.kill(pid, 15)

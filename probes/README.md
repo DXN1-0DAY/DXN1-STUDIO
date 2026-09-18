@@ -193,3 +193,14 @@ or retired:
   quit the studio, start a fresh binary in the same cwd, and
   :journal speaks the census line the previous session wrote
   (17/17, three runs). The project's ledger outlives the session.
+- BORN IN v3.1.109: `ide_wire_probe` — one event wire, every save
+  (15 pins, three runs straight). The IDE's pen confesses on the
+  wire the sim's respawn already used: save-as with its birth
+  census, the storyless save's honest "(same)", the keyboard's
+  ctrl+S, :wq riding even as the studio sleeps, and the shell's
+  scene save from a play-mode night. Two machine truths it caught:
+  a parked event can be wiped by the host's scene-build (saves ride
+  traceEventNow's direct line now), and the machine auto-runs — and
+  the auto-run SAVES — after 0.6 s of a dirty idle (the probe's
+  reflex rides inside that window). The rail's census and the
+  wire's census agree: one truth, two mouths.
