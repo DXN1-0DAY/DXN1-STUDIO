@@ -1,3 +1,49 @@
+## v3.1.123 — the ferries thaw, and the wire speaks the decks' truth
+
+*(the 21:00 UTC boundary owed a tag; the R48 round pays it.)*
+
+- **engine mover telemetry** (native/src/main.cpp): when DXN3_TRACE is
+  set, every live mover now confesses its true pose on the wire at the
+  player line's own cadence — `MOVER n=<name> x= y= pxi= dir=` (pxi is
+  the path index the deck heads to, 1 = outbound; dir is the ping-pong
+  sign). The tour's boarding windows read the deck's REAL position
+  instead of inferring a phase from a constant that was measured
+  against a frozen statue. Same env gate; invisible in honest play.
+- **the thaw** (scenes/level-2.dxn1.json): two lines — mover-1 and
+  mover-2 wear tag:"mover" and the ferries run their paths, ping-pong
+  deterministic per spark.cpp's stepMovers. The diagonal deck now
+  carries riders from (400,360) to (660,250) and back; mover-2 slides
+  980..1130 over the walk to the goal (64px over a walking hero's
+  head — no interference, verified on the wire).
+- **the tour's thawed board** (probes/grand_tour_probe.py): the frozen
+  era's receipt-lock (a 45-step pipeline constant measured against the
+  statue itself) is REPLACED by the telemetry law — fire the strip
+  jump when the deck is OUTBOUND within ~80px of its home corner; the
+  arc chases the leaving deck and boards mid-rise, and the ride law
+  carries the rider to the 655 disembark whose arc lands 940..966,
+  past the saw. The scan fallback stays for a wire-less run.
+- **the door stand**: the goal touch fires the transition, but the
+  walk that kept holding 'd' carried the hero off ground-b's end
+  DURING the 0.75s load — the fall death respawned him and the
+  respawn CANCELLED pendingNext (eleven deaths in one run). The hero
+  now stands hands-off at the door while the shell speaks the welcome.
+- **the stuck-law sharing fix**: dec_level3's ground-walk set
+  st.last_x before stuck_jump read it, every new sample measured dx=0,
+  and the stuck law fired 'wd' every 100ms of honest walking — the
+  arcs landed in the fang and the tour bled 40 lives in its first
+  thawed run. The fall-through now leaves last_x to the stuck check,
+  the way dec_level1/dec_level2 always had it.
+- **R48 also BUILT** the level-3 summit walk (dec_level3's interior:
+  the fang band, the ledge-a jump, two telemetry-driven lift
+  boardings, the coast-jump disembark whose flight silence keeps the
+  arc out of the watcher, the golden door) — ten trace autopsies deep,
+  the chain fires end to end but the 170s cap crossing is not proven
+  yet: HOPS stays at three and growing to level-4 is R49's first
+  debt. The law set ships in this probe so the next round walks in
+  armed.
+- ui/index.html, VERSION, version.hpp and the README badge wear
+  3.1.123 (the fifth corner pinned by ui_editor_probe).
+
 ## v3.1.122 — the viewport wears tabs, the gizmo moves armies, the palette wears its icons
 
 *(the 19:00 UTC boundary owed a tag; the R47 round pays it.)*

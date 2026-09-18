@@ -1740,6 +1740,21 @@ int main(int argc, char** argv) {
                  p ? static_cast<double>(p->y) : -1.0,
                  p ? static_cast<double>(p->vx) : 0.0,
                  p ? static_cast<double>(p->vy) : 0.0);
+    // THE MOVER LINES (R48, the thaw's instrument): every live mover
+    // confesses its true pose at the player line's own cadence — the
+    // tour's boarding windows read the deck's REAL position instead of
+    // inferring a phase from a constant that was measured against a
+    // frozen statue (the R47 lesson: the 45-step pipeline was honest
+    // for the statue, untrustworthy for a moving deck). pxi is the
+    // path index the deck currently heads to (1 = outbound, away from
+    // path[0]); dir is the ping-pong sign. Same env gate; invisible
+    // in honest play.
+    for (const auto& mv : game.scene.entities) {
+      if (mv.tag != "mover" || !mv.alive || mv.path.size() < 2) continue;
+      std::fprintf(traceF, "  MOVER n=%s x=%.1f y=%.1f pxi=%d dir=%d\n",
+                   mv.name.c_str(), static_cast<double>(mv.x),
+                   static_cast<double>(mv.y), mv.pathIdx, mv.pathDir);
+    }
     if (!game.traceEv.empty()) {       // the sim's confessions, on the wire
       std::fprintf(traceF, "  EVENT %s\n", game.traceEv.c_str());
       game.traceEv.clear();

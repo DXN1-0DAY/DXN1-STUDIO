@@ -69,8 +69,17 @@ BIN = os.path.join(REPO, "native", "build", "dxn3-native")
 
 HOPS = ["level-1", "level-2", "level-3"]  # receipts to pin (hop 3 walks
                                           # level-2's interior: the sign
-                                          # valve, the diagonal deck, the
-                                          # walk under mover-2 to the goal)
+                                          # valve, the THAWED diagonal deck,
+                                          # the walk under mover-2 to the
+                                          # goal). R48 also BUILT the hop-4
+                                          # summit walk (dec_level3's
+                                          # interior: fang, ledge-a, two
+                                          # lifts, the golden door) — the
+                                          # law set is in place and the
+                                          # telemetry-driven boardings fire,
+                                          # but the 170s cap crossing is not
+                                          # proven yet: growing HOPS to
+                                          # level-4 is R49's first debt.
 CAP = 170.0                       # wall cap (gate 8 kills probes at 180)
 
 tfd, TRACE = tempfile.mkstemp(prefix="dxn3_grand_tour_", suffix=".trace")
@@ -107,6 +116,11 @@ def send(s): os.write(fd, s if isinstance(s, bytes) else s.encode())
 
 LINE = re.compile(rb"w=\s*([\d.]+) f=\s*\d+ s=\s*(\d+)[^\n]*px=(-?[\d.]+) py=(-?[\d.]+) "
                   rb"vx=(-?[\d.]+) vy=(-?[\d.]+)")
+# THE MOVER LINES (R48): the engine confesses every live mover's true
+# pose at the player line's cadence — the boarding windows read the
+# deck's REAL position instead of inferring a phase from a constant
+# that was measured against a frozen statue (the R47 lesson).
+MOVERL = re.compile(rb"MOVER n=(\S+) x=(-?[\d.]+) y=(-?[\d.]+) pxi=(\d+) dir=(-?\d+)")
 WELCOME = re.compile(rb"EVENT shell: welcome to (\S+)")
 EVENT = re.compile(rb"^  EVENT", re.M)
 
@@ -124,6 +138,7 @@ class TraceTail:
         self.prev_s = None          # the s of the newest telemetry line
         self.welcome = None         # the newest welcome receipt's name
         self.welcome_s = None       # the s spoken just before it
+        self.movers = {}            # name -> (x, y, pxi, dir) — the decks'
     def pump(self):
         try:
             with open(self.path, "rb") as f:
@@ -143,6 +158,12 @@ class TraceTail:
                              float(m.group(4)), float(m.group(5)),
                              float(m.group(6)))
                 self.prev_s = self.last[1]
+            elif ln.startswith(b"  MOVER"):
+                mm = MOVERL.search(ln)
+                if mm:
+                    self.movers[mm.group(1).decode()] = (
+                        float(mm.group(2)), float(mm.group(3)),
+                        int(mm.group(4)), int(mm.group(5)))
             elif ln.startswith(b"  EVENT"):
                 wm = WELCOME.search(ln)
                 if wm:
@@ -164,7 +185,7 @@ tail = TraceTail(TRACE)
 class St:
     __slots__ = ("last_x", "stuck", "stuck_w", "last_jump", "py_hist",
                  "last_w", "scan", "load_s", "drive_until", "drive_w",
-                 "drive_s")
+                 "drive_s", "coast")
     def __init__(self):
         self.last_x = None; self.stuck = 0; self.stuck_w = None
         self.last_jump = 0.0
@@ -185,6 +206,9 @@ class St:
         self.drive_s = 0                       # the fire's step — the drive
                                                # ends at the first grounded
                                                # tick past the launch
+        self.coast = False                     # THE COAST LATCH: the 'd'
+                                               # release is committed until
+                                               # the fire or the window closes
 
 def ride_check(st, h):
     """THE RIDE LAW: grounded + py carried over ~4 telemetry samples
@@ -216,7 +240,7 @@ def common_reset(st, h):
     x = h[2]
     if st.last_x is not None and abs(x - st.last_x) > 400:
         st.stuck = 0; st.last_x = None; st.py_hist = []; st.last_w = None
-        st.scan = random.uniform(0.0, 5.2)
+        st.scan = random.uniform(0.0, 5.2); st.coast = False
         return True
     return False
 
@@ -295,19 +319,16 @@ def dec_level2(h, st, now):
     w, s, x, y, vx, vy = h
     grounded = abs(vy) < 1.0
     if ride_check(st, h):               # MOVER-1 (diagonal 400,360->660,250)
+        # hands off: a rider's feet never exceed the deck's top (360),
+        # so the saw (top 396) cannot clip a true rider — but a CAMPER
+        # who walks left off the deck's left edge falls PAST it into
+        # the saw and the void (the 40-death lesson: no walking on a
+        # mover you cannot see)
         if x >= 655 and now - st.last_jump > 0.5:
             st.py_hist = []; st.last_w = None; st.last_x = x
-            return b"wd"                # the disembark arc lands 928+
+            return b"wd"                # the disembark arc lands 940..966
         st.last_x = x
-        return b""                      # hands off: a rider's feet never
-                                        # exceed the deck's top (360), so
-                                        # the saw (top 396) cannot clip a
-                                        # true rider — but a CAMPER who
-                                        # walks left off the deck's left
-                                        # edge falls PAST it into the saw
-                                        # and the void (the 40-death
-                                        # lesson: no walking on a mover
-                                        # you cannot see)
+        return b""
     # THE DRIVE: sustained right through the boarding flight. It starts
     # the instant the lock fires and ENDS AT THE FIRST GROUNDED TICK
     # past the launch — the boarding. Whatever he stands on then, the
@@ -350,45 +371,35 @@ def dec_level2(h, st, now):
     # law three — THE GROUND-ONLY BOARD: the deck is under the arc or
     # it isn't — a miss is an honest death. The py >= 380 guard keeps
     # the hop off the sign's top (py 316: a hop from up there lands in
-    # the pit). The 1.1s floor is the RACE the ride detection must
-    # win: the boarding arc spends 0.83s airborne, so a 0.6s cooldown
-    # would re-fire ON the deck and hop the rider straight back into
-    # the pit (the 52-death loop the first draft died of).
+    # the pit). The 0.4s cooldown is the RACE the ride detection must
+    # win: the boarding arc spends 0.83s airborne, so a re-fire ON the
+    # deck would hop the rider straight back into the pit.
     #
-    # THE RECEIPT LOCK — the ride law's amendment, earned by the sim:
-    # a geometry-only board is IMPOSSIBLE here (0 successes across
-    # 1,820 simulated arcs from 7 launch spots — the deck approaches
-    # from up-right, and every left approach either side-clips its
-    # wall, lands the saw, or feeds the void). The deck boards only
-    # within ~17 physics steps of leaving its low corner (400,360) —
-    # and its clock is deterministic from scene load, which the wire
-    # SPEAKS: the welcome receipt's s= field is the movers' t=0. So
-    # the hop fires when (s - s_receipt) mod 308 sits in the low-
-    # corner window: exact, death-proof (the mover's clock never
-    # resets), and read from the same trace as every other law. If
-    # the receipt's step was ever unreadable, the PHASE SCAN (the
-    # per-life uniform delay) stays as the honest fallback.
-    if x >= 280 and y >= 380 and grounded:
+    # THE THAWED BOARD (R48): the deck's true pose rides the wire as a
+    # MOVER line — fire when the deck is OUTBOUND (pxi==1) within ~80px
+    # of its home corner (the sim's ph 0..78 band: the arc chases the
+    # leaving deck and boards mid-rise, landing 940..966 past the saw;
+    # the arrival turn is caught for free — at home the deck flips to
+    # pxi==1). The frozen era inferred this window from the 45-step
+    # pipeline, a constant measured against the statue itself; the wire
+    # now speaks the deck's real position and the inference is dead.
+    # If the wire is ever unreadable, the PHASE SCAN (the per-life
+    # uniform delay) stays as the honest fallback.
+    # THE BOARD owns the STRIP ONLY (x <= 400: ground-a ends at 360).
+    # R48's lesson: the disembark lands 940..966 on ground-b — ALSO
+    # y >= 380 and grounded — and an unbounded x >= 280 gate told THAT
+    # hero to hold LEFT into spike-1 (four saw deaths in one run).
+    if 280 <= x <= 400 and y >= 380 and grounded:
         fire = False
-        if st.load_s is not None:
-            # THE 45-STEP PIPELINE: the welcome receipt is SPOKEN ~45
-            # physics steps (0.75s) before the movers' t=0 — the
-            # transition's own duration, measured twice on live iron
-            # (the boardings landed on the home-standing deck at ph 45
-            # and 47 after fires at ph 1 and 3). The deck boards within
-            # ~17 steps of leaving home, so the lock fires at the true
-            # home's window — and the boarding happens mid-rise, where
-            # the carry is alive (a home-standing deck's flat py blinds
-            # ride_check and the drive walks the rider off the deck's
-            # right end into the saw below).
-            ph = (s - st.load_s) % 308
-            fire = 43 <= ph <= 58
+        m1 = tail.movers.get("mover-1")
+        if m1 is not None:
+            fire = m1[2] == 1 and m1[0] <= 480.0
         elif now - st.last_jump > 1.1 + st.scan:
             fire = True                           # the scan fallback
         if fire and now - st.last_jump > 0.4:
             if _os.environ.get("DXN3_TOUR_DEBUG"):
-                print(f"[board-fire] s={s} load_s={st.load_s} "
-                      f"ph={(s - st.load_s) % 308 if st.load_s is not None else '-'} "
+                m1d = f"{m1[0]:.0f},{m1[1]:.0f},pxi={m1[2]}" if m1 else "-"
+                print(f"[board-fire] s={s} deck(mover-1)={m1d} "
                       f"x={x:.0f}", file=sys.stderr, flush=True)
             st.last_jump = now
             st.drive_until = now + 0.95     # THE DRIVE: outlive the hold's
@@ -404,6 +415,20 @@ def dec_level2(h, st, now):
             st.drive_s = s
             st.last_x = x; return b"wd"
         st.last_x = x; return b"a"          # hold the strip, wait the lock
+    # ground-b, past the saw: walk RIGHT to the goal under the thawed
+    # mover-2 (its box 300..322 hangs 64px over the walking hero's
+    # head — no jump, no interference; the goal is at 1330)
+    if grounded and y >= 380 and 870 <= x < 1290:
+        st.last_x = x; return b"d"
+    # THE DOOR STAND: the goal box starts at 1330 and the touch fires
+    # the transition — but the walk that keeps holding 'd' carries the
+    # hero off ground-b's end (1460) DURING the 0.75s load, the fall
+    # death respawns him, and the respawn CANCELS pendingNext (eleven
+    # deaths in one run). Hands off at the door: the 330px/s coast
+    # spends its 29px inside the goal box and stops there, mid-door,
+    # while the shell speaks the welcome.
+    if grounded and y >= 380 and x >= 1290:
+        st.last_x = x; return b""
     # spike-1 hazard (880..914): safety if an arc ever lands short — the
     # window starts at ground-b's edge (760), because a walk-off from the
     # deck lands ~772 and the hero's own 330px/s momentum carries his
@@ -432,33 +457,177 @@ def dec_level2(h, st, now):
     st.last_x = x
     return b"d"
 
+def dbg3(tag, x, y, vx=0.0):
+    if _os.environ.get("DXN3_TOUR_DEBUG"):
+        print(f"[L3-{tag}] x={x:.0f} y={y:.0f} vx={vx:.0f}",
+              file=sys.stderr, flush=True)
+
 def dec_level3(h, st, now):
+    """THE SUMMIT WALK (R48) — the interior the frozen tour never saw.
+    The spawn walk runs right through the pass-through sign-1; the
+    fang (430..464, top 402) is jumped from R47's band 340 — the feet
+    are 50px clear before the hero's right edge reaches the kill box —
+    and the arc lands 589..629, INSIDE the ledge-a window. The ledge-a
+    jump (549..657, from the ground) clears the ledge's left edge on
+    the rise (box-right x0+83 <= 760) and lands 798..906 on its top.
+    From the ledge's boarding band (783..813) the hero jumps when
+    lift-1 is turning at its bottom (y >= 320, rising): the falling
+    feet meet the rising deck at x 988..1026, the swept-band carry
+    catches, and the ride law owns the deck. On the deck the hero
+    walks right toward the launch band (1060), then at the TOP
+    (py <= 150) jumps: the +247..249px arc lands box-left
+    x0+249 >= 1324 — right of the watcher spike (1290..1324) — on
+    ledge-b. A hero stranded left of the launch band rides down and
+    loop-backs (wa) onto ledge-a at the deck's bottom to re-position.
+    Ledge-b's own jump (1240..1262) clears the watcher AND boards
+    lift-2 low; on lift-2 the hero walks right to 1460 and at the top
+    (py <= 40) the arc flies THROUGH the goal box (1750..1790) — the
+    door IS the disembark."""
     if common_reset(st, h): st.last_x = h[2]; return b"d"
     w, s, x, y, vx, vy = h
     grounded = abs(vy) < 1.0
+    l1 = tail.movers.get("lift-1")
+    l2 = tail.movers.get("lift-2")
+    # THE FLIGHT SILENCE, before every other law: the coast jump's b""
+    # must persist until the hero lands — the airborne hero fails
+    # ride_check, so a silence living inside the ride branch never ran,
+    # the default b"d" re-accelerated the arc to 330, and the hero
+    # flew 120px OVER ledge-b into the void (the ninth autopsy).
+    if st.coast:
+        if not grounded:
+            st.last_x = x; return b""
+        st.coast = False
     if ride_check(st, h):
-        # LIFT-1 (990..1120, 330 -> 190): jump off MID-RIDE at py 200 —
-        # the arc lands ledge-b's safe left, clear of the watcher spike
-        if y <= 200 and x <= 1125 and now - st.last_jump > 0.5:
-            st.py_hist = []; st.last_w = None; st.last_x = x
-            return b"wd"
-        # LIFT-2 (1430..1550, 190 -> 60): at its top the jump arc flies
-        # THROUGH the goal box (1750..1790) — the door IS the disembark
-        if y <= 24 and x >= 1425 and now - st.last_jump > 0.5:
-            st.py_hist = []; st.last_w = None; st.last_x = x
-            return b"wd"
+        if x >= 1400:                       # riding LIFT-2 (deck 1430..1550)
+            if x < 1460:                    # walk to the door's launch band
+                st.last_x = x; return b"d"  # (the release slide lands
+                                            #  box-left ~1470-89, the
+                                            #  deck's edge is 1550)
+            if y <= 40 and l2 is not None and l2[1] <= 90.0:
+                dbg3("door", x, y, vx)
+                st.py_hist = []; st.last_w = None; st.last_x = x
+                return b"wd"                # the golden door: the arc
+                                            # accelerates mid-air (RUN_ACCEL
+                                            # applies airborne) and flies
+                                            # THROUGH the goal box
+            st.last_x = x; return b""
+        if x >= 900:                        # riding LIFT-1 (deck 990..1120)
+            # THE COAST-JUMP DISEMBARK (R48, earned across five trace
+            # autopsies): the full-speed arc overshoots ledge-b — the
+            # watcher spike (1290..1324) leaves no safe full-speed
+            # landing — so the fire rides the vx BAND [230,290] (the
+            # +111..156px arc lands 1156..1251, ledge-b's left region).
+            # The band is crossed BOTH accelerating and coasting, so the
+            # gate watches every tick. The latch buys the FLIGHT
+            # SILENCE: after the fire, b"" until the hero lands again —
+            # releasing it re-arms the default b"d" mid-air, the arc
+            # stretches into the watcher, and the hero dies on the
+            # landing. The rest converges to [1043,1063]: the fire then
+            # happens at x 1055..1081, far from the deck's 1120 edge
+            # (the walk-to-edge walk-off was the first autopsy's kill).
+            if y > 200:
+                if x > 1063: st.last_x = x; return b"a"
+                if x < 1043: st.last_x = x; return b"d"
+                if l1 is not None and l1[1] >= 320.0 and l1[2] == 0 \
+                        and now - st.last_jump > 0.5:
+                    dbg3("loopback", x, y, vx)
+                    st.py_hist = []; st.last_w = None; st.last_x = x
+                    return b"wa"            # the rescue: jump back to ledge-a
+                st.last_x = x; return b""       # hold at the rest
+            if 250 <= vx <= 290 and x <= 1095 \
+                    and now - st.last_jump > 0.4:
+                st.coast = True                 # latch: the flight silence
+                dbg3("lift1-coast", x, y, vx)
+                st.py_hist = []; st.last_w = None; st.last_x = x
+                return b"wd"                    # the coast jump
+            if vx < 300:
+                st.last_x = x; return b"d"      # walk — the band crossing fires
+            st.coast = True                     # release at full speed
+            st.last_x = x; return b""           # (the decay re-crosses the band)
+        st.last_x = x; return b""
+    # ledge-b's LEFT region (1180..1256 — the watcher's kill shadow
+    # starts at box-left 1257): the lift-2 boarding needs a full-speed
+    # run-jump (the arc from a standing start still accelerates mid-air
+    # — RUN_ACCEL applies in the air — but the run-up makes the fire
+    # band deterministic). Position at the run-up start, then run
+    # right and fire mid-run when lift-2 is sinking from its top.
+    if grounded and 140 <= y <= 152 and 1180 <= x <= 1256:
+        win = l2 is not None and l2[1] <= 130.0 and l2[2] == 0
+        if win:
+            if x >= 1240 and vx >= 200 and x <= 1262 \
+                    and now - st.last_jump > 0.4:
+                dbg3("lift2-board", x, y, vx)
+                st.last_jump = now; st.last_x = x
+                return b"wd"                # the run-jump onto the deck
+            if x < 1240:
+                st.last_x = x; return b"d"  # run right through the band
+            st.last_x = x; return b""       # past the band — honest brake
+        if x > 1227:
+            st.last_x = x; return b"a"      # walk to the run-up start
+        if x < 1190:
+            st.last_x = x; return b"d"      # nudge right
+        st.last_x = x; return b""           # hold at the start
+    # ledge-a (760..940, top 330, standing py 286): position to the
+    # boarding band, then wait for lift-1's bottom turn
+    if grounded and 280 <= y <= 292 and 755 <= x <= 945:
+        if 783 <= x <= 813:
+            if l1 is not None and l1[1] >= 320.0 and l1[2] == 1 \
+                    and now - st.last_jump > 0.5:
+                if _os.environ.get("DXN3_TOUR_DEBUG"):
+                    print(f"[L3-board] x={x:.0f} deck={l1[0]:.0f},{l1[1]:.0f}",
+                          file=sys.stderr, flush=True)
+                st.last_jump = now
+                st.drive_until = now + 0.95    # the boarding flight's 'd'
+                st.drive_w = True
+                st.drive_s = s
+                st.last_x = x
+                return b"wd"                # board the rising lift
+            st.last_x = x; return b""       # hold; the cycle returns (4.7s)
         st.last_x = x
-        return b""
-    # the fang (430..464): jump the window — the arc lands ON the
-    # springboard top, the wedge at ledge-a's wall does the climbing
-    if 395 <= x <= 425 and grounded and now - st.last_jump > 0.8:
+        return b"d" if x < 783 else b"a"
+    # the ledge-a jump: from the ground, the rising crossing clears the
+    # ledge's left edge (box-right x0+83 <= 760) and the landing
+    # (x0+249 = 798..906) overlaps the top
+    if grounded and y >= 380 and 549 <= x <= 657 \
+            and now - st.last_jump > 0.8:
+        if _os.environ.get("DXN3_TOUR_DEBUG"):
+            print(f"[L3-ledgeA] x={x:.0f}", file=sys.stderr, flush=True)
         st.last_jump = now; st.last_x = x; return b"wd"
-    # ledge-b: this jump clears the watcher spike AND boards lift-2
-    # whatever its phase (the arcs land 1430..1550 from this window)
-    if 1180 <= x <= 1262 and grounded and now - st.last_jump > 0.5:
+    # the fang (430..464, top 402): R47's band 340 — the feet are 50px
+    # clear before the right edge reaches the kill box; the arc lands
+    # 589..629, inside the ledge-a window
+    if grounded and y >= 380 and 340 <= x <= 380 \
+            and now - st.last_jump > 0.8:
+        if _os.environ.get("DXN3_TOUR_DEBUG"):
+            print(f"[L3-fang] x={x:.0f}", file=sys.stderr, flush=True)
         st.last_jump = now; st.last_x = x; return b"wd"
+    # the FANG WALL: a hero on the ground at x 381..548 who does not
+    # jump is one step from the fang's kill box (x-overlap starts at
+    # 397 — the box-right 431 crossing the fang's left edge 430). The
+    # walk right may NEVER pass 396 without the arc: walk LEFT back
+    # into the fire window (the cooldown has expired by the walk back).
+    if grounded and y >= 380 and 381 <= x <= 548:
+        st.last_x = x
+        return b"a"
+    # the ground walks: through both windows run right; past the ledge
+    # window (658..800) walk LEFT back into it (the ground ends at 800
+    # — beyond is the honest fall). The x < 340 region falls THROUGH to
+    # the stuck check — and the stuck check MUST compare against the
+    # PREVIOUS sample's x, so the fall-through leaves st.last_x alone
+    # (setting it here made every new sample read dx=0 and the stuck
+    # law fired 'wd' every 100ms of honest walking — the arcs landed
+    # in the fang and the tour bled 40 lives in its first run).
+    if grounded and y >= 380:
+        if 340 <= x <= 657:
+            st.last_x = x; return b"d"      # through both windows
+        if x > 657:
+            st.last_x = x; return b"a"      # back to the ledge window
     j = stuck_jump(st, h, now)
-    if j: st.last_x = x; return j
+    if j:
+        if _os.environ.get("DXN3_TOUR_DEBUG"):
+            print(f"[L3-stuck] x={x:.0f} y={y:.0f}", file=sys.stderr,
+                  flush=True)
+        st.last_x = x; return j
     st.last_x = x
     return b"d"
 
@@ -476,6 +645,7 @@ while time.time() - t0 < CAP:
     if tail.welcome and tail.welcome != scene:
         scene = tail.welcome
         st = St()
+        tail.movers.clear()          # the new scene's decks speak for it
         # THE RECEIPT'S STEP: the s= of the telemetry line spoken just
         # before the welcome receipt — the exact physics step the new
         # scene's movers call t=0 (their clock never resets after)
