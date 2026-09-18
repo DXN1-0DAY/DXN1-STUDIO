@@ -188,11 +188,30 @@ if pid == 0:
 buf = b""
 in_ide = True
 drainf(2.0)
-w = cmd("journal", until=lambda b: b"probe_a.py" in b, takes_stage=False)
+w = cmd("journal", until=lambda b: b"probe_a.py" in b, takes_stage=True)
 pin("a fresh session's :journal remembers the last night's save",
     re.search(rb'\+\d+ ~\d+ -\d+\s+probe_a\.py', w) is not None)
 pin("the restarted studio speaks the ledger's voice",
     b"the disk heard" in w, w[:100])
+
+# ---- 7. the clear verb's gate pin (the R39 debt, collected) ------------
+# The R39 attempt died on a stale flag: since :journal clear shipped, the
+# journal verb TAKES THE STAGE (takeStage in the verb's branch) — the old
+# takes_stage=False left the probe's shadow believing play mode held the
+# wheel, so the next ':' typed into the DOC, no bar opened, no receipt
+# came. A probe's state machine must walk with the engine's.
+w = cmd("journal clear", until=lambda b: b"forgiven" in b)
+pin("the clear speaks the count it forgave",
+    b"the journal forgets" in w and b"1 line forgiven" in w, w[:120])
+pin("the disk's ledger is blank after the clear",
+    os.path.exists(JFILE) and open(JFILE).read() == "")
+w = cmd("journal", until=lambda b: b"the journal is blank" in b)
+pin("the bare journal confesses the blank ledger",
+    b"the journal is blank" in w, w[:120])
+w = cmd("journal junk", until=lambda b: b"usage: :journal" in b
+        or b"knows only clear" in b, takes_stage=False)
+pin("a story is refused at the clear's door",
+    b"usage: :journal" in w or b"knows only clear" in w, w[:120])
 
 # ---- cleanup -----------------------------------------------------------
 try: os.kill(pid, 15)
