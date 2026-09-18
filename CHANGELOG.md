@@ -1,3 +1,20 @@
+## v3.1.111 — the repo's shape and the present tense
+
+- **`:git graph [n]`** — the repo's shape drawn on the rail: git's own
+  --graph lane, the last n commits (a bare verb draws five, the cap is
+  eight), one lane row per console line at 64 columns; a repo-less
+  night is refused honestly, like every git mouth.
+- **`:git status`** — the present tense, named: porcelain's own voice,
+  the files the tree is wearing dirty in one receipt (cap six with a
+  deeper tail), a clean tree confessing honestly — the disk and the
+  repo agree.
+- **the dashboard's session row** — `:stats` grows a third row: the
+  ledger's census with the newest save's name (or the honest blank
+  when no save has a story yet) plus the undo depth.
+- ide_door_probe stands at 27 pins (the graph's three, the status's
+  two, the session row's one, the clear verb's four); ide_wire_probe
+  at 15. Gate 8 walks 54.
+
 ## v3.1.110 — the ledger wears the hour it fell
 
 - **the journal's timestamp column** — a ledger without a when is a
