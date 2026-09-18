@@ -1973,6 +1973,9 @@ int main(int argc, char** argv) {
         } else if (cmd.verb == "new") {
           takeStage();
           nextTemplate();
+          // the stage change confesses: the wire names the page the
+          // studio now wears (one word with :open and :scene's law)
+          traceEventNow("shell: template " + std::string(tpls[ide.tpl].name));
         } else if (cmd.verb == "template") {
           // direct load: an exact name wins, a unique prefix resolves,
           // an ambiguous prefix lists, a ghost is refused — like :scene
@@ -2003,6 +2006,7 @@ int main(int argc, char** argv) {
             takeStage();
             ide.tpl = hit;
             loadTemplate(hit);
+            traceEventNow("shell: template " + std::string(tpls[hit].name));
           }
         } else if (cmd.verb == "o" || cmd.verb == "e") {
           // the vim tongue: :o and :e ARE :open — one law, two other
@@ -3806,6 +3810,7 @@ int main(int argc, char** argv) {
         ide.idle = 0;
       } else if (keys.ctrlN) {
         nextTemplate();
+        traceEventNow("shell: template " + std::string(tpls[ide.tpl].name));
       } else if (keys.ctrlG) {
         const int errLine = dxn3::consoleErrorLine(ide.console);
         if (errLine > 0 && ide.lines.size() > 1) {

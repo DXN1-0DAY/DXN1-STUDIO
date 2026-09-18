@@ -178,6 +178,26 @@ ev = wire_events(off); off += len(ev)
 pin("the open's confession rides the wire",
     b"EVENT shell: opened probe_a.py" in ev, ev[-200:])
 
+# ---- 3c. the template's confession --------------------------------------
+# :new cycles the page — a stage change the wire used to miss (:scene
+# and :open spoke, the gallery stayed silent). The rail names the new
+# page ("engine: template — X (...)"), the wire names the same word:
+# one truth, two mouths. The probe does not guess the gallery's order
+# — it reads the name from the rail and demands the wire agree.
+w = cmd("new", until=lambda b: b"engine: template" in b)
+m = re.search(rb"engine: template \xe2\x80\x94 ([a-z]+) ", w)
+pin("the new page's receipt speaks on the rail", m is not None, w[-140:])
+ev = wire_events(off); off += len(ev)
+nm = m.group(1) if m else b""
+pin("the template's name rides the wire",
+    nm and b"EVENT shell: template " + nm in ev, ev[-200:])
+
+# the cycle changed the page the studio wears (the :wq below would
+# save the TEMPLATE's page, not the night's story — its receipt said
+# exactly that when the pin went red: `saved untitled.py (+0 ~9 -25)`).
+# The page is given back before the farewell save.
+w = cmd("open probe_a.py", until=lambda b: b"engine: opened probe_a.py" in b)
+
 # ---- 4. :wq — the save rides the wire even as the studio sleeps --------
 w = cmd("wq", until=lambda b: True, cap=1.2, takes_stage=False)
 time.sleep(0.8)                     # the normal exit flushes the streams
