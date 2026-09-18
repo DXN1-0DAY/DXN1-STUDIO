@@ -1,3 +1,39 @@
+## v3.1.115 — the grand tour walks on
+
+- **the walk grew legs** — chain_walk_probe pinned hop 1
+  (playground -> level-1); the new grand_tour_probe walks the
+  campaign's first TWO hops on the wire and pins a welcome receipt
+  per hop, straight off the event wire (`EVENT shell: welcome to
+  <name>`). Level-1's pit arc (one full jump from a 40px window
+  clears 240px of pit, fangs included), the watcher's window, the
+  elevator's board-by-geometry arc — and THE RIDE LAW, stated for
+  the first time: **no choreography may time a mover**. The movers
+  ping-pong from scene load on a fixed clock, but the walker arrives
+  at whatever phase its own walking earned — so the law boards by
+  geometry (jump windows pinned to the LEDGES, not the mover),
+  detects the carry from telemetry (py carried over four 25ms
+  samples while the hands are off), rides hands-free, and leaves at
+  honest thresholds. A missed attempt is an honest death: the
+  respawn re-walks, the phase shifts, the tour retries per life.
+- **the stall law learns the telemetry clock** — the first draft
+  counted a stalled x across decision ticks (2.5ms) while the
+  telemetry only moves every 25ms, so every deck looked frozen ten
+  ticks at a time and the wedge hop fired ON the deck — hopping each
+  rider clean off into the pit (52 honest deaths taught this). The
+  stall is now measured across telemetry samples: a rider carried by
+  a mover keeps sliding (the carry moves x), a true wedge never does.
+- **the camp-left fallacy dies in the draft** — walking a rider to
+  the deck's left half assumes the deck is somewhere specific; when
+  it swings right, the camper strolls off the LEFT edge into the
+  saw's corner and the void (40 more deaths). The law that survived:
+  a true rider's feet never exceed the deck's top (360), so the saw
+  (top 396) cannot clip him — hands off, ride to the disembark
+  window, jump.
+- the level-2 exit and level-3's two lifts are choreographed in the
+  probe already (the board-hop race, the mid-ride disembark, the
+  goal-as-disembark) — their ride law is still being earned on the
+  wire; the tour grows hop by hop. Gate 8 walks 55.
+
 ## v3.1.114 — the empty question answers
 
 - **bare `:scene` names where you stand** — the fixing of
