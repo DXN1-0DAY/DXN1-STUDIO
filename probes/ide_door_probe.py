@@ -94,6 +94,11 @@ def receipts(w):
     return [m.group(0).decode(errors="replace")
             for m in re.finditer(rb'engine:[^\x1b\r]{0,120}', w)]
 
+def plain(w):
+    """the rail speaks in color: numbers and words wear their own coats,
+    so a needle must read the TEXT, not the paint."""
+    return re.sub(rb'\x1b\[[0-9;]*[a-zA-Z]', b'', w)
+
 t0 = time.time()
 alive = drainf(3.0)
 pin("boot alive", alive)
@@ -249,6 +254,17 @@ w = cmd("git status", until=lambda b: b"clean" in b
         or b"files wait" in b, takes_stage=True)
 pin("a clean tree says so honestly",
     b"the tree is clean" in w, w[:120])
+
+# ---- 9. the dashboard's session row ------------------------------------
+# :stats wears the session's story as its third row. After the clear
+# (section 7) the ledger is PROVABLY blank — no save with a story has
+# fallen since — so the row's honest blank branch is deterministic
+# here; the filled branch rides the wire probe's saves.
+w = cmd("stats", until=lambda b: b"this session" in b)
+pw = plain(w)
+pin("the dashboard speaks the session's story",
+    b"this session" in pw and b"no save the disk heard yet" in pw,
+    pw[-200:])
 
 # ---- cleanup -----------------------------------------------------------
 try: os.kill(pid, 15)

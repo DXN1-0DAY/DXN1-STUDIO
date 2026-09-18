@@ -3283,6 +3283,21 @@ int main(int argc, char** argv) {
               std::to_string(ide.curC + 1) + " · " +
               std::string(dxn3::ideSnippetFamily(ide.path)) + " dialect · " +
               (ide.hostUp ? "host live" : "host idle"));
+          // the session's story rides the dashboard's third row: the
+          // ledger's census (the whole keepsake, this night and the
+          // last), the name of the newest save, the undo depth — the
+          // usage dashboard in one breath
+          ide.console.push_back(
+              "engine: this session — " +
+              (ide.journal.empty()
+                   ? std::string("no save the disk heard yet")
+                   : (std::to_string(ide.journal.size()) +
+                      (ide.journal.size() == 1 ? " save" : " saves") +
+                      " in the ledger — the last: " +
+                      ide.journal.back().substr(
+                          ide.journal.back().rfind("  ") + 2))) +
+              " · " + std::to_string(ide.undo.size()) + " undo step" +
+              (ide.undo.size() == 1 ? "" : "s") + " kept");
           if (const auto sel = dxn3::ideSelRange(ide)) {
             // the selection's own census — spoken LAST so the console's
             // two-row window shows the most specific truth newest
