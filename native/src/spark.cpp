@@ -204,14 +204,25 @@ Entity* Game::entity(std::string_view tag) {
 }
 
 float Game::worldBottom() const {
+  // the world's floor is the STATIC geometry's extent — the player is
+  // excluded, because the hero IS an entity and a falling hero used to
+  // drag the floor down with it: the death line (worldBottom + 400)
+  // chased the faller 44px below their own feet and the fall death
+  // became unsatisfiable (the fall_probe's receipt: y=532 vs line 576,
+  // y=836 vs 880 — always exactly one hero-depth behind). The same
+  // chase distorted worldRight's zoom fit on long runs.
+  const Entity* p = player();
   float b = 0;
-  for (const auto& e : scene.entities) b = std::max(b, e.y + e.h);
+  for (const auto& e : scene.entities)
+    if (&e != p) b = std::max(b, e.y + e.h);
   return b;
 }
 
 float Game::worldRight() const {
+  const Entity* p = player();
   float r = 0;
-  for (const auto& e : scene.entities) r = std::max(r, e.x + e.w);
+  for (const auto& e : scene.entities)
+    if (&e != p) r = std::max(r, e.x + e.w);
   return r;
 }
 
@@ -240,6 +251,10 @@ void Game::reset() {
 
 void Game::respawn(const char* why) {
   if (Entity* p = entity("player")) {
+    char ev[160];
+    std::snprintf(ev, sizeof ev, "respawn(%s) %.0f,%.0f -> %.0f,%.0f",
+                  why, p->x, p->y, spawn_.x, spawn_.y);
+    traceEv = ev;
     p->x = spawn_.x; p->y = spawn_.y;
     p->vx = p->vy = 0;
   }
@@ -395,6 +410,11 @@ void Game::stepTags(float dt) {
     if (e.tag == "goal" && !transLocked && overlap(*p, e)) {
       transLocked = true;
       flash = 1;
+      {
+        char ev[96];
+        std::snprintf(ev, sizeof ev, "goal(%.0f,%.0f)", p->x, p->y);
+        traceEv = ev;
+      }
       say(scene.next.empty() ? "goal! (the end)" : "goal!", 1.4);
       if (!scene.next.empty()) pendingNext = scene.next;
       shake(4, 0.25);

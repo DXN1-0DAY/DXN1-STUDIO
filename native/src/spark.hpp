@@ -117,6 +117,12 @@ public:
     return n;
   }
 
+  // the tick-trace event wire (DXN3_TRACE): the sim's notable moments —
+  // respawns, goal touches — land here as short strings; the shell's
+  // trace receipt picks them up and prints them. Empty in normal play
+  // (the field is set and cleared, never rendered).
+  std::string traceEv;
+
 private:
   Vec2 spawn_{90, 300};
   bool jumpHeld_ = false;

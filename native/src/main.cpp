@@ -1760,6 +1760,65 @@ int main(int argc, char** argv) {
   using clock = std::chrono::steady_clock;
   auto last = clock::now();
   double acc = 0;
+  // the tick receipts (DXN3_TRACE=<path>): who eats the clock, on file.
+  // The clock-crawl riddle (R37) gets evidence, not guesses — every
+  // ~0.5s of wall time the loop confesses its counters: frames, steps,
+  // game.time, the pause seconds per reason, the worst frame's dt and
+  // the worst render write. Gated by env; invisible in honest play.
+  std::FILE* traceF = nullptr;
+  {
+    const char* tp = std::getenv("DXN3_TRACE");
+    if (tp && *tp) traceF = std::fopen(tp, "w");
+  }
+  double trWall0 = 0, trLastEmit = -1, trDtmx = 0, trIomx = 0;
+  long long trFrames = 0, trSteps = 0;
+  double trPauseI = 0, trPauseF = 0, trPauseC = 0, trPauseH = 0;
+  double trEvery = 0.5;                // DXN3_TRACE_MS: the receipt interval
+  {
+    const char* tm = std::getenv("DXN3_TRACE_MS");
+    if (tm && *tm) {
+      const double ms = std::atof(tm);
+      if (ms >= 0) trEvery = ms / 1000.0;
+    }
+  }
+  auto trEmit = [&](bool final_) {
+    if (!traceF) return;
+    const clock::time_point tn = clock::now();
+    const double e = std::chrono::duration<double>(tn.time_since_epoch()).count();
+    if (trWall0 == 0) trWall0 = e;
+    const double w = e - trWall0;
+    if (!final_ && w - trLastEmit < trEvery) return;
+    trLastEmit = w;
+    const dxn3::Entity* p = game.player();
+    std::fprintf(traceF,
+                 "w=%7.3f f=%7lld s=%7lld gt=%7.3f acc=%.4f "
+                 "pi=%.2f pf=%.2f pc=%.2f ph=%.2f dtmx=%.3f iomx=%.3f "
+                 "px=%.1f py=%.1f vx=%.1f vy=%.1f\n",
+                 w, trFrames, trSteps, static_cast<double>(game.time), acc,
+                 trPauseI, trPauseF, trPauseC, trPauseH, trDtmx, trIomx,
+                 p ? static_cast<double>(p->x) : -1.0,
+                 p ? static_cast<double>(p->y) : -1.0,
+                 p ? static_cast<double>(p->vx) : 0.0,
+                 p ? static_cast<double>(p->vy) : 0.0);
+    if (!game.traceEv.empty()) {       // the sim's confessions, on the wire
+      std::fprintf(traceF, "  EVENT %s\n", game.traceEv.c_str());
+      game.traceEv.clear();
+    }
+    std::fflush(traceF);
+    trDtmx = 0; trIomx = 0;
+  };
+  // the event wire's early flush: the shell's own receipts (:scene, the
+  // pendingNext consumption) fire in the SAME frame as the engine's —
+  // the goal touch and the shell's welcome land one step apart, and a
+  // blind overwrite would bury the door's confession. Flush first, then
+  // the shell speaks.
+  auto trFlushEv = [&]() {
+    if (traceF && !game.traceEv.empty()) {
+      std::fprintf(traceF, "  EVENT %s\n", game.traceEv.c_str());
+      std::fflush(traceF);
+      game.traceEv.clear();
+    }
+  };
   int cols = 80, rows = 24;
   dxn3::Screen scr;
   auto doFit = [&]() {
@@ -1838,12 +1897,14 @@ int main(int argc, char** argv) {
           } else {
             auto next = dxn3::Game::loadScene(resolved);
             if (next) {
+              trFlushEv();          // the previous scene's last word first
               host.stop();                                 // leave the IDE game
               ide.hostUp = false;
               ide.open = false;
               game = dxn3::Game(std::move(*next));
               scenePath = resolved;
               game.say("scene: " + game.scene.name, 1.6);
+              game.traceEv = "shell: scene " + game.scene.name;
             } else { cmdErr = next.error().detail; cmdErrT = 3.5f; }
           }
         } else if (cmd.verb == "zoom") {
@@ -3338,13 +3399,17 @@ int main(int argc, char** argv) {
     in.left = keys.left; in.right = keys.right; in.jump = keys.jump;
 
     constexpr double STEP = 1.0 / 60.0;
+    ++trFrames;
+    trDtmx = std::max(trDtmx, dt);
     if (ide.hostUp) {              // your code owns the simulation entirely —
       game.time += static_cast<float>(dt);   // the engine renders + feeds input
       acc = 0;
+      trPauseH += dt;
     } else if (!inspect && !fileView && !cmdOpen) {   // the command bar pauses
       while (acc >= STEP) {
         game.update(static_cast<float>(STEP), in);
         acc -= STEP;
+        ++trSteps;
         // the input RIDES THE WHOLE FRAME's steps (v3.1.102): the old
         // one-step-only hand starved every step after the first when a
         // frame carried two — the hero's run speed rode the render rate
@@ -3354,6 +3419,7 @@ int main(int argc, char** argv) {
         // still fires once per press (jumpHeld_ guards the re-fire).
       }
       if (!game.pendingNext.empty()) {
+        trFlushEv();              // the goal's confession survives the load
         const std::string nextPath = game.pendingNext;
         auto next = dxn3::Game::loadScene(nextPath);
         game.pendingNext.clear();
@@ -3365,13 +3431,22 @@ int main(int argc, char** argv) {
           game.score = score; game.time = time;
           scenePath = nextPath;              // :w knows where home is
           game.say("welcome to " + name, 1.6);
+          // the shell's wire receipt: the rendered say() is paint, not
+          // bytes — the probes read the trace, so the load speaks on the
+          // event wire where the machine can pin it (the chain walk's
+          // whole question was exactly this receipt)
+          game.traceEv = "shell: welcome to " + name;
         } else {
           game.say("next scene missing: " + next.error().detail, 2.5);
+          game.traceEv = "shell: next missing: " + next.error().detail;
           game.transLocked = true;
         }
       }
     } else {
       acc = 0;
+      if (inspect) trPauseI += dt;
+      else if (fileView) trPauseF += dt;
+      else if (cmdOpen) trPauseC += dt;
     }
 
     // the IDE owns its keys: typing is code, ctrl+r/s run and save,
@@ -3773,8 +3848,16 @@ int main(int argc, char** argv) {
       } else {
         scr.help(" a/d move · w jump · r reset · b dots · e file · : cmds · q quit");
       }
-      std::fputs(scr.flush().c_str(), stdout);
-      std::fflush(stdout);
+      {
+        const double io0 = std::chrono::duration<double>(
+            clock::now().time_since_epoch()).count();
+        std::fputs(scr.flush().c_str(), stdout);
+        std::fflush(stdout);
+        trIomx = std::max(trIomx,
+            std::chrono::duration<double>(clock::now().time_since_epoch())
+                .count() - io0);
+      }
+      trEmit(false);
     } else {
       // non-tty smoke mode: draw once, exit honestly
       scr.resize(80, 24);
@@ -3791,6 +3874,8 @@ int main(int argc, char** argv) {
     nanosleep(&ts, nullptr);
   }
 
+  trEmit(true);
+  if (traceF) std::fclose(traceF);
   restoreTerminal();
   std::println("dxn3 native — thanks for playing. SCORE {}  TIME {}",
                game.score, fmtTime(game.time));

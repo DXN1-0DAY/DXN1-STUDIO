@@ -1,3 +1,51 @@
+## v3.1.104 — the clock riddle closed, the fall that never respawned, the wire walk comes home
+
+- **the R37 clock-crawl riddle: CLOSED, and the engine was innocent**
+  — the scene-mode clock crawled in the pty (0.04 game-seconds in 2.4
+  wall-seconds) while the acc arithmetic guaranteed sixty steps a
+  second. The engine grows pause-free tick receipts (DXN3_TRACE=<path>
+  + DXN3_TRACE_MS): frames, steps, game.time, the pause seconds per
+  reason, the worst frame's dt, the worst render write, the hero's
+  px/py/vx/vy — and the receipts convicted the DRIVE, not the engine:
+  pi (inspect pause) ate ~0.73 of wall. The draft drive's Tab-inspect
+  telemetry took a freeze-frame every cycle and the sim PAUSES while
+  inspect is open (acc = 0); a no-op drain let the pty back up and
+  stretched the pauses. Experiment C (no driver at all) ran 1:1
+  honest. The telemetry that replaces it is read-only, env-gated, and
+  pauses nothing — steering at 40Hz straight from the machine.
+- **the fall that never respawned: a real engine bug, found by the
+  walk** — the headless walk probe (the pty can lie; the sim cannot)
+  ran the hero left off the world's edge and the death line
+  (worldBottom + 400) never fired: y=532 vs line 576, y=836 vs 880 —
+  always exactly one hero-depth behind. worldBottom() is max() over
+  ALL entities INCLUDING the player, so the floor dragged itself down
+  with the faller and the fall death was mathematically
+  unsatisfiable once the hero fell below the static geometry
+  (the playground qualifies). worldRight() carried the same disease
+  into the zoom fit. Both now measure the world's STATIC extent —
+  the player excluded — and the fall law holds: three respawns seen,
+  every fall an honest "ouch — respawned" at the scene's own spawn.
+- **THE WIRE CHAIN WALK COMES HOME** — `probes/chain_walk_probe.py`
+  (gate 8: 52 -> 53): a hero WALKS through the playground's door on
+  the wire — run right, wedge-jump the sign wedge, spike-jump both
+  windows, run off the edge at full speed and clip the goal (the
+  door's overlap window is literally two pixels: hero box right edge
+  1252 vs goal left 1250). The engine's half of the chain was pinned
+  in selftest group 5b by teleport-touch; the shell's half — the
+  pendingNext consumption, the next scene load, the walk receipt —
+  is pinned NOW, walked not teleported. Retry per life: a missed
+  walk-off falls, respawns honestly, and walks again; 8/8 pins green
+  five runs straight (9.5-18.4s), then the full gates exit-checked.
+- **the receipt law: the shell speaks on the event wire** — the
+  rendered say() is paint, not bytes ('goal!' and 'welcome to
+  level-1' appear NOWHERE in the flood — the renderer draws the
+  screen cell by cell), so the shell's receipts land where machines
+  read them: EVENT goal(...) when the door touches, EVENT shell:
+  welcome to <scene> when pendingNext is consumed, EVENT shell:
+  scene <name> for :scene, and the early-flush that keeps the
+  goal's confession from being buried by the welcome spoken in the
+  same frame.
+
 ## v3.1.103 — the buffer law: no more thirst at the read end
 
 - **ast_lives_probe's stall named and killed** — the ten-round
