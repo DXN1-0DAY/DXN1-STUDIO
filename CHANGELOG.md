@@ -1,3 +1,26 @@
+## v3.1.110 — the ledger wears the hour it fell
+
+- **the journal's timestamp column** — a ledger without a when is a
+  list, not a memory. Every line the save ledger speaks now wears
+  the hour it fell: `+1 ~1 -0 06:24 probe_a.py` — census, HH:MM
+  wall clock, path — on the rail, and in the .dxn3-journal keepsake
+  the next boot reads back. The selftest's voice pin and ide_door's
+  census pins learned the new shape; the :help journal whisper
+  teaches the column where you type.
+- **the shell's scene save wears its pin** — ide_wire_probe's
+  second night boots a scene in PLAY (no IDE ever opened — the
+  play-mode :w belongs to the shell alone, gated by ideEver) and
+  reads the wire the child wrote: `shell: scene saved <path>`, the
+  .bak carrying the exact bytes the pen found, the scene real JSON
+  again. The wire probe stands at 15 pins, three runs straight.
+- **README** wears the save-law's new voice: the ledger's hour and
+  the wire's confession (`ide: saved`, `(same)`, ` bak`) — one
+  truth, two mouths.
+- The campaign walk ran 6/8 standalone this round (2/3 hops under a
+  loaded machine — the level-2 ferry and level-3 lifts keep their
+  documented phase variance; the walk's own code path is untouched
+  by this round and the tree-snapshot pin stayed green).
+
 ## v3.1.109 — one event wire, every save (the IDE's pen confesses)
 
 - **the save census rides the wire** — the sim had a wire (respawn,
