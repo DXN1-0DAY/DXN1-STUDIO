@@ -1,3 +1,39 @@
+## v3.1.107 — the grand tour begins (the campaign walked on the wire)
+
+- **probes/campaign_walk.py — THE GRAND TOUR** — the chain walk
+  proved ONE hop; the grand tour keeps walking. Boot on the
+  playground, drive the hero with the pause-free trace telemetry
+  (NEVER Tab, NEVER a freeze-frame), and take the welcome receipts
+  off the event wire: playground → level-1 → level-2, walked green
+  three runs straight, zero deaths, 8/8 pins. The walker is a state
+  machine with laws, not a script: run (hold right, jump bands,
+  wedge when stuck — and after eight wedges, the deep-stuck law: a
+  long right-drift through the whole flight, because level-2's
+  tagless sign (90-300, y 360-390) is a SOLID wall that traps a
+  blind hopper forever), board a ferry only when the SIMULATED
+  ping-pong will be under the predicted landing (x + range, flight
+  seconds from now — the flight time was the lie that killed the
+  hand-tuned phase windows: the ferry moves half its width while the
+  arc flies, and a landing one pixel short is a fang pit, so the
+  margin is asymmetric: the landing must be well inside the span),
+  listen after every landing (if the ground carries you, the ride
+  law takes over), ride a lift to its TOP REVERSAL and leave per the
+  plan (walk or jump), time-based stillness (a per-poll 1px threshold
+  reads a 55px/s lift as "still" and bails at 42ms — compare across
+  a 0.3s window instead). DXN3_TOUR_HOPS extends the walk toward the
+  full loop (level-3's lifts walked once green at 3 hops),
+  DXN3_TOUR_DEBUG speaks heartbeats, pins print unbuffered so a kill
+  keeps its evidence.
+- **the honest miss**: the tour is NOT in the gates this round. Two
+  hops walk 28-95s solo but a run blew the gate's 180s ceiling — the
+  ride/exit timing has variance the walker doesn't yet own (the
+  elevator's walk-off and the level-2 ferry's march-off land clean
+  only when the phases smile). The gate promotion is R40's first
+  debt: make the rides deterministic, then 53 → 54. The pins that
+  already hold: door touches on the wire, the welcome receipts in
+  chain order, every respawn naming its scene's own spawn, the
+  honest fall voice, pi=0 through the whole walk, the tree untouched.
+
 ## v3.1.106 — level-2's frozen river thaws (the campaign recon's first conviction)
 
 - **the movers that stood still** — the grand-tour recon (R39's
