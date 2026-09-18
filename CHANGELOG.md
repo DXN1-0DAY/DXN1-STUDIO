@@ -1,3 +1,33 @@
+## v3.1.112 — :scene by name opens the door it always promised
+
+- **the convicted ghost** — `:scene` by name NEVER loaded, since the
+  resolver was born: sceneStems() fed resolveSceneArg its `stem()` —
+  which strips ONE tail — so "level-2.dxn1.json" arrived as
+  "level-2.dxn1", the resolver appended ".dxn1.json", and the door
+  opened on level-2.dxn1.dxn1.json, a ghost; the rail said "no such
+  file" for a file that stood right there. The wire probe's first
+  walk of the verb convicted it (the load window sat silent while gt
+  ran continuous — no Game was ever replaced). Bare stems now (stem
+  twice), as resolveSceneArg's own contract demands; the selftest
+  pins the convicted ghost and the bare-stem law (1066 groups).
+- **the manual load rides the direct line** — `:scene`'s word is
+  spoken by traceEventNow the instant the hand returns, not parked on
+  a Game the next verb may replace; the refusals keep the :open law —
+  the rail speaks them, the wire's silence is PINNED law, not
+  omission; and the pen's home follows the verb (:w saves what :scene
+  wore, the .bak is born).
+- **the night's first word** — every boot names its scene on the wire
+  (`shell: scene <name>`), on the direct line, before the loop's
+  first tick: the IDE's untitled page and the campaign's doors alike
+  open by name. The parked shape died in the old slot — the IDE
+  boot's starter run owns frame 1 (dtmx=1.6, hostUp true, takeScene
+  replaced the Game before the first cadence flush; ph=1.60 at f=1
+  gave it away).
+- the probe's bar learned the one-honest-char law itself (a 13-char
+  burst lost its tail mid-flight and the ghost's error taught the
+  wrong lesson); ide_wire_probe stands at 26 pins (the verb's seven,
+  the two first words). Gate 8 walks 54.
+
 ## v3.1.111 — the repo's shape and the present tense
 
 - **`:git graph [n]`** — the repo's shape drawn on the rail: git's own
