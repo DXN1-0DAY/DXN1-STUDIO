@@ -542,7 +542,7 @@ accepted:
 | `:wrap` | the fold — long lines break into the pane at the last space or hyphen that fits, and ↑/↓ walk the rows; a second `:wrap` wakes the slide |
 | `:crew [n]` | the crew — a number plants that many hands below yours; type once and every hand writes (typing, backspace, enter, delete, `ctrl+u` the word's coat); planting again grows the crew from the last hand; a bare `:crew` bows them out |
 | `:count [word]` | the census of a query — a bare verb counts the searchlight's query everywhere; a word counts itself |
-| `:stats` | lines, words, chars, dialect, where you stand |
+| `:stats` | lines, words, chars, dialect, where you stand — and the session's story: the ledger's census with the newest save's name, the undo depth |
 | `:trim` | sweep trailing whitespace, one undo step |
 | `:sort` | order the selected lines, one undo step |
 | `:rsort` | the selected lines land Z before A — the sort's mirror |
