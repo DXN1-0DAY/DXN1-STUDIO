@@ -67,7 +67,7 @@ import os, pty, random, re, select, sys, tempfile, time
 REPO = _HOME
 BIN = os.path.join(REPO, "native", "build", "dxn3-native")
 
-HOPS = ["level-1", "level-2", "level-3"]  # receipts to pin (hop 3 walks
+HOPS = ["level-1", "level-2", "level-3", "level-4"]  # receipts (R49: the
                                           # level-2's interior: the sign
                                           # valve, the THAWED diagonal deck,
                                           # the walk under mover-2 to the
@@ -185,7 +185,7 @@ tail = TraceTail(TRACE)
 class St:
     __slots__ = ("last_x", "stuck", "stuck_w", "last_jump", "py_hist",
                  "last_w", "scan", "load_s", "drive_until", "drive_w",
-                 "drive_s", "coast")
+                 "drive_s", "coast", "silent", "silentAir")
     def __init__(self):
         self.last_x = None; self.stuck = 0; self.stuck_w = None
         self.last_jump = 0.0
@@ -209,6 +209,9 @@ class St:
         self.coast = False                     # THE COAST LATCH: the 'd'
                                                # release is committed until
                                                # the fire or the window closes
+        self.silent = False                    # THE FLIGHT LATCH: set at the
+                                               # fire, cleared at the landing
+        self.silentAir = False                 # an airborne sample was seen
 
 def ride_check(st, h):
     """THE RIDE LAW: grounded + py carried over ~4 telemetry samples
@@ -240,7 +243,7 @@ def common_reset(st, h):
     x = h[2]
     if st.last_x is not None and abs(x - st.last_x) > 400:
         st.stuck = 0; st.last_x = None; st.py_hist = []; st.last_w = None
-        st.scan = random.uniform(0.0, 5.2); st.coast = False
+        st.scan = random.uniform(0.0, 5.2); st.coast = False; st.silent = False
         return True
     return False
 
@@ -493,17 +496,29 @@ def dec_level3(h, st, now):
     # ride_check, so a silence living inside the ride branch never ran,
     # the default b"d" re-accelerated the arc to 330, and the hero
     # flew 120px OVER ledge-b into the void (the ninth autopsy).
-    if st.coast:
+    if st.silent:
         if not grounded:
+            st.silentAir = True            # the flight was witnessed
             st.last_x = x; return b""
-        st.coast = False
+        if st.silentAir:                   # grounded after flying: landed
+            st.silent = False; st.silentAir = False
+        # else: the stale grounded sample right after the fire — the fire
+        # happens ON the deck, so ~10 ticks still see vy=0; clearing here
+        # resurrects the default b"d" and the arc flies at 330 (the tenth
+        # autopsy). Stay silent until the air is witnessed.
+        st.last_x = x; return b""
     if ride_check(st, h):
         if x >= 1400:                       # riding LIFT-2 (deck 1430..1550)
             if x < 1460:                    # walk to the door's launch band
                 st.last_x = x; return b"d"  # (the release slide lands
                                             #  box-left ~1470-89, the
                                             #  deck's edge is 1550)
-            if y <= 40 and l2 is not None and l2[1] <= 90.0:
+            # the fire window is the RISE through the top only: a
+            # descent fire (the lift falling back 60..90) launched the
+            # arc too low — its fall crossed the door's y band at x
+            # 1651..1704, short of the door's 1750, and the hero fell
+            # past the whole summit (the flake's second source).
+            if y <= 24 and l2 is not None and l2[1] <= 70.0:
                 dbg3("door", x, y, vx)
                 st.py_hist = []; st.last_w = None; st.last_x = x
                 return b"wd"                # the golden door: the arc
@@ -526,24 +541,31 @@ def dec_level3(h, st, now):
             # happens at x 1055..1081, far from the deck's 1120 edge
             # (the walk-to-edge walk-off was the first autopsy's kill).
             if y > 200:
-                if x > 1063: st.last_x = x; return b"a"
-                if x < 1043: st.last_x = x; return b"d"
+                if x > 1022: st.last_x = x; return b"a"
+                if x < 1008: st.last_x = x; return b"d"
                 if l1 is not None and l1[1] >= 320.0 and l1[2] == 0 \
                         and now - st.last_jump > 0.5:
                     dbg3("loopback", x, y, vx)
                     st.py_hist = []; st.last_w = None; st.last_x = x
                     return b"wa"            # the rescue: jump back to ledge-a
                 st.last_x = x; return b""       # hold at the rest
-            if 250 <= vx <= 290 and x <= 1095 \
-                    and now - st.last_jump > 0.4:
-                st.coast = True                 # latch: the flight silence
-                dbg3("lift1-coast", x, y, vx)
+            # THE W-JUMP DISEMBARK (R49, the eleventh autopsy): the fire
+            # is 'w' ONLY — the walk's own momentum is the launch vx and
+            # no 'd' byte can merge into the fire (the 'wd' fires made the
+            # TRUE launch vx 330 regardless of the sampled gate: the walk's
+            # queued bytes + the fire's own 'd' accelerated the first two
+            # frames, the arc stretched to 190px and landed ON the
+            # watcher). The +187px arc lands 1205..1235 on ledge-b's left
+            # region. The flight silence (st.silent) starves the rest.
+            if vx >= 290 and x <= 1040 and now - st.last_jump > 0.4:
+                st.silent = True                # the flight silence begins
+                st.silentAir = False
+                dbg3("lift1-wjump", x, y, vx)
                 st.py_hist = []; st.last_w = None; st.last_x = x
-                return b"wd"                    # the coast jump
-            if vx < 300:
-                st.last_x = x; return b"d"      # walk — the band crossing fires
-            st.coast = True                     # release at full speed
-            st.last_x = x; return b""           # (the decay re-crosses the band)
+                return b"w"                     # NO 'd' — the honest arc
+            if vx < 330:
+                st.last_x = x; return b"d"      # walk — the gate fires at speed
+            st.last_x = x; return b""
         st.last_x = x; return b""
     # ledge-b's LEFT region (1180..1256 — the watcher's kill shadow
     # starts at box-left 1257): the lift-2 boarding needs a full-speed
@@ -554,17 +576,22 @@ def dec_level3(h, st, now):
     if grounded and 140 <= y <= 152 and 1180 <= x <= 1256:
         win = l2 is not None and l2[1] <= 130.0 and l2[2] == 0
         if win:
-            if x >= 1240 and vx >= 200 and x <= 1262 \
+            if x >= 1205 and vx >= 280 and x <= 1232 \
                     and now - st.last_jump > 0.4:
                 dbg3("lift2-board", x, y, vx)
                 st.last_jump = now; st.last_x = x
                 return b"wd"                # the run-jump onto the deck
-            if x < 1240:
+            if x < 1205:
                 st.last_x = x; return b"d"  # run right through the band
-            st.last_x = x; return b""       # past the band — honest brake
-        if x > 1227:
+            if x > 1230:
+                st.last_x = x; return b"a"  # the safe reverse: a walk-past
+                                            # slid into the watcher's 1px
+                                            # shadow (the box-right 1291
+                                            # graze) — flip before 1254
+            st.last_x = x; return b""       # brake at the fire line
+        if x > 1206:
             st.last_x = x; return b"a"      # walk to the run-up start
-        if x < 1190:
+        if x < 1177:
             st.last_x = x; return b"d"      # nudge right
         st.last_x = x; return b""           # hold at the start
     # ledge-a (760..940, top 330, standing py 286): position to the
@@ -593,10 +620,17 @@ def dec_level3(h, st, now):
         if _os.environ.get("DXN3_TOUR_DEBUG"):
             print(f"[L3-ledgeA] x={x:.0f}", file=sys.stderr, flush=True)
         st.last_jump = now; st.last_x = x; return b"wd"
-    # the fang (430..464, top 402): R47's band 340 — the feet are 50px
-    # clear before the right edge reaches the kill box; the arc lands
-    # 589..629, inside the ledge-a window
-    if grounded and y >= 380 and 340 <= x <= 380 \
+    # the fang (430..464, top 402): THE STANDING FIRE (R49) — the run-up
+    # fires raced the byte lag (a load-stretched lag landed the jump at
+    # x 395+, INSIDE the kill box). Now the hero brakes at 300 (the
+    # slide settles ~329) and fires from the STAND: a stopped hero
+    # cannot be dragged past the window by any lag, the mid-air accel
+    # fills in the arc (+249 lands 578, inside the ledge-a window), and
+    # the feet are 78px clear of the fang's top when the box-right
+    # crosses 430.
+    if grounded and y >= 380 and 300 <= x < 320:
+        st.last_x = x; return b""          # the brake; the slide settles
+    if grounded and y >= 380 and 320 <= x <= 350 \
             and now - st.last_jump > 0.8:
         if _os.environ.get("DXN3_TOUR_DEBUG"):
             print(f"[L3-fang] x={x:.0f}", file=sys.stderr, flush=True)
@@ -606,7 +640,7 @@ def dec_level3(h, st, now):
     # 397 — the box-right 431 crossing the fang's left edge 430). The
     # walk right may NEVER pass 396 without the arc: walk LEFT back
     # into the fire window (the cooldown has expired by the walk back).
-    if grounded and y >= 380 and 381 <= x <= 548:
+    if grounded and y >= 380 and 351 <= x <= 548:
         st.last_x = x
         return b"a"
     # the ground walks: through both windows run right; past the ledge
@@ -693,6 +727,13 @@ try: os.waitpid(pid, 0)
 except Exception: pass
 if _os.environ.get("DXN3_TOUR_DEBUG"):
     _os.system(f"cp {TRACE} /tmp/tour_trace.txt")
+if any(not ok for _, ok in pins):
+    _fail_trace = f"/tmp/tour_fail_{int(time.time())}.trace"
+    try:
+        _os.system(f"cp {TRACE} {_fail_trace}")
+        print(f"(the failed walk's trace kept at {_fail_trace})")
+    except Exception:
+        pass
 try: os.unlink(TRACE)
 except Exception: pass
 

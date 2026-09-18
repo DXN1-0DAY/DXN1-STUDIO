@@ -1,3 +1,55 @@
+## v3.1.125 — the summit is crossed, and the selection scales as one
+
+*(the 23:00 UTC boundary's tag; the R49 round pays it.)*
+
+- **THE SUMMIT CROSSING**: the grand tour walks playground ->
+  level-1 -> level-2 (the thawed decks) -> level-3 (the fang, the
+  ledge-a, the two lifts, the golden door) -> level-4 — 10/10 pins,
+  49-78s against the 170 cap, three consecutive greens. The walk
+  through level-3's interior is the campaign's hardest sentence of
+  geometry, and every window in it is now telemetry-honest:
+  - the coast-jump disembark fires 'w' ONLY — the walk's own
+    momentum is the launch vx, because a 'wd' fire merged the walk's
+    queued bytes with the fire's own 'd' and the TRUE launch vx was
+    330 regardless of the sampled gate (the arc stretched onto the
+    watcher);
+  - the flight-silence latch clears only after an AIRBORNE sample
+    was witnessed — the fire happens on the deck, so ~10 probe ticks
+    still see vy=0 and the old latch read "landed" instantly,
+    resurrecting the default walk mid-flight;
+  - the fang fires from a STAND (the brake at 300, the fire at
+    [320,350]) — a stopped hero cannot be dragged past the window by
+    any byte lag, and the mid-air accel fills in the +249 arc;
+  - the door fires on the lift's RISE only (y<=24, lift y<=70) — a
+    descent launch crossed the door's y band 100px short of the door
+    and fell past the whole summit;
+  - the lift-2 run-jump widened to [1205,1232] with a safe reverse
+    at 1230 (the walk-past used to graze the watcher by 1px);
+  - failed walks keep their trace at /tmp/tour_fail_*.trace (the
+    forensics law — the non-debug red runs used to delete their own
+    evidence; the patch itself hit a NameError on `fails` and the
+    run convicted it).
+- **the selection scales as one**: the 8 scale handles now live on
+  ONE box — a single selection wears its own, a multi wears the
+  bounding box — and the drag is the GROUP SCALE: every selected
+  entity rides the bbox factor (position AND size), so the group
+  keeps its shape exactly as UE5's multi-scale does. Live-verified:
+  a three-entity selection's SE drag +100,+50 grew the bbox
+  1430x220 -> 1530x270 with the NW anchor pinned and all three
+  entities at factor-exact positions; the single-selection scale
+  and the translate gizmo's axis lock survived the refactor. The
+  history lands as "scale 1430x220 -> 107%".
+- **the studio's face refreshes** (image gen, mandatory): the boot
+  splash wears splash-v2 (the four biome portals over charcoal) and
+  the Content Browser opens under campaign-map — the campaign's four
+  biomes as one glowing strip. Both raw files were JPEG (the
+  JPEG-bytes law's 6th and 7th catch) — PIL re-encoded, magic
+  verified.
+- ui_editor_probe pins 15: pin 14's scale law re-pins the group
+  math (selBox + bboxHandles + the factor loop) and the new art.
+- ui/index.html, VERSION, version.hpp and the README badge wear
+  3.1.125.
+
 ## v3.1.124 — the handles bite, the desk remembers its tabs, the sky follows the biome
 
 *(the 22:00 UTC boundary's tag; the R48 UI round pays it.)*

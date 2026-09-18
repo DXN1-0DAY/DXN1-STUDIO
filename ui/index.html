@@ -216,6 +216,8 @@ body{background:var(--win); color:var(--text); font:var(--font); user-select:non
 #cb-search{margin-left:12px; background:var(--input); border:1px solid var(--border);
   color:var(--text); border-radius:4px; height:24px; padding:0 8px; font:inherit; width:170px;}
 #cb-search:focus{outline:1px solid var(--brand);}
+#cb-map{width:100%; height:64px; object-fit:cover; border-radius:8px 8px 0 0;
+  opacity:.85; display:block; border-bottom:1px solid #2a2f45;}
 #cardgrid{flex:1; overflow-y:auto; display:flex; flex-wrap:wrap; gap:10px; padding:12px;
   align-content:flex-start;}
 #cardgrid::-webkit-scrollbar{width:10px;}
@@ -429,6 +431,7 @@ body{background:var(--win); color:var(--text); font:var(--font); user-select:non
     </div>
     <div id="dock-body">
       <div class="dockpage active" id="page-content">
+        <img id="cb-map" src="assets/campaign-map.png" alt="the campaign's four biomes" title="the campaign: twilight, industrial, dawn, void">
         <div id="crumb"><span>DXN1</span><span>/</span><b>scenes</b><span>/</span>
           <span id="crumb-filter">all</span>
           <input id="cb-search" placeholder="filter scenes…">
@@ -462,7 +465,7 @@ body{background:var(--win); color:var(--text); font:var(--font); user-select:non
 
 <!-- splash -->
 <div id="splash">
-  <img class="hero" src="assets/splash.png" alt="DXN1 STUDIO splash">
+  <img class="hero" src="assets/splash-v2.png" alt="DXN1 STUDIO splash">
   <div class="wordmark"><img src="assets/logo.png" alt=""><div class="wm-t">DXN1 <span>STUDIO</span></div></div>
   <div class="bar"><i id="splash-fill"></i></div>
   <div class="sub" id="splash-msg">waking the spark…</div>
@@ -481,7 +484,7 @@ body{background:var(--win); color:var(--text); font:var(--font); user-select:non
 /* ================================================================
    DXN1 STUDIO 3 — editor brain. One file, no deps.
    ================================================================ */
-const VERSION = "3.1.124";
+const VERSION = "3.1.125";
 const GATES = "58 probes walked · all green";
 
 const SCENES = [
@@ -908,9 +911,18 @@ function draw(){
     const [sx,sy]=world2scr(e.x,e.y), w=e.w*S.cam.z, h=e.h*S.cam.z;
     cx.strokeStyle="#ff9b26"; cx.lineWidth=1.6; cx.setLineDash([6,3]);
     cx.strokeRect(sx-2,sy-2,w+4,h+4); cx.setLineDash([]);
-    for(const hp of handlePos(e)){
-      cx.fillStyle=hp.hot?"#ffd08a":"#ff9b26"; cx.fillRect(hp.x-2.5,hp.y-2.5,5,5);
-    }
+  }
+  /* the scale handles live on ONE box: a single selection wears its
+     own, a multi wears the bounding box (the group-scale anchor) —
+     UE5's way; per-entity handle noise is gone */
+  if(S.sel.size===1){
+    const e=byName([...S.sel][0]);
+    if(e&&!S.hidden.has(e.name)) for(const hp of handlePos(e))
+      { cx.fillStyle=hp.hot?"#ffd08a":"#ff9b26"; cx.fillRect(hp.x-2.5,hp.y-2.5,5,5); }
+  } else if(S.sel.size>1){
+    const b=selBox();
+    if(b) for(const hp of bboxHandles(b))
+      { cx.fillStyle=hp.hot?"#ffd08a":"#ff9b26"; cx.fillRect(hp.x-2.5,hp.y-2.5,5,5); }
   }
   /* the translate gizmo — arrows you can actually grab (any selection;
      single = the entity's center, multi = the bbox center and the drag
@@ -1346,8 +1358,11 @@ cv.addEventListener("pointerdown",ev=>{
        THAT axis only, even when the arrows cross another actor */
     const sh=scaleHit(ev.offsetX,ev.offsetY);
     if(sh){
-      mouse.scale={ax:sh.ax,ay:sh.ay,ent:sh.ent,
-        L0:sh.ent.x,T0:sh.ent.y,R0:sh.ent.x+sh.ent.w,B0:sh.ent.y+sh.ent.h,moved:false};
+      mouse.scale={ax:sh.ax,ay:sh.ay,
+        L0:sh.box.L,T0:sh.box.T,R0:sh.box.R,B0:sh.box.B,
+        ents:[...S.sel].map(byName).filter(Boolean).map(e=>({
+          e, dx0:e.x-sh.box.L, dy0:e.y-sh.box.T, w0:e.w, h0:e.h})),
+        moved:false};
       return;
     }
     const gz=gizmoHit(ev.offsetX,ev.offsetY);
@@ -1381,8 +1396,10 @@ cv.addEventListener("pointermove",ev=>{
   }
   if(mouse.marquee){ mouse.marquee.x1=wx; mouse.marquee.y1=wy; draw(); return; }
   if(mouse.scale){
-    /* the anchored-edge scale: the handle's OPPOSITE edge stays put, the
-       grabbed edge chases the pointer, snap-aware, honest 8px floor */
+    /* THE GROUP SCALE (R49): the grabbed edge chases the pointer, the
+       opposite edge anchors, and every selected entity rides the bbox
+       factor — position AND size scale together, so the group keeps
+       its shape (UE5's multi-scale semantics). Snap-aware, 8px floor. */
     const m=mouse.scale;
     let L=m.L0, T=m.T0, R=m.R0, B=m.B0;
     const sn=v=>S.snap?Math.round(v/S.gridStep)*S.gridStep:v;
@@ -1390,7 +1407,11 @@ cv.addEventListener("pointermove",ev=>{
     else if(m.ax===-1) L=Math.min(m.R0-8,sn(wx));
     if(m.ay===1) B=Math.max(m.T0+8,sn(wy));
     else if(m.ay===-1) T=Math.min(m.B0-8,sn(wy));
-    m.ent.x=L; m.ent.w=R-L; m.ent.y=T; m.ent.h=B-T;
+    const fx=(R-L)/(m.R0-m.L0), fy=(B-T)/(m.B0-m.T0);
+    for(const it of m.ents){
+      it.e.x=L+it.dx0*fx; it.e.w=Math.max(8,it.w0*fx);
+      it.e.y=T+it.dy0*fy; it.e.h=Math.max(8,it.h0*fy);
+    }
     m.moved=true;
     draw(); renderDetails();
     return;
@@ -1431,7 +1452,10 @@ cv.addEventListener("pointerup",ev=>{
   if(mouse.dragEnt&&mouse.dragEnt.moved){
     pushHistory(mouse.gizmoAxis?"gizmo "+mouse.gizmoAxis:"move"); renderStats(); savePrefs(); }
   if(mouse.scale&&mouse.scale.moved){
-    pushHistory("scale "+mouse.scale.ent.w+"×"+mouse.scale.ent.h); renderStats(); savePrefs(); }
+    pushHistory("scale "+Math.round(mouse.scale.R0-mouse.scale.L0)+"×"
+      +Math.round(mouse.scale.B0-mouse.scale.T0)+" → "
+      +Math.round((mouse.scale.ents[0].w0?(mouse.scale.ents[0].e.w/mouse.scale.ents[0].w0):1)*100)+"%");
+    renderStats(); savePrefs(); }
   mouse.down=false; mouse.panning=false; mouse.dragEnt=null; mouse.marquee=null;
   mouse.gizmoAxis=null; mouse.scale=null;
   savePrefs();
@@ -1576,13 +1600,46 @@ function handlePos(e){
   ];
 }
 function scaleHit(px,py){
-  if(S.sim||S.tool!=="select"||S.sel.size!==1) return null;  // single only
-  const e=byName([...S.sel][0]); if(!e||S.hidden.has(e.name)) return null;
-  for(const hp of handlePos(e)){
+  if(S.sim||S.tool!=="select"||S.sel.size<1) return null;
+  let box=null;
+  if(S.sel.size===1){
+    const e=byName([...S.sel][0]); if(!e||S.hidden.has(e.name)) return null;
+    box={L:e.x,T:e.y,R:e.x+e.w,B:e.y+e.h};
+    for(const hp of handlePos(e)){
+      if(Math.abs(px-hp.x)<=5&&Math.abs(py-hp.y)<=5)
+        return {ax:hp.ax,ay:hp.ay,cur:hp.cur,box};
+    }
+    return null;
+  }
+  box=selBox(); if(!box) return null;
+  for(const hp of bboxHandles(box)){
     if(Math.abs(px-hp.x)<=5&&Math.abs(py-hp.y)<=5)
-      return {ax:hp.ax,ay:hp.ay,cur:hp.cur,ent:e};
+      return {ax:hp.ax,ay:hp.ay,cur:hp.cur,box};
   }
   return null;
+}
+/* the multi-selection bounding box in world space (null when empty) */
+function selBox(){
+  const sel=[...S.sel].map(byName).filter(Boolean);
+  if(!sel.length) return null;
+  return {L:Math.min(...sel.map(e=>e.x)), T:Math.min(...sel.map(e=>e.y)),
+          R:Math.max(...sel.map(e=>e.x+e.w)), B:Math.max(...sel.map(e=>e.y+e.h))};
+}
+/* the 8 handles on a world-space box — the multi-scale anchor points */
+function bboxHandles(box){
+  const [sx,sy]=world2scr(box.L,box.T);
+  const w=(box.R-box.L)*S.cam.z, h=(box.B-box.T)*S.cam.z;
+  const hot=S.hoverHandle;
+  return [
+    {x:sx,     y:sy,     ax:-1, ay:-1, cur:"nwse-resize", hot:hot==="nw"},
+    {x:sx+w/2, y:sy,     ax: 0, ay:-1, cur:"ns-resize",   hot:hot==="n"},
+    {x:sx+w,   y:sy,     ax: 1, ay:-1, cur:"nesw-resize", hot:hot==="ne"},
+    {x:sx,     y:sy+h/2, ax:-1, ay: 0, cur:"ew-resize",   hot:hot==="w"},
+    {x:sx+w,   y:sy+h/2, ax: 1, ay: 0, cur:"ew-resize",   hot:hot==="e"},
+    {x:sx,     y:sy+h,   ax:-1, ay: 1, cur:"nesw-resize", hot:hot==="sw"},
+    {x:sx+w/2, y:sy+h,   ax: 0, ay: 1, cur:"ns-resize",   hot:hot==="s"},
+    {x:sx+w,   y:sy+h,   ax: 1, ay: 1, cur:"nwse-resize", hot:hot==="se"},
+  ];
 }
 
 /* ── PIE — play in editor, spark's constants, honest approx ───── */

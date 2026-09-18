@@ -238,15 +238,20 @@ R48 = [
         "function handlePos(" in html and "function scaleHit(" in html
         and "mouse.scale={ax:sh.ax" in html
         and 'pushHistory("scale ' in html),
-    ("anchored-edge scaling with the 8px floor",
+    ("anchored-edge group scaling with the 8px floor",
         "R=Math.max(m.L0+8,sn(wx))" in html
-        and "m.ent.x=L; m.ent.w=R-L; m.ent.y=T; m.ent.h=B-T;" in html),
+        and "it.e.x=L+it.dx0*fx; it.e.w=Math.max(8,it.w0*fx);" in html
+        and "function selBox(" in html and "function bboxHandles(" in html),
     ("open tabs persist across reloads",
         "tabs:S.openTabs," in html and "p.tabs" in html
         and "S.openTabs=t;" in html),
     ("per-biome generated skies follow the scene",
         "const SKYS={" in html and "function skyFor(" in html
         and len(skies) == 4 and magic == b"\x89PNG"),
+    ("the splash wears the v2 art and the browser wears the campaign map",
+        "assets/splash-v2.png" in html and 'id="cb-map"' in html
+        and os.path.isfile(os.path.join(assets_dir, "splash-v2.png"))
+        and os.path.isfile(os.path.join(assets_dir, "campaign-map.png"))),
 ]
 missing = [nm for nm, ok in R48 if not ok]
 pin("all 4 R48 studio laws present", not missing, ", ".join(missing))
