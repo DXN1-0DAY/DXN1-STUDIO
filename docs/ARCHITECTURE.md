@@ -63,15 +63,55 @@ files themselves. Goals reference the next scene by repo-relative path, so
 the campaign is just a linked list: playground → level-1 → level-2 →
 playground.
 
+## The event wire
+
+`DXN3_TRACE=<path>` opens a confession file the binary itself writes:
+~40Hz telemetry lines (frames, steps, pauses, the player's pose) plus
+`EVENT` lines — discrete receipts, the machine's own words. The probes
+read the wire, never the paint: the pty can lie (bursts vanish, renders
+tail behind), the file the child wrote cannot.
+
+The wire's vocabulary, one line each:
+
+| Word | Spoken when |
+|------|-------------|
+| `shell: scene <name>` | the boot names the scene it opened with (the night's first word) |
+| `shell: scene <name>` | `:scene` loads by name — the direct line, the instant the hand returns |
+| `shell: scene saved <path>` | the play-mode `:w` writes the scene |
+| `shell: welcome to <name>` | the shell consumes `pendingNext` — a door was walked |
+| `shell: next missing: <err>` | a door promised a scene that isn't there |
+| `shell: opened <path>` | `:open` (and `:recent`) puts a file on the stage |
+| `shell: template <name>` | `:new`, `:template <name>`, ctrl+n turn the page |
+| `ide: saved <path> (+a ~c -r)[ bak]` | every IDE save — census, `(same)` when storyless, `bak` when a past was kept |
+| `respawn(why) x,y -> x,y` | the engine respawns the player |
+
+Three laws govern every word:
+
+- **Receipts tied to an instant ride the direct line** (`traceEventNow`):
+  flush what's parked, then write this word now. Anything parked on a
+  `Game` can die in its slot — the IDE's starter run owns frame 1 and
+  replaces the boot Game before the first cadence flush (the wire probe
+  convicted it twice: a save's census at w=2.27, the boot's first word at
+  frame 1).
+- **The refusals keep the `:open` law**: the rail speaks them, the wire
+  stays silent — and the probes pin the silence, so it is law, not
+  omission.
+- **One truth, two mouths**: where the rail and the wire both speak a
+  fact (a save's census, a template's name), the probes demand the two
+  mouths agree.
+
 ## QA
 
-`scripts/gates.sh` runs: a zero-warning `-std=c++23` build → the engine
-selftest (normalization clamps, magnetism, pickups, hazard respawn,
-transition lock, mover ping-pong + rider carry, camera follow + shake
-decay, ball bounce) → a real headless frame rendered from **every** scene →
-zero electron-era files tracked → VERSION ↔ CHANGELOG consistency. The QA
-lane is the same language as the product; there is no second stack to keep
-alive.
+`scripts/gates.sh` runs nine gates, and the exit code is the verdict:
+(1) a zero-warning `-std=c++23` build → (2) the engine selftest → (3)
+a real headless frame rendered from **every** scene, (3b) the campaign
+chain resolves, (3c) every scene path speaks the loader's list dialect,
+(3d) every scene is walkable on paper → (4) zero electron-era files
+tracked → (5) VERSION ↔ CHANGELOG consistency → (6) every shipped SDK
+example speaks the wire protocol → (7) the README never promises a
+ghost → (8) the probes walk: every pin in `probes/` green, in a real
+pty, against the real binary. The QA lane is the same language as the
+product; there is no second stack to keep alive.
 
 ## Why C++23
 
