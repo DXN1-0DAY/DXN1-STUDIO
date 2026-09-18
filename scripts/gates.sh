@@ -49,6 +49,38 @@ for s in scenes/*.dxn1.json; do
   fi
 done
 
+echo "── gate 3c: every scene speaks the list dialect (the frozen-ferries law)"
+if command -v python3 >/dev/null 2>&1; then
+  if python3 - <<'PYEOF'
+import json, glob, sys
+bad = []
+for p in sorted(glob.glob("scenes/*.dxn1.json")):
+    d = json.load(open(p))
+    for e in d.get("entities", []):
+        if not isinstance(e, dict) or "path" not in e:
+            continue
+        path = e["path"]
+        if not isinstance(path, list) or not path or \
+           not all(isinstance(w, dict) and "x" in w and "y" in w for w in path):
+            bad.append(f"{p}: {e.get('name','?')} path is not a list of waypoints "
+                       f"(the loader hears lists only — a dict path is a frozen ferry)")
+            continue
+        if e.get("pspeed", 0) <= 0:
+            bad.append(f"{p}: {e.get('name','?')} has a path but no pspeed")
+for b in bad:
+    print("   " + b)
+sys.exit(1 if bad else 0)
+PYEOF
+  then
+    echo "   ok  every path is a real waypoint list with a pspeed"
+  else
+    echo "   FAIL scene dialect violation(s) above — a silent path is a frozen ferry"
+    FAIL=1
+  fi
+else
+  echo "   (skip) python3 not on this machine — the dialect gate runs in CI"
+fi
+
 echo "── gate 4: the Electron farewell is complete (zero remnants)"
 LE=$(git ls-files | grep -icE 'electron|renderer/|webserve|server\.py|selftest\.js|package\.json' || true)
 if [ "$LE" -eq 0 ]; then
