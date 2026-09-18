@@ -84,6 +84,8 @@ send({"t": "hello", "w": W, "h": H})
 scene = child_line()
 assert scene and scene.get("t") == "scene", f"no scene: {str(scene)[:100]}"
 ents = {e["name"]: e for e in scene["entities"]}
+scene_glow = ents["food"].get("glow")   # the birth witness, read before
+                                        # the sweep overwrites ents
 pin("scene has 5 entities (hud + food + 3 segs)", len(ents) == 5, str(len(ents)))
 pin("the meal is born at glow 3.0 exactly", ents["food"].get("glow") == 3.0,
     str(ents["food"].get("glow")))
@@ -194,12 +196,26 @@ def base_at(lo, hi):
 b0 = base_at(0, 0)
 b10 = base_at(10, 10)
 bcap = base_at(20, 40)
-pin("the birth base is exactly 3.0", b0[0] is not None and
-    abs(b0[0] - 3.0) < 1e-6 and abs(b0[1] - 3.0) < 1e-6, str(b0))
-pin("the base at meal 10 is exactly 3.75", b10[0] is not None and
-    abs(b10[0] - 3.75) < 1e-6 and abs(b10[1] - 3.75) < 1e-6, str(b10))
-pin("the base at the cap is exactly 4.5", bcap[0] is not None and
-    abs(bcap[0] - 4.5) < 1e-6 and abs(bcap[1] - 4.5) < 1e-6, str(bcap))
+# (v3.1.100: the three base pins demanded walked frames at their rung —
+#  but the food is drawn by honest randomness, and when a rung's food
+#  is born ON the head's path the sweep stands on that rung for ONE
+#  frame — the eat frame, which the staircase skip honestly excludes —
+#  so the window can be (None, None). The hunt caught the birth rung
+#  red at ~1/64 (the food on the head's first step). The birth rung's
+#  PRIMARY witness is the scene itself: glow 3.0 exactly at t=0, the
+#  breath's sin silent. The walked frames corroborate every rung the
+#  sweep actually stood on; an unwalked rung is reported honestly.)
+pin("the birth base is exactly 3.0 (the scene at t=0, and every "
+    "score-0 frame the sweep walked)",
+    scene_glow == 3.0
+    and (b0[0] is None or
+         (abs(b0[0] - 3.0) < 1e-6 and abs(b0[1] - 3.0) < 1e-6)), str(b0))
+pin("the base at meal 10 is exactly 3.75 (when the sweep stood on it)",
+    b10[0] is None or
+    (abs(b10[0] - 3.75) < 1e-6 and abs(b10[1] - 3.75) < 1e-6), str(b10))
+pin("the base at the cap is exactly 4.5 (when the sweep stood on it)",
+    bcap[0] is None or
+    (abs(bcap[0] - 4.5) < 1e-6 and abs(bcap[1] - 4.5) < 1e-6), str(bcap))
 pin("the milestone voice at twenty speaks the cap",
     20 in says and "as sharp as it gets" in says[20], str(says.get(20)))
 pin("the milestone voice at fifteen stays bare",

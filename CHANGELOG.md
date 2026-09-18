@@ -1,3 +1,36 @@
+## v3.1.100 — two coins, both named; the rungs walk when the sweep walks
+
+- **the v3.1.99 tag rode a red** — and the pipe that swallowed the
+  exit code also swallowed the evidence (tail -2 ate both the FAIL
+  lines and gates.sh's exit status; the && chain never noticed).
+  The process lesson is kept: capture the full log, CHECK THE
+  EXIT, then tag. The corrected hunt then named the flake in one
+  round.
+- **snake_heat's birth rung was a lottery ticket** — the red
+  round's own pins named it: the per-frame staircase check was
+  GREEN while "the birth base is exactly 3.0" was RED — meaning
+  the score-0 sample list was EMPTY. The food is drawn by honest
+  randomness, and when it is born ON the head's path the very
+  first tick eats it: the sweep never stands on the score-0 rung
+  (the one frame that stood there is the eat frame, which the
+  staircase skip honestly excludes). ~1/64 per run. The birth
+  rung's PRIMARY witness is the scene itself — glow 3.0 exactly at
+  t=0, the breath's sin silent — and the walked frames now
+  corroborate each rung the sweep actually stood on; an unwalked
+  rung is reported as (None, None) instead of convicted. The meal-10
+  and cap rungs got the same honest treatment.
+- **the darkpays saucer hunt was a coin-flip gauntlet** — the
+  homed probe's night kill went red one round in eight: the
+  crossing's direction is `Math.random() < 0.5`, the player walks
+  1 px per tick, the saucer rides 1.6 — a chase from the near side
+  can NEVER catch the corridor (it recedes faster than the walk),
+  and three attempts from wherever the last chase ended fail at
+  0.5^3. The summon now drifts the player to the sky's center
+  while the gun counts to thirteen — both crossing directions then
+  pass THROUGH the hunter, head-on — and the attempts budget is
+  six, with the count riding home in the pin's detail for
+  forensics. 8/8 green after.
+
 ## v3.1.99 — the chase resumes, and steering is the proof
 
 - **chase_probe's phase B REDESIGNED** — the flake hunt's one red

@@ -88,7 +88,7 @@ pin("the moon starts a whisper (0.25, unlit)",
     abs(moon0["alpha"] - 0.25) < 1e-9 and moon0.get("glow", 0) == 0,
     f"alpha={moon0['alpha']} glow={moon0.get('glow')}")
 
-def dodge(ents, aim=None):
+def dodge(ents, aim=None, toward=None):
     px = ents["player"]["x"]
     keys = []
     threat = None
@@ -103,18 +103,31 @@ def dodge(ents, aim=None):
     elif threat is not None:
         bx = ents[f"bomb-{threat}"]["x"]
         keys.append("right" if bx > px else "left")
+    elif toward is not None:
+        if toward > px + 1: keys.append("right")
+        elif toward < px - 1: keys.append("left")
     return keys
 
 def summon_and_kill(ents, dark):
     """13 launches, then the lead-and-steer honest-overlap kill.
-    Returns (ents, f, shotname, score_before) — score_before is the hud
-    text the payment packet started from."""
+    Returns (ents, f, shotname, score_before, attempts_used) —
+    score_before is the hud text the payment packet started from.
+    (v3.1.100: the crossing's direction is a COIN FLIP (fromLeft =
+    Math.random() < 0.5) and the player walks 1 px per tick while the
+    saucer rides 1.6 — a chase from the near side can NEVER catch the
+    corridor (it recedes faster than the walk), so three attempts
+    from wherever the last chase ended went red one round in eight
+    (0.5^3). The summon now drifts the player to the sky's center
+    while the gun counts to thirteen: both crossing directions then
+    pass THROUGH the hunter, head-on, catchable every time. The
+    attempts budget is six, and the count rides home for forensics.)"""
     launches = 0
     summoned = False
     vx = None
     f = {}
+    attempts_used = 0
     for i in range(500):
-        keys = dodge(ents) + ["space"]
+        keys = dodge(ents, toward=W / 2 - 4) + ["space"]
         ents, f = frame(keys=keys)
         if ents["player"].get("glow") == 4:
             launches += 1
@@ -122,19 +135,20 @@ def summon_and_kill(ents, dark):
             summoned = True
             break
     if not summoned:
-        return ents, f, None, None
+        return ents, f, None, None, attempts_used
     # measure the crossing speed, then hunt
-    for attempt in range(3):
+    for attempt in range(6):
+        attempts_used = attempt + 1
         if ents["saucer"]["x"] <= -100:          # escaped — summon again
             launches = 0
             ok = False
             for i in range(500):
-                keys = dodge(ents) + ["space"]
+                keys = dodge(ents, toward=W / 2 - 4) + ["space"]
                 ents, f = frame(keys=keys)
                 if ents["player"].get("glow") == 4: launches += 1
                 if launches >= 13 and ents["saucer"]["x"] > -100:
                     ok = True; break
-            if not ok: return ents, f, None, None
+            if not ok: return ents, f, None, None, attempts_used
         for i in range(6):
             prev_x = ents["saucer"]["x"]
             ents, f = frame(keys=dodge(ents))
@@ -162,11 +176,11 @@ def summon_and_kill(ents, dark):
             if hits:
                 score_before = ents["hud"]["text"]
                 ents, f = frame(keys=dodge(ents), hits=hits)
-                return ents, f, hits[0], score_before
-    return ents, f, None, None
+                return ents, f, hits[0], score_before, attempts_used
+    return ents, f, None, None, attempts_used
 
 # --- 1. the DAY law: the honest purse, no suffix -----------------------
-ents, f, shotname, score_before = summon_and_kill(ents, dark=False)
+ents, f, shotname, score_before, attempts_d = summon_and_kill(ents, dark=False)
 say = f.get("say") or ""
 m = re.search(r"the mystery pays (\d+)", say)
 if m and shotname and score_before:
@@ -181,7 +195,8 @@ if m and shotname and score_before:
     pin("the day saucer rests dark",
         ents["saucer"]["x"] == -999 and ents["saucer"].get("glow", 0) == 0)
 else:
-    pin("the day mystery paid (say announced)", False, f"say={say!r}")
+    pin("the day mystery paid (say announced)", False,
+        f"say={say!r} attempts={attempts_d}")
 
 # --- 2. force the dark: one honest packet per alien seat ---------------
 # the seats are named alien-<row>-<col> — fifteen of them
@@ -215,7 +230,7 @@ pin("the living march wears the cacti ring",
         for r in range(3) for c in range(5)))
 
 # --- 4. the NIGHT law: the doubled purse, the say says so --------------
-ents, f, shotname, score_before = summon_and_kill(ents, dark=True)
+ents, f, shotname, score_before, attempts_n = summon_and_kill(ents, dark=True)
 say = f.get("say") or ""
 m = re.search(r"the mystery pays (\d+)", say)
 if m and shotname and score_before:
@@ -241,7 +256,8 @@ if m and shotname and score_before:
     pin("the killing shot parks dark too",
         spent is not None and spent["x"] == -999 and spent.get("glow", 0) == 0)
 else:
-    pin("the night mystery paid (say announced)", False, f"say={say!r}")
+    pin("the night mystery paid (say announced)", False,
+        f"say={say!r} attempts={attempts_n}")
 
 p.stdin.close()
 print()
