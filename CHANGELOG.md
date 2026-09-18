@@ -1,3 +1,46 @@
+## v3.1.124 — the handles bite, the desk remembers its tabs, the sky follows the biome
+
+*(the 22:00 UTC boundary's tag; the R48 UI round pays it.)*
+
+- **THE PARSE LAW (the round's deepest find)**: v3.1.119 shipped a
+  syntax error inside the editor's script — `for(const x,hy] of`, a
+  destructuring bracket lost to a bad merge — and FOUR releases plus
+  six all-green gate runs never saw it, because every
+  ui_editor_probe pin read strings and none parsed the cloth: the
+  whole editor was dead in every browser while the gates stayed
+  green (R45's "the probe pinned the cloth, not the runtime" law,
+  proven again at scale). The probe grows pin 13 — the script must
+  PARSE (`new Function()` compiles it without running, via bun) —
+  and the syntax is fixed. The parse law now guards every future
+  edit; a probe that reads strings is a probe that trusts a corpse.
+- **the scale gizmo**: the 8 orange squares on the selection's box
+  were drawn since v3.1.119 and never once bit — R48 makes them the
+  scale gizmo. Corners resize both axes, edge midpoints one; every
+  drag anchors the OPPOSITE edge (the SE handle grows the box, the
+  NW corner never moves); snap-aware with an honest 8px floor; the
+  history lands as "scale WxH"; the hover wears the resize cursors
+  and the grabbed handle brightens. One source of truth
+  (handlePos) draws them AND hit-tests them, so the paint and the
+  pick can never disagree. Live-verified headless: the ground's SE
+  drag +60,+40 grew it 1400x90 -> 1460x130 with the anchor pinned,
+  and the translate gizmo's axis lock survived the refactor.
+- **the desk remembers its tabs**: openTabs join the localStorage
+  prefs — open level-2, reload, and the tab bar (and the active
+  tab) come back exactly as left. Live-verified: two tabs before
+  the reload, the same two after, cur restored.
+- **the sky follows the biome**: four generated wide backdrops
+  (1344x768, one per campaign biome — twilight temple, industrial
+  dusk, dawn peaks, cosmic void) keyed by the scene file (SKYS
+  map, the generic sky.png stays the fallback). The viewport wears
+  the scene's own sky at the same worn 0.5 alpha; the images are
+  real PNGs (the JPEG-bytes law caught all four raw — PIL
+  re-encoded, magic verified) and the loader caches one Image per
+  asset. Live-verified: level-2 renders sky-twilight at full
+  decode, console clean.
+- ui_editor_probe pins 15 (was 13): the parse law and the four R48
+  studio laws join the twelve. ui/index.html, VERSION,
+  version.hpp and the README badge wear 3.1.124.
+
 ## v3.1.123 — the ferries thaw, and the wire speaks the decks' truth
 
 *(the 21:00 UTC boundary owed a tag; the R48 round pays it.)*

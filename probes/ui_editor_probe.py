@@ -186,6 +186,71 @@ R47 = [
 missing = [nm for nm, ok in R47 if not ok]
 pin("all 5 R47 studio laws present", not missing, ", ".join(missing))
 
+# pin 13 — THE PARSE LAW (R48, earned the hard way): v3.1.119 shipped a
+# syntax error inside the editor's script (`for(const x,hy] of` — a
+# destructuring '[' lost to a bad merge) and FOUR releases + six gate
+# runs never saw it, because every pin read strings and none parsed the
+# cloth: the whole editor was dead in every browser while the gates
+# stayed green. The runtime law: the script must PARSE — new Function()
+# compiles it without running.
+import subprocess, tempfile
+scripts = re.findall(r"<script>(.*?)</script>", html, re.S)
+main_script = max(scripts, key=len) if scripts else ""
+parse_ok, parse_msg = False, "no <script> block found"
+if main_script:
+    tfd2, tfname = tempfile.mkstemp(suffix=".js")
+    with os.fdopen(tfd2, "w") as tf:
+        tf.write(main_script)
+    try:
+        r = subprocess.run(
+            ["bun", "-e",
+             'const src=require("fs").readFileSync(process.argv[1],"utf8");'
+             'try{ new Function(src); console.log("PARSE-OK"); }'
+             'catch(e){ console.log("PARSE-FAIL: "+e.message); process.exit(1); }',
+             tfname],
+            capture_output=True, text=True, timeout=30)
+        parse_ok = r.returncode == 0 and "PARSE-OK" in r.stdout
+        parse_msg = (r.stdout + r.stderr).strip()[:140]
+    except Exception as e:
+        parse_msg = f"runner unavailable: {e}"
+    finally:
+        try: os.unlink(tfname)
+        except OSError: pass
+pin("the editor's script PARSES (the cloth is not the runtime)",
+    parse_ok, parse_msg)
+
+# pin 14 — the R48 laws: the scale gizmo (the 8 corner squares finally
+# bite: one source of truth draws and hit-tests them, anchored-edge
+# scaling with an honest 8px floor, a history entry of its own), the
+# open tabs persist across reloads, and the per-biome generated skies
+# follow the scene (four real PNG backdrops — the JPEG-bytes law
+# checked their magic).
+assets_dir = os.path.join(REPO, "ui", "assets")
+skies = [f for f in ("sky-twilight.png", "sky-industrial.png",
+                     "sky-dawn.png", "sky-void.png")
+         if os.path.isfile(os.path.join(assets_dir, f))]
+magic = b""
+if skies:
+    with open(os.path.join(assets_dir, skies[0]), "rb") as fh:
+        magic = fh.read(4)
+R48 = [
+    ("scale gizmo — the 8 handles bite (one truth draws and hits)",
+        "function handlePos(" in html and "function scaleHit(" in html
+        and "mouse.scale={ax:sh.ax" in html
+        and 'pushHistory("scale ' in html),
+    ("anchored-edge scaling with the 8px floor",
+        "R=Math.max(m.L0+8,sn(wx))" in html
+        and "m.ent.x=L; m.ent.w=R-L; m.ent.y=T; m.ent.h=B-T;" in html),
+    ("open tabs persist across reloads",
+        "tabs:S.openTabs," in html and "p.tabs" in html
+        and "S.openTabs=t;" in html),
+    ("per-biome generated skies follow the scene",
+        "const SKYS={" in html and "function skyFor(" in html
+        and len(skies) == 4 and magic == b"\x89PNG"),
+]
+missing = [nm for nm, ok in R48 if not ok]
+pin("all 4 R48 studio laws present", not missing, ", ".join(missing))
+
 fails = [n for n, ok in pins if not ok]
 print(f"\nui_editor_probe: {len(pins)-len(fails)}/{len(pins)} pins green "
       f"in {time.time()-t0:.1f}s")

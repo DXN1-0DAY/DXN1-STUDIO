@@ -481,7 +481,7 @@ body{background:var(--win); color:var(--text); font:var(--font); user-select:non
 /* ================================================================
    DXN1 STUDIO 3 — editor brain. One file, no deps.
    ================================================================ */
-const VERSION = "3.1.123";
+const VERSION = "3.1.124";
 const GATES = "58 probes walked · all green";
 
 const SCENES = [
@@ -540,6 +540,7 @@ function savePrefs(){
   try{ localStorage.setItem(PREFKEY, JSON.stringify({
     v:1, cam:S.cam, snap:S.snap, grid:S.grid, gridStep:S.gridStep,
     tool:S.tool, cur:S.cur, hidden:[...S.hidden],
+    tabs:S.openTabs,
     left:$("left").style.display==="none"?"off":"on",
     right:$("right").style.display==="none"?"off":"on",
     bottom:$("bottom").classList.contains("min")?"min":"full",
@@ -558,6 +559,11 @@ function loadPrefs(){
   if(p.right==="off") $("right").style.display="none";
   if(p.bottom==="min") $("bottom").classList.add("min");
   if(typeof p.cur==="string"&&S.scenes[p.cur]) S.cur=p.cur;
+  if(Array.isArray(p.tabs)&&p.tabs.length){          // the desk's open tabs
+    const t=p.tabs.filter(f=>typeof f==="string"&&S.scenes[f]);
+    if(t.length) S.openTabs=t;
+    if(!S.openTabs.includes(S.cur)&&S.scenes[S.cur]) S.openTabs.push(S.cur);
+  }
   return p;
 }
 
@@ -798,6 +804,25 @@ function tagOf(e){ return e.tag||""; }
 /* ── renderer ─────────────────────────────────────────────────── */
 const cv=$("viewport"), cx=cv.getContext("2d");
 const skyImg=new Image(); skyImg.src="assets/sky.png";
+/* the per-biome skies (R48): one generated wide backdrop per campaign
+   biome, themed from each scene's own palette; the generic sky.png
+   stays the fallback for any scene the map doesn't dress. */
+const SKYS={
+  "level-1.dxn1.json":"sky-industrial.png", "level-6.dxn1.json":"sky-industrial.png",
+  "level-2.dxn1.json":"sky-twilight.png",  "level-7.dxn1.json":"sky-twilight.png",
+  "level-12.dxn1.json":"sky-twilight.png",
+  "level-3.dxn1.json":"sky-dawn.png",       "level-5.dxn1.json":"sky-dawn.png",
+  "level-8.dxn1.json":"sky-dawn.png",
+  "level-4.dxn1.json":"sky-void.png",       "level-9.dxn1.json":"sky-void.png",
+  "level-10.dxn1.json":"sky-void.png",
+};
+const skyCache=new Map();          // src -> Image (one loader per asset)
+function skyFor(cur){
+  const f=SKYS[cur]||"sky.png";
+  if(!skyCache.has(f)){ const im=new Image(); im.src="assets/"+f; skyCache.set(f,im); }
+  return skyCache.get(f);
+}
+
 function fitCanvas(){
   const r=cv.parentElement.getBoundingClientRect(), dpr=window.devicePixelRatio||1;
   cv.width=Math.max(2,r.width*dpr); cv.height=Math.max(2,r.height*dpr);
@@ -814,12 +839,14 @@ function draw(){
   const g=cx.createLinearGradient(0,0,0,H);
   g.addColorStop(0,"rgba(139,92,246,0.06)"); g.addColorStop(0.6,"rgba(0,0,0,0)");
   cx.fillStyle=g; cx.fillRect(0,0,W,H);
-  /* the generated sky, worn lightly — the studio's backdrop, not a lie */
-  if(skyImg.complete&&skyImg.naturalWidth){
+  /* the generated sky, worn lightly — the studio's backdrop, not a lie;
+     R48: the sky follows the scene's BIOME (SKYS map, sky.png fallback) */
+  const simg=skyFor(S.cur);
+  if(simg.complete&&simg.naturalWidth){
     cx.globalAlpha=0.5;
-    const iw=skyImg.naturalWidth, ih=skyImg.naturalHeight;
+    const iw=simg.naturalWidth, ih=simg.naturalHeight;
     const s=Math.max(W/iw,H/ih), dw=iw*s, dh=ih*s;
-    cx.drawImage(skyImg,(W-dw)/2,(H-dh)/2,dw,dh);
+    cx.drawImage(simg,(W-dw)/2,(H-dh)/2,dw,dh);
     cx.globalAlpha=1;
   }
   /* grid */
@@ -881,9 +908,8 @@ function draw(){
     const [sx,sy]=world2scr(e.x,e.y), w=e.w*S.cam.z, h=e.h*S.cam.z;
     cx.strokeStyle="#ff9b26"; cx.lineWidth=1.6; cx.setLineDash([6,3]);
     cx.strokeRect(sx-2,sy-2,w+4,h+4); cx.setLineDash([]);
-    for(const [hx,hy] of [[sx-2,sy-2],[sx+w/2-3,sy-2],[sx+w+2,sy-2],[sx-2,sy+h/2-3],
-        [sx+w+2,sy+h/2-3],[sx-2,sy+h+2],[sx+w/2-3,sy+h+2],[sx+w+2,sy+h+2]]){
-      cx.fillStyle="#ff9b26"; cx.fillRect(hx,hy,5,5);
+    for(const hp of handlePos(e)){
+      cx.fillStyle=hp.hot?"#ffd08a":"#ff9b26"; cx.fillRect(hp.x-2.5,hp.y-2.5,5,5);
     }
   }
   /* the translate gizmo — arrows you can actually grab (any selection;
@@ -1294,7 +1320,7 @@ function makeActor(tag){
 }
 
 /* ── viewport input ───────────────────────────────────────────── */
-let mouse={x:0,y:0,down:false,dragEnt:false,panning:false,start:null,btn:0,marquee:null,gizmoAxis:null};
+let mouse={x:0,y:0,down:false,dragEnt:false,panning:false,start:null,btn:0,marquee:null,gizmoAxis:null,scale:null};
 const entAt=(wx,wy)=>{
   for(let i=ents().length-1;i>=0;i--){
     const e=ents()[i];
@@ -1315,8 +1341,15 @@ cv.addEventListener("pointerdown",ev=>{
   if(ev.button===1||S.tool==="pan"||(ev.button===0&&spaceDown)){ mouse.panning=true; return; }
   const hit=entAt(wx,wy);
   if(S.tool==="select"){
-    /* the translate gizmo outranks the body — grabbing an arrow moves
-       along THAT axis only, even when the arrows cross another actor */
+    /* the scale handles outrank everything (they live ON the box), the
+       translate gizmo outranks the body — grabbing an arrow moves along
+       THAT axis only, even when the arrows cross another actor */
+    const sh=scaleHit(ev.offsetX,ev.offsetY);
+    if(sh){
+      mouse.scale={ax:sh.ax,ay:sh.ay,ent:sh.ent,
+        L0:sh.ent.x,T0:sh.ent.y,R0:sh.ent.x+sh.ent.w,B0:sh.ent.y+sh.ent.h,moved:false};
+      return;
+    }
     const gz=gizmoHit(ev.offsetX,ev.offsetY);
     if(gz){ mouse.gizmoAxis=gz; mouse.dragEnt={dx:wx,dy:wy,moved:false}; return; }
     if(hit){
@@ -1334,13 +1367,34 @@ cv.addEventListener("pointermove",ev=>{
   const [wx,wy]=scr2world(ev.offsetX,ev.offsetY);
   $("st-fps").textContent=lastFps;
   if(!mouse.down){
-    const h=entAt(wx,wy); cv.style.cursor=h?"pointer":(S.tool==="pan"?"grab":"default");
+    const sh=scaleHit(ev.offsetX,ev.offsetY);
+    S.hoverHandle=sh?(sh.ax===-1&&sh.ay===-1?"nw":sh.ax===1&&sh.ay===-1?"ne":
+      sh.ax===-1&&sh.ay===1?"sw":sh.ax===1&&sh.ay===1?"se":
+      sh.ax===0&&sh.ay===-1?"n":sh.ax===0&&sh.ay===1?"s":
+      sh.ax===-1?"w":"e"):null;
+    const h=entAt(wx,wy);
+    cv.style.cursor=sh?sh.cur:(h?"pointer":(S.tool==="pan"?"grab":"default"));
     return;
   }
   if(mouse.panning){
     S.cam.x-=ev.movementX/S.cam.z; S.cam.y-=ev.movementY/S.cam.z; draw(); return;
   }
   if(mouse.marquee){ mouse.marquee.x1=wx; mouse.marquee.y1=wy; draw(); return; }
+  if(mouse.scale){
+    /* the anchored-edge scale: the handle's OPPOSITE edge stays put, the
+       grabbed edge chases the pointer, snap-aware, honest 8px floor */
+    const m=mouse.scale;
+    let L=m.L0, T=m.T0, R=m.R0, B=m.B0;
+    const sn=v=>S.snap?Math.round(v/S.gridStep)*S.gridStep:v;
+    if(m.ax===1) R=Math.max(m.L0+8,sn(wx));
+    else if(m.ax===-1) L=Math.min(m.R0-8,sn(wx));
+    if(m.ay===1) B=Math.max(m.T0+8,sn(wy));
+    else if(m.ay===-1) T=Math.min(m.B0-8,sn(wy));
+    m.ent.x=L; m.ent.w=R-L; m.ent.y=T; m.ent.h=B-T;
+    m.moved=true;
+    draw(); renderDetails();
+    return;
+  }
   if(mouse.dragEnt){
     const dx=wx-mouse.dragEnt.dx, dy=wy-mouse.dragEnt.dy;
     if(Math.abs(dx)>0.5||Math.abs(dy)>0.5){
@@ -1376,7 +1430,10 @@ cv.addEventListener("pointerup",ev=>{
   }
   if(mouse.dragEnt&&mouse.dragEnt.moved){
     pushHistory(mouse.gizmoAxis?"gizmo "+mouse.gizmoAxis:"move"); renderStats(); savePrefs(); }
-  mouse.down=false; mouse.panning=false; mouse.dragEnt=null; mouse.marquee=null; mouse.gizmoAxis=null;
+  if(mouse.scale&&mouse.scale.moved){
+    pushHistory("scale "+mouse.scale.ent.w+"×"+mouse.scale.ent.h); renderStats(); savePrefs(); }
+  mouse.down=false; mouse.panning=false; mouse.dragEnt=null; mouse.marquee=null;
+  mouse.gizmoAxis=null; mouse.scale=null;
   savePrefs();
 });
 const wheel={saveT:null};
@@ -1496,6 +1553,35 @@ function gizmoHit(px,py){
   const {sx,sy,len}=a, TOL=8;
   if(Math.abs(py-sy)<=TOL&&px>=sx-4&&px<=sx+len+10) return "x";
   if(Math.abs(px-sx)<=TOL&&py>=sy-4&&py<=sy+len+10) return "y";
+  return null;
+}
+
+/* ── the scale handles (R48) — the 8 squares on a single selection's
+   box were drawn for four releases and never once bit; now they are
+   the scale gizmo: corners resize both axes, edge midpoints one, all
+   anchored at the opposite edge, snap-aware, min 8px. One source of
+   truth draws them AND hit-tests them. */
+function handlePos(e){
+  const [sx,sy]=world2scr(e.x,e.y), w=e.w*S.cam.z, h=e.h*S.cam.z;
+  const hot=S.hoverHandle;
+  return [
+    {x:sx,     y:sy,     ax:-1, ay:-1, cur:"nwse-resize", hot:hot==="nw"},
+    {x:sx+w/2, y:sy,     ax: 0, ay:-1, cur:"ns-resize",   hot:hot==="n"},
+    {x:sx+w,   y:sy,     ax: 1, ay:-1, cur:"nesw-resize", hot:hot==="ne"},
+    {x:sx,     y:sy+h/2, ax:-1, ay: 0, cur:"ew-resize",   hot:hot==="w"},
+    {x:sx+w,   y:sy+h/2, ax: 1, ay: 0, cur:"ew-resize",   hot:hot==="e"},
+    {x:sx,     y:sy+h,   ax:-1, ay: 1, cur:"nesw-resize", hot:hot==="sw"},
+    {x:sx+w/2, y:sy+h,   ax: 0, ay: 1, cur:"ns-resize",   hot:hot==="s"},
+    {x:sx+w,   y:sy+h,   ax: 1, ay: 1, cur:"nwse-resize", hot:hot==="se"},
+  ];
+}
+function scaleHit(px,py){
+  if(S.sim||S.tool!=="select"||S.sel.size!==1) return null;  // single only
+  const e=byName([...S.sel][0]); if(!e||S.hidden.has(e.name)) return null;
+  for(const hp of handlePos(e)){
+    if(Math.abs(px-hp.x)<=5&&Math.abs(py-hp.y)<=5)
+      return {ax:hp.ax,ay:hp.ay,cur:hp.cur,ent:e};
+  }
   return null;
 }
 
