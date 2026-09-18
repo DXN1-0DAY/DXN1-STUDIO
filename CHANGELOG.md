@@ -1,3 +1,27 @@
+## v3.1.113 — the paint's law and the gallery's word
+
+- **the session's story learned the paint's law** — the dashboard's
+  filled row now speaks in TWO rows (the ledger's line with the
+  newest save's name, then the undo depth's line): the console's rail
+  clips at cols-3 and the old single row buried the undo depth the
+  moment a real path name stretched the row — the door probe's
+  filled-branch pin (the R40 debt, collected via the deterministic
+  bar-:w path) caught the tail dying. The blank night keeps one
+  breath.
+- **the gallery joins the wire** — `:new`, `:template <name>` and
+  ctrl+n confess `shell: template <name>` the instant the page turns.
+  One wire, every stage change: the boot names its scene, the chain
+  names its welcome, the door names its scene, the ledger names its
+  page, the gallery names its template.
+- **the event wire gets its page** — ARCHITECTURE.md grows the
+  vocabulary table and the three laws, and the QA section tells the
+  truth about the gates at last: nine, not five.
+- ide_door_probe stands at 29 pins (the filled branch's two), the
+  wire probe at 28 (the gallery's two-mouths pin; the probe's bar
+  learned the one-honest-char law, and the :new page-turn taught it
+  to give the night's story back before the farewell save). Gate 8
+  walks 54.
+
 ## v3.1.112 — :scene by name opens the door it always promised
 
 - **the convicted ghost** — `:scene` by name NEVER loaded, since the
