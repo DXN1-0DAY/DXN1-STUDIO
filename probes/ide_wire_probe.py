@@ -110,6 +110,8 @@ pin("the save-as receipt speaks on the rail",
 ev = wire_events(off); off += len(ev)
 m = re.search(rb"EVENT ide: saved probe_a\.py\s*\(\+\d+ ~\d+ -\d+\)", ev)
 pin("the save-as census rides the wire", m is not None, ev[-200:])
+pin("the night's first word names the scene it opened with",
+    b"EVENT shell: scene untitled" in ev, ev[:220])
 pin("the birth census speaks real adds",
     m is not None and b"(+0 ~" not in m.group(0), m.group(0) if m else "")
 # one truth, two mouths: the rail's census and the wire's census must
@@ -236,6 +238,8 @@ while time.time() < end:
 pin("the shell's scene save rides the wire",
     b"EVENT shell: scene saved scenes/playground.dxn1.json" in ev2,
     ev2[-200:])
+pin("the play night opens by naming its scene too",
+    b"EVENT shell: scene playground\n" in ev2, ev2[:220])
 pin("the pen kept the bytes it found (the .bak is the original)",
     os.path.exists(SEEN + ".bak") and
     open(SEEN + ".bak", "rb").read() == src_bytes)

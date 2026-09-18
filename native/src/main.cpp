@@ -1474,6 +1474,10 @@ int main(int argc, char** argv) {
     bootScene = std::move(*loaded);
   }
   dxn3::Game game(std::move(bootScene));
+  // (the boot's first word moved below traceEventNow's birth: parking
+  // it here died in the old slot — the IDE boot's starter run owns
+  // frame 1 (dtmx=1.6, hostUp true, takeScene replaced the Game before
+  // the first cadence flush; ph=1.60 at f=1 gave it away).)
 
   // headless screenshot: render the loaded scene and exit honestly
   if (wantShot) {
@@ -1733,6 +1737,12 @@ int main(int argc, char** argv) {
     std::fprintf(traceF, "  EVENT %s\n", text.c_str());
     std::fflush(traceF);
   };
+  // the night's FIRST word, on the direct line: the wire names the
+  // scene the shell opened with — before the loop's first tick, before
+  // the starter's build may replace the stage. Honest for the
+  // untitled page and the campaign's doors alike.
+  if (!game.scene.name.empty())
+    traceEventNow("shell: scene " + game.scene.name);
 
   auto openScript = [&](const std::string& path,
                         bool keepJumps = false) -> std::string {
