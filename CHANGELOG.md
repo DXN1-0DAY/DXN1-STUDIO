@@ -1,3 +1,24 @@
+## v3.1.101 — the doctrine book: five laws the fleet paid for
+
+- **probes/README.md grows the harness-laws section** — the fleet's
+  method, written down where the next probe will read it: wait for
+  the ANSWER not for silence (the door's diet); a drive that cannot
+  prove its own timing will betray the pins (the chase, frames ==
+  ticks sent); a pin that depends on the draw is a horoscope (the
+  radar's saturated ties, the bleach's death-frozen witness, the
+  saucer's coin-flip corridor — with the three honest repairs named:
+  the guaranteed direction, the process witness, the pre-position);
+  capture, CHECK THE EXIT, then tag (the pipe that swallowed a red
+  rode a tag — and its two companions, the relinking-binary ENOENT
+  ghost and the `cd X && Y &` precedence trap); and the preserved
+  log is the confession (the tail -6 window cut off the deciding
+  line twice this round alone).
+- The drift ledger's header tells the truth now: every outsider
+  came home. The fleet stands at 52 walking pins, nothing outside
+  the walls.
+- Gate 5 verified the four version points; the full gates walked
+  green before the tag — captured, exit-checked, THEN tagged.
+
 ## v3.1.100 — two coins, both named; the rungs walk when the sweep walks
 
 - **the v3.1.99 tag rode a red** — and the pipe that swallowed the
