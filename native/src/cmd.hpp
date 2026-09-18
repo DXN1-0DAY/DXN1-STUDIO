@@ -368,7 +368,7 @@ inline std::string usageHintFor(std::string_view typed) {
            ":theme import [path] adopts a file's coats now";
   if (verb == "journal")
     return " :journal — the save ledger: what each :w changed "
-           "(+added ~changed -removed path), the last twelve, "
+           "(+added ~changed -removed HH:MM path), the last twelve, "
            "oldest first; :journal clear forgives it (memory and disk)";
   if (verb == "zen")
     return " :zen — the rail rests, the body breathes; :zen wakes it and "
