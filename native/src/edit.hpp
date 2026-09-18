@@ -919,12 +919,48 @@ inline std::string ideJournalLine(const IdeDiffReport& rep,
 // falls off the far end (kJournalKeep stay). An empty line is not a
 // save's story; it is refused.
 constexpr size_t kJournalKeep = 12;
+
+// ── the ledger's keepsake: the journal survives the night ──────────
+// The journal is the PROJECT's memory, not the session's: one line
+// per save the disk heard, kept in .dxn3-journal at the project root
+// (the process cwd — the same root the scenes and :w resolve against,
+// the same instinct that puts git's logs beside the work). Every push
+// rewrites the file with the kept lines (bounded, tiny); boot loads
+// the last kJournalKeep so :journal remembers what the LAST session
+// saved. Best effort both ways: a read-only project keeps its
+// in-memory ledger and loses nothing but the night; a corrupt or
+// half-written line is skipped, never trusted.
+inline std::string ideJournalFilePath() {
+  return ".dxn3-journal";
+}
+
+inline void ideJournalLoad(std::vector<std::string>& journal) {
+  std::ifstream f(ideJournalFilePath(), std::ios::binary);
+  if (!f) return;                          // no file, no past, no news
+  std::vector<std::string> lines;
+  std::string ln;
+  while (std::getline(f, ln)) {
+    if (!ln.empty() && ln.back() == '\r') ln.pop_back();
+    if (!ln.empty()) lines.push_back(ln);  // a blank line is not a save
+  }
+  if (lines.size() > kJournalKeep)
+    lines.erase(lines.begin(), lines.end() - kJournalKeep);
+  journal = std::move(lines);
+}
+
+inline void ideJournalStore(const std::vector<std::string>& journal) {
+  std::ofstream f(ideJournalFilePath(), std::ios::binary | std::ios::trunc);
+  if (!f) return;                          // best effort: memory still wins
+  for (const auto& l : journal) f << l << '\n';
+}
+
 inline void ideJournalPush(std::vector<std::string>& journal,
                            std::string line) {
   if (line.empty()) return;
   journal.push_back(std::move(line));
   if (journal.size() > kJournalKeep)
     journal.erase(journal.begin(), journal.end() - kJournalKeep);
+  ideJournalStore(journal);                // the ledger outlives the session
 }
 
 // the selection goes first: the range is cut, the cursor collapses to

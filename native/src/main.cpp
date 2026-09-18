@@ -1409,6 +1409,8 @@ int main(int argc, char** argv) {
   }
   dxn3::ideThemeRecall(ide);                 // last night's coat, if it kept
   dxn3::ideSettingsRecall(ide);              // last night's habits, if they kept
+  dxn3::ideJournalLoad(ide.journal);         // last night's saves, if the
+                                             // project kept the ledger
   dxn3::ScriptHost host;
   // the sdk lives beside the BINARY — the studio's own installation —
   // not beside the user's cwd: a studio launched from anywhere hosts

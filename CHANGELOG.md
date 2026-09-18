@@ -1,3 +1,27 @@
+## v3.1.105 — the buffer law's last carriers, and a journal that survives the night
+
+- **the deadlock species is extinct** — all sixteen remaining
+  select-on-the-fd + readline-on-a-buffered-stream probes now read
+  through the fleet's shared harness (probes/_harness.py: raw os.read,
+  own line buffer, chatter skipped in place): tetris + tetris_hold,
+  dino + fly/grace/owl/skin, invaders + ufo/light/darkpays, ast_wear,
+  raycast_torch, windmill_dusk, and bounce_lantern (which spawns fresh
+  children — each keeps its own Wire, because a raw line buffer that
+  outlives the call is the whole point). Local signatures preserved so
+  every pin reads unchanged; 53 probes walked green.
+- **the journal's keepsake** — :journal was the session's memory: one
+  SIGTERM and last night's saves were gone. The journal is the
+  PROJECT's memory now: one line per save the disk heard, kept in
+  .dxn3-journal at the project root (the same root the scenes and :w
+  resolve against — the same instinct that puts git's logs beside the
+  work). Every push rewrites the kept lines (bounded, tiny); boot
+  loads the last kJournalKeep so a fresh session remembers what the
+  last session saved. Best effort both ways: a read-only project
+  loses nothing but the night; a corrupt line is skipped, never
+  trusted. The wire proof: ide_door_probe quits the studio after its
+  saves, starts a FRESH binary in the same cwd, and :journal speaks
+  the census line the previous session wrote (17/17 pins, three runs).
+
 ## v3.1.104 — the clock riddle closed, the fall that never respawned, the wire walk comes home
 
 - **the R37 clock-crawl riddle: CLOSED, and the engine was innocent**

@@ -85,9 +85,10 @@ def cmd(line, until=None, cap=2.5, takes_stage=True):
     return buf
 
 pins = []
-def pin(name, cond):
+def pin(name, cond, detail=""):
     pins.append((name, bool(cond)))
-    print(("PASS " if cond else "FAIL ") + name)
+    print(("PASS " if cond else "FAIL ") + name +
+          (f"  [{detail}]" if detail and not cond else ""))
 
 def receipts(w):
     return [m.group(0).decode(errors="replace")
@@ -156,6 +157,42 @@ w = cmd("theme import",
 pin("default import from the wardrobe's home is honest",
     any("waits" in r or "imported" in r or "no HOME" in r
         for r in receipts(w)))
+
+# ---- 6. the ledger's keepsake: :journal survives the restart ----------
+# (v3.1.105) the journal is the PROJECT's memory: one line per save the
+# disk heard, kept in .dxn3-journal at the project root. Quit the
+# studio, start a FRESH binary in the same cwd, ask :journal — the
+# session's save must still be listed, loaded from the ledger file.
+JFILE = os.path.join(WORK, ".dxn3-journal")
+try: os.kill(pid, 15)
+except Exception: pass
+drainf(0.5)
+try: os.close(fd)
+except Exception: pass
+try: os.waitpid(pid, 0)
+except Exception: pass
+pin("the ledger file exists at the project root", os.path.exists(JFILE),
+    "no .dxn3-journal")
+ledger_lines = (open(JFILE).read().splitlines()
+                if os.path.exists(JFILE) else [])
+pin("the ledger carries the session's save with its census",
+    any("probe_a.py" in ln and ln.startswith("+") for ln in ledger_lines),
+    str(ledger_lines)[:120])
+
+pid, fd = pty.fork()
+if pid == 0:
+    os.chdir(WORK)
+    os.environ["TERM"] = "xterm-256color"
+    os.execv(BIN, [BIN])
+    os._exit(1)
+buf = b""
+in_ide = True
+drainf(2.0)
+w = cmd("journal", until=lambda b: b"probe_a.py" in b, takes_stage=False)
+pin("a fresh session's :journal remembers the last night's save",
+    re.search(rb'\+\d+ ~\d+ -\d+\s+probe_a\.py', w) is not None)
+pin("the restarted studio speaks the ledger's voice",
+    b"the disk heard" in w, w[:100])
 
 # ---- cleanup -----------------------------------------------------------
 try: os.kill(pid, 15)
