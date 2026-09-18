@@ -87,7 +87,8 @@ body{background:var(--win); color:var(--text); font:var(--font); user-select:non
 .actor{background:var(--panel2); border:1px solid var(--border); border-radius:5px;
   padding:9px 8px; cursor:grab; text-align:center; transition:border-color .12s, background .12s;}
 .actor:hover{border-color:var(--sel); background:var(--hover);}
-.actor .ic{font-size:17px; display:block; margin-bottom:4px;}
+.actor .ic{width:30px; height:30px; display:block; margin:0 auto 4px; border-radius:7px;
+  object-fit:cover; background:#0e0f12;}
 .actor .nm{font-size:11px; color:var(--dim);}
 .actor:hover .nm{color:var(--text);}
 
@@ -134,7 +135,18 @@ body{background:var(--win); color:var(--text); font:var(--font); user-select:non
 .vpill b{color:var(--text); font-weight:600;}
 #vp-right{margin-left:auto; display:flex; gap:14px; font-size:11px; color:var(--dim);}
 #vp-right b{color:var(--text); font-weight:600;}
-#vphost{flex:1; position:relative; min-height:0;}
+#vphost{flex:1; position:relative; min-height:0; display:flex; flex-direction:column;}
+#tabbar{display:flex; gap:2px; background:var(--head); padding:3px 6px 0;
+  border-bottom:1px solid var(--border); flex:none; overflow-x:auto; scrollbar-width:none;}
+#tabbar::-webkit-scrollbar{display:none;}
+.vtab{display:flex; align-items:center; gap:7px; background:var(--panel2); border:1px solid var(--border);
+  border-bottom:0; color:var(--dim); font:inherit; font-size:11px; padding:4px 6px 4px 10px;
+  border-radius:5px 5px 0 0; cursor:pointer; max-width:190px; white-space:nowrap; overflow:hidden; flex:none;}
+.vtab.active{background:var(--sky); color:var(--text); border-color:var(--hair);}
+.vtab .nm{overflow:hidden; text-overflow:ellipsis;}
+.vtab .x{width:15px; height:15px; display:flex; align-items:center; justify-content:center;
+  border-radius:3px; color:var(--faint); font-size:11px; flex:none;}
+.vtab .x:hover{background:var(--bad); color:#fff;}
 #viewport{position:absolute; inset:0; width:100%; height:100%; display:block;}
 .voverlay{position:absolute; pointer-events:none;}
 #gizmo{right:14px; top:12px; width:64px; height:64px;}
@@ -356,16 +368,16 @@ body{background:var(--win); color:var(--text); font:var(--font); user-select:non
       <div class="pbody" id="tab-place">
         <div class="phead">Basic</div>
         <div class="actors">
-          <div class="actor" draggable="true" data-tag=""><span class="ic">▣</span><span class="nm">Solid Block</span></div>
-          <div class="actor" draggable="true" data-tag="mover"><span class="ic">⇄</span><span class="nm">Mover</span></div>
-          <div class="actor" draggable="true" data-tag="goal"><span class="ic">⚑</span><span class="nm">Goal</span></div>
-          <div class="actor" draggable="true" data-tag="hazard"><span class="ic">☠</span><span class="nm">Hazard</span></div>
-          <div class="actor" draggable="true" data-tag="spike"><span class="ic">▲</span><span class="nm">Spike</span></div>
-          <div class="actor" draggable="true" data-tag="bouncy"><span class="ic">◎</span><span class="nm">Bouncy</span></div>
-          <div class="actor" draggable="true" data-tag="ball"><span class="ic">⬤</span><span class="nm">Ball</span></div>
-          <div class="actor" draggable="true" data-tag="coin"><span class="ic">◉</span><span class="nm">Coin</span></div>
-          <div class="actor" draggable="true" data-tag="sign"><span class="ic">▤</span><span class="nm">Sign</span></div>
-          <div class="actor" draggable="true" data-tag="player"><span class="ic">☻</span><span class="nm">Player Spawn</span></div>
+          <div class="actor" draggable="true" data-tag=""><img class="ic" src="assets/icon-block.png" alt=""><span class="nm">Solid Block</span></div>
+          <div class="actor" draggable="true" data-tag="mover"><img class="ic" src="assets/icon-mover.png" alt=""><span class="nm">Mover</span></div>
+          <div class="actor" draggable="true" data-tag="goal"><img class="ic" src="assets/icon-goal.png" alt=""><span class="nm">Goal</span></div>
+          <div class="actor" draggable="true" data-tag="hazard"><img class="ic" src="assets/icon-hazard.png" alt=""><span class="nm">Hazard</span></div>
+          <div class="actor" draggable="true" data-tag="spike"><img class="ic" src="assets/icon-spike.png" alt=""><span class="nm">Spike</span></div>
+          <div class="actor" draggable="true" data-tag="bouncy"><img class="ic" src="assets/icon-bouncy.png" alt=""><span class="nm">Bouncy</span></div>
+          <div class="actor" draggable="true" data-tag="ball"><img class="ic" src="assets/icon-ball.png" alt=""><span class="nm">Ball</span></div>
+          <div class="actor" draggable="true" data-tag="coin"><img class="ic" src="assets/icon-coin.png" alt=""><span class="nm">Coin</span></div>
+          <div class="actor" draggable="true" data-tag="sign"><img class="ic" src="assets/icon-sign.png" alt=""><span class="nm">Sign</span></div>
+          <div class="actor" draggable="true" data-tag="player"><img class="ic" src="assets/icon-player.png" alt=""><span class="nm">Player Spawn</span></div>
         </div>
         <div class="phead">Hint</div>
         <div class="det-hint">Click an actor to place it at the viewport center, or drag it onto the world. Movers ride their path at <i>pspeed</i> px/s — deterministic from scene load, just like spark.</div>
@@ -389,8 +401,11 @@ body{background:var(--win); color:var(--text); font:var(--font); user-select:non
         </div>
       </div>
       <div id="vphost">
-        <canvas id="viewport"></canvas>
-        <canvas class="voverlay" id="gizmo" width="128" height="128"></canvas>
+        <div id="tabbar"></div>
+        <div style="flex:1; position:relative; min-height:0;" id="vphost2">
+          <canvas id="viewport"></canvas>
+          <canvas class="voverlay" id="gizmo" width="128" height="128"></canvas>
+        </div>
         <div id="piebar"><span class="dot"></span><span>Playing in editor — A/D move · W or Space jump · Esc stop</span><button id="btn-pie-stop">Stop</button></div>
       </div>
     </div>
@@ -466,7 +481,7 @@ body{background:var(--win); color:var(--text); font:var(--font); user-select:non
 /* ================================================================
    DXN1 STUDIO 3 — editor brain. One file, no deps.
    ================================================================ */
-const VERSION = "3.1.121";
+const VERSION = "3.1.122";
 const GATES = "58 probes walked · all green";
 
 const SCENES = [
@@ -510,6 +525,7 @@ const S = {
   sim:null,                  // PIE state
   lit:true, filters:new Map(),
   modalFrom:null,
+  openTabs:["playground.dxn1.json"],   // the editor's open-scene tabs
 };
 
 /* ── tiny helpers ─────────────────────────────────────────────── */
@@ -625,6 +641,7 @@ function finishBoot(done){
   const p = loadPrefs();
   loadScene(S.scenes[S.cur] ? S.cur : Object.keys(S.scenes)[0], true);
   if(p&&p.cam&&isFinite(p.cam.x)&&isFinite(p.cam.z)){ S.cam=p.cam; draw(); renderStats(); }
+  renderTabs();
   fitCanvas();
   if(p){ toast("Welcome back","Editor layout restored — scene, camera, panels");
     log("info","[prefs] restored — scene, camera, tool, grid, panels"); }
@@ -687,6 +704,7 @@ function buildContent(){
       card.classList.add("sel");
     });
     card.addEventListener("dblclick",()=>loadScene(sc.f));
+    card.addEventListener("contextmenu",ev=>{ ev.preventDefault(); openCardCtx(ev,sc.f); });
     grid.appendChild(card);
   }
   if(!shown&&q){
@@ -702,6 +720,8 @@ $("cb-search").addEventListener("input",buildContent);
 function loadScene(f, quiet){
   if(!S.scenes[f]) return;
   S.cur=f; S.sel.clear(); S.hidden.clear();
+  if(!S.openTabs.includes(f)) S.openTabs.push(f);   // every visit opens its tab
+  renderTabs();
   /* fit the whole stage on load — the level greets you whole */
   const es=S.scenes[f].entities||[];
   const x1=Math.max(...es.map(e=>e.x+e.w), 800), y1=Math.max(...es.map(e=>e.y+e.h), 500);
@@ -735,6 +755,32 @@ function newScene(){
   log("ok","[scene] "+f+" born — ground, player, goal");
 }
 
+/* ── editor tabs — the viewport wears its open scenes (UE5-style) ── */
+function renderTabs(){
+  const bar=$("tabbar"); bar.innerHTML="";
+  for(const f of S.openTabs){
+    const d=S.scenes[f]; if(!d) continue;
+    const t=document.createElement("div");
+    t.className="vtab"+(f===S.cur?" active":"");
+    t.innerHTML=`<span class="nm">${esc(d.name||f)}</span><span class="x" title="Close tab">✕</span>`;
+    t.addEventListener("click",ev=>{ if(ev.target.classList.contains("x")) return; loadScene(f); });
+    t.querySelector(".x").addEventListener("click",ev=>{ ev.stopPropagation(); closeTab(f); });
+    t.addEventListener("auxclick",ev=>{ if(ev.button===1) closeTab(f); });
+    bar.appendChild(t);
+  }
+}
+function closeTab(f){
+  const i=S.openTabs.indexOf(f); if(i<0) return;
+  S.openTabs.splice(i,1);
+  if(!S.openTabs.length) S.openTabs=["playground.dxn1.json"];   // a studio
+                                                                 // always shows
+                                                                 // something
+  if(S.cur===f || !S.scenes[S.cur] || !S.openTabs.includes(S.cur))
+    loadScene(S.openTabs[Math.max(0,i-1)]);
+  else renderTabs();
+  savePrefs();
+}
+
 /* ── selection helpers ────────────────────────────────────────── */
 function ents(){ return S.scenes[S.cur].entities; }
 function byName(n){ return ents().find(e=>e.name===n); }
@@ -757,7 +803,7 @@ function fitCanvas(){
   cv.width=Math.max(2,r.width*dpr); cv.height=Math.max(2,r.height*dpr);
   cx.setTransform(dpr,0,0,dpr,0,0);
 }
-new ResizeObserver(()=>{fitCanvas(); draw();}).observe($("vphost"));
+new ResizeObserver(()=>{fitCanvas(); draw();}).observe($("vphost2"));
 
 function draw(){
   const W=cv.clientWidth, H=cv.clientHeight;
@@ -840,9 +886,10 @@ function draw(){
       cx.fillStyle="#ff9b26"; cx.fillRect(hx,hy,5,5);
     }
   }
-  /* the translate gizmo — arrows you can actually grab (single selection,
-     edit mode only; PIE has no gizmos, it has gravity) */
-  if(S.sel.size===1&&!S.sim) drawGizmo();
+  /* the translate gizmo — arrows you can actually grab (any selection;
+     single = the entity's center, multi = the bbox center and the drag
+     moves the whole selection) */
+  if(S.sel.size>=1&&!S.sim) drawGizmo();
   /* rubber-band overlay (screen space) */
   if(mouse.marquee){
     const m=mouse.marquee;
@@ -952,6 +999,49 @@ function openCtx(ev,e){
 }
 document.addEventListener("click",closeCtx);
 window.addEventListener("blur",closeCtx);
+
+/* ── content browser context menu — scenes are cargo too ───────── */
+function openCardCtx(ev,f){
+  const m=$("ctxmenu"); m.innerHTML="";
+  const t=document.createElement("div"); t.className="ct";
+  t.textContent="▸ "+(S.scenes[f]&&S.scenes[f].name||f);
+  m.appendChild(t);
+  m.appendChild(ctxItem("Load in viewport",()=>loadScene(f),"","double-click"));
+  m.appendChild(ctxItem("Duplicate scene…",()=>{
+    const base=f.replace(".dxn1.json","");
+    const nn=prompt("Duplicate "+f+" to:",base+"-copy");
+    if(!nn) return;
+    const key=nn.replace(/[^a-z0-9-]/g,"")+".dxn1.json";
+    if(S.scenes[key]){ toast("Scene exists",key,"warn"); return; }
+    S.scenes[key]=JSON.parse(JSON.stringify(S.scenes[f]));
+    S.scenes[key].name=nn.replace(/[^a-z0-9-]/g,"");
+    SCENES.unshift({f:key, thumb:(SCENES.find(s=>s.f===f)||{}).thumb||"assets/thumb-playground.png"});
+    buildScenePicker(); buildContent(); loadScene(key);
+    log("ok","[scene] "+key+" duplicated from "+f);
+    toast("Duplicated",key);
+  }));
+  m.appendChild(ctxItem("Rename…",()=>{
+    const nn=prompt("Rename "+f+" to:",f.replace(".dxn1.json",""));
+    if(!nn) return;
+    const key=nn.replace(/[^a-z0-9-]/g,"")+".dxn1.json";
+    if(key===f||S.scenes[key]){ if(key!==f) toast("Scene exists",key,"warn"); return; }
+    S.scenes[key]=S.scenes[f]; delete S.scenes[f];
+    S.scenes[key].name=nn.replace(/[^a-z0-9-]/g,"");
+    const si=SCENES.find(s=>s.f===f); if(si) si.f=key;
+    const ti=S.openTabs.indexOf(f); if(ti>=0) S.openTabs[ti]=key;
+    if(S.cur===f) S.cur=key;
+    if(S.scenes[S.cur]) $("scenepick").value=S.cur;
+    buildScenePicker(); buildContent(); renderTabs(); renderStats();
+    log("ok","[scene] "+f+" renamed to "+key);
+    toast("Renamed",key);
+  }));
+  m.appendChild(document.createElement("hr"));
+  m.appendChild(ctxItem("Save to disk (download)",()=>{ if(S.cur===f) saveScene();
+    else{ toast("Load first","Select the scene, then Ctrl+S","warn"); } }));
+  m.style.display="block";
+  m.style.left=Math.max(4,Math.min(ev.clientX,window.innerWidth-216))+"px";
+  m.style.top=Math.max(4,Math.min(ev.clientY,window.innerHeight-220))+"px";
+}
 
 /* ── details panel ────────────────────────────────────────────── */
 function numField(label,get,set,step){
@@ -1366,9 +1456,17 @@ function focusSel(){
    space, draggable along one axis at a time. The corner compass above
    is the map; these arrows are the territory. */
 function gizmoAnchor(){
-  const e=byName([...S.sel][0]); if(!e) return null;
-  const [sx,sy]=world2scr(e.x+e.w/2,e.y+e.h/2);
-  return {e,sx,sy,len:Math.max(34,56*Math.min(1.5,S.cam.z))};
+  const sel=[...S.sel].map(byName).filter(Boolean);
+  if(!sel.length) return null;
+  let sx0, sy0;
+  if(sel.length===1){ sx0=sel[0].x+sel[0].w/2; sy0=sel[0].y+sel[0].h/2; }
+  else{
+    const x0=Math.min(...sel.map(e=>e.x)), y0=Math.min(...sel.map(e=>e.y));
+    const x1=Math.max(...sel.map(e=>e.x+e.w)), y1=Math.max(...sel.map(e=>e.y+e.h));
+    sx0=(x0+x1)/2; sy0=(y0+y1)/2;      // the bbox center — the multi pivot
+  }
+  const [sx,sy]=world2scr(sx0,sy0);
+  return {e:sel[0],sx,sy,len:Math.max(34,56*Math.min(1.5,S.cam.z))};
 }
 function drawGizmo(){
   const a=gizmoAnchor(); if(!a) return;
@@ -1393,7 +1491,7 @@ function drawGizmo(){
   cx.fillStyle="rgba(255,255,255,.9)"; cx.fillRect(sx-3,sy-3,6,6);
 }
 function gizmoHit(px,py){
-  if(S.sim||S.tool!=="select"||S.sel.size!==1) return null;
+  if(S.sim||S.tool!=="select"||S.sel.size<1) return null;
   const a=gizmoAnchor(); if(!a) return null;
   const {sx,sy,len}=a, TOL=8;
   if(Math.abs(py-sy)<=TOL&&px>=sx-4&&px<=sx+len+10) return "x";
@@ -1614,7 +1712,7 @@ $("modal-x").addEventListener("click",()=>$("modal").classList.remove("on"));
 $("modal").addEventListener("click",ev=>{ if(ev.target===$("modal")) $("modal").classList.remove("on"); });
 
 function aboutHTML(){
-  return `<img src="assets/splash.png" alt="">
+  return `<img src="assets/about-hero.png" alt="">
     <b>DXN1 STUDIO</b> <span style="color:var(--faint)">v${VERSION}</span> — the studio wears UE5.<br>
     One C++23 binary is the engine; this panel cloth is its editor face.
     Scenes are the same JSON the wire speaks.<br><br>

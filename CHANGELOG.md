@@ -1,3 +1,48 @@
+## v3.1.122 — the viewport wears tabs, the gizmo moves armies, the palette wears its icons
+
+*(the 19:00 UTC boundary owed a tag; the R47 round pays it.)*
+
+- **the viewport wears tabs** — every scene visit opens a tab over
+  the viewport (click to switch, ✕ or middle-click to close, the
+  last tab never dies — a studio always shows something). The scene
+  picker and the tabs stay in sync, and closing the active tab
+  activates its neighbor.
+- **the translate gizmo anchors any selection** — single selection
+  pivots at the entity's center; multi-selection pivots at the
+  bounding box's center and the axis drag moves the whole selection
+  (verified live in the browser: three entities, one shared dx, y
+  untouched, history "gizmo x").
+- **the Content Browser's cards grow a context menu** — right-click
+  any scene card for Load in viewport, Duplicate scene… (deep-copies
+  the JSON into memory, opens its tab), Rename… (rekeys the scene in
+  memory, SCENES, the open tabs and the picker), and Save to disk.
+- **the palette wears its icons** — ten generated per-actor icons
+  (block, mover, goal, hazard, spike, bouncy, ball, coin, sign,
+  player) replace the unicode glyphs, downscaled to 128px real PNGs
+  (the JPEG-bytes law caught all eleven raw files); the About modal
+  wears a new wide hero banner. `ui_editor_probe` pins 13: the five
+  R47 studio laws (tabs, the bbox-pivot gizmo, the card menu, the
+  icon set, the banner) join the twelve.
+- **the ferries investigation (attempted, reverted, queued)** — this
+  round's probe work found a REAL scene bug: level-2's mover-1 and
+  mover-2 carry `path` and `pspeed` but never the `tag: "mover"`
+  spark's law requires, so both ferries have stood FROZEN since
+  v3.1.106's dialect conversion (the sign says "ride the lifts"; the
+  lifts never moved; every green tour run to date boarded a frozen
+  statue). The thaw itself is one line per ferry — but it invalidates
+  the grand tour's entire level-2 choreography, whose boarding
+  windows were tuned against a deck that never moved (hands-off
+  rides, a receipt lock measured on a statue). Three laws were
+  rewritten for moving decks (the run-the-deck ride, the sign-top
+  walk-off with a latch and an arrival-only catch window, the
+  scan-only boarding) and the walk crossed the THAWED level-2 green
+  — but not within the probe's 170s cap under load: the crossing's
+  catch windows need the deck's true phase, and the trace carries no
+  mover state. The honest move: the scene fix and the tour changes
+  are REVERTED here, re-landed in R48 behind an engine-side mover
+  telemetry line (a mover line in the trace, then the windows derived
+  from data). The bug is real, documented, and one round from fixed.
+
 ## v3.1.121 — the gizmo you can grab, the world you can edit, the lifts that behave
 
 *(the 18:00 UTC boundary owed a tag; the R46 round pays it. Also folds

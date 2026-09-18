@@ -119,9 +119,10 @@ pin("live-boot law — renderStats guards the empty stage",
     "no empty-stage guard before ents()" if mstats and not guard_ok else "renderStats missing")
 
 # pin 10 — the translate gizmo is real: arrows drawn at the selection's
-# center and draggable along ONE axis (R46). Four symbols + the draw hook.
+# center and draggable along ONE axis (R46; R47 widened the anchor to
+# any selection size — single = entity center, multi = bbox center).
 GIZMO = ["function gizmoAnchor(", "function drawGizmo(", "function gizmoHit(",
-         "mouse.gizmoAxis", "if(S.sel.size===1&&!S.sim) drawGizmo();"]
+         "mouse.gizmoAxis", "if(S.sel.size>=1&&!S.sim) drawGizmo();"]
 miss = [g for g in GIZMO if g not in html]
 pin("translate gizmo draws at the selection and drags by axis", not miss,
     ", ".join(miss))
@@ -160,6 +161,30 @@ R46 = [
 ]
 missing = [nm for nm, ok in R46 if not ok]
 pin("all 7 R46 panel laws present", not missing, ", ".join(missing))
+
+# pin 12 — the R47 laws: viewport tabs (multi-scene open with close
+# buttons and middle-click), the multi-selection gizmo (bbox-center
+# pivot, any selection size), the content-browser context menu
+# (load / duplicate / rename a scene), the generated palette icon set
+# (one icon per actor card), and the About modal's hero banner.
+icon_refs = re.findall(r'assets/(icon-[\w-]+\.png)', html)
+R47 = [
+    ("viewport tabs (open/close/middle-click)",
+        'id="tabbar"' in html and "function renderTabs(" in html
+        and "function closeTab(" in html and "auxclick" in html),
+    ("gizmo anchors any selection (bbox pivot)",
+        "if(S.sel.size>=1&&!S.sim) drawGizmo();" in html
+        and "the bbox center" in html),
+    ("content browser context menu",
+        "function openCardCtx(" in html and "Duplicate scene" in html),
+    ("the palette wears its 10 generated icons",
+        len(set(icon_refs)) == 10 and "assets/icon-block.png" in html
+        and "assets/icon-player.png" in html),
+    ("the About modal wears its hero banner",
+        "assets/about-hero.png" in html),
+]
+missing = [nm for nm, ok in R47 if not ok]
+pin("all 5 R47 studio laws present", not missing, ", ".join(missing))
 
 fails = [n for n, ok in pins if not ok]
 print(f"\nui_editor_probe: {len(pins)-len(fails)}/{len(pins)} pins green "
