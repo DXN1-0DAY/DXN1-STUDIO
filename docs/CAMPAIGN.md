@@ -182,7 +182,10 @@ began — the epilogue's quiet last word before the road starts over.
 The chain walk (gate 8) proved one hop: a hero walked through the
 playground's door and the shell consumed `pendingNext` into level-1,
 with the load spoken on the event wire where machines read it. The
-grand tour (probes/campaign_walk.py) is the sequel: keep walking.
+grand tour (probes/grand_tour_probe.py, gate 8 since v3.1.115) is the
+sequel: keep walking — it pins THREE receipts (level-1, level-2,
+level-3) in ~50-55s and has retired campaign_walk.py, whose ungated
+five-minute stall was a live trap the family tree had to name.
 The walker is a state machine with laws, not a script — run, board,
 listen, ride — and every law it learns comes from a scene the tour
 had to cross:
