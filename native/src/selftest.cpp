@@ -451,6 +451,29 @@ int main() {
        "an ambiguous prefix refuses to guess");
     ok(dxn3::resolveSceneArg("ghost.dxn1.json", names) == "ghost.dxn1.json",
        "ghosts pass through for an honest error");
+    // the stem law the wire probe convicted (R41): a scene FILE's stem
+    // is its bare name — "level-2.dxn1.json" stems ONCE to
+    // "level-2.dxn1", which is not a name; the shell must stem twice
+    // or resolveSceneArg builds level-2.dxn1.dxn1.json, a ghost, and
+    // :scene by name never loads. The enumeration law, on paper.
+    for (const char* f : {"level-2.dxn1.json", "playground.dxn1.json"}) {
+      const std::filesystem::path p = std::filesystem::path(f);
+      const std::string bare = p.stem().stem().string();
+      const std::string single = p.stem().string();
+      ok(bare != single && bare.find('.') == std::string::npos,
+         std::string("a scene file's bare stem loses both tails: ") + f);
+      // the convicted ghost (R41): feed the resolver the SINGLE stem
+      // and the double tail is born — the exact shape the rail spoke
+      // "no such file" for while the file stood right there.
+      ok(dxn3::resolveSceneArg(bare, {single}) ==
+             "scenes/" + single + ".dxn1.json",
+         std::string("the single-stem feed builds the convicted ghost: ") +
+             single);
+      // the law: a bare-stem feed resolves the real path.
+      ok(dxn3::resolveSceneArg(bare, {bare}) ==
+             "scenes/" + bare + ".dxn1.json",
+         std::string("the bare-stem feed resolves the real path: ") + bare);
+    }
   }
 
   // 17. the ScriptHost: a REAL child process speaking the protocol

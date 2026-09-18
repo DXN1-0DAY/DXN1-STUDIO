@@ -1515,14 +1515,20 @@ int main(int argc, char** argv) {
   ide.open = ideBoot;
   int cols0 = 100, rows0 = 24;                // world size hint, refined live
 
-  // the scenes on this machine, as bare stems — name resolution fuel
+  // the scenes on this machine, as bare stems — name resolution fuel.
+  // stem() twice: "level-2.dxn1.json" stems to "level-2.dxn1" first —
+  // and the single-stem feeds made resolveSceneArg build
+  // level-2.dxn1.dxn1.json, a ghost: :scene by name NEVER loaded, and
+  // the wire probe's first walk of the verb convicted it (the rail
+  // said "no such file" for a file that stood right there). Bare
+  // stems, as resolveSceneArg's own contract demands.
   auto sceneStems = []() {
     std::vector<std::string> stems;
     std::error_code ec;
     for (const auto& de : std::filesystem::directory_iterator("scenes", ec))
       if (de.is_regular_file(ec) && de.path().extension() == ".json" &&
           de.path().string().find(".dxn1.") != std::string::npos)
-        stems.push_back(de.path().stem().string());
+        stems.push_back(de.path().stem().stem().string());
     std::sort(stems.begin(), stems.end());
     return stems;
   };
@@ -1938,7 +1944,12 @@ int main(int argc, char** argv) {
               game = dxn3::Game(std::move(*next));
               scenePath = resolved;
               game.say("scene: " + game.scene.name, 1.6);
-              game.traceEv = "shell: scene " + game.scene.name;
+              // the load's word rides the direct line (the wire's law
+              // since the census): a receipt tied to an INSTANT does
+              // not park on a Game the next verb may replace. The
+              // refusals keep the :open law — the rail speaks them,
+              // the wire's silence there is law, not omission.
+              traceEventNow("shell: scene " + game.scene.name);
             } else { cmdErr = next.error().detail; cmdErrT = 3.5f; }
           }
         } else if (cmd.verb == "zoom") {

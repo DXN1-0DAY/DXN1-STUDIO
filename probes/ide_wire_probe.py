@@ -52,14 +52,19 @@ def send(s):
 in_ide = True
 def cmd(line, until=None, cap=2.5, takes_stage=True):
     """the ide_door law: esc when the editor holds the stage, ':' opens
-    the bar, one honest burst, enter — then WAIT FOR THE ANSWER."""
+    the bar, ONE HONEST CHAR AT A TIME (the R40 law — a burst is a gale
+    the pty's one-frame mouth chokes on; `scene level-2` lost its tail
+    mid-burst and the ghost's error taught the wrong lesson), enter —
+    then WAIT FOR THE ANSWER."""
     global buf, in_ide
     buf = b""
     if in_ide:
         send(b"\x1b"); drainf(0.5)
         buf = b""
     send(":"); drainf(0.2)
-    send(line); drainf(0.15)
+    for _ch in line:
+        send(_ch); time.sleep(0.03)
+    drainf(0.15)
     send("\r")
     mark = len(buf)
     end = time.time() + cap
@@ -236,6 +241,72 @@ pin("the pen kept the bytes it found (the .bak is the original)",
     open(SEEN + ".bak", "rb").read() == src_bytes)
 pin("the saved scene is a real scene again",
     os.path.exists(SEEN) and open(SEEN, "rb").read().startswith(b"{"))
+
+# ---- 6. the manual :scene rides the direct line (and the refusals'
+# silence is law) ----------------------------------------------------------
+# the verb's load used to PARK its word on the fresh Game's slot — the
+# cadence's whenever, one host rebuild away from a dying slot. The
+# census's law (the direct line) says a receipt tied to an instant
+# speaks the moment the hand returns. The refusals keep the :open law:
+# the rail speaks them, the wire stays silent — and the silence is
+# PINNED, so it is law, not omission. Two more scenes join the temp
+# dir first: sceneStems() scans ./scenes, and resolution needs names.
+for _s in ("level-1", "level-2"):
+    shutil.copyfile(os.path.join(REPO, "scenes", f"{_s}.dxn1.json"),
+                    os.path.join(SCENES, f"{_s}.dxn1.json"))
+
+# the ambiguous refusal: 'lev' matches two stems, the bar lists, the
+# wire says nothing (no load happened — the wire does not fib).
+w = cmd("scene lev", until=lambda b: b"ambiguous scene 'lev'" in b,
+        takes_stage=False)
+pin("the ambiguous refusal lists itself on the rail",
+    b"ambiguous scene 'lev'" in w and b"level-1" in w and b"level-2" in w,
+    w[-160:])
+ev6 = wire_events(off2, TRACE2); off2 += len(ev6)
+pin("the refusal's wire silence is law",
+    b"EVENT shell: scene" not in ev6, ev6[-200:])
+
+# the ghost: a name nobody owns passes through to loadScene's honest
+# error — the rail speaks, the wire keeps the same law.
+w = cmd("scene ghost", until=lambda b: b"no such file" in b,
+        takes_stage=False)
+pin("the ghost's honest error speaks on the rail",
+    b"no such file" in w, w[-160:])
+ev6 = wire_events(off2, TRACE2); off2 += len(ev6)
+pin("the ghost's wire silence is the same law",
+    b"EVENT shell: scene" not in ev6, ev6[-200:])
+
+# the load: :scene level-2 — the wire speaks the INSTANT the hand
+# returns (the direct line), naming the scene the shell wears now.
+w = cmd("scene level-2", until=lambda b: True, cap=2.0, takes_stage=False)
+ev6 = b""
+end = time.time() + 4.0
+while time.time() < end:
+    chunk = wire_events(off2, TRACE2)
+    off2 += len(chunk)
+    ev6 += chunk
+    if b"EVENT shell: scene level-2\n" in ev6:
+        break
+pin("the manual load's word rides the wire",
+    b"EVENT shell: scene level-2\n" in ev6,
+    f"rail={w[-120:]!r} wire={ev6[-200:]!r}")
+
+# and the pen's home moved with the verb: the play-mode :w now saves
+# the scene the shell wears — level-2, not the playground it was born
+# with (scenePath = resolved is the law the save confesses).
+w = cmd("w", until=lambda b: b"saved" in b, takes_stage=False)
+ev6 = b""
+end = time.time() + 4.0
+while time.time() < end:
+    chunk = wire_events(off2, TRACE2)
+    off2 += len(chunk)
+    ev6 += chunk
+    if b"EVENT shell: scene saved scenes/level-2.dxn1.json" in ev6:
+        break
+pin("the verb moved the pen's home (:w saves what :scene wore)",
+    b"EVENT shell: scene saved scenes/level-2.dxn1.json" in ev6, ev6[-200:])
+pin("the moved pen kept the bytes it found (level-2's .bak is born)",
+    os.path.exists(os.path.join(SCENES, "level-2.dxn1.json") + ".bak"))
 
 # ---- cleanup -----------------------------------------------------------
 try: os.kill(pid, 15)
