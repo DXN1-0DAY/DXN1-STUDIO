@@ -1,3 +1,24 @@
+## v3.1.108 — :journal clear (the keepsake learns to forgive)
+
+- **:journal clear** — the save ledger was forever: the last twelve
+  lines stayed in memory and in the .dxn3-journal keepsake at the
+  project root, and the only way to forget was to delete the file by
+  hand. The ledger took a verb: bare :journal lists (as it always
+  did), :journal clear wipes the memory AND the on-disk ledger (the
+  next boot reads a blank night, not the forgiven one), the receipt
+  speaks the count ("the journal forgets — N lines forgiven"), and a
+  junk argument is refused at the door with the usage, not parsed as
+  a story. The parser gave the verb its own law (it used to sit in
+  the takes-no-argument family — moving it out needed its own branch,
+  because that family is also the verb whitelist: removing a verb
+  from the family made :journal itself unknown; the parser's lists
+  are load-bearing twice over).
+- **proven on the disk's word**: a save-as makes the ledger line
+  (+39 ~0 -0 probe_a.py), the clear blanks the file, a :journal
+  after the clear confesses "the journal is blank". The gate pin
+  rides in a probe's driving nuances not yet settled — R40 carries
+  the pin, the verb ships proven.
+
 ## v3.1.107 — the grand tour begins (the campaign walked on the wire)
 
 - **probes/campaign_walk.py — THE GRAND TOUR** — the chain walk

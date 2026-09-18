@@ -243,6 +243,13 @@ inline Cmd parseCommand(std::string_view line) {
     // a bare :help lists every verb; :help <verb> whispers that verb's law
     if (!c.arg.empty() && c.arg.find(' ') != std::string::npos)
       c.error = "usage: :help [verb] — one verb at a time";
+  } else if (c.verb == "journal") {
+    // the ledger takes one optional word: bare lists it, "clear"
+    // forgives it (memory and the disk keepsake). Anything else is
+    // refused at the door with the usage, not parsed as a story.
+    if (!c.arg.empty() && c.arg != "clear")
+      c.error = "usage: :journal [clear] — bare lists the ledger, "
+                "clear forgives it";
   } else if (c.verb == "q" || c.verb == "wq" || c.verb == "fit" ||
              c.verb == "reset" || c.verb == "new" || c.verb == "diff" ||
              c.verb == "ruler" || c.verb == "stats" || c.verb == "minimap" ||
@@ -259,7 +266,6 @@ inline Cmd parseCommand(std::string_view line) {
              c.verb == "jumps" || c.verb == "relnum" ||
              c.verb == "wrap" ||
              c.verb == "record" ||
-             c.verb == "journal" ||
              c.verb == "squeeze" ||
              c.verb == "retab" || c.verb == "ws" ||
              c.verb == "match" ||
@@ -363,7 +369,7 @@ inline std::string usageHintFor(std::string_view typed) {
   if (verb == "journal")
     return " :journal — the save ledger: what each :w changed "
            "(+added ~changed -removed path), the last twelve, "
-           "oldest first";
+           "oldest first; :journal clear forgives it (memory and disk)";
   if (verb == "zen")
     return " :zen — the rail rests, the body breathes; :zen wakes it and "
            "replays its ledger";

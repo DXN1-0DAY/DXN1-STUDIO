@@ -2858,8 +2858,25 @@ int main(int argc, char** argv) {
           // the census taken before each pen fell. A save the census
           // called same() is not a story and takes no line; the last
           // twelve stay, the oldest falls off the far end.
+          // :journal clear forgives the ledger — memory AND the disk
+          // file (the keepsake at the project root), or the next boot
+          // would read the night right back. Best effort, like the
+          // rest of the keepsake: a read-only project keeps its
+          // in-memory silence.
           takeStage();
-          if (ide.journal.empty()) {
+          if (cmd.arg == "clear") {
+            const size_t n = ide.journal.size();
+            ide.journal.clear();
+            dxn3::ideJournalStore(ide.journal);
+            ide.console.push_back(
+                "engine: the journal forgets — " + std::to_string(n) +
+                (n == 1 ? " line forgiven" : " lines forgiven") +
+                " (the ledger on disk is blank too)");
+          } else if (!cmd.arg.empty()) {
+            ide.console.push_back(
+                "engine: the journal knows only clear — :journal lists, "
+                ":journal clear forgives");
+          } else if (ide.journal.empty()) {
             ide.console.push_back(
                 "engine: the journal is blank — no save has changed a "
                 "line yet (:w writes its story here)");
