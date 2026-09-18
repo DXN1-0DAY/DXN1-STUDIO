@@ -1,3 +1,18 @@
+## v3.1.114 — the empty question answers
+
+- **bare `:scene` names where you stand** — the fixing of
+  `:scene`-by-name made the bare verb's silence a lie of its own: the
+  parser's `needsArg` law answered "usage" before the verb could, so
+  an empty question got an error for an answer. Now the bare verb
+  confesses the wearing and the scene count ("wearing level-2 — 13
+  scenes answer by name"); the roster itself lives in the whisper,
+  where an empty prefix matches every stem. The parser's law and the
+  selftest's pin learn the shape (1067 groups); the wire probe's
+  scenario 6b pins it in a play-mode night — no IDE reflex to fight
+  (ideEver false: no auto-run, no page churn).
+- the bare verb takes the stage like every console verb (the family
+  law holds). ide_wire_probe stands at 29 pins. Gate 8 walks 54.
+
 ## v3.1.113 — the paint's law and the gallery's word
 
 - **the session's story learned the paint's law** — the dashboard's
