@@ -14,11 +14,16 @@ greedy chase — now on fresh state every tick.
 
 Pins (two phases, all deterministic):
   A. the chase: three meals eaten, the score var mirrored on the
-     wire, the snake grown past its birth length, frames flowing;
+     wire, the snake grown past its birth length, every tick sent
+     answered by its frame (the metronome law — v3.1.99 retired the
+     layout-lucky `frames > 40` horoscope);
   B. the revival, ON PURPOSE: the drive stops steering, the wall
      takes the snake (the banner names the score), exactly one
-     space revives — the hud returns to score 0, the head teleports
-     home and then WALKS again. The restart path is exercised, not
+     space revives — the head teleports home, and then the ROUTE
+     DRIVES AGAIN: four steered, route-checked steps prove the
+     chase resumed (v3.1.99 — the resumption is the proof, and
+     "one wall, one space" holds by construction because the
+     serpentine is self-safe). The restart path is exercised, not
      hoped for.
 """
 import os as _os
@@ -63,6 +68,7 @@ def _pump():
 threading.Thread(target=_pump, daemon=True).start()
 
 st = {"food": None, "head": None, "cur": (1, 0), "frames": 0,
+      "sent": 0,
       "score_var": None, "len_max": 0, "meals": 0, "crashes": 0,
       "hud": "", "win": None}
 
@@ -135,6 +141,7 @@ def tick(keys=None, chars="", dt=0.2):
                  "keys": {k: True for k in (keys or [])},
                  "chars": chars, "hits": []}):
         return None
+    st["sent"] += 1
     return read_frame()
 
 # ---- handshake: read until the scene actually arrives
@@ -213,48 +220,88 @@ pin("the snake grew past its birth length (the meal rides the tail)",
     st["len_max"] > 3, f"len_max={st['len_max']}")
 pin("the sweep never died (zero crashes while the route drove)",
     st["crashes"] == 0, f"crashes={st['crashes']}")
-pin("the frames flowed the whole way (a metronome drive, no lag)",
-    st["frames"] > 40, f"frames={st['frames']}")
+# (v3.1.99: the old pin `frames > 40` was a horoscope — the food draw
+#  is honest randomness, and a lucky layout feeds three meals in 27
+#  ticks; the hunt caught exactly that red: frames=27, three meals,
+#  THE CHASE green, the pin red on its magic number alone. The
+#  metronome law's content the machine guarantees: EVERY tick sent
+#  got its frame back — no stall, no stolen frame, no lag.)
+pin("the metronome drove the sweep (every tick sent got its frame)",
+    st["frames"] == st["sent"] and st["frames"] > 0,
+    f"frames={st['frames']} sent={st['sent']}")
 
 # ---- phase B: the revival, on purpose — stop steering, the wall
-# takes the snake, the banner speaks, exactly one space revives
+# takes the snake, the banner speaks, exactly one space revives, and
+# then THE ROUTE DRIVES AGAIN. (v3.1.99: the old ritual stopped
+# steering forever after the revive — the birth walk offered six
+# honest steps and a second wall, the loop only ever broke on ONE
+# unsteered step, and the red run showed the head walking 72->144
+# with the walk pin never tripping. The pin's own name — "the chase
+# resumes" — is now proven by the resumption itself: the serpentine
+# steers from the birth cell, every step route-checked, and "one
+# wall, one space" holds BY CONSTRUCTION because the route is
+# self-safe. The walking gate reads the wire's truth — the head
+# standing home on the route — not the hud text, which a birth-cell
+# meal could skip.)
 crashes_at_b = st["crashes"]
 st["win"] = None
 spaced = False
 revive_score = None
 revived = False
-head_walked = False
+walking = False
+walked = 0
 birth_head = None
 stalled = False
+ptr = START_IDX
 for i in range(300):
     keys = None
+    chars = ""
     if st["crashes"] > crashes_at_b and not spaced:
         m = re.search(r"score (\d+)", st["win"] or "")
         revive_score = int(m.group(1)) if m else None
         keys = ["space"]                  # exactly one space — when
         spaced = True                     # alive it's an up-turn!
-        st["head"] = None                 # the teleport is not a step
-    if tick(keys) is None:
+    elif (spaced and st["head"] is not None
+          and (st["head"][0] // CELL, st["head"][1] // CELL)
+              == ROUTE[ptr % len(ROUTE)]):
+        if not walking:
+            walking = True                # the head stands home on the
+            birth_head = st["head"]       # route — the teleport IS the
+        revived = True                    # revive's wire truth
+    if walking:
+        a = ROUTE[(ptr + 1) % len(ROUTE)]
+        b = ROUTE[(ptr + 2) % len(ROUTE)]
+        d = (b[0] - a[0], b[1] - a[1])
+        chars = CHAR[d]                   # the route drives again
+    if tick(keys, chars=chars) is None:
         stalled = True
         break
     if spaced and "score 0" in st["hud"]:
         revived = True
-        if birth_head is None:
-            birth_head = st["head"]
-        elif st["head"] != birth_head and st["head"] is not None:
-            head_walked = True            # a real step, not the teleport
-    if revived and head_walked:
+    if walking:
+        got = (st["head"][0] // CELL, st["head"][1] // CELL) \
+            if st["head"] else None
+        if got == ROUTE[(ptr + 1) % len(ROUTE)]:
+            ptr = (ptr + 1) % len(ROUTE)
+            walked += 1                   # a real route step, steered
+    if revived and walked >= 4:
         break
 pin("THE REVIVAL: the banner names the score, one space revives "
-    "(hud back to score 0)",
+    "(the head comes home)",
     revive_score is not None and revived and not stalled,
     f"banner={st['win']!r} score={revive_score} hud={st['hud']!r} "
     f"stalled={stalled}")
-pin("the head walks again after the revive (the chase resumes)",
-    head_walked, f"head={st['head']} birth={birth_head}")
+pin("the head walks the route again after the revive (the chase "
+    "resumes — steering is the proof)",
+    walked >= 4 and not stalled,
+    f"walked={walked} head={st['head']} birth={birth_head}")
 pin("exactly one life spent in phase B (one wall, one space)",
     st["crashes"] - crashes_at_b == 1,
     f"crashes {crashes_at_b} -> {st['crashes']}")
+pin("every tick answered its frame, both phases (the metronome "
+    "never missed)",
+    st["frames"] == st["sent"],
+    f"frames={st['frames']} sent={st['sent']}")
 
 p.kill()
 print()

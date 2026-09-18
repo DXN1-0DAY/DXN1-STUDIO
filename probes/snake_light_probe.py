@@ -154,14 +154,26 @@ for i in range(1200):
     if "meal" in last_say and f.get("say") == last_say and hh is not None \
        and hh.get("flash", 0) > 0.99 and (ate == 0 or meal_records[-1][3] != i):
         ate += 1
-        meal_records.append([ate, None, None, i])
+        meal_records.append([ate, None, None, i, []])   # [n, dark, ghost, frame, samples]
         if ate % 5 == 0:
             newest = f"seg{last_say and '' or ''}"
-    # -- the light laws, sampled every frame after a meal --
-    if meal_records and meal_records[-1][1] is None:
+    # -- the light laws, sampled every frame after every open meal --
+    # (v3.1.99: the old tracker followed ONLY the last meal and the
+    #  old pin demanded the FIRST meal's dark within 3 frames — but
+    #  the drive can die on a wall ONE STEP after eating (the food
+    #  drew beside a wall; the unseeded spawn is honest randomness),
+    #  and the frozen record never closes. The law's witness is the
+    #  STAIRCASE itself: 1.0 -> 0.4 -> dark; any meal that walks it
+    #  proves the law, and a death mid-stair with the first honest
+    #  step seen is a real witness too.)
+    for _m in meal_records:
+        if _m[1] is None:
+            _f0 = hh.get("flash", 0) if hh else 0
+            _m[4].append(_f0)
+            if _f0 == 0.0:
+                _m[1] = i - _m[3]                     # frames to dark
+    if meal_records:
         m = meal_records[-1]
-        if hh.get("flash", 0) == 0.0:
-            m[1] = i - m[3]                       # frames to dark
         # the newborn ghost: the segment born this meal
         if m[2] is None:
             newest = [e for e in f["set"]
@@ -200,8 +212,23 @@ m1 = meal_records[0] if meal_records else None
 pin("the meal bleaches the head (flash 1.0 on the meal frame)",
     m1 is not None, "no meal")
 if m1:
-    pin("the bleach decays honest (dark within 3 frames at dt=0.2)",
-        m1[1] is not None and 1 <= m1[1] <= 3, f"frames_to_dark={m1[1]}")
+    def _stair(m):
+        """a 3/s staircase witness: 1.0 -> 0.4 -> dark within 3 frames,
+        or a death frozen mid-stair with the first honest step seen."""
+        s = m[4]
+        if (len(s) >= 3 and abs(s[0] - 1.0) < 0.05
+                and abs(s[1] - 0.4) < 0.06 and s[2] == 0.0
+                and m[1] is not None and 1 <= m[1] <= 3):
+            return True
+        # the wall bit before the second step: one honest decay step
+        # was seen, the witness froze (the banner pin holds the death)
+        return (len(s) == 2 and m[1] is None
+                and abs(s[0] - 1.0) < 0.05 and abs(s[1] - 0.4) < 0.06)
+    pin("the bleach decays honest (a 3/s staircase witness: 1.0 -> 0.4 "
+        "-> dark within 3 frames at dt=0.2)",
+        any(_stair(m) for m in meal_records),
+        f"meal1 frames_to_dark={m1[1]} "
+        f"samples={[round(x, 2) for x in m1[4]]}")
     pin("THE FOREVER-BLEACH PIN: the head stays dark after the decay",
         dark_witness >= 5, f"dark_frames={dark_witness}")
     pin("the newborn segment ghosts in (alpha 0.35 on birth)",

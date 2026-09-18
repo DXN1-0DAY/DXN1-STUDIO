@@ -1,3 +1,51 @@
+## v3.1.99 — the chase resumes, and steering is the proof
+
+- **chase_probe's phase B REDESIGNED** — the flake hunt's one red
+  run showed the impossible: head=(144,24), birth=(72,24),
+  head_walked False, crashes 0 -> 2. The redesign names what the
+  ritual was missing: after the revive the probe stopped steering
+  FOREVER — the birth walk offered six honest steps and a second
+  wall (the head walks east from (72,24) straight into the east
+  wall at (144,24); the observed crashes 0 -> 2 was that second
+  bite arriving while the loop kept ticking). The pin's own name —
+  "the chase resumes" — is now proven by the resumption itself:
+  the serpentine steers from the birth cell, every step
+  route-checked, four steered steps are the proof; "one wall, one
+  space" holds BY CONSTRUCTION because the route is self-safe.
+- The walking gate reads the wire's truth — the head standing home
+  on the route — not the hud text, which a birth-cell meal could
+  skip past "score 0" entirely; the teleport IS the revive's wire
+  truth.
+- **the metronome pin's horoscope retired** — `frames > 40` died
+  the way the radar pin did: the food draw is honest randomness,
+  and the hunt's red run had frames=27 with THREE MEALS and THE
+  CHASE green — the sweep finished honestly early and the magic
+  number convicted it anyway. The law the machine guarantees:
+  every tick sent got its frame back (frames == sent, both
+  phases), no stall, no theft, no lag.
+- **snake_light's bleach pin now witnesses the STAIRCASE** — the
+  churn runs caught it twice more, and the preserved gate log
+  named it: "the wall bite lands as the honest banner" was GREEN
+  in the same red run — the drive had died on a wall ONE STEP
+  after the first meal (the food drew beside a wall; the unseeded
+  spawn is honest randomness), and the first meal's record froze
+  open forever, so "dark within 3 frames" convicted a decay that
+  was honestly interrupted. The tracker now follows EVERY open
+  meal and samples the staircase itself; the pin accepts any meal
+  that walks 1.0 -> 0.4 -> dark within 3 frames, or a death
+  mid-stair with the first honest step seen. A witness, not a
+  horoscope. 15/15 idle green, 4/4 full-gates rounds green.
+- **the engine's exit report is awaited generously** — the selftest's
+  e2e group waited 30 ticks (six seconds) for a finished game's
+  exit report; the host reaps with WNOHANG, so between the child's
+  stdout EOF and its zombie-hood every waitpid returns 0 and the
+  report honestly says not-yet — under churn python's teardown
+  stretched past the window and the churn run caught a red. The
+  wait is 100 ticks (twenty seconds) now; the law is unchanged:
+  the report ARRIVES.
+- 12/12 chase green standalone; 8 consecutive full-gates rounds
+  green across the fixes.
+
 ## v3.1.98 — the last outsider comes home, and the horoscope retires
 
 - **invaders_darkpays_probe COMES HOME** — the outsider list is

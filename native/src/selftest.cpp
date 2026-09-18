@@ -524,7 +524,14 @@ int main() {
              sc.at("entities").arr[0].at("name").str_or("") == "box",
          "the sdk's scene crosses the pipe");
       bool said = false, exited = false;
-      for (int i = 0; i < 30 && !exited; ++i) {
+      // (v3.1.99: the wait was 30 ticks — six seconds — and the churn
+      // run caught a red: the print arrived, the exit report did not.
+      // The host reaps with WNOHANG, so between the child's stdout EOF
+      // and its zombie-hood every waitpid returns 0 and the tick loop
+      // honestly reports not-exited; under load python's teardown can
+      // stretch past a six-second window. The law is that the report
+      // ARRIVES — the wait is generous now: 100 ticks, twenty seconds.)
+      for (int i = 0; i < 100 && !exited; ++i) {
         const auto f = h.tick(0.016f, false, false, false, false, "", {}, 200);
         for (const auto& l : h.takeConsole())
           if (l.find("sdk-probe-done") != std::string::npos) said = true;
