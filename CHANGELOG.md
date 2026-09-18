@@ -1,5 +1,19 @@
-## v3.1.118 — the SDK's shell words confess in kind
+## v3.1.119 — the shell words, the release train, and the editor's first light
 
+*(two hour boundaries — 15:00 and 16:00 UTC — owed a tag; the release
+train and the editor share the hour, and every piece of work is named
+below — the ledger stays honest.)*
+
+- **the editor's first light** — `ui/index.html` is the studio's
+  UE5-grade face: menubar, toolbar, Place Actors, Outliner, Details,
+  Content Browser, Output Log, status bar, the PIE bar, and the
+  viewport canvas, in one dark cloth. The SCENES array and the
+  scenes/ directory are pinned to agree (the sync law: no ghost
+  scenes on the wire), the PIE sim speaks spark's own physics
+  (GRAV=1500, JUMP_VY=-620), the embedded VERSION is the fifth corner
+  of the version sync, and seven generated PNGs (logo, splash, the
+  viewport sky, four content-browser thumbnails) wear real PNG magic.
+  ui_editor_probe walks all of it as gate 8's newest permanent pin.
 - **the host's lifecycle rides the wire's direct line** — the studio
   hosted child games in any language (the sdk/ protocol) for rounds,
   and its whole lifecycle spoke only to the console rail while the
@@ -38,7 +52,7 @@
   job backfills every station the train ever passed. Gate 5's law now
   has teeth beyond the repo: the CHANGELOG's top section IS the
   release page.
-- **the empty-script confession** — v3.1.118's SDK round shipped
+- **the empty-script confession** — the SDK round shipped
   `background.py` truncated to zero bytes (the .bak was the tell) and
   gate 6 caught it red: the fake engine fed the hollow example and
   got `scene=NO frames=0 entities=0`. The hello-world is restored and

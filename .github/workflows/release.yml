@@ -1,0 +1,47 @@
+# the release train: every tag pushed to origin mints its GitHub
+# Release with notes lifted from CHANGELOG.md (the honest words travel
+# with the version). The sweep job runs on master pushes and backfills
+# any tag that never got its release — the train never leaves a
+# station behind. No secrets beyond the runner's own GITHUB_TOKEN.
+
+name: release
+
+on:
+  push:
+    tags: ['v*']
+    branches: [master]
+  workflow_dispatch: {}
+
+permissions:
+  contents: write
+
+jobs:
+  mint:
+    name: mint the tag's release
+    if: startsWith(github.ref, 'refs/tags/v')
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: extract the notes and mint
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ github.ref_name }}
+        run: |
+          python3 scripts/release_notes.py "$TAG" > notes.md
+          gh release create "$TAG" --title "DXN1 STUDIO $TAG" \
+            --notes-file notes.md || gh release edit "$TAG" --notes-file notes.md
+
+  sweep:
+    name: backfill every tag without a release
+    if: github.ref == 'refs/heads/master'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: the sweep (the reconcile law owns it)
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: bash scripts/release_reconcile.sh
