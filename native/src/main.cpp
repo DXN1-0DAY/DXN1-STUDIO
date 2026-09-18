@@ -1651,114 +1651,6 @@ int main(int argc, char** argv) {
     if (!ide.open) ide.open = true;
     ideEver = true;
   };
-  auto openScript = [&](const std::string& path,
-                        bool keepJumps = false) -> std::string {
-    std::ifstream f(path, std::ios::binary);
-    if (!f.good()) return "no such file: " + path;
-    host.stop();                     // a new document owns the stage
-    ide.hostUp = false;
-    // the welcome back, first half: leaving a file plants its hand —
-    // where the cursor stood the moment you walked away
-    if (!ide.path.empty())
-      dxn3::ideDocCurRemember(ide.docCur, ide.path, ide.curR, ide.curC);
-    ide.lines.clear();
-    std::string ln;
-    while (std::getline(f, ln)) {
-      if (!ln.empty() && ln.back() == '\r') ln.pop_back();
-      ide.lines.push_back(ln);
-    }
-    if (ide.lines.empty()) ide.lines.push_back("");
-    ide.path = path;
-    ide.undo.clear();                // a new document, a fresh history
-    ide.redo.clear();
-    // a jump belongs to the doc it leapt in — but a :fresh reload is
-    // the SAME document re-read: the session's history doesn't lie,
-    // so the walker keeps its ledger when the caller says so.
-    if (!keepJumps) ide.jumps.clear();
-    dxn3::ideTouchClear(ide);        // a page just opened is a clean page —
-                                     // the census counts THIS session's hand
-    dxn3::ideDriftClear(ide);        // and the fresh read agrees with the
-                                     // disk — no stale amber may ride
-    ide.lastTyping = ide.lastBack = false;
-    ide.curR = ide.curC = ide.top = 0;
-    dxn3::ideSelClear(ide);          // no stale selection rides along
-    ide.crew.clear();                // hands belong to the page they stood on
-    ide.marks.clear();  // pins belong to the document they were planted in
-    ide.hcol = 0;
-    ide.tpl = -1;
-    ide.findOpen = false;            // the searchlight rests
-    ide.findQ.clear();
-    ide.findHits.clear();
-    ide.findSel = -1;
-    // the welcome back, second half: a reopen is a continuation, not a
-    // rewind — the remembered hand lands (clamped to what the file is
-    // NOW, honest if it shrank) and the view jumps with it
-    bool resumed = false;
-    if (const auto hand = dxn3::ideDocCurLookup(ide.docCur, path)) {
-      const auto [r, c] = dxn3::ideDocCurLand(ide.lines, *hand);
-      ide.curR = r;
-      ide.curC = c;
-      ide.hcol = c;
-      ide.top = std::max(0, r - 4);  // the landing stays mid-screen
-      dxn3::ideJumpPush(ide, r);         // the welcome back IS a leap
-      resumed = true;
-    }
-    takeStage();
-    ide.dirty = true;
-    ide.idle = 0;
-    dxn3::ideRecentPush(ide.recent, path);
-    ide.console.push_back(
-        resumed ? "engine: opened " + path + " — the hand returns to line " +
-                      std::to_string(ide.curR + 1)
-                : "engine: opened " + path);
-    game.say("open " + path, 1.6);
-    return "";
-  };
-  auto nextTemplate = [&]() {
-    ide.tpl = (ide.tpl + 1) % nTpl;
-    loadTemplate(ide.tpl);
-  };
-
-  // the scene's own source, for FILE VIEW (e)
-  std::vector<std::string> fileLines;
-  {
-    std::ifstream f(scenePath);
-    std::string ln;
-    while (std::getline(f, ln)) {
-      if (!ln.empty() && ln.back() == '\r') ln.pop_back();
-      fileLines.push_back(ln);
-    }
-  }
-  bool fileView = false, searching = false;
-  int fileTop = 0;
-  std::string query;
-  int fileSel = -1;                 // the hunt's landing: the hit the view
-                                    // stands on (-1 = never landed)
-  std::string fileQ;                // the committed query — it survives the
-                                    // enter, so F3/shift+F3 can walk its hits
-  const int fileN = static_cast<int>(fileLines.size());   // hoisted so the
-                                    // hunt's law and its rail read one truth
-  const auto fileMatch = [&](int li) {
-    return li >= 0 && li < fileN &&
-           fileLines[static_cast<size_t>(li)].find(fileQ) !=
-               std::string::npos;
-  };
-
-  std::println("dxn3 native {} (C++23) — scene '{}' — {} entities — magnet {}px",
-               dxn3::DXN3_VERSION, game.scene.name, game.scene.entities.size(),
-               static_cast<int>(game.scene.magnet));
-
-  termios raw{};
-  if (tcgetattr(STDIN_FILENO, &g_orig) == 0 && isatty(STDIN_FILENO)) {
-    raw = g_orig;
-    cfmakeraw(&raw);
-    tcsetattr(STDIN_FILENO, TCSAFLUSH, &raw);
-    g_raw = true;
-    enterScreen();
-  } else {
-    std::println(stderr, "(not a tty — rendering one frame for the road)");
-  }
-
   using clock = std::chrono::steady_clock;
   auto last = clock::now();
   double acc = 0;
@@ -1835,6 +1727,119 @@ int main(int argc, char** argv) {
     std::fprintf(traceF, "  EVENT %s\n", text.c_str());
     std::fflush(traceF);
   };
+
+  auto openScript = [&](const std::string& path,
+                        bool keepJumps = false) -> std::string {
+    std::ifstream f(path, std::ios::binary);
+    if (!f.good()) return "no such file: " + path;
+    host.stop();                     // a new document owns the stage
+    ide.hostUp = false;
+    // the welcome back, first half: leaving a file plants its hand —
+    // where the cursor stood the moment you walked away
+    if (!ide.path.empty())
+      dxn3::ideDocCurRemember(ide.docCur, ide.path, ide.curR, ide.curC);
+    ide.lines.clear();
+    std::string ln;
+    while (std::getline(f, ln)) {
+      if (!ln.empty() && ln.back() == '\r') ln.pop_back();
+      ide.lines.push_back(ln);
+    }
+    if (ide.lines.empty()) ide.lines.push_back("");
+    ide.path = path;
+    ide.undo.clear();                // a new document, a fresh history
+    ide.redo.clear();
+    // a jump belongs to the doc it leapt in — but a :fresh reload is
+    // the SAME document re-read: the session's history doesn't lie,
+    // so the walker keeps its ledger when the caller says so.
+    if (!keepJumps) ide.jumps.clear();
+    dxn3::ideTouchClear(ide);        // a page just opened is a clean page —
+                                     // the census counts THIS session's hand
+    dxn3::ideDriftClear(ide);        // and the fresh read agrees with the
+                                     // disk — no stale amber may ride
+    ide.lastTyping = ide.lastBack = false;
+    ide.curR = ide.curC = ide.top = 0;
+    dxn3::ideSelClear(ide);          // no stale selection rides along
+    ide.crew.clear();                // hands belong to the page they stood on
+    ide.marks.clear();  // pins belong to the document they were planted in
+    ide.hcol = 0;
+    ide.tpl = -1;
+    ide.findOpen = false;            // the searchlight rests
+    ide.findQ.clear();
+    ide.findHits.clear();
+    ide.findSel = -1;
+    // the welcome back, second half: a reopen is a continuation, not a
+    // rewind — the remembered hand lands (clamped to what the file is
+    // NOW, honest if it shrank) and the view jumps with it
+    bool resumed = false;
+    if (const auto hand = dxn3::ideDocCurLookup(ide.docCur, path)) {
+      const auto [r, c] = dxn3::ideDocCurLand(ide.lines, *hand);
+      ide.curR = r;
+      ide.curC = c;
+      ide.hcol = c;
+      ide.top = std::max(0, r - 4);  // the landing stays mid-screen
+      dxn3::ideJumpPush(ide, r);         // the welcome back IS a leap
+      resumed = true;
+    }
+    takeStage();
+    ide.dirty = true;
+    ide.idle = 0;
+    dxn3::ideRecentPush(ide.recent, path);
+    ide.console.push_back(
+        resumed ? "engine: opened " + path + " — the hand returns to line " +
+                      std::to_string(ide.curR + 1)
+                : "engine: opened " + path);
+    // the open's confession on the wire: the shell's mouths all speak
+    // where the machine can pin them — the rail's words are paint, and
+    // a probe reading the paint reads the backlog, not the truth
+    traceEventNow("shell: opened " + path);
+    game.say("open " + path, 1.6);
+    return "";
+  };
+  auto nextTemplate = [&]() {
+    ide.tpl = (ide.tpl + 1) % nTpl;
+    loadTemplate(ide.tpl);
+  };
+
+  // the scene's own source, for FILE VIEW (e)
+  std::vector<std::string> fileLines;
+  {
+    std::ifstream f(scenePath);
+    std::string ln;
+    while (std::getline(f, ln)) {
+      if (!ln.empty() && ln.back() == '\r') ln.pop_back();
+      fileLines.push_back(ln);
+    }
+  }
+  bool fileView = false, searching = false;
+  int fileTop = 0;
+  std::string query;
+  int fileSel = -1;                 // the hunt's landing: the hit the view
+                                    // stands on (-1 = never landed)
+  std::string fileQ;                // the committed query — it survives the
+                                    // enter, so F3/shift+F3 can walk its hits
+  const int fileN = static_cast<int>(fileLines.size());   // hoisted so the
+                                    // hunt's law and its rail read one truth
+  const auto fileMatch = [&](int li) {
+    return li >= 0 && li < fileN &&
+           fileLines[static_cast<size_t>(li)].find(fileQ) !=
+               std::string::npos;
+  };
+
+  std::println("dxn3 native {} (C++23) — scene '{}' — {} entities — magnet {}px",
+               dxn3::DXN3_VERSION, game.scene.name, game.scene.entities.size(),
+               static_cast<int>(game.scene.magnet));
+
+  termios raw{};
+  if (tcgetattr(STDIN_FILENO, &g_orig) == 0 && isatty(STDIN_FILENO)) {
+    raw = g_orig;
+    cfmakeraw(&raw);
+    tcsetattr(STDIN_FILENO, TCSAFLUSH, &raw);
+    g_raw = true;
+    enterScreen();
+  } else {
+    std::println(stderr, "(not a tty — rendering one frame for the road)");
+  }
+
   int cols = 80, rows = 24;
   dxn3::Screen scr;
   auto doFit = [&]() {

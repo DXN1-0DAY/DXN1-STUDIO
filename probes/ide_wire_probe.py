@@ -161,6 +161,16 @@ pin("the hand's save is not a storyless one",
     re.search(rb"EVENT ide: saved probe_a\.py\s*\(\+[1-9]", evtail)
     is not None, evtail[-200:])
 
+# ---- 3b. the open's confession ------------------------------------------
+# the shell's :open re-reads the file it already wears — the rail
+# speaks, the wire speaks, the machine can pin both.
+w = cmd("open probe_a.py", until=lambda b: b"engine: opened probe_a.py" in b)
+pin("the open's receipt speaks on the rail",
+    b"engine: opened probe_a.py" in w)
+ev = wire_events(off); off += len(ev)
+pin("the open's confession rides the wire",
+    b"EVENT shell: opened probe_a.py" in ev, ev[-200:])
+
 # ---- 4. :wq — the save rides the wire even as the studio sleeps --------
 w = cmd("wq", until=lambda b: True, cap=1.2, takes_stage=False)
 time.sleep(0.8)                     # the normal exit flushes the streams
