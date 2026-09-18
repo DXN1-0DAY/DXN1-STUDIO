@@ -5,7 +5,9 @@ Browser, Output Log, status bar, PIE bar), lists every scene on the wire
 (scenes/*.dxn1.json — the SCENES array and the directory agree), wears
 every image it references (assets/*.png, PNG magic verified), pins its
 embedded VERSION to the repo's VERSION file (the fifth corner of the
-version sync), and ships with no TODO lint. Pure-python pins, no engine."""
+version sync), and ships with no TODO lint. R46 adds the translate-gizmo
+law and the panel laws (context menu, World Settings, content search,
+PIE ride-by-stand + scene gravity). Pure-python pins, no engine."""
 import os
 import re
 import sys
@@ -115,6 +117,49 @@ guard_ok = "if(!dcur) return;" in body or "if(!S.scenes[S.cur]) return;" in body
 pin("live-boot law — renderStats guards the empty stage",
     bool(mstats) and guard_ok and body.index("return;") < body.find("ents()"),
     "no empty-stage guard before ents()" if mstats and not guard_ok else "renderStats missing")
+
+# pin 10 — the translate gizmo is real: arrows drawn at the selection's
+# center and draggable along ONE axis (R46). Four symbols + the draw hook.
+GIZMO = ["function gizmoAnchor(", "function drawGizmo(", "function gizmoHit(",
+         "mouse.gizmoAxis", "if(S.sel.size===1&&!S.sim) drawGizmo();"]
+miss = [g for g in GIZMO if g not in html]
+pin("translate gizmo draws at the selection and drags by axis", not miss,
+    ", ".join(miss))
+
+# pin 11 — the R46 panel laws: outliner context menu, World Settings
+# with a REAL gravity field (spark reads scene.gravity at spark.cpp:37,
+# clamped ±5000 at :176), content-browser search, PIE speaking the
+# ENGINE's collision law verbatim (spark never reads the solid field:
+# tagless bodies are solid, movers are solid vertically only, and the
+# carry is stepMovers' swept band — feet in [prevTop-2, curBottom+2]
+# with horizontal overlap; level-11 has three lifts and the old PIE
+# summed every mover's delta, dragging the player with all of them),
+# PIE honoring the scene's own gravity, and PIE movement keys not
+# leaking into the editor's tool shortcuts.
+R46 = [
+    ("outliner context menu",
+        'addEventListener("contextmenu"' in html and 'id="ctxmenu"' in html
+        and "function openCtx(" in html),
+    ("world settings edits the scene's real fields",
+        "World Settings" in html and 'textField("next scene"' in html
+        and 'numField("gravity"' in html),
+    ("content browser search filters cards",
+        'id="cb-search"' in html
+        and '$("cb-search").addEventListener("input",buildContent)' in html),
+    ("PIE carry is the engine's swept band",
+        "feet>=py0-2" in html and "swept band" in html
+        and "spark.cpp stepMovers" in html),
+    ("PIE solid is the engine's tag law, not the JSON's",
+        "if(tagOf(e)) continue;" in html and 'tg!=="mover"' in html
+        and "never reads the solid field" in html),
+    ("PIE honors the scene's own gravity",
+        "grav:clamp(Math.round(d.gravity||GRAV),-5000,5000)" in html
+        and "p.vy+=m.grav*dt" in html),
+    ("PIE movement keys do not leak into editor tools",
+        'if(S.sim&&["a","d","w"' in html),
+]
+missing = [nm for nm, ok in R46 if not ok]
+pin("all 7 R46 panel laws present", not missing, ", ".join(missing))
 
 fails = [n for n, ok in pins if not ok]
 print(f"\nui_editor_probe: {len(pins)-len(fails)}/{len(pins)} pins green "

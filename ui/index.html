@@ -109,6 +109,21 @@ body{background:var(--win); color:var(--text); font:var(--font); user-select:non
 .olrow .eye:hover{color:var(--text);}
 .ol-empty{padding:18px 14px; color:var(--faint); text-align:center; font-size:11px;}
 
+/* ── context menu (outliner right-click, like the real thing) ── */
+#ctxmenu{position:fixed; z-index:220; background:var(--panel2); border:1px solid var(--hair);
+  box-shadow:0 12px 30px rgba(0,0,0,.6); padding:4px; min-width:200px; display:none; border-radius:5px;}
+#ctxmenu button{display:flex; width:100%; text-align:left; background:none; border:0;
+  color:var(--text); font:inherit; padding:6px 10px; cursor:pointer; border-radius:3px;
+  justify-content:space-between; gap:16px; align-items:center;}
+#ctxmenu button:hover{background:var(--hover);}
+#ctxmenu button.danger{color:var(--bad);}
+#ctxmenu button .k{color:var(--faint); font-size:10px;}
+#ctxmenu button.danger:hover{background:#3a2225;}
+#ctxmenu hr{border:0; border-top:1px solid var(--hair); margin:4px 6px;}
+#ctxmenu .ct{padding:5px 10px 4px; font-size:10px; color:var(--faint);
+  text-transform:uppercase; letter-spacing:.6px; border-bottom:1px solid var(--hair);
+  margin-bottom:3px; padding-bottom:6px;}
+
 /* ── viewport column ─────────────────────────────────────────── */
 #center{flex:1; display:flex; flex-direction:column; min-width:0; background:var(--sky);}
 #vpbar{display:flex; align-items:center; gap:10px; background:var(--head);
@@ -186,6 +201,9 @@ body{background:var(--win); color:var(--text); font:var(--font); user-select:non
 #crumb .plus{margin-left:auto; background:var(--panel2); border:1px solid var(--hair);
   color:var(--text); border-radius:4px; font:inherit; font-size:11px; padding:3px 10px; cursor:pointer;}
 #crumb .plus:hover{background:var(--hover);}
+#cb-search{margin-left:12px; background:var(--input); border:1px solid var(--border);
+  color:var(--text); border-radius:4px; height:24px; padding:0 8px; font:inherit; width:170px;}
+#cb-search:focus{outline:1px solid var(--brand);}
 #cardgrid{flex:1; overflow-y:auto; display:flex; flex-wrap:wrap; gap:10px; padding:12px;
   align-content:flex-start;}
 #cardgrid::-webkit-scrollbar{width:10px;}
@@ -398,6 +416,7 @@ body{background:var(--win); color:var(--text); font:var(--font); user-select:non
       <div class="dockpage active" id="page-content">
         <div id="crumb"><span>DXN1</span><span>/</span><b>scenes</b><span>/</span>
           <span id="crumb-filter">all</span>
+          <input id="cb-search" placeholder="filter scenes…">
           <button class="plus" id="btn-newscene">+ New Scene</button>
         </div>
         <div id="cardgrid"></div>
@@ -422,7 +441,9 @@ body{background:var(--win); color:var(--text); font:var(--font); user-select:non
   </div>
 </div>
 
-<div id="toasts"></div>
+<div id="toasts">
+</div>
+<div id="ctxmenu"></div>
 
 <!-- splash -->
 <div id="splash">
@@ -445,22 +466,22 @@ body{background:var(--win); color:var(--text); font:var(--font); user-select:non
 /* ================================================================
    DXN1 STUDIO 3 — editor brain. One file, no deps.
    ================================================================ */
-const VERSION = "3.1.120";
+const VERSION = "3.1.121";
 const GATES = "58 probes walked · all green";
 
 const SCENES = [
   {f:"playground.dxn1.json", thumb:"assets/thumb-playground.png"},
   {f:"level-1.dxn1.json",  thumb:"assets/thumb-l1.png"},
-  {f:"level-2.dxn1.json",  thumb:"assets/thumb-forest.png"},
-  {f:"level-3.dxn1.json",  thumb:"assets/thumb-forest.png"},
+  {f:"level-2.dxn1.json",  thumb:"assets/thumb-l2.png"},
+  {f:"level-3.dxn1.json",  thumb:"assets/thumb-l3.png"},
   {f:"level-4.dxn1.json",  thumb:"assets/thumb-l4.png"},
   {f:"level-5.dxn1.json",  thumb:"assets/thumb-l5.png"},
-  {f:"level-6.dxn1.json",  thumb:"assets/thumb-industrial.png"},
-  {f:"level-7.dxn1.json",  thumb:"assets/thumb-industrial.png"},
+  {f:"level-6.dxn1.json",  thumb:"assets/thumb-l6.png"},
+  {f:"level-7.dxn1.json",  thumb:"assets/thumb-l7.png"},
   {f:"level-8.dxn1.json",  thumb:"assets/thumb-l8.png"},
   {f:"level-9.dxn1.json",  thumb:"assets/thumb-l9.png"},
-  {f:"level-10.dxn1.json", thumb:"assets/thumb-void.png"},
-  {f:"level-11.dxn1.json", thumb:"assets/thumb-void.png"},
+  {f:"level-10.dxn1.json", thumb:"assets/thumb-l10.png"},
+  {f:"level-11.dxn1.json", thumb:"assets/thumb-l11.png"},
   {f:"level-12.dxn1.json", thumb:"assets/thumb-l12.png"},
 ];
 
@@ -626,7 +647,7 @@ function inlineDemo(){
       {name:"fang",tag:"spike",x:520,y:402,w:34,h:28,shape:"triangle",color:"#ef4444"},
       {name:"spring",x:660,y:414,w:48,h:16,shape:"circle",color:"#f59e0b",tag:"bouncy"},
       {name:"goal",x:1400,y:360,w:50,h:70,color:"#22c55e",tag:"goal"}]};
-  SCENES.unshift({f, thumb:"assets/thumb-playground.png"});
+  SCENES.unshift({f, thumb:"assets/thumb-demo.png"});
   S.cur=f;
 }
 
@@ -646,9 +667,15 @@ function sel_scene_onchange(){ $("scenepick").addEventListener("change",e=>loadS
 /* ── content browser ──────────────────────────────────────────── */
 function buildContent(){
   const grid=$("cardgrid"); grid.innerHTML="";
+  const q=($("cb-search")&&$("cb-search").value||"").toLowerCase();
   const nxt = f => S.scenes[f] && S.scenes[f].next;
+  let shown=0;
   for(const sc of SCENES){
     const d=S.scenes[sc.f]; if(!d) continue;
+    /* the search box filters cards by file and scene name — a browser,
+       not a shoebox */
+    if(q && !(sc.f.toLowerCase().includes(q)||(d.name||"").toLowerCase().includes(q))) continue;
+    shown++;
     const card=document.createElement("div"); card.className="card"; card.dataset.f=sc.f;
     const chain = nxt(sc.f) ? ` → ${nxt(sc.f)}` : "";
     card.innerHTML=`<div class="im" style="background-image:url('${sc.thumb}')">
@@ -662,9 +689,14 @@ function buildContent(){
     card.addEventListener("dblclick",()=>loadScene(sc.f));
     grid.appendChild(card);
   }
+  if(!shown&&q){
+    const empty=document.createElement("div"); empty.className="ol-empty";
+    empty.textContent=`no scene matches "${q}"`; grid.appendChild(empty);
+  }
   const nc=document.createElement("div"); nc.className="card new"; nc.textContent="+ New Scene";
   nc.addEventListener("click",newScene); grid.appendChild(nc);
 }
+$("cb-search").addEventListener("input",buildContent);
 
 /* ── scene loading / saving ───────────────────────────────────── */
 function loadScene(f, quiet){
@@ -808,6 +840,9 @@ function draw(){
       cx.fillStyle="#ff9b26"; cx.fillRect(hx,hy,5,5);
     }
   }
+  /* the translate gizmo — arrows you can actually grab (single selection,
+     edit mode only; PIE has no gizmos, it has gravity) */
+  if(S.sel.size===1&&!S.sim) drawGizmo();
   /* rubber-band overlay (screen space) */
   if(mouse.marquee){
     const m=mouse.marquee;
@@ -855,9 +890,12 @@ function renderOutliner(){
       <span class="eye ${S.hidden.has(e.name)?"off":""}" title="visibility">${S.hidden.has(e.name)?"◌":"◉"}</span>`;
     row.addEventListener("click",ev=>{
       if(ev.shiftKey){ S.sel.has(e.name)?S.sel.delete(e.name):S.sel.add(e.name); }
-      else S.sel=new Set([e.name]);
+      else if(!S.sel.has(e.name)) S.sel=new Set([e.name]);
+      /* clicking an already-selected row keeps the multi-selection
+         alive — right-clicking one of many must not betray the rest */
       renderOutliner(); renderDetails(); renderStats(); draw();
     });
+    row.addEventListener("contextmenu",ev=>{ ev.preventDefault(); openCtx(ev,e); });
     row.querySelector(".eye").addEventListener("click",ev=>{
       ev.stopPropagation();
       S.hidden.has(e.name)?S.hidden.delete(e.name):S.hidden.add(e.name);
@@ -868,6 +906,52 @@ function renderOutliner(){
   if(!shown) list.innerHTML=`<div class="ol-empty">nothing matches “${esc(q)}”</div>`;
 }
 $("ol-search").addEventListener("input",renderOutliner);
+
+/* ── outliner context menu — right-click like the real thing ──── */
+function closeCtx(){ $("ctxmenu").style.display="none"; }
+function ctxItem(label,fn,cls,hint){
+  const b=document.createElement("button"); if(cls) b.className=cls;
+  b.innerHTML=`<span>${esc(label)}</span>${hint?`<span class="k">${esc(hint)}</span>`:""}`;
+  b.addEventListener("click",()=>{ closeCtx(); fn(); });
+  return b;
+}
+function openCtx(ev,e){
+  /* right-clicking an unselected actor selects it first — UE5's law */
+  if(!S.sel.has(e.name)){
+    S.sel=new Set([e.name]); renderOutliner(); renderDetails(); renderStats(); draw();
+  }
+  const m=$("ctxmenu"); m.innerHTML="";
+  const t=document.createElement("div"); t.className="ct";
+  t.textContent=`${TAGICON[tagOf(e)]||"▣"} ${e.name}${S.sel.size>1?"  (+"+(S.sel.size-1)+" more)":""}`;
+  m.appendChild(t);
+  m.appendChild(ctxItem("Focus",focusSel,"","F"));
+  m.appendChild(ctxItem("Duplicate",dupSel,"","Ctrl+D"));
+  m.appendChild(ctxItem("Rename…",()=>{
+    const nn=prompt("Rename "+e.name+" to:",e.name);
+    if(nn&&nn.trim()&&nn.trim()!==e.name){
+      const v=uniqName(nn.trim().replace(/\s+/g,"-"));
+      S.sel.delete(e.name); S.sel.add(v); e.name=v;
+      pushHistory("rename"); renderAll();
+    }
+  }));
+  m.appendChild(ctxItem(S.hidden.has(e.name)?"Unhide":"Hide",()=>{
+    S.hidden.has(e.name)?S.hidden.delete(e.name):S.hidden.add(e.name);
+    renderOutliner(); draw();
+  }));
+  m.appendChild(ctxItem("Select all "+(tagOf(e)||"solid")+"s",()=>{
+    const tg=tagOf(e);
+    S.sel=new Set(ents().filter(x=>tagOf(x)===tg).map(x=>x.name));
+    renderOutliner(); renderDetails(); renderStats(); draw();
+    toast("Selected",S.sel.size+" with tag \""+(tg||"solid")+"\"");
+  }));
+  m.appendChild(document.createElement("hr"));
+  m.appendChild(ctxItem("Delete",delSel,"danger","Del"));
+  m.style.display="block";
+  m.style.left=Math.max(4,Math.min(ev.clientX,window.innerWidth-216))+"px";
+  m.style.top=Math.max(4,Math.min(ev.clientY,window.innerHeight-300))+"px";
+}
+document.addEventListener("click",closeCtx);
+window.addEventListener("blur",closeCtx);
 
 /* ── details panel ────────────────────────────────────────────── */
 function numField(label,get,set,step){
@@ -919,10 +1003,34 @@ function renderDetails(){
   const sel=[...S.sel].map(byName).filter(Boolean);
   const cat=t=>{const c=document.createElement("div"); c.className="det-cat"; c.textContent=t; box.appendChild(c);};
   if(!sel.length){
-    box.innerHTML=`<div class="det-hint">Nothing selected.<br><br>
-      Click an entity in the viewport or the Outliner. Shift-click to multi-select,
-      or drag a rubber band across empty ground. Drag actors from the palette
-      straight into the world. Numeric fields scrub when you drag them sideways.</div>`;
+    /* World Settings — when nothing is selected, the WORLD is the
+       subject. These are the scene's own JSON fields (name, bg,
+       gravity, next), the same ones spark reads off the wire. */
+    const sc=S.scenes[S.cur];
+    cat("World Settings");
+    {const head=document.createElement("div"); head.className="det-hint";
+     head.innerHTML=`Nothing selected — so edit the stage itself.<br>
+       Click an entity (or the Outliner) for its Details.`;
+     box.appendChild(head);}
+    box.appendChild(textField("scene name",()=>sc.name||"",v=>{
+      if(!v.trim()) return; sc.name=v.trim().replace(/\s+/g,"-");
+      buildScenePicker(); renderStats();
+    }));
+    box.appendChild(colorField("background",()=>sc.bg||"#0f1214",v=>{ sc.bg=v; draw(); }));
+    /* gravity is a REAL scene field — spark reads it with a 1500
+       default and clamps to ±5000 (spark.cpp 37,176); PIE obeys it. */
+    box.appendChild(numField("gravity",()=>sc.gravity||1500,
+      (v,dv)=>{ sc.gravity=Math.round(clamp(v+dv,-5000,5000)); },10));
+    box.appendChild(textField("next scene",()=>sc.next||"",v=>{
+      if(v.trim()) sc.next=v.trim().replace(/\s+/g,"-"); else delete sc.next;
+    }));
+    {const info=document.createElement("div"); info.className="det-hint";
+     info.innerHTML=`<b>${(sc.entities||[]).length}</b> entities · gravity <b>${sc.gravity||1500}</b> px/s² · bg <b>${esc(sc.bg||"#0f1214")}</b><br>
+       negative gravity falls UP — spark truly allows it (±5000 clamp).`;
+     box.appendChild(info);}
+    {const vb=document.createElement("div"); vb.id="det-actions";
+     const btn=document.createElement("button"); btn.textContent="Validate Scene";
+     btn.onclick=()=>validateScene(); vb.appendChild(btn); box.appendChild(vb);}
     return;
   }
   if(sel.length>1){
@@ -1096,7 +1204,7 @@ function makeActor(tag){
 }
 
 /* ── viewport input ───────────────────────────────────────────── */
-let mouse={x:0,y:0,down:false,dragEnt:false,panning:false,start:null,btn:0,marquee:null};
+let mouse={x:0,y:0,down:false,dragEnt:false,panning:false,start:null,btn:0,marquee:null,gizmoAxis:null};
 const entAt=(wx,wy)=>{
   for(let i=ents().length-1;i>=0;i--){
     const e=ents()[i];
@@ -1108,12 +1216,19 @@ const entAt=(wx,wy)=>{
 };
 cv.addEventListener("pointerdown",ev=>{
   if(S.sim) return;
-  cv.setPointerCapture(ev.pointerId);
+  /* capture must never kill the interaction — a refused capture
+     (synthetic events, some stylus drivers) is a degraded drag, not
+     a dead one */
+  try{ cv.setPointerCapture(ev.pointerId); }catch(e){}
   const [wx,wy]=scr2world(ev.offsetX,ev.offsetY);
   mouse.down=true; mouse.btn=ev.button; mouse.start={x:ev.offsetX,y:ev.offsetY,wx,wy};
   if(ev.button===1||S.tool==="pan"||(ev.button===0&&spaceDown)){ mouse.panning=true; return; }
   const hit=entAt(wx,wy);
   if(S.tool==="select"){
+    /* the translate gizmo outranks the body — grabbing an arrow moves
+       along THAT axis only, even when the arrows cross another actor */
+    const gz=gizmoHit(ev.offsetX,ev.offsetY);
+    if(gz){ mouse.gizmoAxis=gz; mouse.dragEnt={dx:wx,dy:wy,moved:false}; return; }
     if(hit){
       if(ev.shiftKey){ S.sel.has(hit.name)?S.sel.delete(hit.name):S.sel.add(hit.name); }
       else if(!S.sel.has(hit.name)) S.sel=new Set([hit.name]);
@@ -1139,12 +1254,14 @@ cv.addEventListener("pointermove",ev=>{
   if(mouse.dragEnt){
     const dx=wx-mouse.dragEnt.dx, dy=wy-mouse.dragEnt.dy;
     if(Math.abs(dx)>0.5||Math.abs(dy)>0.5){
+      /* axis-locked gizmo drags zero the other component */
+      const mx=mouse.gizmoAxis==="y"?0:dx, my=mouse.gizmoAxis==="x"?0:dy;
       for(const n of S.sel){
         const e=byName(n); if(!e) continue;
-        let nx=e.x+dx, ny=e.y+dy;
+        let nx=e.x+mx, ny=e.y+my;
         if(S.snap){ nx=Math.round(nx/S.gridStep)*S.gridStep; ny=Math.round(ny/S.gridStep)*S.gridStep; }
         e.x=nx; e.y=ny;
-        if(e.path){ for(const p of e.path){p.x+=dx; p.y+=dy;} }
+        if(e.path){ for(const p of e.path){p.x+=mx; p.y+=my;} }
       }
       mouse.dragEnt.dx=wx; mouse.dragEnt.dy=wy; mouse.dragEnt.moved=true;
       draw(); renderDetails();
@@ -1167,8 +1284,9 @@ cv.addEventListener("pointerup",ev=>{
     }
     mouse.marquee=null; renderOutliner(); renderDetails(); renderStats(); draw();
   }
-  if(mouse.dragEnt&&mouse.dragEnt.moved){ pushHistory("move"); renderStats(); savePrefs(); }
-  mouse.down=false; mouse.panning=false; mouse.dragEnt=null; mouse.marquee=null;
+  if(mouse.dragEnt&&mouse.dragEnt.moved){
+    pushHistory(mouse.gizmoAxis?"gizmo "+mouse.gizmoAxis:"move"); renderStats(); savePrefs(); }
+  mouse.down=false; mouse.panning=false; mouse.dragEnt=null; mouse.marquee=null; mouse.gizmoAxis=null;
   savePrefs();
 });
 const wheel={saveT:null};
@@ -1206,11 +1324,14 @@ cv.addEventListener("drop",ev=>{
 window.addEventListener("keydown",ev=>{
   if(ev.target.tagName==="INPUT"||ev.target.tagName==="SELECT"||ev.target.tagName==="TEXTAREA") return;
   const k=ev.key.toLowerCase();
+  /* PIE's movement keys are the sim's — they must not quietly flip
+     editor tools mid-game (A/D/W/space/arrows belong to the player). */
+  if(S.sim&&["a","d","w"," ","arrowleft","arrowright","arrowup","arrowdown"].includes(k)) return;
   if(k==="w"){setTool("select");} else if(k==="e"){setTool("pan");} else if(k==="r"){setTool("zoom");}
   else if(k==="g"){toggleSnap();} else if(k==="f"){focusSel();}
   else if(k==="p"){togglePlay();}
   else if(k==="delete"||k==="backspace"){delSel();}
-  else if(k==="escape"){ if(S.sim){stopPlay();} else {S.sel.clear(); renderOutliner(); renderDetails(); renderStats(); draw();} }
+  else if(k==="escape"){ if(S.sim){stopPlay();} else {closeCtx(); S.sel.clear(); renderOutliner(); renderDetails(); renderStats(); draw();} }
   else if(ev.ctrlKey&&k==="z"){ev.preventDefault(); undo();}
   else if(ev.ctrlKey&&(k==="y"||(k==="z"&&ev.shiftKey))){ev.preventDefault(); redo();}
   else if(ev.ctrlKey&&k==="d"){ev.preventDefault(); dupSel();}
@@ -1241,6 +1362,45 @@ function focusSel(){
   g.fillStyle="#8a8b91"; g.beginPath(); g.arc(c,c,5,0,7); g.fill();
 })();
 
+/* the translate gizmo — drawn at the selection's center in screen
+   space, draggable along one axis at a time. The corner compass above
+   is the map; these arrows are the territory. */
+function gizmoAnchor(){
+  const e=byName([...S.sel][0]); if(!e) return null;
+  const [sx,sy]=world2scr(e.x+e.w/2,e.y+e.h/2);
+  return {e,sx,sy,len:Math.max(34,56*Math.min(1.5,S.cam.z))};
+}
+function drawGizmo(){
+  const a=gizmoAnchor(); if(!a) return;
+  const {sx,sy,len}=a;
+  cx.lineCap="round"; cx.lineWidth=2.5;
+  /* x — red, to the right */
+  cx.strokeStyle="#e0524a";
+  cx.beginPath(); cx.moveTo(sx,sy); cx.lineTo(sx+len,sy); cx.stroke();
+  cx.fillStyle="#e0524a"; cx.beginPath();
+  cx.moveTo(sx+len+9,sy); cx.lineTo(sx+len-1,sy-5); cx.lineTo(sx+len-1,sy+5);
+  cx.closePath(); cx.fill();
+  /* y — green, downward (the wire's y grows downward, so the arrow does too) */
+  cx.strokeStyle="#5fb861";
+  cx.beginPath(); cx.moveTo(sx,sy); cx.lineTo(sx,sy+len); cx.stroke();
+  cx.fillStyle="#5fb861"; cx.beginPath();
+  cx.moveTo(sx,sy+len+9); cx.lineTo(sx-5,sy+len-1); cx.lineTo(sx+5,sy+len-1);
+  cx.closePath(); cx.fill();
+  /* labels + center handle */
+  cx.font="bold 10px Segoe UI"; cx.textAlign="left";
+  cx.fillText("X",sx+len+3,sy-7);
+  cx.fillText("Y",sx+8,sy+len+11);
+  cx.fillStyle="rgba(255,255,255,.9)"; cx.fillRect(sx-3,sy-3,6,6);
+}
+function gizmoHit(px,py){
+  if(S.sim||S.tool!=="select"||S.sel.size!==1) return null;
+  const a=gizmoAnchor(); if(!a) return null;
+  const {sx,sy,len}=a, TOL=8;
+  if(Math.abs(py-sy)<=TOL&&px>=sx-4&&px<=sx+len+10) return "x";
+  if(Math.abs(px-sx)<=TOL&&py>=sy-4&&py<=sy+len+10) return "y";
+  return null;
+}
+
 /* ── PIE — play in editor, spark's constants, honest approx ───── */
 let simRAF=null;
 function togglePlay(){ S.sim?stopPlay():startPlay(); }
@@ -1250,14 +1410,17 @@ function startPlay(){
   if(!spawn){ toast("No player spawn","Place a Player Spawn to play","warn"); return; }
   S.sim={
     t0:performance.now(), score:0, deaths:0,
+    /* gravity is the SCENE's own field — spark reads it with a 1500
+       default and clamps to ±5000 (spark.cpp 37,176); PIE obeys the
+       same law instead of parroting the constant. */
+    grav:clamp(Math.round(d.gravity||GRAV),-5000,5000),
     ents:(d.entities||[]).filter(e=>!S.hidden.has(e.name)).map(e=>JSON.parse(JSON.stringify(e))),
     p:{x:spawn.x,y:spawn.y,w:spawn.w,h:spawn.h,vx:0,vy:0,ground:false},
     keys:{}, coins:new Set(), done:false,
-    movers:new Set((d.entities||[]).filter(e=>e.tag==="mover"&&e.path).map(e=>e.name)),
   };
   $("piebar").classList.add("on");
   $("sb-sim").innerHTML='<b style="color:var(--warn)">playing</b>';
-  log("evt","[pie] playing "+S.cur+" — gravity "+GRAV+", jump "+JUMP_VY+", P or Esc to stop");
+  log("evt","[pie] playing "+S.cur+" — gravity "+S.sim.grav+" (scene), jump "+JUMP_VY+", P or Esc to stop");
   toast("Play in editor",d.name||S.cur);
   simKeysBind(true);
   let last=performance.now(), acc=0, frames=0;
@@ -1291,8 +1454,41 @@ function simKeysBind(on){
 }
 function simStep(dt){
   const m=S.sim, p=m.p, K=window.simKey||{};
-  /* movers — deterministic distance-based ping-pong from scene load,
-     the ride law the grand tour probe pinned: geometry alone boards. */
+  /* spark's order is the law: stepPlayer FIRST (against the movers'
+     previous positions), THEN stepMovers, whose swept band carries the
+     rider. And "solid" is the ENGINE's verdict, not the JSON's: the
+     engine never reads the solid field — TAGLESS bodies are solid,
+     movers are solid vertically only (you may board from the side),
+     everything tagged passes the player through (spark.cpp 266, 290,
+     300). PIE now speaks that law verbatim. */
+  /* player */
+  const L=K["a"]||K["arrowleft"], R=K["d"]||K["arrowright"];
+  p.vx=(R?PIESPEED:0)-(L?PIESPEED:0);
+  if((K["w"]||K[" "]||K["arrowup"])&&p.ground){ p.vy=JUMP_VY; p.ground=false; }
+  p.vy+=m.grav*dt;
+  /* horizontal — only TAGLESS bodies block sideways (spark.cpp:290) */
+  p.x+=p.vx*dt;
+  for(const e of m.ents){
+    if(tagOf(e)) continue;
+    if(overlap(p,e)){ p.vx>0?p.x=e.x-p.w:p.x=e.x+e.w; }
+  }
+  /* vertical — tagless + movers are solid (spark.cpp:300) */
+  p.y+=p.vy*dt; p.ground=false;
+  for(const e of m.ents){
+    const tg=tagOf(e);
+    if(tg&&tg!=="mover") continue;
+    if(overlap(p,e)){
+      if(p.vy>0){ p.y=e.y-p.h; p.vy=0; p.ground=true; }
+      else if(p.vy<0){ p.y=e.y+e.h; p.vy=0; }
+    }
+  }
+  /* movers — deterministic ping-pong along the waypoints, then the
+     engine's own carry: a rider whose FEET sit inside the mover's
+     swept band ([prevTop-2, curBottom+2], horizontal overlap) rides
+     its exact delta — spark.cpp stepMovers, verbatim. A lift you
+     never touched does not move you; one that moves INTO your feet
+     does, and boarding from the side is legal because movers are
+     not solid horizontally. */
   for(const e of m.ents){
     if(e.tag!=="mover"||!e.path||e.path.length<2) continue;
     if(!e._len){
@@ -1311,27 +1507,10 @@ function simStep(dt){
     const f=(d-acc)/e._len[i], a=e.path[i], b=e.path[i+1];
     e.x=a.x+(b.x-a.x)*f; e.y=a.y+(b.y-a.y)*f;
     e._dx=e.x-px0; e._dy=e.y-py0;
-  }
-  /* player */
-  const L=K["a"]||K["arrowleft"], R=K["d"]||K["arrowright"];
-  p.vx=(R?PIESPEED:0)-(L?PIESPEED:0);
-  if((K["w"]||K[" "]||K["arrowup"])&&p.ground){ p.vy=JUMP_VY; p.ground=false; }
-  p.vy+=GRAV*dt;
-  /* horizontal */
-  p.x+=p.vx*dt;
-  for(const e of m.ents){
-    if(!e.solid||e.tag==="player") continue;
-    if(overlap(p,e)){ p.vx>0?p.x=e.x-p.w:p.x=e.x+e.w; }
-  }
-  /* vertical + ride */
-  const rode=[...m.movers].map(n=>m.ents.find(e=>e.name===n)).filter(Boolean);
-  for(const mv of rode){ p.x+=mv._dx||0; p.y+=mv._dy||0; }
-  p.y+=p.vy*dt; p.ground=false;
-  for(const e of m.ents){
-    if(!e.solid||e.tag==="player") continue;
-    if(overlap(p,e)){
-      if(p.vy>0){ p.y=e.y-p.h; p.vy=0; p.ground=true; }
-      else { p.y=e.y+e.h; p.vy=0; }
+    if(!e._dx&&!e._dy) continue;
+    const feet=p.y+p.h;
+    if(feet>=py0-2&&feet<=e.y+e.h+2&&p.x+p.w>e.x&&p.x<e.x+e.w){
+      p.x+=e._dx; p.y+=e._dy;
     }
   }
   /* tags */
@@ -1450,7 +1629,8 @@ function keysHTML(){
   return `<table>
     <tr><td>W / E / R</td><td>select / pan / zoom tool</td></tr>
     <tr><td>click · shift+click</td><td>select · multi-select</td></tr>
-    <tr><td>drag field / drag body</td><td>scrub value · move (with snap when ⊞)</td></tr>
+    <tr><td>drag field / drag body / drag arrow</td><td>scrub value · move · gizmo axis (locked)</td></tr>
+    <tr><td>right-click outliner row</td><td>focus · duplicate · rename · hide · select by tag</td></tr>
     <tr><td>wheel</td><td>zoom to cursor</td></tr>
     <tr><td>MMB or E-drag</td><td>pan</td></tr>
     <tr><td>G · F · Home</td><td>snap toggle · focus selection · recenter</td></tr>

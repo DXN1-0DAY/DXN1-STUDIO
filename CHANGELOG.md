@@ -1,3 +1,71 @@
+## v3.1.121 — the gizmo you can grab, the world you can edit, the lifts that behave
+
+*(the 18:00 UTC boundary owed a tag; the R46 round pays it. Also folds
+in the live-boot fix that landed after the v3.1.120 tag — see f5cea47:
+v3.1.119's editor never completed a real browser boot because the top
+level `fitCanvas(); renderStats();` hit `renderStats`'s naked `ents()`
+while the wire's scenes were still in flight; the guard now precedes
+the call, pin 9 pins the order, and the probe grew to 12 pins.)*
+
+- **the translate gizmo is real** — selecting a single entity draws
+  the UE5 arrows at its center: red X to the right, green Y downward
+  (the wire's y grows downward, so the arrow does too). Grab an arrow
+  and the entity slides along THAT axis only — axis-locked, snap-aware,
+  mover paths rebased — even when the arrows cross another actor: the
+  gizmo outranks the body. The cursor confesses the axis it is over
+  (`ew-resize` / `ns-resize`), the drag lands in history as
+  "gizmo x/y", and PIE gets no arrows (it has gravity instead). The
+  corner compass stays — the map, while these arrows are the
+  territory.
+- **the outliner grows a context menu** — right-click any row (an
+  unselected row selects first, UE5's law) for Focus, Duplicate,
+  Rename…, Hide/Unhide, Select-all-with-this-tag, and the red Delete.
+  Clicking an already-selected row no longer betrays the rest of a
+  multi-selection, and Escape closes the menu.
+- **World Settings** — with nothing selected the Details panel now
+  edits the stage itself: scene name, background color, gravity, and
+  the next-scene link. These are the scene's own JSON fields, the
+  same ones spark reads off the wire — gravity is a REAL field
+  (spark.cpp:37, clamped ±5000 at :176), and the panel obeys the same
+  clamp. Negative gravity falls UP; spark truly allows it.
+- **PIE obeys the scene's gravity** — the sim no longer parrots the
+  constant: `startPlay` reads the scene's own `gravity` field (1500
+  default, ±5000 clamp, exactly like spark.cpp) and the PIE receipt
+  logs it. A scene that ships `gravity: 3000` now plays at 3000 in
+  the editor and in the binary.
+- **PIE now speaks the engine's collision law verbatim** — the smoke
+  test exposed three divergences, all fixed against spark.cpp as the
+  reference: (1) the engine NEVER reads the `solid` field — tagless
+  bodies are solid, movers are solid vertically only (boarding from
+  the side is legal), everything tagged lets the player pass; PIE
+  used to require `solid:true`, so level-1's riders fell through
+  their own lifts. (2) The ride carry is spark's swept-band law
+  (stepMovers: feet in [prevTop−2, curBottom+2] with horizontal
+  overlap, rider takes the mover's exact delta) — the old PIE summed
+  EVERY mover's delta, so on level-11's three lifts the player was
+  dragged by all of them at once; a lift you never touched is not a
+  floor that moves you. (3) Step order mirrors the engine:
+  stepPlayer first, then movers.
+- **PIE's keys stay in the game** — A/D/W/space/arrows during play no
+  longer quietly flip the editor's tool shortcuts; Esc and P still
+  stop.
+- **the Content Browser can be searched** — a filter box in the
+  crumb bar narrows the cards by file or scene name as you type; the
+  empty state says what it cannot find. Every campaign scene now has
+  its own generated face: seven new thumbs (`thumb-l2/l3/l6/l7/
+  l10/l11.png` + `thumb-demo.png` for the offline inline stage)
+  retire the shared forest/industrial/void stand-ins for good — the
+  twilight temple, the climb shaft, the saw ascent, the fanged
+  descent, the fog, the road home. Real PNGs (the JPEG-bytes law
+  checked them all).
+- **`ui_editor_probe` pins 12** — the translate-gizmo law (anchor,
+  draw, hit-test, axis drag, the single-selection draw hook) and six
+  R46 panel laws (context menu, World Settings' real fields, content
+  search, stand-only ride, scene-gravity honesty, the sim-key guard)
+  join the panels, the sync law, the PNG magic, the fifth-version
+  corner, spark's constants, the interaction law, and the live-boot
+  law.
+
 ## v3.1.120 — the editor learns to touch: drag-drop, rubber bands, multi-edit, a desk that remembers
 
 *(the 17:00 UTC boundary owed a tag; the interaction round pays it —
