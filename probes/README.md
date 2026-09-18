@@ -80,7 +80,30 @@ Five laws the fleet paid for, each with its receipt:
    The fleet's shared harness (`probes/_harness.py`) reads RAW and
    splits lines itself — everything the child said is visible to
    the splitter immediately. Sixteen probes carried the latent
-   pattern; they migrate family by family.
+   pattern; ALL of them migrated (v3.1.105, tetris + hold, dino +
+   fly/grace/owl/skin, invaders + ufo/light/darkpays, ast_wear,
+   raycast_torch, windmill_dusk, bounce_lantern — the lantern's
+   fresh children each keep their own Wire, because a raw line
+   buffer that outlives the call is the whole point). The species
+   is extinct: a probe that reaches for `select` + `readline` is a
+   regression, not a style.
+7. **The freeze-frame is a lie the drive tells itself.** (v3.1.104,
+   the chain walk) — the scene-mode clock "crawled" in the pty and
+   the acc arithmetic looked guilty; the DXN3_TRACE receipts
+   (`DXN3_TRACE=<path>`, `DXN3_TRACE_MS=<ms>`) convicted the DRIVE:
+   its Tab-inspect telemetry took a freeze-frame every cycle and the
+   sim PAUSES while inspect is open — the crawl was the drive's own
+   pauses, stretched by a pty that backed up between drains. The
+   engine was innocent (no driver at all: 1:1 honest). Steer on the
+   pause-free trace telemetry instead (px/py/vx/vy at 40Hz), keep
+   the pty drained every microsecond of the drive's life, and read
+   the machine's truth from the event wire: `EVENT goal(...)` when
+   the door touches, `EVENT shell: welcome to <scene>` when
+   pendingNext is consumed — the rendered say() is paint, not
+   bytes, and never appears in the flood. The same receipts
+   convicted `worldBottom()`: the death line chased the faller one
+   hero-depth down and the fall respawn was unsatisfiable —
+   telemetry first, fixes that hold on the wire second.
 
 ## the drift ledger — every outsider came home
 
@@ -159,3 +182,14 @@ or retired:
   through, six attempts, forensics in the pin detail.
 - The fleet stands at 52 walking pins as of v3.1.100. Nothing is
   outside the walls; the ledger keeps the rescue stories.
+- BORN INSIDE THE WALLS in v3.1.104: `chain_walk_probe` — the walk
+  comes home the day it was born green (8 pins, five runs straight:
+  9.5-18.4s). A hero WALKS the playground's door on the wire — the
+  shell's half of the chain (pendingNext consumed, level-1 loaded)
+  pinned walked, not teleported. Its birth caught TWO engine truths:
+  the drive's freeze-frames were the clock crawl, and worldBottom
+  chased the faller to an unsatisfiable death line. Gate 8 walks 53.
+- SUSTAINED in v3.1.105: `ide_door_probe` grows the keepsake pins —
+  quit the studio, start a fresh binary in the same cwd, and
+  :journal speaks the census line the previous session wrote
+  (17/17, three runs). The project's ledger outlives the session.
