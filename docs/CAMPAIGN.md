@@ -176,3 +176,44 @@ began — the epilogue's quiet last word before the road starts over.
   somewhere is the level talking.
 - `next` must point at a real file — gate 3b fails the build on ghost
   doors, so broken chains cannot ship.
+
+## The grand tour — the campaign walked on the wire
+
+The chain walk (gate 8) proved one hop: a hero walked through the
+playground's door and the shell consumed `pendingNext` into level-1,
+with the load spoken on the event wire where machines read it. The
+grand tour (probes/campaign_walk.py) is the sequel: keep walking.
+The walker is a state machine with laws, not a script — run, board,
+listen, ride — and every law it learns comes from a scene the tour
+had to cross:
+
+- **Boarding is arithmetic, not rhythm.** The walker simulates the
+  ferry's ping-pong and jumps only when the predicted landing
+  (x + range, flight seconds from now) will be well inside the
+  ferry's span. Hand-tuned phase windows died because the flight time
+  was a lie: the ferry moves half its width while the arc flies, and
+  a landing one pixel short is a fang pit. The margin is asymmetric
+  on purpose.
+- **Listen after every landing.** If the ground carries you (position
+  moves with no input across a 0.3s window — per-poll thresholds read
+  a 55 px/s lift as "still"), the ride law takes over: ferries watch
+  their exit windows, lifts ride to their TOP REVERSAL and leave
+  walk-or-jump per the plan.
+- **A tagless entity is a wall.** Level-2's sign (90-300, y 360-390)
+  has no tag, and the loader hears only tags for hazards, goals,
+  movers, coins and the player — everything tagless is solid. It
+  wedged the blind hopper at the spawn until the deep-stuck law
+  landed: after eight wedges, hold right through the whole flight.
+- **Every dialect a scene can speak must be checkable.** The recon
+  convicted level-2's dict-dialect paths (a documented v3.0.03 form
+  the loader no longer hears — both ferries stood frozen mid-river
+  with "ride the movers!" signed above a stone). Gate 3c now fails
+  any scene that speaks a path the engine cannot hear; gate 3d fails
+  any scene without exactly one spawn or a door where it promised a
+  chain.
+
+The tour's road: playground → level-1 → level-2 walk green three
+runs straight; level-3's lifts have walked once; the full loop
+(level-3 through level-12 and home) is the next rounds' walk, one
+deterministic ride at a time. `DXN3_TOUR_HOPS` sets how far the tour
+goes; `DXN3_TOUR_DEBUG=1` speaks heartbeats.

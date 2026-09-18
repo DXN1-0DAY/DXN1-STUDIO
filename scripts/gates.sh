@@ -81,6 +81,36 @@ else
   echo "   (skip) python3 not on this machine — the dialect gate runs in CI"
 fi
 
+echo "── gate 3d: every scene is walkable on paper (one spawn, a door ahead)"
+if command -v python3 >/dev/null 2>&1; then
+  if python3 - <<'PYEOF'
+import json, glob, sys
+bad = []
+for p in sorted(glob.glob("scenes/*.dxn1.json")):
+    d = json.load(open(p))
+    ents = [e for e in d.get("entities", []) if isinstance(e, dict)]
+    players = [e for e in ents if e.get("tag") == "player"]
+    goals = [e for e in ents if e.get("tag") == "goal"]
+    if len(players) != 1:
+        bad.append(f"{p}: {len(players)} player spawns (exactly one is the law)")
+    elif players[0].get("x") is None or players[0].get("y") is None:
+        bad.append(f"{p}: the player spawn has no coordinates")
+    if d.get("next") and not goals:
+        bad.append(f"{p}: chains to {d['next']} but has no goal door")
+for b in bad:
+    print("   " + b)
+sys.exit(1 if bad else 0)
+PYEOF
+  then
+    echo "   ok  every scene has one spawn and a door where it promised"
+  else
+    echo "   FAIL scene structure violation(s) above — a scene without a spawn is a rumor"
+    FAIL=1
+  fi
+else
+  echo "   (skip) python3 not on this machine — the structure gate runs in CI"
+fi
+
 echo "── gate 4: the Electron farewell is complete (zero remnants)"
 LE=$(git ls-files | grep -icE 'electron|renderer/|webserve|server\.py|selftest\.js|package\.json' || true)
 if [ "$LE" -eq 0 ]; then
