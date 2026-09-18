@@ -112,7 +112,8 @@ w = cmd("journal", until=lambda b: b"probe_a.py" in b)
 jrn = receipts(w) + [m.group(0).decode(errors="replace")
                      for m in re.finditer(rb'\+\d+ ~\d+ -\d+[^\x1b\r]{0,80}', w)]
 pin("journal lists the save with the census voice",
-    re.search(rb'\+\d+ ~\d+ -\d+\s+probe_a\.py', w) is not None)
+    re.search(rb'\+\d+ ~\d+ -\d+ \d\d:\d\d\s+probe_a\.py', w)
+    is not None)
 
 # ---- 3. a storyless save: the census called same, no counts spoken ----
 w = cmd("w probe_a.py", until=lambda b: b"saved as probe_a.py" in b)
@@ -176,7 +177,9 @@ pin("the ledger file exists at the project root", os.path.exists(JFILE),
 ledger_lines = (open(JFILE).read().splitlines()
                 if os.path.exists(JFILE) else [])
 pin("the ledger carries the session's save with its census",
-    any("probe_a.py" in ln and ln.startswith("+") for ln in ledger_lines),
+    any("probe_a.py" in ln and ln.startswith("+") and
+        re.match(r"\+\d+ ~\d+ -\d+ \d\d:\d\d ", ln) is not None
+        for ln in ledger_lines),
     str(ledger_lines)[:120])
 
 pid, fd = pty.fork()
@@ -190,7 +193,8 @@ in_ide = True
 drainf(2.0)
 w = cmd("journal", until=lambda b: b"probe_a.py" in b, takes_stage=True)
 pin("a fresh session's :journal remembers the last night's save",
-    re.search(rb'\+\d+ ~\d+ -\d+\s+probe_a\.py', w) is not None)
+    re.search(rb'\+\d+ ~\d+ -\d+ \d\d:\d\d\s+probe_a\.py', w)
+    is not None)
 pin("the restarted studio speaks the ledger's voice",
     b"the disk heard" in w, w[:100])
 

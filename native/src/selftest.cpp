@@ -5125,8 +5125,10 @@ int main() {
     ok(dxn3::ideJournalLine(*c2, tmp).empty(),
        "the journal refuses a storyless save");
     const std::string jl = dxn3::ideJournalLine(*c1, tmp);
-    ok(jl == "+1 ~1 -0  " + tmp,
-       "the journal's voice: +added ~changed -removed, then the path, got '" +
+    ok(jl.rfind("+1 ~1 -0 ", 0) == 0 && jl.ends_with("  " + tmp) &&
+           jl.size() == 9 + 5 + 2 + tmp.size() && jl[14] == ' ' &&
+           jl[11] == ':',
+       "the journal's voice: census, the hour it fell, then the path, got '" +
            jl + "'");
     const auto c3 = dxn3::ideSaveCensus("/tmp/dxn3_savecensus_absent_probe",
                                         {"one", "two"});

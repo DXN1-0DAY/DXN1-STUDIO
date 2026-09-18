@@ -13,12 +13,14 @@
 #include <algorithm>
 #include <array>
 #include <cctype>
+#include <chrono>
+#include <cstdio>
 #include <cstring>
+#include <ctime>
 #include <functional>
 #include <map>
 #include <optional>
 #include <charconv>
-#include <chrono>
 #include <cstdlib>
 #include <fstream>
 #include <random>
@@ -905,14 +907,24 @@ ideSaveCensus(const std::string& path,
 }
 
 // the journal's voice: one line per save — "+added ~changed -removed
-// path", the disk's side of the story. A save the census called
-// same() changed nothing and takes no line: "" is the refusal.
+// HH:MM path", the disk's side of the story and the hour it fell. A
+// save the census called same() changed nothing and takes no line:
+// "" is the refusal.
 inline std::string ideJournalLine(const IdeDiffReport& rep,
                                   const std::string& path) {
   if (rep.same()) return "";
+  // the line wears the hour it fell: a ledger without a when is a
+  // list, not a memory. Wall clock, HH:MM — the night the save was
+  // heard, readable by a human scanning :journal at a glance.
+  const auto now = std::chrono::system_clock::now();
+  const std::time_t tt = std::chrono::system_clock::to_time_t(now);
+  std::tm tm{};
+  localtime_r(&tt, &tm);
+  char when[8];
+  std::snprintf(when, sizeof when, "%02d:%02d", tm.tm_hour, tm.tm_min);
   return "+" + std::to_string(rep.added) + " ~" +
          std::to_string(rep.changed) + " -" +
-         std::to_string(rep.removed) + "  " + path;
+         std::to_string(rep.removed) + " " + when + "  " + path;
 }
 
 // the journal remembers the last saves the disk heard — the oldest
