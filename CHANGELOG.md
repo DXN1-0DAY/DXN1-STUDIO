@@ -1,3 +1,28 @@
+## v3.1.98 — the last outsider comes home, and the horoscope retires
+
+- **invaders_darkpays_probe COMES HOME** — the outsider list is
+  EMPTY. The R32 pin lived outside the walls since its birth and
+  flaked ~50% there; gate 8 now walks it (19 pins) on every push.
+  Gate 8: 51 -> 52.
+- The flake was never the engine's, and the homing hunt finally
+  named it: the night purse is pay*2 over UFOS=[50,100,150,300],
+  so the doubled set is {100,200,300,600} — which OVERLAPS the day
+  set at 100 and 300. The old pin "the doubled purse is never an
+  odd purse value" (n not in UFOS) was UNSATISFIABLE whenever the
+  drawn tier was 50 or 150 — two of four tiers, exactly the ~50%
+  red. A pin that depends on the draw is a horoscope; the law's
+  draw-proof content: the night purse HALVES into an honest day
+  purse (n // 2 in UFOS), alongside the say ("the dark pays
+  double") and the score keeping the same number.
+- The R36 candidate's darkness proof is IN: the moon's state is
+  tracked across every frame (frames are deltas — the ledger, not
+  the frame, carries the truth), and the pin now reads "the kill
+  frame stands in the full dark (the moon shines at the kill
+  tick)" — the capture-at-the-kill-frame proof, homed. 4/4 green
+  at birth, 19 pins where the exile walked 18.
+- The external copy is deleted with honors — no stale liar can be
+  re-run by accident.
+
 ## v3.1.97 — the radar pin reads the law the honest way round
 
 - **ast_wear_probe's closest-brightest pin RE-PINNED** — the flake
