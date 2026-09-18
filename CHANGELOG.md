@@ -1,3 +1,22 @@
+## v3.1.116 — the wire's table confesses who pins what
+
+- **the vocabulary table grows a receipts column** (the R41 debt,
+  collected) — every word on the event wire now names the probe(s)
+  that pin it: the boot's word and `:scene`'s direct line ride
+  ide_wire_probe's scenario 6b; the doors' `welcome to` receipts are
+  pinned by chain_walk_probe (hop 1) and the new grand_tour_probe
+  (hops 1-2); `:open`'s word is ide_door_probe's and the wire probe's;
+  the save's census, the gallery's template word, the respawns'
+  honest-spawn line — each with its receipts. And one row stays
+  honest with a dash: `shell: next missing` is spoken by the engine
+  but pinned by nobody — a gap the table refuses to dress up.
+- **the tour's family tree, written down**: campaign_walk.py (R39)
+  walked the first hops ungated and stalls beyond them (five minutes,
+  no verdict — the reason it was never promoted to gate 8); the new
+  grand_tour_probe (v3.1.115) re-walks the same wire with the
+  phase-independent ride law and finishes in ~21-31s. The next
+  increment folds the tour's growth into one walker.
+
 ## v3.1.115 — the grand tour walks on
 
 - **the walk grew legs** — chain_walk_probe pinned hop 1

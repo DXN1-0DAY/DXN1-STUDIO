@@ -71,19 +71,21 @@ playground.
 read the wire, never the paint: the pty can lie (bursts vanish, renders
 tail behind), the file the child wrote cannot.
 
-The wire's vocabulary, one line each:
+The wire's vocabulary, one line each — with the receipts column naming
+which probe pins which word (a word no probe pins is a rumor the table
+refuses to dress up):
 
-| Word | Spoken when |
-|------|-------------|
-| `shell: scene <name>` | the boot names the scene it opened with (the night's first word) |
-| `shell: scene <name>` | `:scene` loads by name — the direct line, the instant the hand returns |
-| `shell: scene saved <path>` | the play-mode `:w` writes the scene |
-| `shell: welcome to <name>` | the shell consumes `pendingNext` — a door was walked |
-| `shell: next missing: <err>` | a door promised a scene that isn't there |
-| `shell: opened <path>` | `:open` (and `:recent`) puts a file on the stage |
-| `shell: template <name>` | `:new`, `:template <name>`, ctrl+n turn the page |
-| `ide: saved <path> (+a ~c -r)[ bak]` | every IDE save — census, `(same)` when storyless, `bak` when a past was kept |
-| `respawn(why) x,y -> x,y` | the engine respawns the player |
+| Word | Spoken when | Receipts (the pins) |
+|------|-------------|---------------------|
+| `shell: scene <name>` | the boot names the scene it opened with (the night's first word) | ide_wire_probe (the boot's word, scenario 6b) |
+| `shell: scene <name>` | `:scene` loads by name — the direct line, the instant the hand returns | ide_wire_probe (by name and bare, 6b) |
+| `shell: scene saved <path>` | the play-mode `:w` writes the scene | ide_wire_probe (the save's census) |
+| `shell: welcome to <name>` | the shell consumes `pendingNext` — a door was walked | chain_walk_probe (hop 1), grand_tour_probe (hops 1-2); campaign_walk walks further, ungated until the walks stop stalling |
+| `shell: next missing: <err>` | a door promised a scene that isn't there | — (unpinned; the honest gap) |
+| `shell: opened <path>` | `:open` (and `:recent`) puts a file on the stage | ide_door_probe, ide_wire_probe |
+| `shell: template <name>` | `:new`, `:template <name>`, ctrl+n turn the page | ide_wire_probe |
+| `ide: saved <path> (+a ~c -r)[ bak]` | every IDE save — census, `(same)` when storyless, `bak` when a past was kept | ide_wire_probe (the census's two mouths) |
+| `respawn(why) x,y -> x,y` | the engine respawns the player | chain_walk_probe, grand_tour_probe, ast_lives_probe (the honest-spawn pins) |
 
 Three laws govern every word:
 
