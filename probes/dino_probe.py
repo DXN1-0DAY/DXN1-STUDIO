@@ -5,7 +5,14 @@ _HOME = _os.path.dirname(_os.path.dirname(_os.path.abspath(__file__)))
 # The probes COME HOME (v3.1.91): this pin lives in the repo now and the
 # gates run it — a probe the gates never run ages into a liar (the drift
 # ledger lives in probes/README.md). Canonical law pins: probes/*_probe.py.
-import json, subprocess, sys, os, select
+# THE BUFFER LAW (v3.1.105): the read goes through the fleet's shared
+# harness (probes/_harness.py) — raw os.read, own line buffer — the old
+# select-on-the-fd + readline-on-a-buffered-stream pairing was the
+# deadlock species.
+import json, subprocess, sys, os
+
+sys.path.insert(0, _os.path.dirname(_os.path.abspath(__file__)))
+from _harness import Wire
 
 env = dict(os.environ)
 env["NODE_PATH"] = _os.path.join(_HOME, "sdk")
@@ -20,26 +27,14 @@ p = subprocess.Popen(["node", _os.path.join(_HOME, "sdk", "examples", "dino.js")
                      stdin=subprocess.PIPE, stdout=subprocess.PIPE,
                      stderr=subprocess.STDOUT, text=True, bufsize=1, env=env)
 
-def send(o):
-    p.stdin.write(json.dumps(o) + "\n")
-    p.stdin.flush()
+w = Wire(p)
 
-def readline_ms(timeout=2.0):
-    r, _, _ = select.select([p.stdout], [], [], timeout)
-    if not r:
-        return None
-    return p.stdout.readline()
-
-send({"t": "hello", "w": 120, "h": 44})
+w.send({"t": "hello", "w": 120, "h": 44})
 scene = None
 for _ in range(30):
-    line = readline_ms()
-    if line is None or not line:
+    pkt = w.read(2.0)
+    if pkt is None:
         break
-    try:
-        pkt = json.loads(line)
-    except Exception:
-        continue
     if pkt.get("t") == "scene":
         scene = pkt
         break
@@ -94,15 +89,12 @@ check("day sky is a rumor (alpha 0.15 / moon 0.25)",
       and not ents.get("moon", {}).get("glow"))
 
 def tick(keys=None, chars=""):
-    send({"t": "tick", "dt": 0.05, "keys": keys or {}, "chars": chars, "hits": []})
+    w.send({"t": "tick", "dt": 0.05, "keys": keys or {}, "chars": chars,
+            "hits": []})
     for _ in range(10):
-        line = readline_ms()
-        if line is None or not line:
+        pkt = w.read(2.0)
+        if pkt is None:
             return None
-        try:
-            pkt = json.loads(line)
-        except Exception:
-            continue
         if pkt.get("t") == "frame":
             return pkt
     return None
@@ -148,15 +140,12 @@ check("the cactus scrolls at the run's speed",
 # ---- the night fade: run past 200 m on coarse ticks (hits are ours —
 # no death), then the alpha law fades the sky in over two seconds
 def tick_dt(keys=None, chars="", dt=0.5):
-    send({"t": "tick", "dt": dt, "keys": keys or {}, "chars": chars, "hits": []})
+    w.send({"t": "tick", "dt": dt, "keys": keys or {}, "chars": chars,
+            "hits": []})
     for _ in range(10):
-        line = readline_ms()
-        if line is None or not line:
+        pkt = w.read(2.0)
+        if pkt is None:
             return None
-        try:
-            pkt = json.loads(line)
-        except Exception:
-            continue
         if pkt.get("t") == "frame":
             return pkt
     return None
@@ -186,17 +175,13 @@ check("the clouds dim to half",
 
 # the fatal touch: the engine reports hits, the runner falls
 if onscreen:
-    send({"t": "tick", "dt": 0.05, "keys": {}, "chars": "",
-          "hits": ["dino", onscreen[0]]})
+    w.send({"t": "tick", "dt": 0.05, "keys": {}, "chars": "",
+            "hits": ["dino", onscreen[0]]})
     fr = None
     for _ in range(10):
-        line = readline_ms()
-        if line is None or not line:
+        pkt = w.read(2.0)
+        if pkt is None:
             break
-        try:
-            pkt = json.loads(line)
-        except Exception:
-            continue
         if pkt.get("t") == "frame":
             fr = pkt
             break

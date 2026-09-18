@@ -14,7 +14,15 @@ _HOME = _os.path.dirname(_os.path.dirname(_os.path.abspath(__file__)))
 # score keeps (50/100/150/300), the saucer rests dark, the shot parks
 # dark; the tally continues — launch 26 summons it again; and an
 # unpurchased crossing parks dark at the far edge.
-import json, subprocess, sys, os, select
+import json, subprocess, sys, os
+
+# THE BUFFER LAW (v3.1.105): the read goes through the fleet's shared
+# harness (probes/_harness.py) — raw os.read, own line buffer — the old
+# select-on-the-fd + readline-on-a-buffered-stream pairing was the
+# deadlock species.
+
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+from _harness import Wire
 
 REPO = _HOME
 env = dict(os.environ)
@@ -30,23 +38,20 @@ p = subprocess.Popen(["node", os.path.join(REPO, "sdk", "examples", "invaders.js
                      stdin=subprocess.PIPE, stdout=subprocess.PIPE,
                      stderr=subprocess.STDOUT, text=True, bufsize=1, env=env)
 
+w = Wire(p)
+
 def send(o):
-    p.stdin.write(json.dumps(o) + "\n"); p.stdin.flush()
+    w.send(o)
 
 def read(timeout=4.0):
-    r, _, _ = select.select([p.stdout], [], [], timeout)
-    if not r: return None
-    line = p.stdout.readline()
-    if not line: return None
-    try: return json.loads(line)
-    except Exception: return None
+    return w.read(timeout)
 
 def frame(keys=None, chars="", dt=0.1, hits=None):
-    send({"t": "tick", "dt": dt,
-          "keys": {k: True for k in (keys or [])},
-          "chars": chars, "hits": hits or []})
+    w.send({"t": "tick", "dt": dt,
+            "keys": {k: True for k in (keys or [])},
+            "chars": chars, "hits": hits or []})
     while True:
-        f = read()
+        f = w.read()
         if f is None: raise AssertionError("no frame — child stalled")
         if f.get("t") == "frame":
             return {e["name"]: e for e in f["set"]}, f

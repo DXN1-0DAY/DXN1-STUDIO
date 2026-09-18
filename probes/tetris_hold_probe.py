@@ -8,7 +8,14 @@
 # honestly refused (say speaks, nothing moves); a lock re-arms the
 # vault and c becomes a straight swap (falling color == old hold
 # color); and r under a fresh sky leaves the vault empty again.
-import json, subprocess, sys, os, select
+# THE BUFFER LAW (v3.1.105): the read goes through the fleet's shared
+# harness (probes/_harness.py) — raw os.read, own line buffer — the old
+# select-on-the-fd + readline-on-a-buffered-stream pairing was the
+# deadlock species.
+import json, subprocess, sys, os
+
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+from _harness import Wire
 
 REPO = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 env = dict(os.environ)
@@ -23,35 +30,16 @@ p = subprocess.Popen(["node", os.path.join(REPO, "sdk", "examples", "tetris.js")
                      stdin=subprocess.PIPE, stdout=subprocess.PIPE,
                      stderr=subprocess.STDOUT, text=True, bufsize=1, env=env)
 
-def send(o):
-    p.stdin.write(json.dumps(o) + "\n"); p.stdin.flush()
+w = Wire(p)
 
-def read(timeout=4.0):
-    r, _, _ = select.select([p.stdout], [], [], timeout)
-    if not r: return None
-    line = p.stdout.readline()
-    if not line: return None
-    try: return json.loads(line)
-    except Exception: return None
-
-def frame(keys=None, chars=""):
-    send({"t": "tick", "dt": 0.05,
-          "keys": {k: True for k in (keys or [])},
-          "chars": chars, "hits": []})
-    while True:
-        f = read()
-        if f is None: raise AssertionError("no frame — child stalled")
-        if f.get("t") == "frame":
-            return {e["name"]: e for e in f["set"]}, f
-
-send({"t": "hello", "w": 120, "h": 44})
-scene = read()
+w.send({"t": "hello", "w": 120, "h": 44})
+scene = w.read(4.0)
 assert scene and scene.get("t") == "scene", f"no scene: {str(scene)[:120]}"
 names = [e["name"] for e in scene["entities"]]
 pin("scene has 23 entities", len(names) == 23, str(len(names)))
 pin("the vault label waits under the queue", "hol" in names)
 
-ents, _ = frame()
+ents, _ = w.frame()
 pin("the vault sleeps before its first summon",
     all(not ents[f"hv{i}"].get("visible", 1) for i in range(4)))
 fall0 = ents["fall0"]["color"]
@@ -59,7 +47,7 @@ pv0 = ents["pv0"]["color"]
 
 # 1. c stashes: the vault wears the falling piece's color, the queue's
 #    peek becomes the order, and the spent vault wears alpha 0.32
-ents, _ = frame(chars="c")
+ents, _ = w.frame(chars="c")
 pin("c stashes the falling piece (vault wears its color)",
     all(ents[f"hv{i}"].get("visible", 0) == 1 for i in range(4)) and
     ents["hv0"]["color"] == fall0, f"hold {ents['hv0']['color']} was {fall0}")
@@ -72,21 +60,21 @@ pin("the falling piece is whole (4 seats, one color)",
     len({ents[f"fall{i}"]["color"] for i in range(4)}) == 1)
 
 # 2. a second c is honestly refused
-ents, f2 = frame(chars="c")
+ents, f2 = w.frame(chars="c")
 pin("the refusal speaks (say carries the vault's word)",
     "vault" in (f2.get("say") or ""), str(f2.get("say")))
 pin("nothing moved (the vault keeps its piece, the order keeps its seats)",
     ents["hv0"]["color"] == fall0 and ents["fall0"]["color"] == pv0)
 
 # 3. a lock re-arms the vault; c becomes a straight swap
-ents, _ = frame(keys=["space"])          # slam: lock + sweep
-ents, _ = frame()                        # the spawn's own frame
+ents, _ = w.frame(keys=["space"])          # slam: lock + sweep
+ents, _ = w.frame()                        # the spawn's own frame
 hold0 = ents["hv0"]["color"]
 fall1 = ents["fall0"]["color"]
 pin("after a lock the vault is re-armed (alpha back to 1)",
     abs(ents["hv0"].get("alpha", 1) - 1.0) < 0.001,
     str(ents["hv0"].get("alpha")))
-ents, _ = frame(chars="c")
+ents, _ = w.frame(chars="c")
 pin("the swap gives back (falling == old hold color)",
     ents["fall0"]["color"] == hold0, f"fall {ents['fall0']['color']} hold {hold0}")
 pin("the swap takes again (vault == the piece that fell)",

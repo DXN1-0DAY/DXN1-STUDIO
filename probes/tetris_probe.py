@@ -4,7 +4,14 @@
 # gates run it — a probe the gates never run ages into a liar (four drift
 # catches on record). Canonical law pins: probes/*_probe.py, one family
 # per round, tetris first (the driftiest).
-import json, subprocess, sys, os, select
+# THE BUFFER LAW (v3.1.105): the read goes through the fleet's shared
+# harness (probes/_harness.py) — raw os.read, own line buffer — the old
+# select-on-the-fd + readline-on-a-buffered-stream pairing was the
+# deadlock species (the frame and the chatter in one chunk).
+import json, subprocess, sys, os
+
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+from _harness import Wire
 
 REPO = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 env = dict(os.environ)
@@ -20,26 +27,25 @@ p = subprocess.Popen(["node", os.path.join(REPO, "sdk", "examples", "tetris.js")
                      stdin=subprocess.PIPE, stdout=subprocess.PIPE,
                      stderr=subprocess.STDOUT, text=True, bufsize=1, env=env)
 
-def send(o):
-    p.stdin.write(json.dumps(o) + "\n")
-    p.stdin.flush()
+w = Wire(p)
 
-def readline_ms(timeout=2.0):
-    r, _, _ = select.select([p.stdout], [], [], timeout)
-    if not r:
-        return None
-    return p.stdout.readline()
+def tick(keys=None, chars=""):
+    w.send({"t": "tick", "dt": 0.05, "keys": keys or {}, "chars": chars,
+            "hits": []})
+    for _ in range(10):
+        pkt = w.read(2.0)
+        if pkt is None:
+            return None
+        if pkt.get("t") == "frame":
+            return pkt
+    return None
 
-send({"t": "hello", "w": 120, "h": 44})
+w.send({"t": "hello", "w": 120, "h": 44})
 scene = None
 for _ in range(30):
-    line = readline_ms()
-    if line is None or not line:
+    pkt = w.read(2.0)
+    if pkt is None:
         break
-    try:
-        pkt = json.loads(line)
-    except Exception:
-        continue
     if pkt.get("t") == "scene":
         scene = pkt
         break
@@ -53,20 +59,6 @@ check("the four falling seats exist",
       sum(1 for n in ents if n.startswith("fall")) == 4)
 check("the well wears its rails and floor",
       all(n in ents for n in ("rail-l", "rail-r", "floor")))
-
-def tick(keys=None, chars=""):
-    send({"t": "tick", "dt": 0.05, "keys": keys or {}, "chars": chars, "hits": []})
-    for _ in range(10):
-        line = readline_ms()
-        if line is None or not line:
-            return None
-        try:
-            pkt = json.loads(line)
-        except Exception:
-            continue
-        if pkt.get("t") == "frame":
-            return pkt
-    return None
 
 def state(frame):
     return {s["name"]: s for s in frame.get("set", [])}

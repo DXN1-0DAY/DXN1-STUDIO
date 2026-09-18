@@ -6,7 +6,14 @@ _HOME = _os.path.dirname(_os.path.dirname(_os.path.abspath(__file__)))
 # The probes COME HOME (v3.1.92): re-pinned to the current truth and
 # walked by gate 8 — a probe the gates never run ages into a liar (the
 # drift ledger lives in probes/README.md).
-import json, subprocess, sys, os, select
+import json, subprocess, sys, os
+
+# THE BUFFER LAW (v3.1.105): the read goes through the fleet's shared
+# harness (probes/_harness.py) — raw os.read, own line buffer — the old
+# select-on-the-fd + readline-on-a-buffered-stream pairing was the
+# deadlock species.
+sys.path.insert(0, _os.path.dirname(_os.path.abspath(__file__)))
+from _harness import Wire
 
 env = dict(os.environ)
 env["NODE_PATH"] = _os.path.join(_HOME, "sdk")
@@ -21,29 +28,14 @@ p = subprocess.Popen(["node", _os.path.join(_HOME, "sdk", "examples", "invaders.
                      stdin=subprocess.PIPE, stdout=subprocess.PIPE,
                      stderr=subprocess.STDOUT, text=True, bufsize=1, env=env)
 
-def send(o):
-    p.stdin.write(json.dumps(o) + "\n")
-    p.stdin.flush()
+w = Wire(p)
 
-def readline_ms(timeout=2.0):
-    """a line with a deadline — a silent child never hangs the probe."""
-    r, _, _ = select.select([p.stdout], [], [], timeout)
-    if not r:
-        return None
-    return p.stdout.readline()
-
-send({"t": "hello", "w": 120, "h": 44})   # the SDK eats hello at module load
+w.send({"t": "hello", "w": 120, "h": 44})   # the SDK eats hello at module load
 scene = None
 for _ in range(30):
-    line = readline_ms()
-    if line is None:
+    pkt = w.read(2.0)
+    if pkt is None:
         break
-    if not line:
-        break
-    try:
-        pkt = json.loads(line)
-    except Exception:
-        continue
     if pkt.get("t") == "scene":
         scene = pkt
         break
@@ -56,16 +48,12 @@ check("both gun pools exist", all(f"shot-{i}" in ents for i in range(3))
       and all(f"bomb-{i}" in ents for i in range(3)))
 
 def tick(keys=None, chars=""):
-    send({"t": "tick", "dt": 0.05, "keys": keys or {}, "chars": chars, "hits": []})
-    pkt = None
+    w.send({"t": "tick", "dt": 0.05, "keys": keys or {}, "chars": chars,
+            "hits": []})
     for _ in range(10):
-        line = readline_ms()
-        if line is None or not line:
+        pkt = w.read(2.0)
+        if pkt is None:
             return None
-        try:
-            pkt = json.loads(line)
-        except Exception:
-            continue
         if pkt.get("t") == "frame":
             return pkt
     return None
@@ -99,9 +87,9 @@ check("space fires a shot from the cannon", shot is not None,
 hit_frame = None
 for name in list(st8):
     if name.startswith("alien-") and st8[name].get("y", 0) > 0:
-        send({"t": "tick", "dt": 0.05, "keys": {}, "chars": "",
-              "hits": [name, "player"] if shot is None else
-                      [name, next((n for n in st8 if n.startswith("shot-")), "shot-0")]})
+        w.send({"t": "tick", "dt": 0.05, "keys": {}, "chars": "",
+                "hits": [name, "player"] if shot is None else
+                        [name, next((n for n in st8 if n.startswith("shot-")), "shot-0")]})
         hit_frame = tick()
         break
 st_hit = state(hit_frame) if hit_frame else {}
@@ -114,25 +102,21 @@ check("a hit pays its row's points", scored, "hud updated" if scored else "no sc
 # (first: drain stale frames — the alien-hit section above leaves one
 # unread, which would shift every read below by one)
 def drain():
-    while True:
-        ln = readline_ms(0.2)
-        if ln is None or not ln:
-            return
+    # read-and-discard until a 0.2s silence — the raw buffer's version of
+    # the old line-drain (the stale frames burn, the stream re-aligns)
+    while w.read(0.2) is not None:
+        pass
 
 drain()
 
 def inject(pair):
     # send the hits-tick and read ITS OWN frame — a plain tick() here
     # would leak one frame and shift the whole stream
-    send({"t": "tick", "dt": 0.05, "keys": {}, "chars": "", "hits": list(pair)})
+    w.send({"t": "tick", "dt": 0.05, "keys": {}, "chars": "", "hits": list(pair)})
     for _ in range(10):
-        line = readline_ms()
-        if line is None or not line:
+        pkt = w.read(2.0)
+        if pkt is None:
             return None
-        try:
-            pkt = json.loads(line)
-        except Exception:
-            continue
         if pkt.get("t") == "frame":
             return pkt
     return None

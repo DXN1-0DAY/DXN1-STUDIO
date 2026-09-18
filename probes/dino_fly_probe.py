@@ -23,7 +23,12 @@ _HOME = _os.path.dirname(_os.path.dirname(_os.path.abspath(__file__)))
 #   stops); THE CATCH (glow 6 whole, 5.7/5.4 stairs); the summons
 #   (launch 2 never early, no eligible tick skipped); no launch 3
 #   before night; the owl intact; reseed on rebirth (same delta).
-import subprocess, sys, json, os, select
+# THE BUFFER LAW (v3.1.105): the read goes through the fleet's shared
+# harness (probes/_harness.py) — raw os.read, own line buffer.
+import subprocess, sys, json, os
+
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+from _harness import Wire
 
 REPO = _HOME
 EX = os.path.join(REPO, "sdk", "examples")
@@ -66,27 +71,20 @@ p = subprocess.Popen(["node", f"{EX}/dino.js"], stdin=subprocess.PIPE,
                      stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
                      cwd=REPO, text=True, bufsize=1, env=env)
 
+w = Wire(p)
+
 def send(o):
-    try:
-        p.stdin.write(json.dumps(o) + "\n"); p.stdin.flush()
-    except BrokenPipeError:
-        return False
-    return True
+    return w.send(o)
 
 def read(timeout=6.0):
-    r, _, _ = select.select([p.stdout], [], [], timeout)
-    if not r: return None
-    line = p.stdout.readline()
-    if not line: return None
-    try: return json.loads(line)
-    except Exception: return None
+    return w.read(timeout)
 
 def frame(keys=None, chars=None, hits=None):
-    send({"t": "tick", "dt": DT,
-          "keys": {k: True for k in (keys or [])},
-          "chars": chars or "", "hits": hits or []})
+    w.send({"t": "tick", "dt": DT,
+            "keys": {k: True for k in (keys or [])},
+            "chars": chars or "", "hits": hits or []})
     while True:
-        f = read()
+        f = w.read()
         if f is None: raise AssertionError("no frame — child stalled")
         if f.get("t") == "frame":
             return {e["name"]: e for e in f["set"]}, f
