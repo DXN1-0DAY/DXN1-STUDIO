@@ -23,6 +23,14 @@ TRACE = os.path.join(WORK, "wire.log")
 
 shutil.rmtree(WORK, ignore_errors=True)
 os.makedirs(WORK)
+# two scenes join the night BEFORE the boot: the bare :scene's count
+# and the by-name resolution both read ./scenes — a night with no
+# scenes can only confess a zero. (Child 2's setup below re-copies;
+# idempotent by law.)
+os.makedirs(os.path.join(WORK, "scenes"))
+for _s in ("level-1", "level-2"):
+    shutil.copyfile(os.path.join(REPO, "scenes", f"{_s}.dxn1.json"),
+                    os.path.join(WORK, "scenes", f"{_s}.dxn1.json"))
 
 pid, fd = pty.fork()
 if pid == 0:
@@ -331,6 +339,21 @@ pin("the verb moved the pen's home (:w saves what :scene wore)",
     b"EVENT shell: scene saved scenes/level-2.dxn1.json" in ev6, ev6[-200:])
 pin("the moved pen kept the bytes it found (level-2's .bak is born)",
     os.path.exists(os.path.join(SCENES, "level-2.dxn1.json") + ".bak"))
+
+# ---- 6b. bare :scene confesses where you stand ---------------------------
+# the fixing of :scene-by-name made the bare verb's silence a lie of
+# its own: it answered "no such file" for an EMPTY question (the
+# parser's needsArg law answered before the verb could). This
+# play-mode night is the honest home for the pin — no IDE reflex to
+# fight (ideEver false: no auto-run, no page churn). The bare verb
+# takes the stage (the family law) and names the wearing — level-2,
+# the scene the shell has worn since the load — and the count: three
+# scenes (the playground the night was born with, plus the two the
+# setup planted). The roster itself lives in the whisper, where an
+# empty prefix matches every stem.
+w = cmd("scene", until=lambda b: b"engine: wearing" in b, takes_stage=False)
+pin("the bare scene names the wearing and the count",
+    b"wearing level-2" in w and b"3 scenes answer by name" in w, w[-180:])
 
 # ---- cleanup -----------------------------------------------------------
 try: os.kill(pid, 15)

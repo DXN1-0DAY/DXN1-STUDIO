@@ -1933,6 +1933,22 @@ int main(int argc, char** argv) {
       ide.macro.push_back(line);         // the recorder keeps the raw line
         if (!cmd.ok()) { cmdErr = cmd.error; cmdErrT = 3.5f; }
         else if (cmd.verb == "scene") {
+          // bare :scene: where you stand, and the promise that the
+          // names answer (the roster itself lives in the whisper — an
+          // empty prefix matches every stem, so the list paints as
+          // you type). The family law holds: verbs that speak in the
+          // console take the stage first.
+          if (cmd.arg.empty()) {
+            takeStage();
+            const int n = static_cast<int>(sceneStems().size());
+            ide.console.push_back(
+                "engine: wearing " +
+                (game.scene.name.empty() ? std::string("(unnamed)")
+                                         : game.scene.name) +
+                " \xe2\x80\x94 " + std::to_string(n) +
+                " scenes answer by name; the whisper lists them as "
+                "you type");
+          } else {
           // by name, honestly: unique prefix resolves, ambiguity lists,
           // a ghost passes through for loadScene's honest error
           const std::string resolved = dxn3::resolveSceneArg(cmd.arg, sceneStems());
@@ -1961,6 +1977,7 @@ int main(int argc, char** argv) {
               // the wire's silence there is law, not omission.
               traceEventNow("shell: scene " + game.scene.name);
             } else { cmdErr = next.error().detail; cmdErrT = 3.5f; }
+          }
           }
         } else if (cmd.verb == "zoom") {
           if (cmd.arg == "in") game.scene.camera.zoom = std::clamp(game.scene.camera.zoom * 1.15f, 0.3f, 4.f);

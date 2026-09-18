@@ -359,7 +359,10 @@ int main() {
     ok(c.ok() && c.verb == "wq", "parseCommand knows :wq");
     ok(!dxn3::parseCommand("").ok(), "empty command is refused with usage");
     ok(!dxn3::parseCommand(":frobnicate 3").ok(), "unknown verbs are refused by name");
-    ok(!dxn3::parseCommand(":scene").ok(), ":scene without a path is refused");
+    ok(dxn3::parseCommand(":scene").ok(),
+       "bare :scene is a verb again (it names the wearing and the count)");
+    ok(dxn3::parseCommand(":scene level-2").ok(),
+       "a story still rides after the scene verb's space");
     ok(!dxn3::parseCommand(":zoom banana").ok(), ":zoom with junk is refused");
     ok(!dxn3::parseCommand(":magnet 9999").ok(), ":magnet out of range is refused");
     ok(!dxn3::parseCommand(":q now").ok(), ":q with an argument is refused");

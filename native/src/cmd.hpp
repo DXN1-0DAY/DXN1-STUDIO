@@ -105,7 +105,11 @@ inline Cmd parseCommand(std::string_view line) {
   };
 
   if (c.verb == "scene") {
-    needsArg("usage: :scene <file.dxn1.json>");
+    // bare :scene is a verb again: it names the wearing and the count
+    // (the roster itself lives in the whisper, where an empty prefix
+    // matches every stem). The needsArg law that guarded the door
+    // made the empty question answer "usage" — the verb branch owns
+    // the empty case now, a story still rides after the space.
   } else if (c.verb == "zoom") {
     if (c.arg == "in" || c.arg == "out") return c;
     number(0.3f, 4.f, "usage: :zoom in|out|<factor 0.3..4>");
