@@ -1,3 +1,30 @@
+## v3.1.102 — the input rides the whole frame, and one riddle goes on file
+
+- **the hero's speed no longer rides the render rate** — the shell's
+  fixed-step loop handed the frame's input to its FIRST step only and
+  zeroed it after (`in = {}`), so a frame that carried two steps ran
+  one fed and one starved: below 60fps the hero's run speed shrank
+  with the frame rate (the standalone physics probe and the pty walk
+  both caught the crawl). The input now RIDES the whole frame's steps
+  — a held key means HELD — and the jump's edge still fires once per
+  press (jumpHeld_ guards the re-fire). 1060 assertion groups green.
+- **the walk probe stays OUTSIDE the walls tonight** — the wire walk
+  (the hero through the playground's door over the pty) is drafted
+  but not homed: the scene-mode game clock crawls in the pty (the
+  HUD's own meter advanced 0.04 game-seconds in 2.4 wall-seconds,
+  while the acc arithmetic guarantees sixty steps a second and the
+  hosted mode tracks wall time exactly). Three confessions the draft
+  paid for, kept for the next round: the arrow CSI sequences split
+  across pty reads leave a BARE ESC and esc in play QUITS (the game's
+  own keys are the letters a/d/w); the keys parse in Play mode and
+  stepPlayer receives them (the instrumented build's markers proved
+  it); and the inspect panel (Tab) is an honest position telemetry —
+  the drive will steer from measured state, never from a schedule.
+  The clock riddle: every reading says the steps should run at sixty
+  a second; the HUD says they do not. The riddle goes on file, not
+  under a rug.
+- The fleet stands at 52 walking pins; nothing half-proven came home.
+
 ## v3.1.101 — the doctrine book: five laws the fleet paid for
 
 - **probes/README.md grows the harness-laws section** — the fleet's

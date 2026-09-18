@@ -3345,7 +3345,13 @@ int main(int argc, char** argv) {
       while (acc >= STEP) {
         game.update(static_cast<float>(STEP), in);
         acc -= STEP;
-        in = {};                      // hold inputs for one step only
+        // the input RIDES THE WHOLE FRAME's steps (v3.1.102): the old
+        // one-step-only hand starved every step after the first when a
+        // frame carried two — the hero's run speed rode the render rate
+        // (30fps meant half speed: the crawl the chain-walk probe
+        // caught on the wire, the hero pressing a sign it could never
+        // jump clear in time). A held key means HELD; the jump's edge
+        // still fires once per press (jumpHeld_ guards the re-fire).
       }
       if (!game.pendingNext.empty()) {
         const std::string nextPath = game.pendingNext;
