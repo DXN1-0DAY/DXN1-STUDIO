@@ -246,9 +246,14 @@ viewport refreshes — *code a background, and boom, a background.*
   save to a fresh name speaks the honest birth line (`+N` — every
   page line is an addition, the disk never heard it). `:journal`
   lists the last twelve saves the disk heard, oldest first, one
-  line per save — the receipt always speaks LAST, after the run's
+  line per save, each wearing the hour it fell (`+added ~changed
+  -removed HH:MM path` — a ledger without a when is a list, not a
+  memory) — the receipt always speaks LAST, after the run's
   own notes, so it is never drowned. The keyboard's `ctrl+s` is the
   same law (counts, journal, and the drift swept — the disk heard).
+  And every save confesses on the event wire (`DXN3_TRACE=<file>`):
+  `ide: saved <path> (+a ~c -r)` — `(same)` when the storyless pen
+  fell, ` bak` when a past was kept — one truth, two mouths.
 - **Word hops and the partner.** `ctrl+←`/`ctrl+→` jump word by word —
   the same words `ctrl+w` bites — across line edges when they must.
   `ctrl+delete` eats exactly what a hop would cross; `ctrl+/` toggles
@@ -527,7 +532,7 @@ accepted:
 | `:bm [n]` | leap to a pin; bare `:bm` takes the next, wrapping — the pins whisper as you type |
 | `:changes [n\|word]` | the census — a bare verb lists the session's touched lines; a number leaps to the Nth; a word asks which touched lines speak it |
 | `:drift [n]` | the amber census — a bare verb lists the lines that disagree with the disk; a number leaps to the Nth; `:diff` asks, `:w` sweeps; the silent beat keeps it live |
-| `:journal` | the save ledger — what each `:w` changed (`+added ~changed -removed path`), the last twelve, oldest first; a storyless save takes no line |
+| `:journal` | the save ledger — what each `:w` changed and the hour it fell (`+added ~changed -removed HH:MM path`), the last twelve, oldest first; a storyless save takes no line; `:journal clear` forgives it, memory and disk |
 | `:git [log [n] \| branch \| tag]` | the repo's truth in one breath — branch, uncommitted count, the last commit's name; `:git log [n]` walks the memory; `:git branch` names the locals, the current starred; `:git tag` counts the milestones (read-only; refuses honestly without git) |
 | `:ruler` | toggle the 79/99 column guides |
 | `:minimap` | toggle the document's map rail |
