@@ -2771,6 +2771,55 @@ int main(int argc, char** argv) {
                   "engine: " + std::to_string(spoke) +
                   (spoke == 1 ? " tag — " : " tags — ") + joined + tail);
             }
+          } else if (cmd.arg == "status") {
+            // the present tense, named: the files the tree is wearing
+            // dirty — staged, modified, untracked — porcelain's own
+            // voice, one receipt, the cap is six with a deeper tail.
+            // A clean tree says so honestly; a folder with no repo is
+            // refused, never guessed. Read-only, like every git mouth:
+            // the verb reads the mess, it never cleans it.
+            const std::string probe =
+                readCmd("git rev-parse --abbrev-ref HEAD 2>/dev/null");
+            const std::string out =
+                readCmd("git status --porcelain 2>/dev/null");
+            if (probe.empty()) {
+              ide.console.push_back(
+                  "engine: git is not speaking here — no repository, or "
+                  "no git on the machine");
+            } else if (out.empty()) {
+              ide.console.push_back(
+                  "engine: the tree is clean — the disk and the repo "
+                  "agree");
+            } else {
+              std::string joined;
+              int spoke = 0;
+              size_t more = 0;
+              for (size_t i = 0; i < out.size();) {
+                size_t e = out.find('\n', i);
+                if (e == std::string::npos) e = out.size();
+                std::string ln = out.substr(i, e - i);
+                i = e + 1;
+                if (!ln.empty() && ln.back() == '\r') ln.pop_back();
+                if (ln.empty()) continue;
+                ++more;
+                const size_t b = ln.find_first_not_of(" \t");
+                if (b == std::string::npos) continue;
+                ln = ln.substr(b);           // porcelain's padding goes
+                if (ln.size() > 24) ln = ln.substr(0, 24) + "…";
+                joined += (spoke == 0 ? "" : " · ") + ln;
+                ++spoke;
+                if (spoke == 6) break;
+              }
+              std::string tail;
+              if (static_cast<int>(more) > spoke)
+                tail = " · +" +
+                       std::to_string(static_cast<int>(more) - spoke) +
+                       " more";
+              ide.console.push_back(
+                  "engine: " + std::to_string(spoke) +
+                  (spoke == 1 ? " file waits — " : " files wait — ") +
+                  joined + tail);
+            }
           } else {
             const std::string branch =
                 readCmd("git rev-parse --abbrev-ref HEAD 2>/dev/null");

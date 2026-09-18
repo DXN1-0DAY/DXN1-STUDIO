@@ -237,6 +237,18 @@ pin("the graph draws the commit's shape on the rail",
 w = cmd("git graph 9", until=lambda b: b"usage" in b, takes_stage=False)
 pin("a graph that asks for nine is refused with the usage",
     b"usage: :git graph [n]" in w, w[:120])
+w = cmd("git status", until=lambda b: b"files wait" in b
+        or b"clean" in b)
+pin("the status names the untracked files the session wore",
+    b"files wait" in w and b"probe_a.py" in w and b"??" in w, w[-200:])
+subprocess.run(["git", "-C", WORK, "add", "-A"], check=True)
+subprocess.run(["git", "-C", WORK, "-c", "user.email=probe@dxn3",
+                "-c", "user.name=probe", "commit", "-q", "-m",
+                "the night's work, kept"], check=True)
+w = cmd("git status", until=lambda b: b"clean" in b
+        or b"files wait" in b, takes_stage=True)
+pin("a clean tree says so honestly",
+    b"the tree is clean" in w, w[:120])
 
 # ---- cleanup -----------------------------------------------------------
 try: os.kill(pid, 15)
