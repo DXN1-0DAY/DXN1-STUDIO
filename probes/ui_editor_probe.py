@@ -104,6 +104,18 @@ INTERACTIONS = [
 missing = [nm for nm, ok in INTERACTIONS if not ok]
 pin("all 4 interaction laws present", not missing, ", ".join(missing))
 
+# pin 9 — the live-boot law: the script tail renders before the wire
+# answers, so renderStats must guard the empty stage or the whole
+# editor dies at top level and boot() never runs (v3.1.119 shipped
+# exactly this — parse-clean but never live-booted; caught by R45's
+# browser smoke test). Static pin: the guard must precede ents().
+mstats = re.search(r"function renderStats\(\)\{(.*?)\n\}", html, re.S)
+body = mstats.group(1) if mstats else ""
+guard_ok = "if(!dcur) return;" in body or "if(!S.scenes[S.cur]) return;" in body
+pin("live-boot law — renderStats guards the empty stage",
+    bool(mstats) and guard_ok and body.index("return;") < body.find("ents()"),
+    "no empty-stage guard before ents()" if mstats and not guard_ok else "renderStats missing")
+
 fails = [n for n, ok in pins if not ok]
 print(f"\nui_editor_probe: {len(pins)-len(fails)}/{len(pins)} pins green "
       f"in {time.time()-t0:.1f}s")

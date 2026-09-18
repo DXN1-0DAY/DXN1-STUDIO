@@ -823,6 +823,10 @@ function draw(){
 }
 
 function renderStats(){
+  /* the wire's answer may not have landed yet — the tail render and
+     any early caller must not die on an empty stage (the live-boot
+     law: parse-clean was never enough, the boot must COMPLETE) */
+  const dcur=S.scenes[S.cur]; if(!dcur) return;
   $("st-ent").textContent=ents().length;
   $("st-sel").textContent=S.sel.size;
   $("sb-ents").textContent=ents().length+" entities";
