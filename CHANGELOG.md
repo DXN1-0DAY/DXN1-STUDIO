@@ -1,3 +1,46 @@
+## v3.1.117 — hop 3: the sign valve and the receipt lock
+
+- **the grand tour walks level-2's interior** — the wire now pins
+  THREE receipts (playground -> level-1 -> level-2 -> level-3) in
+  ~50-55s, and level-2's gate was never a mover: it is a sentence of
+  geometry called **the sign valve**. The spawn body already overlaps
+  the sign's skirt (its box hangs 4px into the standing hero's band),
+  so walking right pins the hero at its left wall. Three laws answer
+  it: the VALVE HOP (pinned, jump — the rise hugs the wall, then the
+  held drift lands the hero ON the sign), the CHUTE (walk off the
+  right edge holding LEFT — the valve's own resolution snaps the fall
+  back to x=300, the boarding strip; gated on vy > 0 so no rising arc
+  ever fires it), and the GROUND-ONLY BOARD (py >= 380 — a hop from
+  the sign's top lands in the pit).
+- **THE RECEIPT LOCK — the ride law's first amendment, earned by
+  simulation**: a geometry-only board onto mover-1's diagonal deck is
+  IMPOSSIBLE (0 successes across 1,820 simulated arcs from 7 launch
+  spots — every left approach side-clips the deck's wall, lands the
+  saw, or feeds the void, and the deterministic walk re-walks the same
+  phase after every honest death: 54 identical misses in a row). But
+  the deck's clock is deterministic from scene load, and the load is
+  SPOKEN: the welcome receipt's `s=` field is the movers' t=0, and the
+  board fires when `(s - s_receipt) mod 308` sits in the low-corner
+  window — exact, death-proof, read off the same trace as every other
+  law. The PHASE SCAN (a fresh uniform delay per life) stays as the
+  fallback.
+- **the probe grew honest instruments of its own**: THE TAIL LAW (the
+  trace is read incrementally — a probe that re-reads its whole
+  growing trace every decision tick drowns in its own telemetry and
+  steers a world that has already moved on); THE DRIVE (the boarding
+  hop's drift is sustained past the input sandwich the strip's
+  handbrake queues, and ends at the first grounded tick — the
+  boarding); the HANDS-OFF STAND (no walking on a mover you cannot
+  see — the stall law's escape hop fits the stand: drifted from the
+  deck's body, straight from its right end); THE RIDE LAW'S UPPER
+  GUARD (a landing's py plunge is not a carry: 1.5 <= delta <= 20);
+  and level-1's GAP-DECK DISEMBARK (a horizontal carry never moves py,
+  so the ride law is blind to the gap deck — standing on it is a py
+  band, and the jump from its right half clears the watcher spike).
+- **selftest 1067; gate 8 walks 55** — the tour's hop 3 is pinned
+  green x2 consecutive (6 and 5 honest deaths; the clock honest,
+  pi=0, no pause ever taken).
+
 ## v3.1.116 — the wire's table confesses who pins what
 
 - **the vocabulary table grows a receipts column** (the R41 debt,
