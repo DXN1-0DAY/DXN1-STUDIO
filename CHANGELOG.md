@@ -1,3 +1,25 @@
+## v3.1.103 — the buffer law: no more thirst at the read end
+
+- **ast_lives_probe's stall named and killed** — the ten-round
+  churn hunt caught it twice ("no frame — child stalled" at the
+  death ticks), and the mechanism was the read end, not the game:
+  the probe paired select() on the pipe's fd with readline() on a
+  BUFFERED stream. The respawn chatter and the payment frame
+  sometimes shared one read chunk; the frame sat in Python's own
+  buffer while select waited for fd data that would never come
+  until the child saw the next tick it never would. Both sides
+  waited; the pin died of thirst. ~one run in five under churn.
+- **the fleet grows its shared harness** — `probes/_harness.py`
+  reads RAW (os.read) and splits lines itself: everything the
+  child said is visible to the splitter immediately, chatter is
+  skipped in place (the metronome law at the read end), and the
+  waits are generous (the lives law pins LIVES, not latency).
+  ast_lives is migrated tonight; sixteen probes carried the
+  latent pattern and migrate family by family — the drift ledger
+  gains the pattern as the sixth harness law.
+- 5/5 green after the migration; the full gates walked green,
+  exit checked, before the tag.
+
 ## v3.1.102 — the input rides the whole frame, and one riddle goes on file
 
 - **the hero's speed no longer rides the render rate** — the shell's

@@ -71,6 +71,16 @@ Five laws the fleet paid for, each with its receipt:
    full output before the next round overwrites it; the gates'
    `tail -6` window has cut off the deciding line more than once.
    A failure that cannot say why will happen again.
+6. **select() on the fd and readline() on a buffer are a
+   deadlock.** (v3.1.103, ast_lives) — the respawn chatter and the
+   payment frame shared one read chunk; the frame sat in Python's
+   own buffer while select waited for fd data that would never come
+   until the child saw the next tick it never would. Both sides
+   waited; the pin died of thirst, ~one run in five under churn.
+   The fleet's shared harness (`probes/_harness.py`) reads RAW and
+   splits lines itself — everything the child said is visible to
+   the splitter immediately. Sixteen probes carried the latent
+   pattern; they migrate family by family.
 
 ## the drift ledger — every outsider came home
 
