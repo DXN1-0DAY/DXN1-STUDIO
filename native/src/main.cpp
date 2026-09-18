@@ -1572,6 +1572,41 @@ int main(int argc, char** argv) {
     return out;
   };
 
+  // the tick receipts (DXN3_TRACE=<path>): who eats the clock, on file.
+  // The clock-crawl riddle (R37) gets evidence, not guesses — every
+  // ~0.5s of wall time the loop confesses its counters: frames, steps,
+  // game.time, the pause seconds per reason, the worst frame's dt and
+  // the worst render write. Gated by env; invisible in honest play.
+  // HOISTED above the host's lambdas (v3.1.118): the wire host's own
+  // lifecycle words ride the direct line, and ideRun spawns before the
+  // loop — the writer had to exist before the spawner.
+  std::FILE* traceF = nullptr;
+  {
+    const char* tp = std::getenv("DXN3_TRACE");
+    if (tp && *tp) traceF = std::fopen(tp, "w");
+  }
+  auto trFlushEv = [&]() {
+    if (traceF && !game.traceEv.empty()) {
+      std::fprintf(traceF, "  EVENT %s\n", game.traceEv.c_str());
+      std::fflush(traceF);
+      game.traceEv.clear();
+    }
+  };
+  // the wire's direct line: for receipts whose truth is tied to the
+  // instant they happened (a save's census), parking the event waits
+  // for the tick — and the tick can be BEATEN by the host's scene
+  // build, which replaces the Game (and the wire's slot with it). The
+  // wire probe caught exactly that: a save's census parked at w=2.22,
+  // the cadence gate deferred it, the starter's scene build landed at
+  // w=2.27 and the event died in the old object's slot. Flush what's
+  // parked, then write THIS word straight to the file.
+  auto traceEventNow = [&](const std::string& text) {
+    trFlushEv();
+    if (!traceF) return;
+    std::fprintf(traceF, "  EVENT %s\n", text.c_str());
+    std::fflush(traceF);
+  };
+
   // run the editor's code: save → host it → your game is live
   auto ideRun = [&]() {
     std::string err;
@@ -1595,6 +1630,12 @@ int main(int argc, char** argv) {
       ide.dirty = false;
       ide.state = "running " + ide.path;
       ide.console.push_back("engine: hosting " + argv[0] + " — your code is the game");
+      // the host's first word, on the wire: the studio confesses whose
+      // code it is hosting (the SDK's own vocabulary, in kind with the
+      // shell's — the sdk_wire_probe pins it off the real wire)
+      std::string cmd = argv[0];
+      for (size_t i = 1; i < argv.size(); ++i) cmd += " " + argv[i];
+      traceEventNow("wire: hosting " + cmd);
     } else {
       host.stop();
       ide.hostUp = false;
@@ -1669,11 +1710,6 @@ int main(int argc, char** argv) {
   // ~0.5s of wall time the loop confesses its counters: frames, steps,
   // game.time, the pause seconds per reason, the worst frame's dt and
   // the worst render write. Gated by env; invisible in honest play.
-  std::FILE* traceF = nullptr;
-  {
-    const char* tp = std::getenv("DXN3_TRACE");
-    if (tp && *tp) traceF = std::fopen(tp, "w");
-  }
   double trWall0 = 0, trLastEmit = -1, trDtmx = 0, trIomx = 0;
   long long trFrames = 0, trSteps = 0;
   double trPauseI = 0, trPauseF = 0, trPauseC = 0, trPauseH = 0;
@@ -1715,28 +1751,9 @@ int main(int argc, char** argv) {
   // pendingNext consumption) fire in the SAME frame as the engine's —
   // the goal touch and the shell's welcome land one step apart, and a
   // blind overwrite would bury the door's confession. Flush first, then
-  // the shell speaks.
-  auto trFlushEv = [&]() {
-    if (traceF && !game.traceEv.empty()) {
-      std::fprintf(traceF, "  EVENT %s\n", game.traceEv.c_str());
-      std::fflush(traceF);
-      game.traceEv.clear();
-    }
-  };
-  // the wire's direct line: for receipts whose truth is tied to the
-  // instant they happened (a save's census), parking the event waits
-  // for the tick — and the tick can be BEATEN by the host's scene
-  // build, which replaces the Game (and the wire's slot with it). The
-  // wire probe caught exactly that: a save's census parked at w=2.22,
-  // the cadence gate deferred it, the starter's scene build landed at
-  // w=2.27 and the event died in the old object's slot. Flush what's
-  // parked, then write THIS word straight to the file.
-  auto traceEventNow = [&](const std::string& text) {
-    trFlushEv();
-    if (!traceF) return;
-    std::fprintf(traceF, "  EVENT %s\n", text.c_str());
-    std::fflush(traceF);
-  };
+  // the shell speaks. (trFlushEv and traceEventNow live above ideRun
+  // since v3.1.118 — the host's lifecycle speaks the direct line, and
+  // the spawner runs before the loop.)
   // the night's FIRST word, on the direct line: the wire names the
   // scene the shell opened with — before the loop's first tick, before
   // the starter's build may replace the stage. Honest for the
@@ -3852,6 +3869,8 @@ int main(int argc, char** argv) {
         ide.hostUp = false;
         ide.console.push_back("engine: your game exited (code " +
                               std::to_string(host.exitCode()) + ")");
+        traceEventNow("wire: host exited (code " +
+                      std::to_string(host.exitCode()) + ")");
         ide.state = "exited — fix it and ctrl+r";
       } else {
         std::vector<std::string> hits;
@@ -3878,6 +3897,10 @@ int main(int argc, char** argv) {
           game = dxn3::Game(std::move(ns));
           ide.console.push_back("engine: built " + std::to_string(ents) +
                                 " entities — your game is live");
+          // the child's first word on the wire: the scene packet landed
+          // and became a stage (one truth, two mouths — the rail's N
+          // and the wire's N must agree; sdk_wire_probe pins both)
+          traceEventNow("wire: built " + std::to_string(ents) + " entities");
         }
         dxn3::applyFrame(game, f);
         for (auto& l : host.takeConsole()) {
@@ -3890,6 +3913,8 @@ int main(int argc, char** argv) {
           ide.hostUp = false;
           ide.console.push_back("engine: your game exited (code " +
                                 std::to_string(f.exitCode) + ")");
+          traceEventNow("wire: host exited (code " +
+                        std::to_string(f.exitCode) + ")");
           ide.state = "exited — fix it and ctrl+r";
         }
       }

@@ -86,6 +86,9 @@ refuses to dress up):
 | `shell: template <name>` | `:new`, `:template <name>`, ctrl+n turn the page | ide_wire_probe |
 | `ide: saved <path> (+a ~c -r)[ bak]` | every IDE save — census, `(same)` when storyless, `bak` when a past was kept | ide_wire_probe (the census's two mouths) |
 | `respawn(why) x,y -> x,y` | the engine respawns the player | chain_walk_probe, grand_tour_probe, ast_lives_probe (the honest-spawn pins) |
+| `wire: hosting <cmd>` | the studio spawns a child game (the sdk/ protocol) | sdk_wire_probe (the real wire, the real child) |
+| `wire: built N entities` | the child's scene packet became the stage | sdk_wire_probe (the rail's N and the wire's N agree) |
+| `wire: host exited (code N)` | the child returned or died, code and all | sdk_wire_probe (the child slain mid-run) |
 
 Three laws govern every word:
 

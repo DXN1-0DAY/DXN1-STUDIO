@@ -276,3 +276,25 @@ and a console rail. Type code, pause — the game refreshes itself
 ("code a background and boom, a background"). `ctrl+r` runs, `ctrl+s`
 saves, `esc` plays fullscreen, `e` returns to the editor, `:scene`
 loads a demo, `:q` quits.
+
+## the wire's words — the host's lifecycle, confessed
+
+The studio's event wire (`DXN3_TRACE=<path>`) is where the machine
+keeps its diary: one line per receipt, `EVENT <word>`. The host's own
+lifecycle speaks it now, in kind with the shell's vocabulary (see
+`docs/ARCHITECTURE.md` for the wire's full dictionary and its laws):
+
+| Word | Spoken when | Receipts (the pins) |
+|------|-------------|---------------------|
+| `wire: hosting <cmd>` | the studio spawned your game (the runner + your file) | sdk_wire_probe (gate 8 — the real wire, the real child) |
+| `wire: built N entities` | your scene packet became the stage | sdk_wire_probe (N agrees with the rail's count — one truth, two mouths) |
+| `wire: host exited (code N)` | your process returned or died, code and all | sdk_wire_probe (the child slain mid-run; the code is yours) |
+
+The laws ride along: the lifecycle words ride the **direct line** (the
+host spawns before the loop, so a parked event would die in the old
+`Game`'s slot — the writer lives above the spawner); and your
+`print()` lines **never** masquerade on the wire — the console rail is
+their only mouth (the refusals' law: a silence the probes pin is law,
+not omission). Gate 6 (`scripts/sdk_conformance.py`) pins your scene
+and frames from a fake engine; gate 8's `sdk_wire_probe.py` pins the
+studio's side from the real one.
