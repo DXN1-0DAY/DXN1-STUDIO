@@ -1,3 +1,22 @@
+## v3.1.106 — level-2's frozen river thaws (the campaign recon's first conviction)
+
+- **the movers that stood still** — the grand-tour recon (R39's
+  campaign walk, scouting every level the loop must cross) read
+  level-2's scene and found the lie: `mover-1` and `mover-2` still
+  spoke the v3.0.03 dialect — `path: {toX, toY, speed}` — and the
+  engine's loader only hears the list dialect (`path: [...]` +
+  `pspeed`, spark.cpp). An object path loads as NO path: both ferries
+  stood frozen mid-river since the format migration, "ride the
+  movers!" signed above a stone. The documented feature had died
+  silently, and no gate noticed because no probe had ever walked
+  past level-1's door. Converted both to the list dialect (the exact
+  form level-1's the-gap and elevator already speak), gate 3 green,
+  the crossing is a real ride again.
+- **the lesson enters the doctrine's margin**: a scene format
+  migration needs a scene-format gate — one dialect check over every
+  scene would have caught this the day the loader changed. (Next
+  rounds: the campaign walk itself, and that gate.)
+
 ## v3.1.105 — the buffer law's last carriers, and a journal that survives the night
 
 - **the deadlock species is extinct** — all sixteen remaining

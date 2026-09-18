@@ -45,11 +45,11 @@
       "h": 22,
       "color": "#22d3ee",
       "solid": true,
-      "path": {
-        "toX": 660,
-        "toY": 250,
-        "speed": 110
-      }
+      "path": [
+        { "x": 400, "y": 360 },
+        { "x": 660, "y": 250 }
+      ],
+      "pspeed": 110
     },
     {
       "name": "mover-2",
@@ -59,11 +59,11 @@
       "h": 22,
       "color": "#22d3ee",
       "solid": true,
-      "path": {
-        "toX": 1130,
-        "toY": 300,
-        "speed": 90
-      }
+      "path": [
+        { "x": 980, "y": 300 },
+        { "x": 1130, "y": 300 }
+      ],
+      "pspeed": 90
     },
     {
       "name": "coin-1",
