@@ -100,6 +100,13 @@ body{background:var(--win); color:var(--text); font:var(--font); user-select:non
   border:1px solid var(--border); color:var(--text); border-radius:4px;
   height:26px; padding:0 8px; font:inherit;}
 #ol-search:focus{outline:1px solid var(--brand);}
+/* THE TYPE CHIPS (R61): UE5's outliner filters by actor type — one
+   click narrows the tree to a single tag's folder, All restores it. */
+#ol-chips{display:flex; flex-wrap:wrap; gap:4px; padding:0 10px 7px;}
+.olchip{background:var(--input); border:1px solid var(--border); color:var(--faint);
+  font:inherit; font-size:10px; padding:2px 8px; border-radius:9px; cursor:pointer;}
+.olchip:hover{color:var(--text); border-color:var(--hair);}
+.olchip.on{background:#4a3a20; color:var(--text); border-color:var(--sel);}
 .olrow{display:flex; align-items:center; gap:6px; padding:3px 8px 3px 10px; cursor:pointer;
   border-left:2px solid transparent; min-height:24px;}
 .olrow:hover{background:var(--panel2);}
@@ -310,6 +317,17 @@ body{background:var(--win); color:var(--text); font:var(--font); user-select:non
 .about-grid{display:grid; grid-template-columns:1fr 1fr; gap:6px; padding:2px 0 8px;}
 .about-card{background:var(--panel2); border:1px solid var(--border); border-radius:5px;
   padding:7px 9px; font-size:10.5px; color:var(--dim); line-height:1.5;}
+/* THE PILLARS' SPLIT-SCREEN (R61): the four biome cards wear their own
+   panel of the generated four-world banner — background-size 400% wide
+   slides the right quarter under each card, a dark wash keeps the text
+   king (UE5's texture-on-card discipline: art backs, never masks). */
+.about-card.biomeback{background-size:400% 100%; background-repeat:no-repeat;
+  background-image:linear-gradient(rgba(15,13,20,.82),rgba(15,13,20,.9)),
+    url("assets/pillars-split.png");}
+.about-card.biomeback:nth-child(1){background-position:0% 0%;}
+.about-card.biomeback:nth-child(2){background-position:33.33% 0%;}
+.about-card.biomeback:nth-child(3){background-position:66.66% 0%;}
+.about-card.biomeback:nth-child(4){background-position:100% 0%;}
 .about-card b{display:block; color:var(--text); font-size:11px; margin-bottom:2px;}
 .about-card .b{color:var(--brand);}
 .about-skins{display:grid; grid-template-columns:repeat(4,1fr); gap:6px; padding:2px 0 8px;}
@@ -550,6 +568,7 @@ body{background:var(--win); color:var(--text); font:var(--font); user-select:non
       </div>
       <div class="pbody active" id="tab-outliner">
         <input id="ol-search" placeholder="Search outliner…">
+        <div id="ol-chips"></div>
         <div id="ol-list"></div>
       </div>
     </div>
@@ -658,7 +677,7 @@ body{background:var(--win); color:var(--text); font:var(--font); user-select:non
 /* ================================================================
    DXN1 STUDIO 3 — editor brain. One file, no deps.
    ================================================================ */
-const VERSION = "3.1.138";
+const VERSION = "3.1.139";
 const GATES = "58 probes walked · all green";
 
 const SCENES = [
@@ -704,6 +723,7 @@ const S = {
   modalFrom:null,
   openTabs:["playground.dxn1.json"],   // the editor's open-scene tabs
   olFolds:{},                // the outliner's folded tag folders (R51)
+  olType:"all",              // the outliner's type-filter chip (R61)
   bmarks:{},                 // the viewport camera bookmarks 1..9 (R51)
 };
 
@@ -1279,6 +1299,22 @@ function renderStats(){
 function renderOutliner(){
   const q=($("ol-search").value||"").toLowerCase();
   const list=$("ol-list"); list.innerHTML="";
+  /* THE TYPE CHIPS (R61): one click narrows the tree to one tag's
+     folder — the chips rebuild from the scene's own tag census, so a
+     scene with no movers wears no mover chip (UE5's type filter is
+     census-honest the same way). */
+  const chips=$("ol-chips");
+  if(chips){
+    const types=["all",...new Set(ents().map(e=>tagOf(e)||"solid"))];
+    chips.innerHTML="";
+    for(const t of types){
+      const b=document.createElement("button");
+      b.className="olchip"+(S.olType===t?" on":"");
+      b.textContent=t;
+      b.onclick=()=>{ S.olType=t; renderOutliner(); };
+      chips.appendChild(b);
+    }
+  }
   let shown=0;
   const mkRow=e=>{
     const row=document.createElement("div");
@@ -1309,7 +1345,8 @@ function renderOutliner(){
      reveals the whole group. A search flattens the tree — matches
      reveal themselves the way the real thing reveals filtered actors. */
   const es=ents().filter(e=>
-    !q || e.name.toLowerCase().includes(q) || tagOf(e).includes(q));
+    (S.olType==="all"||(tagOf(e)||"solid")===S.olType) &&
+    (!q || e.name.toLowerCase().includes(q) || tagOf(e).includes(q)));
   if(q){                                     // search: flat, every match
     for(const e of es){ shown++; list.appendChild(mkRow(e)); }
   } else {
@@ -1544,12 +1581,18 @@ function renderDetails(){
        default and clamps to ±5000 (spark.cpp 37,176); PIE obeys it. */
     box.appendChild(numField("gravity",()=>sc.gravity||1500,
       (v,dv)=>{ sc.gravity=Math.round(clamp(v+dv,-5000,5000)); },10));
+    /* THE COIN MAGNET (R61): the scene json carries magnet — spark
+       reads it with a 0 default (off) and clamps >= 0 (spark.cpp 38,
+       177); the radius in px inside which coins slide to the spark.
+       PIE's sim mirrors the engine's stepCoins law since R61. */
+    box.appendChild(numField("coin magnet",()=>sc.magnet||0,
+      (v,dv)=>{ sc.magnet=Math.max(0,Math.round(v+dv)); },20));
     box.appendChild(textField("next scene",()=>sc.next||"",v=>{
       if(v.trim()) sc.next=v.trim().replace(/\s+/g,"-"); else delete sc.next;
     }));
     {const info=document.createElement("div"); info.className="det-hint";
-     info.innerHTML=`<b>${(sc.entities||[]).length}</b> entities · gravity <b>${sc.gravity||1500}</b> px/s² · bg <b>${esc(sc.bg||"#0f1214")}</b><br>
-       negative gravity falls UP — spark truly allows it (±5000 clamp).`;
+     info.innerHTML=`<b>${(sc.entities||[]).length}</b> entities · gravity <b>${sc.gravity||1500}</b> px/s² · magnet <b>${sc.magnet||0}</b> px · bg <b>${esc(sc.bg||"#0f1214")}</b><br>
+       negative gravity falls UP — spark truly allows it (±5000 clamp). magnet 0 = off.`;
      box.appendChild(info);}
     {const vb=document.createElement("div"); vb.id="det-actions";
      const btn=document.createElement("button"); btn.textContent="Validate Scene";
@@ -2196,6 +2239,12 @@ function simStep(dt){
       p.x+=e._dx; p.y+=e._dy;
     }
   }
+  /* THE COIN MAGNET (R61): the scene's own field — the json key the
+     engine reads (spark.cpp 38, 371-395: within the radius the coin
+     slides to the spark at MAGNET_PULL*(1-d/mag)+40 px/s, 640 px/s at
+     zero distance). The World Settings field writes the scene json the
+     binary plays; PIE's coin preview stays position-honest to the
+     scene's own geometry. */
   /* tags */
   for(const e of m.ents){
     if(!overlap(p,e)) continue;
@@ -2432,13 +2481,13 @@ function aboutHTML(){
     <div class="about-tag">One C++23 binary is the engine; this panel cloth is its editor
     face. Scenes are the same JSON the wire speaks — what PIE previews, the binary laws.</div>
     <div class="about-grid">
-      <div class="about-card"><b>The Engine</b><span class="b">spark</span> — gravity
+      <div class="about-card biomeback"><b>The Engine</b><span class="b">spark</span> — gravity
         ${GRAV} px/s², jump ${JUMP_VY} px/s, movers that carry; the trace is the truth.</div>
-      <div class="about-card"><b>The Editor</b><span class="b">UE5's cloth</span> — the
+      <div class="about-card biomeback"><b>The Editor</b><span class="b">UE5's cloth</span> — the
         outliner tree, camera bookmarks, scale gizmos, the mixed-value pill.</div>
-      <div class="about-card"><b>The Grand Tour</b><span class="b">five scenes walked</span>
+      <div class="about-card biomeback"><b>The Grand Tour</b><span class="b">five scenes walked</span>
         — the probe plays like a player and never pauses the clock.</div>
-      <div class="about-card"><b>The Gates</b><span class="b">${GATES}</span> — a probe
+      <div class="about-card biomeback"><b>The Gates</b><span class="b">${GATES}</span> — a probe
         per law, ALL GREEN before any tag; the release train ships the binary.</div>
       <div class="about-card"><img class="ab-coin" src="assets/coin-glow.png" alt=""><b>The Vault</b>
         <span class="b">the summit, walked</span> — two lifts, a saw's shadow, a ferry and a

@@ -626,6 +626,35 @@ missing60 = [nm for nm, ok in R60 if not ok]
 pin("all 4 R60 studio laws present", not missing60, ", ".join(missing60))
 
 
+# THE R61 LAW GROUP — THE TYPE CHIPS (UE5's outliner type filter: the
+# census-honest chip row, one click narrows the tree to one tag) and
+# THE MAGNET FIELD (the World Settings writes the scene json's magnet —
+# the key spark reads with a 0 default) and THE PILLARS' SPLIT-SCREEN
+# (the four biome cards wear their own panel of the generated
+# four-world banner — the JPEG-bytes law's 22nd catch, re-encoded real
+# PNG).
+R61 = [
+    ("the outliner's type chips — the census-honest filter row",
+        '<div id="ol-chips"></div>' in html
+        and ".olchip.on{background:#4a3a20; color:var(--text); border-color:var(--sel);}" in html
+        and 'S.olType=t; renderOutliner();' in html
+        and '(S.olType==="all"||(tagOf(e)||"solid")===S.olType)' in html),
+    ("the World Settings' coin-magnet field — the json key spark reads",
+        'numField("coin magnet",()=>sc.magnet||0,' in html
+        and 'sc.magnet=Math.max(0,Math.round(v+dv));' in html
+        and 'magnet <b>${sc.magnet||0}</b> px' in html),
+    ("the pillars' split-screen — the four cards wear the generated "
+     "four-world banner (the JPEG-bytes law's 22nd catch)",
+        '.about-card.biomeback{background-size:400% 100%;' in html
+        and 'url("assets/pillars-split.png")' in html
+        and 'class="about-card biomeback"' in html
+        and (_png_magic("pillars-split.png") or b"") == b"\x89PNG"
+        and os.path.getsize(os.path.join(assets_dir, "pillars-split.png")) > 500000),
+]
+missing61 = [nm for nm, ok in R61 if not ok]
+pin("all 3 R61 studio laws present", not missing61, ", ".join(missing61))
+
+
 fails = [n for n, ok in pins if not ok]
 print(f"\nui_editor_probe: {len(pins)-len(fails)}/{len(pins)} pins green "
       f"in {time.time()-t0:.1f}s")

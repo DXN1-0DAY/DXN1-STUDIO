@@ -1,3 +1,66 @@
+## v3.1.139 — the type chips, the magnet field, and the four-world pillars
+
+*(the R61 session: the HOPS-to-level-6 question got its third honest
+attempt — the run-16/17 traces were mined to their roots, the arrival-brake
+overshoot class was named, the vault probe was driven to zero deaths twice —
+and the round's probe work closed with the R60-proven tree restored and the
+settle-everywhere plan banked for R62. The studio's face grew UE5's outliner
+type filter, the World Settings' missing field, and the pillar art carried
+since R59 finally landed.)*
+
+### the probes
+
+- **THE ARRIVAL-BRAKE OVERSHOOT** (the run-16/17 autopsy, the round's named
+  disease): every mover fire lands its rider at vx ~330 — the flight's own
+  'd' hold completes the 2300 ramp by the landing — and the brake slide
+  (28.6px of friction + 2-3 ticks of byte lag ≈ 50px) carries the arrival
+  PAST the deck's far edge when the landing gate allows the upper half of
+  the span. The vault's transfer-pit falls at 456..507 (lift-1's 410 edge),
+  the lift-2 falls at 612..662 (the 590 edge), and the tour's isle-saw
+  deaths at 977..998 (the f1→f2 arrival walking off ferry-2's 860 edge onto
+  the saw below) are all this one shape. The ctr-window tightenings
+  ([501,530], [322,360]) fixed the falls but **stalled the phase beat** —
+  the R58 window's width IS the fire rate — and were honestly reverted;
+  the rider bands were widened as safety nets (292..470, 470..640) and the
+  isle-jump's fire now demands a settled rider (the stand-ramp prediction
+  is exact to ~3px) — the R60 tree was re-verified green (the vault probe
+  23.5s/0 deaths, the tour 53.0s/1) and the settle-everywhere refactor is
+  R62's first brief.
+- **THE HOPS VERDICT**: the sixth receipt stays honest-negative — the tour
+  at level-6 ran 2/6 green across R60-R61's attempts; the levels' variance
+  plus the vault's residual outruns the 180s gate cap on the bad runs. The
+  banked traces carry R62's brief.
+
+### the studio
+
+- **THE OUTLINER'S TYPE CHIPS** (UE5's type filter): the census-honest chip
+  row under the search box — one click narrows the tree to one tag's
+  folder, All restores it; the chips rebuild from the scene's own tag
+  census, so a scene with no movers wears no mover chip. Verified live
+  (the coin chip filtered 18 entities to 6 rows, All restored 25).
+- **THE WORLD SETTINGS' COIN-MAGNET FIELD**: the scene json carries
+  `magnet` — the key spark reads with a 0 default and clamps ≥ 0
+  (spark.cpp 38, 177; the coin magnetism at spark.cpp 371-395,
+  MAGNET_PULL 640 px/s at zero distance) — and the editor never wore the
+  field. It does now: the numField writes the json the binary plays, the
+  info line carries the state.
+- **THE PILLARS' SPLIT-SCREEN**: the About splash's four cards wear their
+  own panel of the generated four-world banner (twilight, industrial,
+  dawn, void — one 1344x768 gen sliced by background-position, the dark
+  wash keeps the text king). The mandatory image gen, the JPEG-bytes
+  law's **22nd catch** (arrived JPEG wearing a .png name, re-encoded to a
+  real 971,722-byte PNG, magic verified).
+
+### the law
+
+- ui_editor_probe pins **27** (was 26) — the R61 law group pins the chips'
+  mechanism (the row, the CSS, the renderOutliner wiring, the filter), the
+  magnet field (the numField, the clamp, the info line), and the pillars'
+  split (the CSS, the cards, the real PNG bytes).
+- five corners wear 3.1.139; **the 15:00 UTC boundary is covered by this
+  tag** (v3.1.138 held 13:00 and 14:00). This tag's release must carry
+  dxn3-v3.1.139.tar.gz (the v-prefixed name).
+
 ## v3.1.138 — the buffered jump: the engine learns to wait, the ferries learn to tell the truth
 
 *(the R60 session: the R59 red run's trace was mined death by death — 26 of its 27 deaths lived in
