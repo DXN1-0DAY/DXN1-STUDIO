@@ -248,9 +248,10 @@ R48 = [
     ("per-biome generated skies follow the scene",
         "const SKYS={" in html and "function skyFor(" in html
         and len(skies) == 4 and magic == b"\x89PNG"),
-    ("the splash wears the v2 art and the browser wears the campaign map",
-        "assets/splash-v2.png" in html and 'id="cb-map"' in html
-        and os.path.isfile(os.path.join(assets_dir, "splash-v2.png"))
+    ("the splash wears the v3 art (the R58 amendment) and the browser "
+     "wears the campaign map",
+        "assets/splash-v3.png" in html and 'id="cb-map"' in html
+        and os.path.isfile(os.path.join(assets_dir, "splash-v3.png"))
         and os.path.isfile(os.path.join(assets_dir, "campaign-map.png"))),
 ]
 missing = [nm for nm, ok in R48 if not ok]
@@ -545,6 +546,31 @@ R57 = [
 ]
 missing57 = [nm for nm, ok in R57 if not ok]
 pin("all 3 R57 studio laws present", not missing57, ", ".join(missing57))
+
+
+# THE R58 LAW GROUP — THE COIN POP (the take lands as a gold burst: a
+# one-shot keyframe on the lit coin, not a plain fade), THE VAULT CARD
+# (the About grid's fifth pillar wears the generated coin sprite as its
+# badge — the vault summit's own card), and THE SPLASH V3 (the boot
+# splash wears the generated vault key art — the JPEG-bytes law's 19th
+# catch, re-encoded to a real PNG).
+R58 = [
+    ("the coin pop — the take lands as a one-shot gold burst",
+        "@keyframes coinpop{" in html
+        and "animation:coinpop .42s" in html
+        and "42%{transform:scale(1.55);" in html),
+    ("the vault card — the About grid's fifth pillar wears the coin",
+        'class="about-card"><img class="ab-coin" src="assets/coin-glow.png"' in html
+        and "<b>The Vault</b>" in html
+        and ".about-card .ab-coin{width:20px;" in html),
+    ("the splash v3 — the boot wears the generated vault key art (the "
+     "JPEG-bytes law's 19th catch)",
+        'src="assets/splash-v3.png"' in html
+        and (_png_magic("splash-v3.png") or b"") == b"\x89PNG"
+        and os.path.getsize(os.path.join(assets_dir, "splash-v3.png")) > 500000),
+]
+missing58 = [nm for nm, ok in R58 if not ok]
+pin("all 3 R58 studio laws present", not missing58, ", ".join(missing58))
 
 
 fails = [n for n, ok in pins if not ok]

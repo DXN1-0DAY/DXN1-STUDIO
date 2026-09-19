@@ -1,3 +1,70 @@
+## v3.1.136 — the vault walks: a dedicated probe crosses the summit, and the coin pops
+
+*(the R58 session: the vault — the tour's unwalked fifth-summit interior
+— is decoded from the scene geometry and the engine's own constants into
+a dedicated probe that plays it like a player; the boot splash grows the
+vault key art, the coin's take lands as a burst, and the About grid
+gains the vault's own card; the 10:00 and 11:00 UTC boundaries are
+covered by this tag.)*
+
+- **THE VAULT WALK** (`probes/dec_vault_probe.py`, new): the vault
+  interior — lift-1 (vertical 400↔200 @80), lift-2 (200↔420 @95), the
+  high-deck under the deck-guard's shadow, the drop-ledge's fang, the
+  guarded ferry, the isle and the mid-air goal touch — is walked by a
+  dedicated probe fed `--scene` directly, so the 180s gate cap belongs
+  to the vault alone. Every fire onto a mover is predicted by
+  **catch_sim()**: the deck's ping-pong kinematics (waypoints, speed,
+  live pose and phase off the telemetry) stepped at 5ms against the
+  jump parabola and the held-'d' drift (drift_wd: the exact RUN_ACCEL
+  2300 ramp to the 330 cap), the first descent crossing with the box on
+  the deck's span being THE LANDING and an ascent crossing over the
+  span THE BONK. R55's three dead laws were rewritten from the
+  evidence: the transfer fires on lift-2's RISING deck only (a
+  descending deck recedes at 95px/s — no drift reaches it), the
+  deck-jump lands the box LEFT of the deck-guard (the whole flight's x
+  monotonic under 759 — the guard's band is cleared by construction),
+  the guard-jump is a stand fire at the deck's left (the R55 draft's
+  [565,633] hung off the deck entirely), and the isle jump is a PURE
+  VERTICAL hop from the ferry's right extreme (the R55 draft's held-'d'
+  arc overshot the isle by ~170px every time). Verified 8/8 green
+  across five consecutive runs (19.1-26.2s, 0-2 honest deaths).
+- **THE STALE-SAMPLE GUARD** (the round's deepest find): the flight
+  latch that sustains a fire's hold was cleared by the telemetry sample
+  immediately after the fire — which still reads GROUNDED, because the
+  25ms trace trails the engine and the jump is not yet processed; every
+  flight's drift was silently amputated (the transfer's 242px of
+  predicted drift starved to ~150, the hero fell into the 410..480
+  pit). The latch now clears only on a landing sample newer than the
+  fire by a 10-step margin, and the walk's pulse-creep bands learned to
+  SETTLE (the 2300/s² pulses outrun the 1900/s² coast — a window inside
+  a creep zone is blown through at -150px/s unless the creep stops at
+  the window and lets the friction park the hero).
+- **THE TOUR'S HOPS HOLD AT LEVEL-5**: the proven vault law rides in
+  `grand_tour_probe.py` dormant (spliced, compiled, pinned) — but the
+  levels' 60-150s death variance plus the vault's 21-26s walk outruns
+  the 180s gate cap on the bad runs, so HOPS grows to level-6 only when
+  the budget is reclaimed; the dedicated probe owns the crossing today.
+- **THE COIN POP**: a coin's take lands as a burst, not a fade — the
+  lit coin springs to 1.55x under a flash of gold
+  (`@keyframes coinpop`, 0.42s) and settles glowing; browser-verified
+  end to end (honest collection: `got` class, animation-name coinpop,
+  the counter 1/5).
+- **THE VAULT CARD**: the About grid gains its fifth pillar — "The
+  Vault — the summit, walked" — wearing the generated coin sprite as
+  its badge; the campaign narrative and the probe's own summit now meet
+  in the credits.
+- **THE SPLASH V3**: the boot splash wears generated vault key art (the
+  mandatory image gen, 64.8s; the JPEG-bytes law's 19th catch — the
+  bytes arrived JPEG wearing a .png name, re-encoded to a real
+  1161152-byte PNG, magic verified): the vault door cracking open, the
+  coins riding the light.
+- **THE LAW**: `ui_editor_probe` pins 24 (was 23) — the R58 law group
+  pins the coin pop's keyframe, the vault card's sprite, and the
+  splash's real PNG bytes; the R48 splash law is amended to the v3 art.
+  `dec_vault_probe` joins the gate set (gate 8).
+- five corners wear 3.1.136; the 10:00 and 11:00 UTC boundaries are
+  covered by this tag; gates ALL GREEN exit 0, 59 probes walked.
+
 ## v3.1.135 — the ledger of light: the PIE HUD counts its coins, the campaign map wears its feet
 
 *(the R57 session: the collectibles become visible currency — the PIE

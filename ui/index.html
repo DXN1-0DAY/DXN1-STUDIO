@@ -199,8 +199,18 @@ body{background:var(--win); color:var(--text); font:var(--font); user-select:non
    of light as it does — the quest-tracker read, not a bare number. */
 .hud-tc{top:14px; left:50%; transform:translateX(-50%); gap:4px; padding:6px 12px;}
 .hud-tc img.cr-coin{filter:grayscale(1) brightness(.4); transition:filter .16s, transform .16s;}
-.hud-tc img.cr-coin.got{filter:drop-shadow(0 0 5px rgba(251,191,36,.75)); transform:scale(1.15);}
+.hud-tc img.cr-coin.got{filter:drop-shadow(0 0 5px rgba(251,191,36,.75)); transform:scale(1.15);
+  animation:coinpop .42s cubic-bezier(.2,1.6,.4,1);}
+/* THE COIN POP (R58) — the take lands as a burst, not a fade: the
+   coin springs to 1.55x under a flash of gold and settles lit. */
+@keyframes coinpop{0%{transform:scale(1.15);}
+  42%{transform:scale(1.55); filter:drop-shadow(0 0 14px rgba(251,191,36,.95)) brightness(1.4);}
+  100%{transform:scale(1.15);}}
 .hud-tc .cr-lab{font-size:10px; color:rgba(255,255,255,.72); margin-left:3px; letter-spacing:.04em;}
+/* THE VAULT CARD (R58) — the About grid's fifth pillar wears the
+   generated coin as its badge. */
+.about-card .ab-coin{width:20px; height:20px; vertical-align:-5px;
+  margin-right:7px; filter:drop-shadow(0 0 6px rgba(251,191,36,.5));}
 /* THE PLAYER PORTRAIT (R53) — the PIE HUD wears the hero's face: a
    rounded frame (the brand violet ring, the charcoal plate) with the
    generated bust and a live HP bar under it — UE5's PIE portrait
@@ -603,7 +613,7 @@ body{background:var(--win); color:var(--text); font:var(--font); user-select:non
 
 <!-- splash -->
 <div id="splash">
-  <img class="hero" src="assets/splash-v2.png" alt="DXN1 STUDIO splash">
+  <img class="hero" src="assets/splash-v3.png" alt="DXN1 STUDIO splash">
   <div class="wordmark"><img src="assets/logo.png" alt=""><div class="wm-t">DXN1 <span>STUDIO</span></div></div>
   <div class="bar"><i id="splash-fill"></i></div>
   <div class="sub" id="splash-msg">waking the spark…</div>
@@ -622,7 +632,7 @@ body{background:var(--win); color:var(--text); font:var(--font); user-select:non
 /* ================================================================
    DXN1 STUDIO 3 — editor brain. One file, no deps.
    ================================================================ */
-const VERSION = "3.1.135";
+const VERSION = "3.1.136";
 const GATES = "58 probes walked · all green";
 
 const SCENES = [
@@ -2391,6 +2401,9 @@ function aboutHTML(){
         — the probe plays like a player and never pauses the clock.</div>
       <div class="about-card"><b>The Gates</b><span class="b">${GATES}</span> — a probe
         per law, ALL GREEN before any tag; the release train ships the binary.</div>
+      <div class="about-card"><img class="ab-coin" src="assets/coin-glow.png" alt=""><b>The Vault</b>
+        <span class="b">the summit, walked</span> — two lifts, a saw's shadow, a ferry and a
+        mid-air goal touch; the dedicated probe plays it like a player.</div>
     </div>
     <div class="about-ticker" id="about-ticker"><i class="strip"></i><div class="ride"></div></div>
     <div class="about-skins">

@@ -67,6 +67,10 @@ import os, pty, random, re, select, sys, tempfile, time
 REPO = _HOME
 BIN = os.path.join(REPO, "native", "build", "dxn3-native")
 
+# (the vault law below is PROVEN — dec_vault_probe walks it green —
+#  but HOPS stays at level-5: the levels' 60-150s death variance plus
+#  the vault's 21-26s walk outruns the 180s gate cap on the bad runs.
+#  R59 grows HOPS to level-6 when the budget is reclaimed.)
 HOPS = ["level-1", "level-2", "level-3", "level-4", "level-5"]  # receipts
 # (R49 pinned the level-4 load; R54 WALKS its interior — the three
 # ferries over the fanged pit, the isle saw, the diagonal ferry-3, the
@@ -141,6 +145,7 @@ class TraceTail:
         self.prev_s = None          # the s of the newest telemetry line
         self.welcome = None         # the newest welcome receipt's name
         self.welcome_s = None       # the s spoken just before it
+        self.respawns = 0           # the RESPAWN EYE: the death count
         self.movers = {}            # name -> (x, y, pxi, dir) — the decks'
     def pump(self):
         try:
@@ -168,6 +173,8 @@ class TraceTail:
                         float(mm.group(2)), float(mm.group(3)),
                         int(mm.group(4)), int(mm.group(5)))
             elif ln.startswith(b"  EVENT"):
+                if b"respawn" in ln:
+                    self.respawns += 1
                 wm = WELCOME.search(ln)
                 if wm:
                     self.welcome = wm.group(1).decode()
@@ -189,7 +196,8 @@ class St:
     __slots__ = ("last_x", "stuck", "stuck_w", "last_jump", "py_hist",
                  "last_w", "scan", "load_s", "drive_until", "drive_w",
                  "drive_s", "coast", "silent", "silentAir", "jbrake",
-                 "jbrake_air", "jbrake_vx", "jbrake_until")
+                 "jbrake_air", "jbrake_vx", "jbrake_until", "fire_s",
+                 "flight", "hold", "seen_r")
     def __init__(self):
         self.last_x = None; self.stuck = 0; self.stuck_w = None
         self.last_jump = 0.0
@@ -224,6 +232,12 @@ class St:
         self.jbrake_vx = 0.0                   # the fire's vx — the release
                                                # dose scales with it
         self.jbrake_until = 0.0                # the wall cap (starvation)
+        self.fire_s = -1                       # THE VAULT: the fire's
+                                               # telemetry step (the
+                                               # stale-sample guard)
+        self.flight = False                    # the vault's flight hold
+        self.hold = b'd'
+        self.seen_r = 0                        # the respawn eye's count
 
 def ride_check(st, h):
     """THE RIDE LAW: grounded + py carried over ~4 telemetry samples
@@ -267,6 +281,7 @@ def common_reset(st, h):
     x = h[2]
     if st.last_x is not None and abs(x - st.last_x) > 400:
         st.stuck = 0; st.last_x = None; st.py_hist = []; st.last_w = None
+        st.flight = False
         st.scan = random.uniform(0.0, 5.2); st.coast = False; st.silent = False
         st.jbrake = False; st.jbrake_air = False
         return True
@@ -1198,219 +1213,401 @@ def dec_level4(h, st, now):
 # the stretch beyond it is a death trap (every full jump overshoots its
 # 240px span), so the isle fire is gated on the catch box landing
 # INSIDE the goal's x-band.
+
+def dbgV(tag, x, y, vx, note=""):
+    if _os.environ.get("DXN3_TOUR_DEBUG"):
+        print(f"[V-{tag}] x={x:.0f} y={y:.0f} vx={vx:.0f} {note}",
+              file=sys.stderr, flush=True)
+
+
+G, JUMPV, RACCEL, RUNMAX = 1500.0, 620.0, 2300.0, 330.0
+HERO_W = 34.0
+
+
+def drift_wd(t, vx):
+    """the held-'d' drift over t: the exact RUN_ACCEL ramp from the live
+    vx to the 330 cap (the flight hold delivers every px of this)."""
+    if vx >= RUNMAX:
+        return RUNMAX * t
+    tt = (RUNMAX - vx) / RACCEL
+    if t <= tt:
+        return vx * t + 0.5 * RACCEL * t * t
+    return vx * tt + 0.5 * RACCEL * tt * tt + RUNMAX * (t - tt)
+
+def catch_sim(wp, speed, axis, plane_fixed, pos, tgt, feet0, x0, vx0,
+              span_lo, span_w, tmax=1.7, dt=0.005):
+    """THE HONEST CATCH — the moving-deck landing, simulated.
+
+    wp = the deck's two waypoint coords on its axis (in path order),
+    speed = pspeed, pos = the live coord, tgt = the waypoint index the
+    deck heads to (the telemetry's pxi). axis 'y': the deck's plane is
+    its own y (the span check uses the FIXED x extent [span_lo,
+    +span_w]); axis 'x': the plane is plane_fixed (the ferry's 300) and
+    the span MOVES with the deck ([pos(t), +span_w]).
+
+    The hero: feet(t) = feet0 - 620t + 750t^2, x(t) = x0 + drift_wd(t,
+    vx0) — the flight hold delivers every px. Steps 5ms: the first
+    DESCENT crossing (the feet come onto the plane from above) with the
+    landing box on the deck's span is THE LANDING; an ascent crossing
+    with the box over the span is THE BONK (the resolve snaps him below
+    — the R55 falls at 431..523) and rejects the fire.
+    Returns (t_land, land_x, deck_pos_at_land, bonk)."""
+    t = 0.0
+    plane0 = pos if axis == "y" else plane_fixed
+    prev_above = (plane0 - feet0) > 0.0
+    bonk = False
+    x = x0
+    while t < tmax:
+        t += dt
+        tc = wp[tgt]                       # the deck advances toward its
+        d = tc - pos                       # waypoint, bouncing at the
+        if abs(d) <= speed * dt:           # ends (the engine's own law)
+            pos = tc; tgt = 1 - tgt
+        else:
+            pos += speed * dt if d > 0.0 else -speed * dt
+        feet = feet0 - JUMPV * t + 0.5 * G * t * t
+        x = x0 + drift_wd(t, vx0)
+        plane = pos if axis == "y" else plane_fixed
+        above = (plane - feet) > 0.0       # the hero above the deck's top
+        slo = span_lo if axis == "y" else pos
+        on = x < slo + span_w and x + HERO_W > slo
+        if prev_above and not above:       # the descent crossing
+            if on:
+                return (t, x, pos, bonk)
+        elif prev_above is False and above:  # the ascent crossing
+            if on:
+                return (None, x, pos, True)
+        prev_above = above
+    return (None, x, pos, bonk)
+
+
+# ---- the vault's movers (scenes/level-5.dxn1.json, path order) ----------
+L1_WP, L1_SP, L1_LO, L1_W = (400.0, 200.0), 80.0, 300.0, 110.0
+L2_WP, L2_SP, L2_LO, L2_W = (200.0, 420.0), 95.0, 480.0, 110.0
+F1_WP, F1_SP, F1_PLANE, F1_W = (1240.0, 1480.0), 110.0, 300.0, 120.0
+
+
+
+
 def dec_vault(h, st, now):
+    # THE RESPAWN EYE: a death resets the flight latch even when the
+    # spawn sits < 400px from the pit (the position jump alone can lie)
+    if tail.respawns != st.seen_r:
+        st.seen_r = tail.respawns
+        st.flight = False
+        st.last_x = None
+        return b""
     if common_reset(st, h):
-        st.last_x = h[2]; return b"d"
+        st.last_x = h[2]; st.flight = False
+        return b"d"
     w, s, x, y, vx, vy = h
     grounded = abs(vy) < 1.0
     l1 = tail.movers.get("lift-1")
     l2 = tail.movers.get("lift-2")
     f1 = tail.movers.get("ferry-1")
     feet = y + 44.0
+    fire = now - st.last_jump > 0.6
 
-    # ---- LIFT-2 RIDER (deck 480..590, y 200..420): walk RIGHT to the
-    # deck's right portion (552..584) and fire near the top — the arc
-    # to the high-deck crosses the deck-guard's y-band during its
-    # descent, and only a fire from x >= 551 crosses it PAST 798 (a
-    # fire from the deck's left half clipped the guard's top corner at
-    # 735,72 in the R55 fourth run).
-    if 470 <= x <= 600 and 100 <= y <= 420:
-        st.last_x = x
-        if not grounded or l2 is None:
-            return b""
-        if y <= 245 and 552 <= x <= 584 and now - st.last_jump > 0.6:
-            t = arc_t(feet - 180.0)
-            if t is not None:
-                land = x + arc_drift(t, vx)
-                if 652.0 <= land + 17.0 <= 928.0:
-                    dbg4("v-l2-deck", x, y, vx, f"land={land:.0f}")
-                    st.last_jump = now
-                    st.drive_until = now + 0.95
-                    st.drive_w = True
-                    st.drive_s = s
-                    return b"wd"
-        if x < 552:
-            return b"d"                    # walk right to the fire window
-        return b""
-    # ---- LIFT-1 RIDER (deck 300..410, y 200..400): ride; walk the
-    # transfer window [300,315]; the fire is gated by the MOVING-DECK
-    # catch — lift-2 rises/sinks at 95px/s (its y velocity is +95*dir:
-    # dir=+1 heads to path[1]=420, down), so the static predictor lied
-    # both ways in the R55 runs: a RISING deck met the hero's ASCENT
-    # and the resolve snapped him below the deck (the bonk — the falls
-    # at 431..523), a SINKING deck stole the catch until the drift
-    # overshot the span (the falls at 620..687). The catch below solves
-    # 750t^2 - (620+v)t + (feet - l2y) = 0 for BOTH roots and rejects
-    # the fire when the ascent root would bonk the deck's underside
-    # over its span; the fire fires only when the DESCENT root parks
-    # the catch box on lift-2.
-    if 290 <= x <= 420 and 100 <= y <= 370:
+    # THE FLIGHT LATCH: the fire's sustained hold — the drift the
+    # prediction assumed, delivered (b"" would let the 220 air friction
+    # steal it; the isle jump holds b"" — the pure vertical is the point).
+    # THE STALE-SAMPLE GUARD (the R58 run-4 autopsy): the telemetry
+    # trails the engine by up to 25ms, so the sample right after a fire
+    # still reads GROUNDED (vy=0, the jump not yet processed) — clearing
+    # the latch on it killed every flight's hold (the transfer's drift
+    # starved to 150 of the predicted 242 and the hero fell into the
+    # 410..480 pit; the isle jump inherited the default band's 'd' and
+    # drifted 254px into fang-3). The latch clears only on a landing
+    # sample newer than the fire by a 10-step margin — the byte-lag
+    # window between the fire's sample and the engine's jump still
+    # speaks PRE-JUMP grounded lines (s=fire_s+1..3 locally, wider
+    # under the tour's longer pipeline) and they must never clear
+    # the hold. The minimum flight is 34 steps; 10 is safe.
+    if st.flight:
+        if grounded and s > st.fire_s + 10:
+            st.flight = False
+        else:
+            return st.hold
+
+    # ---- 1. LIFT-1 RIDER (deck 300..410, ride py 156..356): pulse-creep
+    # left into 298..316; the TRANSFER fires when catch_sim lands the box
+    # on lift-2's RISING deck (dir -1: its target is path[0] = y200). A
+    # descending deck recedes at 95px/s — no drift reaches it (R55's
+    # falls at 620..687); a deck whose plane sits at/above the feet gets
+    # the ascent crossed over the span — the R55 bonk (the falls at
+    # 431..523). The solver owns the phase; the pulse owns the brake.
+    if 292 <= x <= 420 and 95 <= y <= 365:
         st.last_x = x
         if not grounded or l1 is None or l2 is None:
             return b""
-        if x > 315:
-            return b"a"                    # walk left into the window
-        if 300 <= x <= 315 and now - st.last_jump > 0.6:
-            v = 95.0 * l2[3]               # lift-2's vy (dir=+1 -> down)
-            bb = 620.0 + v
-            cc = feet - l2[1]
-            disc = bb * bb - 3000.0 * cc
-            if disc >= 0.0:
-                r = disc ** 0.5
-                t_asc = (bb - r) / 1500.0
-                t_desc = (bb + r) / 1500.0
-                bonk = 0.0 < t_asc < 0.45 and \
-                    470.0 <= x + arc_drift(t_asc, vx) + 17.0 <= 600.0
-                if not bonk:
-                    land = x + arc_drift(t_desc, vx)
-                    if 492.0 <= land + 17.0 <= 578.0:
-                        dbg4("v-l1->l2", x, y, vx,
-                             f"land={land:.0f} l2={l2[1]:.0f} v={v:.0f}")
-                        st.last_jump = now
-                        st.drive_until = now + 0.95
-                        st.drive_w = True
-                        st.drive_s = s
-                        return b"wd"
-        return b""
-    # ---- FERRY-1 RIDER (deck top 300, ride box 256..300): brake from
-    # the boarding run, walk left to the guard-safe strip (1404..1424 —
-    # the ferry-guard's stand-kill band is 1326..1398), fire the isle
-    # jump from the stand: the catch box must land inside the isle
-    # (1538..1672) — from the strip the drift (~250) parks it there.
-    if 1230 <= x <= 1630 and 240 <= y <= 280:
-        st.last_x = x
-        if not grounded or f1 is None:
+        if x > 316:
+            return b"a" if vx > -160 else b""
+        if x < 298:
+            return b"d" if vx < 120 else b""
+        if not fire or abs(vx) > 60.0:
+            return b""     # THE SETTLE: the creep runs at a sustained
+                           # -160 (the 2300 pulses outrun the 1900
+                           # coast) — a fire on a moving creep is a
+                           # stale-vx lie (the R58 runs landed 34px
+                           # short); the window's stand settles the
+                           # creep to 0 in 80ms and the fire waits
+        if l2[3] != -1 or l2[1] < feet + 6.0:
             return b""
-        if x > 1424:
-            return b"a"
-        if 1404 <= x <= 1424 and abs(vx) < 60 \
-                and now - st.last_jump > 0.6:
-            t = arc_t(feet - 360.0)        # the isle's top
-            if t is not None:
-                land = x + arc_drift(t, vx)
-                if 1538.0 <= land + 17.0 <= 1672.0:
-                    dbg4("v-f-isle", x, y, vx, f"land={land:.0f}")
-                    st.last_jump = now
-                    st.drive_until = now + 0.95
-                    st.drive_w = True
-                    st.drive_s = s
-                    return b"wd"
+        t, land, dpos, bonk = catch_sim(
+            L2_WP, L2_SP, "y", 0.0, l2[1], l2[2], feet, x, vx,
+            L2_LO, L2_W)
+        if t is None or bonk:
+            return b""
+        ctr = land + 17.0
+        if 501.0 <= ctr <= 567.0:   # the box [land,land+34] stays >= 4px
+                                    # inside BOTH edges of 480..590 — the
+                                    # R58 run-1 fire landed at 556: the
+                                    # box's right = the deck's edge at
+                                    # 590 exactly, a graze the ride
+                                    # could not hold
+            dbgV("transfer", x, y, vx,
+                f"s={s} age={now-st.last_jump:.2f} l2={l2[1]:.0f} t={t:.2f} land={land:.0f} deck={dpos:.0f}")
+            st.last_jump = now; st.fire_s = s; st.flight = True; st.hold = b"d"
+            return b"wd"
         return b""
-    # ---- THE HIGH-DECK (top 180, stand py 136): the deck-guard hangs
-    # at 760..798 (y 116..154) and the stand box [136,180] overlaps its
-    # band AT the fire — the hero must be ABOVE the band (py < 72, the
-    # rise 64, t = 0.115s, drift 38px) before the box-right crosses
-    # 760: fire_x + 72 <= 760 -> the GUARD JUMP window is [565,633]
-    # (the R55 first fires at 695..735 clipped the band's corner and
-    # died at 727..731, six times). The arc lands back on the deck at
-    # [838,940]; from there the EDGE JUMP ([760,874], the run) drops
-    # the arc onto the drop-ledge past fang-1 (the descent crosses the
-    # fang's y-band at x ~1139, well past 1034). A hero past the edge
-    # window walks back; a hero short of the guard window walks left
-    # past 633, turns, and runs into the fire.
+
+    # ---- 2. LIFT-2 RIDER (deck 480..590, ride py 156..376): pulse into
+    # 481..505; the DECK-JUMP fires when the arc to the high-deck lands
+    # the box in 644..722 — LEFT of the deck-guard's 760 with the whole
+    # flight's x monotonic under 759 (the drift never exceeds the
+    # landing), so the guard's band is cleared by construction. The R55
+    # draft allowed 838..940 — a landing INSIDE the guard's x-shadow,
+    # because the box's y lives inside the guard's band from t=0.09 to
+    # the landing itself (the stand box 136..180 vs the band 116..154).
+    if 470 <= x <= 600 and 95 <= y <= 440:
+        st.last_x = x
+        if not grounded:
+            return b""
+        if x > 505:
+            return b"a" if vx > -150 else b""
+        if x < 481:
+            return b"d" if vx < 120 else b""
+        if not fire or abs(vx) > 15.0:
+            return b""            # THE FULL SETTLE: the creep's -150
+                                  # entering this window carries a
+                                  # stale-vx bias of -25..-40px on the
+                                  # landing (the R58 run-3 evidence) —
+                                  # the fire waits for the friction's
+                                  # full stop and predicts from ~0
+        rise = feet - 180.0       # the high-deck's top plane
+        if rise <= 0.0 or rise > 128.0:
+            return b""
+        t = arc_t(rise)
+        if t is None:
+            return b""
+        land = x + drift_wd(t, vx)
+        if 654.0 <= land <= 722.0:
+            dbgV("deck-jump", x, y, vx,
+                f"rise={rise:.0f} t={t:.2f} land={land:.0f}")
+            st.last_jump = now; st.fire_s = s; st.flight = True; st.hold = b"d"
+            return b"wd"
+        return b""
+
+    # ---- 3. THE HIGH-DECK (top 180, stand py 136, x 640..940). THE
+    # STRUCTURE (the R58 run-2 lesson): the fire WINDOWS own their x
+    # spans — the creep STOPS at each window and the friction settles
+    # it (the pulse-creep sustains ~-150px/s, so a window inside a
+    # creep zone is blown through at -183..-250 — the run-2 hero
+    # crossed 861..799 without ever slowing and died in the saw at
+    # 795). THE GUARD'S SHADOW: the hero's box [x,x+34] overlaps the
+    # guard's 760..798 for x in 727..798 — a hero right of 799 walks
+    # RIGHT (into the edge window); a hero left of 727 creeps left
+    # (away from the saw); the shadow itself is never steered into.
     if grounded and 125 <= y <= 150 and 630 <= x <= 950:
         st.last_x = x
-        if x > 874:
-            return b"a"                    # back into the edge window
-        if 760 <= x <= 874 and vx > 150 and now - st.last_jump > 0.6:
-            t = arc_t(feet - 240.0)        # the drop-ledge's top
-            if t is not None:
-                land = x + arc_drift(t, vx)
-                if 1040.0 <= land + 17.0 <= 1184.0:
-                    dbg4("v-edge", x, y, vx, f"land={land:.0f}")
-                    st.last_jump = now
-                    st.drive_until = now + 0.95
-                    st.drive_w = True
-                    st.drive_s = s
+        if not fire:
+            return b""
+        if 860 <= x <= 884:       # THE EDGE-JUMP window (stand fire)
+            if abs(vx) < 40:
+                t = arc_t(feet - 240.0)     # the drop-ledge's top (a drop)
+                if t is not None:
+                    land = x + drift_wd(t, vx)
+                    if 1042.0 <= land <= 1150.0:
+                        dbgV("edge-jump", x, y, vx, f"land={land:.0f}")
+                        st.last_jump = now; st.fire_s = s; st.flight = True; st.hold = b"d"
+                        return b"wd"
+            if vx > 40:
+                return b"a"           # brake into the window
+            if vx < -40:
+                return b""            # settling
+            if x > 871:
+                return b"a"           # nudge left: the stand-fire's
+                                      # reach caps at x+279 <= 1150
+            return b""
+        if x > 884:
+            return b"a" if vx > -150 else b""   # creep left to 884
+        if x > 799:
+            return b"d"               # right of the saw's shadow: the
+                                      # ONLY safe exit is right (727..798
+                                      # is the box-overlap kill zone)
+        if 631 <= x <= 671:           # THE GUARD-JUMP window (stand
+                                      # fire) — the deck's left edge
+                                      # parks landings at 630-640 and
+                                      # the fire reaches x >= 628.8
+            if abs(vx) < 40:
+                t = arc_t(0.0)              # the same plane: t = 0.827
+                land = x + drift_wd(t, vx)
+                xc = x + drift_wd(0.706, vx)   # the band's y re-entry
+                if 876.0 <= land <= 914.0 and xc >= 798.0:
+                    dbgV("guard-jump", x, y, vx, f"land={land:.0f}")
+                    st.last_jump = now; st.fire_s = s; st.flight = True; st.hold = b"d"
                     return b"wd"
-        if 634 <= x <= 759:
-            return b"a"                    # back past the guard window
-        if 565 <= x <= 633 and vx > 150 and now - st.last_jump > 0.6:
-            dbg4("v-guard", x, y, vx)
-            st.last_jump = now
-            st.drive_until = now + 0.95
-            st.drive_w = True
-            st.drive_s = s
-            return b"wd"
-        return b"d"
-    # ---- THE DROP-LEDGE (top 240, stand py 196): walk right; the
-    # ferry-1 board fires near the edge — the arc's descent (rise -60)
-    # crosses the ferry-guard's y-band at x 1423+, already past it.
-    if grounded and 185 <= y <= 210 and 980 <= x <= 1200:
+            if vx > 40:
+                return b"a"
+            if vx < -40:
+                return b""            # THE SETTLE (the R58 tour-splice
+                                      # lesson): the creep enters this
+                                      # window at a sustained -150 and a
+                                      # nudge fired on it would push the
+                                      # hero past 648 at -330 — off the
+                                      # deck's left edge (640) into the
+                                      # void; settle first, the friction
+                                      # stops the slide in 6px
+            if x > 660:
+                return b"a"           # THE BOUNDARY NUDGE (the R58 run-3
+                                      # stall): a hero parked at 665 sits
+                                      # 0.22px past the gate's reach —
+                                      # 914.22 vs 914.0 — and the dead
+                                      # zone 666..671 matched no branch
+                                      # at all; nudge to 660 (land 909,
+                                      # mid-gate), never past it
+            return b""            # settle (the landing gate caps the
+                                  # window: the landing's own
+                                  # 330-momentum brake slide is 23.7px
+                                  # and the deck ends at 940)
+        if x > 671:
+            return b"a" if vx > -150 else b""   # creep left to 665
+        return b""
+
+    # ---- 4. THE DROP-LEDGE (top 240, stand py 196, x 990..1190): walk
+    # right into 1130..1185; the FERRY BOARD fires when catch_sim lands
+    # the box on ferry-1's carried span with the ride offset 30..84 (the
+    # offset pins the isle jump's reach at the right extreme) and the
+    # landing past the ferry-guard's stand-kill shadow (1326..1398 — the
+    # ride box 256..300 lives inside its 240..278 band). The descent's
+    # own crossing of the guard's y-band starts at t=0.827 (y back
+    # through 196): the box's x must already be past 1398 by then.
+    if grounded and 185 <= y <= 210 and 985 <= x <= 1195:
         st.last_x = x
-        if f1 is not None and 1145 <= x <= 1190 \
-                and now - st.last_jump > 0.6:
-            t = arc_t(feet - f1[1])
-            if t is not None:
-                land = x + arc_drift(t, vx)
-                dland = f1[0] + (97.6 if f1[3] >= 0 else -97.6) * t
-                if dland + 12.0 <= land + 17.0 <= dland + 108.0 \
-                        and land >= 1404.0:
-                    dbg4("v-f-board", x, y, vx,
-                         f"land={land:.0f} deck={dland:.0f}")
-                    st.last_jump = now
-                    st.drive_until = now + 0.95
-                    st.drive_w = True
-                    st.drive_s = s
+        if f1 is not None and 1130 <= x <= 1190 and fire:
+            t, land, dpos, bonk = catch_sim(
+                F1_WP, F1_SP, "x", F1_PLANE, f1[0], f1[2], feet, x, vx,
+                0.0, F1_W)
+            if t is not None and not bonk:
+                off = land - dpos
+                xe = x + drift_wd(0.827, vx)
+                if (30.0 <= off <= 84.0 and land >= 1406.0
+                        and xe >= 1398.0):
+                    dbgV("ferry-board", x, y, vx,
+                        f"t={t:.2f} land={land:.0f} deck={dpos:.0f} "
+                        f"off={off:.0f}")
+                    st.last_jump = now; st.fire_s = s; st.flight = True; st.hold = b"d"
                     return b"wd"
-        if x < 1150:
+        if x < 1130:
             return b"d"
-        return b"a" if vx > 40 else b""
-    # ---- THE ISLE (top 360, stand py 316): walk right; the GOAL JUMP
-    # fires where the catch box lands INSIDE the goal's x-band
-    # (1888..1942) — the touch happens mid-flight, the death-trap
-    # stretch beyond is never stood on.
-    if grounded and 305 <= y <= 330 and 1515 <= x <= 1695:
+        if x >= 1156:
+            return b"a" if vx > 40 else b""   # brake before the edge
+        return b""
+
+    # ---- 5. THE FERRY RIDER (deck top 300, stand py 256): walk right
+    # (never into the guard's shadow — the landing was past it and
+    # walking right only grows x); brake at 1502; the ISLE JUMP is a
+    # PURE VERTICAL 'w' from the stand fired over the isle's top — the
+    # R55 draft fired a held-'d' arc from the strip and its ~280px drift
+    # landed PAST the isle's 1680 edge (the gate could never pass). The
+    # vertical hop drifts 0: the box [x, x+34] lands where he stands.
+    if grounded and 248 <= y <= 268 and 1225 <= x <= 1620:
         st.last_x = x
-        if now - st.last_jump > 0.6 and 1600 <= x <= 1660:
-            t = arc_t(feet - 420.0)        # the stretch's top plane
-            if t is not None:
-                land = x + arc_drift(t, vx)
-                if 1888.0 <= land + 17.0 <= 1942.0:
-                    dbg4("v-goal", x, y, vx, f"land={land:.0f}")
-                    st.last_jump = now
-                    st.drive_until = now + 0.95
-                    st.drive_w = True
-                    st.drive_s = s
-                    return b"wd"
-        if x < 1610:
+        if f1 is None:
+            return b""
+        if x >= 1502 and vx > 40:
+            return b"a"                 # brake (the slide settles ~1531)
+        if 1510 <= x <= 1580 and abs(vx) < 30 and fire:
+            dbgV("isle-jump", x, y, vx)
+            st.last_jump = now; st.fire_s = s; st.flight = True; st.hold = b""
+            return b"w"
+        if x < 1502:
             return b"d"
-        if x > 1660:
-            return b"a"                    # back into the fire window
-        return b"a" if vx > 40 else b""
-    # ---- THE START LEDGE (top 430, stand py 386): walk right into the
-    # fire window (45..150 — the run-arc's drift ~256 parks the landing
-    # box on lift-1's fixed span 300..410); the deck phase must be
-    # heading DOWN and near its low turn (pxi==0, y 318..358 -> the
-    # deck is within 20px of 400 at the catch). Past the window, walk
-    # back and re-pass until the phase aligns; brake before the edge.
+        return b""
+
+    # ---- 6. THE ISLE (top 360, stand py 316, x 1530..1680): walk right
+    # into the GOAL JUMP at full run — the touch is gated on the box
+    # crossing the goal's x-band [1900,1930] INSIDE the y-overlap window
+    # t in [0.82, 0.914] (the descent's y enters the goal's 356..420 at
+    # 0.82 and the landing ends the flight at 0.914): the touch happens
+    # mid-flight and the death-trap stretch beyond (the fangs at
+    # 1790/1860, every full jump overshooting the 240px span) is never
+    # stood on. The gate computes with the live vx — honest for any run.
+    if grounded and 300 <= y <= 330 and 1500 <= x <= 1690:
+        st.last_x = x
+        if x < 1564:
+            return b"d"
+        if x > 1659:
+            return b"a" if vx > -150 else b""
+        if fire and x >= 1564:
+            t82 = x + drift_wd(0.82, vx) + 34.0   # the box's right at
+                                                  # the y-overlap's start
+            t91 = x + drift_wd(0.914, vx)         # the box's left at
+                                                  # the flight's end
+            if t82 >= 1900.0 and t91 <= 1930.0:
+                dbgV("goal-jump", x, y, vx,
+                    f"t82={t82:.0f} t91={t91:.0f}")
+                st.last_jump = now; st.fire_s = s; st.flight = True; st.hold = b"d"
+                return b"wd"
+        if x < 1650 and vx < 250:
+            return b"d"               # build the run through the window
+                                      # (the touch gate is vx-honest, but
+                                      # a slow state here would stand
+                                      # forever — walk instead)
+        return b""
+
+    # ---- 7. THE START LEDGE (top 430, stand py 386, x < 300): shuttle
+    # 45..200 and fire the first board when catch_sim lands the box on
+    # lift-1's span — the solver owns the phase (descending OR rising:
+    # the R55 draft's pxi==0 gate starved the rising half of the cycle),
+    # the bonk check is the solver's (the ascent passes the deck's plane
+    # BESIDE the span: x+53..87 at t=0.16, clear of 300 for x <= 200).
     if grounded and y >= 380 and x < 300:
         st.last_x = x
-        if l1 is not None and 45 <= x <= 150 and l1[2] == 0 \
-                and 318 <= l1[1] <= 358 and now - st.last_jump > 0.6:
-            t = arc_t(feet - l1[1])
-            if t is not None:
-                land = x + arc_drift(t, vx)
-                if 306.0 <= land + 17.0 <= 404.0:
-                    dbg4("v-l1-board", x, y, vx,
-                         f"land={land:.0f} l1={l1[1]:.0f}")
-                    st.last_jump = now
-                    st.drive_until = now + 0.95
-                    st.drive_w = True
-                    st.drive_s = s
-                    return b"wd"
-        if x > 150:
-            return b"a"
-        if x < 45:
+        if l1 is None:
             return b"d"
-        return b"d" if x < 100 else b""
-    # ---- THE LAST STRETCH (top 420, stand py 376): pure insurance —
-    # the isle jump touches the goal mid-flight and the tour ends here;
-    # a hero that somehow lands short walks right and feeds a fang
-    # honestly (the respawn is the recovery — every full jump from this
-    # 240px strip overshoots its end into the void).
+        if x > 200:
+            # THE SHUTTLE'S RETURN: pulse-creep back into the window —
+            # the R58 first run's one bug: a brake that stopped at 208
+            # and stood there for 163s (a dead zone, not a held stand —
+            # the fire window [45,200] was never revisited)
+            return b"a" if vx > -150 else b""
+        if fire:
+            t, land, dpos, bonk = catch_sim(
+                L1_WP, L1_SP, "y", 0.0, l1[1], l1[2], feet, x, vx,
+                L1_LO, L1_W)
+            if t is not None and not bonk:
+                ctr = land + 17.0
+                if 322.0 <= ctr <= 388.0:
+                    dbgV("start-board", x, y, vx,
+                        f"s={s} age={now-st.last_jump:.2f} l1={l1[1]:.0f} t={t:.2f} land={land:.0f} "
+                        f"deck={dpos:.0f}")
+                    st.last_jump = now; st.fire_s = s; st.flight = True; st.hold = b"d"
+                    return b"wd"
+        if x < 60:
+            return b"d"               # walk right, rebuild the run —
+                                      # full speed by x~50 (23.7px of
+                                      # 2300 accel from the turnaround)
+        return b"d" if vx < 280 else b""
+
+    # ---- 8. THE DEFAULT (the last-stretch insurance / any unbanded
+    # state): walk right — a short-sitting hero feeds a fang honestly
+    # (the respawn is the recovery; the transfer pit's walls and the
+    # void beyond do the rest).
     st.last_x = x
     return b"d"
+
+
 
 
 DECIDE = {"playground": dec_playground, "level-1": dec_level1,
