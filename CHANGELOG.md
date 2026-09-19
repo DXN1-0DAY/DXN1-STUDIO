@@ -1,3 +1,72 @@
+## v3.1.138 — the buffered jump: the engine learns to wait, the ferries learn to tell the truth
+
+*(the R60 session: the R59 red run's trace was mined death by death — 26 of its 27 deaths lived in
+level-4, and every family decomposed to a law that lied about geometry the engine had already
+moved past. The round's deepest find is IN THE ENGINE: the spark's jump was a bare edge-trigger,
+so any press landing while the spark was micro-airborne — a mover's carry wobble, an edge-walk's
+first fall frame, a byte-late fire crossing a deck edge — was swallowed whole. Input buffering,
+the thing every shipped platformer has, now lives in spark.cpp: an edge-triggered press survives
+six frames and executes the instant the feet find the ground.)*
+
+### the engine
+
+- **THE JUMP BUFFER** (native/src/spark.cpp, spark.hpp): `jumpBuf_` holds an edge-triggered press
+  for six frames; the jump executes at the first `vy == 0` frame. A flight is 30+ frames, so a
+  buffered press can never re-fire after a landing that matters, and `jumpHeld_` still guards
+  double-fires. The dedicated vault probe went from 1-3 honest deaths per run to **zero deaths in
+  three consecutive runs (19.1-23.2s)**, and the grand tour's best level-5 walk ever: **46.4s,
+  zero deaths**. native selftest: 1067 assertion groups green.
+
+### the probes
+
+- **THE AUTOPSY** (tour_fail_1789817728, R59's 27-death run): the isle hold's brake slid the hero
+  off the isle's 1070 edge (the falling deaths at 1076..1103); the ferry-3 board's linear
+  prediction ignored the deck's 60px diagonal rise (the void falls at 1265..1428); the disembark
+  walked off the deck's right end into the saw-gate's band (the 1456 clip); the deck-jump's upper
+  landings (672..722) were owned by NO law and the default walk carried them into the deck-guard's
+  727 stand-kill shadow; and dec_level4's five fires had set `drive_until` since R54 while the
+  consumer lived only inside dec_level2 — **the level-4 drifts were never delivered** (the greens
+  survived on leftward deck phases sliding under the starved hero).
+- **THE HONEST CATCH, EVERYWHERE**: `catch_diag()` simulates the diagonal ferry-3 (the plane
+  rises 60px across the run) against the jump arc and rejects bonks; `catch_sim()` now owns the
+  ferry-1 board and the ferry-1→ferry-2 hop; every level-4 fire predicts with the exact
+  `drift_wd` ramp from the live vx (the old `arc_drift` over-credited a decaying rider by
+  (330-vx)·t/2 — the run-14/15 isle-saw deaths at 985..998 landed exactly that far short); the
+  isle law patrols 1012..1034 instead of braking past its own edge; the disembark demands the
+  saw-gate band-entry check (1480px of drift before the box can touch the band) and never walks
+  past the deck's live end; the vault's flight latch wears the **vx-gated eaten-w eye** (grounded
+  samples whose vx runs away from the fire's own baseline prove the 'w' never reached the engine);
+  and **drive_gate() is global** — every scene's fires get their sustained hold.
+- **THE HOPS GROWTH ATTEMPT** (the honest negative, again): with the vault probe at zero deaths
+  the tour grew its sixth receipt and went 2/6 green (71.5s/1 and 70.5s/2 against four cap burns)
+  — the levels' residual variance plus the vault's transfer-pit lottery under the tour's longer
+  pipeline still outruns the cap on the bad runs. HOPS holds at level-5 (46.4s/0 and 77.4s/1
+  re-verified on the final tree); the sixth receipt's evidence is banked in the round's fail
+  traces for R61.
+
+### the studio
+
+- **THE HUD ROW SHAKE**: the whole PIE HUD takes the hit now — `#pie-hud.hurt` rattles once
+  (0.42s, decayed, one-shot through the reflow restart) while the portrait blooms red;
+  browser-verified live (the computed animation-name is `hudshake`, the deaths counter
+  increments).
+- **THE ATLAS CLOTH**: the Content Browser's card grid sits on the generated embroidered atlas
+  (the mandatory image gen; the JPEG-bytes law's **21st catch** — the bytes arrived JPEG wearing
+  a .png name, re-encoded to a real 1,828,274-byte PNG, magic verified) — the scenes float over
+  it like UE5's asset tiles over the Content drawer's cloth.
+- **THE CAST'S SIXTH FACE**: the ascent portrait joins the About sheet (the climber stands
+  beside the hero and the four biomes); **THE TICKER'S SIXTH HOP**: level-6 rides the credits
+  marquee — twelve painted canvases over the doubled strip.
+
+### the law
+
+- ui_editor_probe pins **26** (was 25) — the R60 law group pins the shake's mechanism (the
+  selector, the keyframe, the die() fire), the atlas cloth's real PNG bytes, the cast's sixth
+  face, and the ticker's six hops.
+- five corners wear 3.1.138; **the 13:00 and 14:00 UTC boundaries are covered by this tag**
+  (v3.1.137 held 12:00, declared here per the v3.1.131 precedent). This tag's release must carry
+  dxn3-v3.1.138.tar.gz (the v-prefixed name).
+
 ## v3.1.137 — the portrait takes the hit: the death flash, the biome-tinted pop, and the climber's face
 
 *(the R59 session: the vault probe holds the summit while the tour's

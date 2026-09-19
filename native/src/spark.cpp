@@ -278,8 +278,27 @@ void Game::stepPlayer(float dt, const Input& in) {
     if (std::abs(p->vx) <= fr) p->vx = 0; else p->vx -= (p->vx > 0 ? fr : -fr);
   }
 
-  if (in.jump && !jumpHeld_ && p->vy == 0) p->vy = JUMP_VY;   // edge-triggered
+  // THE JUMP (R60, buffered): the old edge-trigger `in.jump && !jumpHeld_
+  // && p->vy == 0` swallowed a press WHOLE whenever the spark was
+  // micro-airborne at that frame — a mover's carry wobble, an edge-walk's
+  // first fall frame, a byte-late fire crossing a deck edge — and every
+  // one of those swallowed presses became a probe death (the R60 tour
+  // autopsies: the goal-jump running off the isle's 1680 edge, the
+  // deck-jump running off lift-2's 590 edge). Input buffering is what
+  // every shipped platformer does: an edge-triggered press lives 6
+  // frames and executes the instant the feet find the ground again. A
+  // flight is 30+ frames, so a buffered press can never re-fire after a
+  // landing that matters, and jumpHeld_ still guards double-fires.
+  if (in.jump && !jumpHeld_) jumpBuf_ = 6;
   jumpHeld_ = in.jump;
+  if (jumpBuf_ > 0) {
+    if (p->vy == 0) {
+      p->vy = JUMP_VY;
+      jumpBuf_ = 0;
+    } else {
+      --jumpBuf_;
+    }
+  }
 
   p->vy += scene.gravity * dt;
   p->vy = clampf(p->vy, -2000, 2000);

@@ -226,6 +226,17 @@ body{background:var(--win); color:var(--text); font:var(--font); user-select:non
 .hud-portrait.hurt .hp>div{animation:hpflash .5s ease-out;}
 @keyframes hpflash{0%{background:#ef4444;}
   100%{background:linear-gradient(90deg,var(--brand),var(--cyan));}}
+/* THE HUD ROW SHAKE (R60) — the whole PIE HUD takes the hit now: the
+   portrait blooms red while the row itself rattles once, the impact
+   the death deserves (UE5's screenshake discipline: one-shot, decayed,
+   never looping). */
+#pie-hud.hurt{animation:hudshake .42s cubic-bezier(.36,.07,.19,.97);}
+@keyframes hudshake{
+  10%,90%{transform:translateX(-1px);}
+  20%,80%{transform:translateX(2px);}
+  30%,50%,70%{transform:translateX(-3px);}
+  40%,60%{transform:translateX(3px);}
+  100%{transform:translateX(0);}}
 .hud-portrait img{width:64px; height:64px; display:block; object-fit:cover;
   border-radius:10px; border:2px solid rgba(139,92,246,.55);
   box-shadow:0 2px 16px rgba(0,0,0,.55), 0 0 18px rgba(139,92,246,.18);
@@ -366,7 +377,13 @@ body{background:var(--win); color:var(--text); font:var(--font); user-select:non
 #cb-map .biome::after{content:""; position:absolute; left:0; right:0; bottom:0;
   height:2px; background:var(--foot,#8b5cf6); opacity:.92; z-index:2;}
 #cardgrid{flex:1; overflow-y:auto; display:flex; flex-wrap:wrap; gap:10px; padding:12px;
-  align-content:flex-start;}
+  align-content:flex-start;
+  /* THE ATLAS CLOTH (R60): the Content Browser's grid sits on the
+     generated embroidered atlas — the cards float over it like UE5's
+     asset tiles over the Content drawer's own drawer-cloth. */
+  background-image:linear-gradient(rgba(13,15,19,.88),rgba(13,15,19,.88)),
+    url("assets/atlas-cloth.png");
+  background-size:auto,460px; background-repeat:repeat;}
 #cardgrid::-webkit-scrollbar{width:10px;}
 #cardgrid::-webkit-scrollbar-thumb{background:#3d3e44; border-radius:6px;}
 .card{width:168px; background:var(--panel2); border:1px solid var(--border); border-radius:6px;
@@ -641,7 +658,7 @@ body{background:var(--win); color:var(--text); font:var(--font); user-select:non
 /* ================================================================
    DXN1 STUDIO 3 — editor brain. One file, no deps.
    ================================================================ */
-const VERSION = "3.1.137";
+const VERSION = "3.1.138";
 const GATES = "58 probes walked · all green";
 
 const SCENES = [
@@ -2200,11 +2217,16 @@ function overlap(a,b){
 function die(m,what){
   const spawn=m.ents.find(e=>e.tag==="player");
   m.deaths++;
-  /* THE DEATH FLASH (R59): the portrait takes the hit — the class
-     restarts the one-shot pulse through the reflow trick. */
+  /* THE DEATH FLASH (R59) + THE ROW SHAKE (R60): the portrait takes
+     the hit and the whole HUD row rattles — both one-shot classes
+     restart through the reflow trick, so consecutive deaths each
+     replay the burst. */
   const port=document.querySelector(".hud-portrait");
   if(port){port.classList.remove("hurt"); void port.offsetWidth;
     port.classList.add("hurt");}
+  const row=port&&port.closest("#pie-hud");
+  if(row){row.classList.remove("hurt"); void row.offsetWidth;
+    row.classList.add("hurt");}
   log("bad","[pie] death by "+(what.name||what.tag)+" — respawn ("+m.deaths+")");
   toast("Died", (what.name||what.tag)+" got you — respawn","bad");
   m.p.x=spawn.x; m.p.y=spawn.y; m.p.vx=0; m.p.vy=0;
@@ -2435,6 +2457,7 @@ function aboutHTML(){
       ${skin("portrait-twilight.png","twilight")}
       ${skin("portrait-dawn.png","dawn")}
       ${skin("portrait-void.png","void")}
+      ${skin("portrait-ascent.png","the ascent")}
     </div>
     <table>
       <tr><td>PIE is an honest approximation — the binary remains the law</td></tr>
@@ -2447,7 +2470,7 @@ function aboutHTML(){
    same live miniature the tabs obey), doubled for the seamless loop. */
 function mountAboutTicker(){
   const ride=document.querySelector("#about-ticker .ride"); if(!ride) return;
-  const hops=["level-1.dxn1.json","level-2.dxn1.json","level-3.dxn1.json","level-4.dxn1.json","level-5.dxn1.json"];
+  const hops=["level-1.dxn1.json","level-2.dxn1.json","level-3.dxn1.json","level-4.dxn1.json","level-5.dxn1.json","level-6.dxn1.json"];
   const mk=()=>hops.map((f,i)=>{
     const d=S.scenes[f];
     return `<span class="hop"><canvas width="76" height="44" data-f="${f}"></canvas>

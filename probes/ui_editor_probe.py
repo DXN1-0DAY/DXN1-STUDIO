@@ -598,6 +598,34 @@ missing59 = [nm for nm, ok in R59 if not ok]
 pin("all 3 R59 studio laws present", not missing59, ", ".join(missing59))
 
 
+# THE R60 LAW GROUP — THE HUD ROW SHAKE (the whole row takes the hit:
+# .hud.hurt rattles once through the same reflow restart, the one-shot
+# decayed screenshake discipline) and THE ATLAS CLOTH (the Content
+# Browser's grid sits on the generated embroidered atlas — the
+# JPEG-bytes law's 21st catch, re-encoded real PNG) and THE CAST'S
+# SIXTH FACE (the ascent portrait joins the About sheet) and THE
+# TICKER'S SIXTH HOP (level-6 rides the credits marquee).
+R60 = [
+    ("the hud row shake — the whole PIE HUD rattles on death",
+        "#pie-hud.hurt{animation:hudshake .42s cubic-bezier(.36,.07,.19,.97);}" in html
+        and "@keyframes hudshake{" in html
+        and 'const row=port&&port.closest("#pie-hud");' in html
+        and 'row.classList.add("hurt");' in html),
+    ("the atlas cloth — the Content Browser's grid wears generated art "
+     "(the JPEG-bytes law's 21st catch)",
+        'url("assets/atlas-cloth.png")' in html
+        and (_png_magic("atlas-cloth.png") or b"") == b"\x89PNG"
+        and os.path.getsize(os.path.join(assets_dir, "atlas-cloth.png")) > 1000000),
+    ("the cast's sixth face — the ascent portrait joins the About sheet",
+        'skin("portrait-ascent.png","the ascent")' in html),
+    ("the ticker's sixth hop — level-6 rides the credits marquee",
+        'hops=["level-1.dxn1.json","level-2.dxn1.json","level-3.dxn1.json",'
+        '"level-4.dxn1.json","level-5.dxn1.json","level-6.dxn1.json"]' in html),
+]
+missing60 = [nm for nm, ok in R60 if not ok]
+pin("all 4 R60 studio laws present", not missing60, ", ".join(missing60))
+
+
 fails = [n for n, ok in pins if not ok]
 print(f"\nui_editor_probe: {len(pins)-len(fails)}/{len(pins)} pins green "
       f"in {time.time()-t0:.1f}s")

@@ -126,6 +126,8 @@ public:
 private:
   Vec2 spawn_{90, 300};
   bool jumpHeld_ = false;
+  int jumpBuf_ = 0;   // THE JUMP BUFFER: a press that landed while the
+                      // spark was micro-airborne lives this many frames
 
   void stepPlayer(float dt, const Input& in);
   void stepMovers(float dt);

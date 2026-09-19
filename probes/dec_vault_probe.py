@@ -246,11 +246,13 @@ F1_WP, F1_SP, F1_PLANE, F1_W = (1240.0, 1480.0), 110.0, 300.0, 120.0
 
 class St:
     __slots__ = ("last_x", "last_jump", "flight", "hold", "fire_s",
+                 "fire_vx",
                  "seen_r")
 
     def __init__(self):
         self.last_x = None; self.last_jump = 0.0
         self.flight = False; self.hold = b"d"; self.fire_s = -1
+        self.fire_vx = 0.0
         self.seen_r = 0
 
 
@@ -300,6 +302,16 @@ def dec_vault(h, st, now):
     if st.flight:
         if grounded and s > st.fire_s + 10:
             st.flight = False
+        elif grounded and s > st.fire_s + 4 and \
+                vx > st.fire_vx + 120.0:
+            # THE EATEN-W EYE (R60, vx-gated after the tour's runs 7-9
+            # lesson): grounded samples at +5..+10 whose vx is RUNNING
+            # AWAY (the held 'd' adds +57px/s per line) are PROOF the
+            # fire's 'w' never reached the engine. The PRE-JUMP stale
+            # lines carry vx ~= fire_vx and can NEVER trip +120 — the
+            # fixed-threshold eye false-released REAL flights under
+            # load. A fire from a run keeps the full 10-step margin.
+            st.flight = False
         else:
             return st.hold
 
@@ -341,7 +353,7 @@ def dec_vault(h, st, now):
                                     # could not hold
             dbg("transfer", x, y, vx,
                 f"s={s} age={now-st.last_jump:.2f} l2={l2[1]:.0f} t={t:.2f} land={land:.0f} deck={dpos:.0f}")
-            st.last_jump = now; st.fire_s = s; st.flight = True; st.hold = b"d"
+            st.last_jump = now; st.fire_s = s; st.fire_vx = vx; st.flight = True; st.hold = b"d"
             return b"wd"
         return b""
 
@@ -375,10 +387,14 @@ def dec_vault(h, st, now):
         if t is None:
             return b""
         land = x + drift_wd(t, vx)
-        if 654.0 <= land <= 722.0:
+        if 654.0 <= land <= 668.0:   # (R60b) was 722/680 — the
+                                     # arrivals land at vx 330 and the
+                                     # brake slide is ~40px; the upper
+                                     # landings slid into the guard's
+                                     # 727 shadow (the saw deaths)
             dbg("deck-jump", x, y, vx,
                 f"rise={rise:.0f} t={t:.2f} land={land:.0f}")
-            st.last_jump = now; st.fire_s = s; st.flight = True; st.hold = b"d"
+            st.last_jump = now; st.fire_s = s; st.fire_vx = vx; st.flight = True; st.hold = b"d"
             return b"wd"
         return b""
 
@@ -403,7 +419,7 @@ def dec_vault(h, st, now):
                     land = x + drift_wd(t, vx)
                     if 1042.0 <= land <= 1150.0:
                         dbg("edge-jump", x, y, vx, f"land={land:.0f}")
-                        st.last_jump = now; st.fire_s = s; st.flight = True; st.hold = b"d"
+                        st.last_jump = now; st.fire_s = s; st.fire_vx = vx; st.flight = True; st.hold = b"d"
                         return b"wd"
             if vx > 40:
                 return b"a"           # brake into the window
@@ -419,6 +435,15 @@ def dec_vault(h, st, now):
             return b"d"               # right of the saw's shadow: the
                                       # ONLY safe exit is right (727..798
                                       # is the box-overlap kill zone)
+        if 672 <= x <= 726:
+            return b"a"               # THE OWNERSHIP HOLE (R60, the
+                                      # tour's run-6 saw deaths at
+                                      # 686..735): the deck-jump lands
+                                      # the box at 654..722 but the
+                                      # guard-jump window ends at 671 —
+                                      # the upper landings owned NOTHING
+                                      # and the default 'd' walked them
+                                      # into the guard's 727 shadow.
         if 631 <= x <= 671:           # THE GUARD-JUMP window (stand
                                       # fire) — the deck's left edge
                                       # parks landings at 630-640 and
@@ -429,7 +454,7 @@ def dec_vault(h, st, now):
                 xc = x + drift_wd(0.706, vx)   # the band's y re-entry
                 if 876.0 <= land <= 914.0 and xc >= 798.0:
                     dbg("guard-jump", x, y, vx, f"land={land:.0f}")
-                    st.last_jump = now; st.fire_s = s; st.flight = True; st.hold = b"d"
+                    st.last_jump = now; st.fire_s = s; st.fire_vx = vx; st.flight = True; st.hold = b"d"
                     return b"wd"
             if vx > 40:
                 return b"a"
@@ -480,7 +505,7 @@ def dec_vault(h, st, now):
                     dbg("ferry-board", x, y, vx,
                         f"t={t:.2f} land={land:.0f} deck={dpos:.0f} "
                         f"off={off:.0f}")
-                    st.last_jump = now; st.fire_s = s; st.flight = True; st.hold = b"d"
+                    st.last_jump = now; st.fire_s = s; st.fire_vx = vx; st.flight = True; st.hold = b"d"
                     return b"wd"
         if x < 1130:
             return b"d"
@@ -503,7 +528,7 @@ def dec_vault(h, st, now):
             return b"a"                 # brake (the slide settles ~1531)
         if 1510 <= x <= 1580 and abs(vx) < 30 and fire:
             dbg("isle-jump", x, y, vx)
-            st.last_jump = now; st.fire_s = s; st.flight = True; st.hold = b""
+            st.last_jump = now; st.fire_s = s; st.fire_vx = vx; st.flight = True; st.hold = b""
             return b"w"
         if x < 1502:
             return b"d"
@@ -531,7 +556,7 @@ def dec_vault(h, st, now):
             if t82 >= 1900.0 and t91 <= 1930.0:
                 dbg("goal-jump", x, y, vx,
                     f"t82={t82:.0f} t91={t91:.0f}")
-                st.last_jump = now; st.fire_s = s; st.flight = True; st.hold = b"d"
+                st.last_jump = now; st.fire_s = s; st.fire_vx = vx; st.flight = True; st.hold = b"d"
                 return b"wd"
         if x < 1650 and vx < 250:
             return b"d"               # build the run through the window
@@ -566,7 +591,7 @@ def dec_vault(h, st, now):
                     dbg("start-board", x, y, vx,
                         f"s={s} age={now-st.last_jump:.2f} l1={l1[1]:.0f} t={t:.2f} land={land:.0f} "
                         f"deck={dpos:.0f}")
-                    st.last_jump = now; st.fire_s = s; st.flight = True; st.hold = b"d"
+                    st.last_jump = now; st.fire_s = s; st.fire_vx = vx; st.flight = True; st.hold = b"d"
                     return b"wd"
         if x < 60:
             return b"d"               # walk right, rebuild the run —
