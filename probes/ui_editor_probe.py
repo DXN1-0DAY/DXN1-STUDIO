@@ -330,6 +330,36 @@ R51 = [
 missing51 = [nm for nm, ok in R51 if not ok]
 pin("all 5 R51 studio laws present", not missing51, ", ".join(missing51))
 
+# pin 18 — the R52 laws: THE MIXED PILL (the multi-select Details grows
+# UE5's per-property bulk edit: every property of the selection as a
+# grid row, shared values edit in place, differing values wear the
+# italic "Multiple Values" pill whose one click adopts a real editor
+# that writes the whole selection), and THE DAWN HUD SKIN (the map's
+# missing fourth biome frame, keyed by scene like its three siblings).
+hud_dawn = os.path.join(assets_dir, "hud-dawn.png")
+dawn_magic = b""
+if os.path.isfile(hud_dawn):
+    with open(hud_dawn, "rb") as fh:
+        dawn_magic = fh.read(4)
+R52 = [
+    ("mixed pill — the multi-select property grid exists",
+        "function mixedRow(" in html
+        and 'pill.className="det-mixed"' in html
+        and "Multiple Values" in html
+        and ".det-mixed{" in html),
+    ("mixed pill — the grid covers the transform and the cloth",
+        'mixedRow(sel,"x","num"' in html
+        and 'mixedRow(sel,"h","num"' in html
+        and 'mixedRow(sel,"alpha","num"' in html
+        and 'mixedRow(sel,"shape","select"' in html
+        and 'mixedRow(sel,"solid","check"' in html),
+    ("dawn HUD skin — the fourth biome frame (real PNG)",
+        "hud-dawn.png" in html and os.path.isfile(hud_dawn)
+        and dawn_magic == b"\x89PNG"),
+]
+missing52 = [nm for nm, ok in R52 if not ok]
+pin("all 3 R52 studio laws present", not missing52, ", ".join(missing52))
+
 fails = [n for n, ok in pins if not ok]
 print(f"\nui_editor_probe: {len(pins)-len(fails)}/{len(pins)} pins green "
       f"in {time.time()-t0:.1f}s")

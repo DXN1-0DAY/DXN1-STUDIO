@@ -1,3 +1,46 @@
+## v3.1.129 — the no-win landing learns to fly, and the selection edits as one
+
+*(the 02:00 UTC boundary's tag; the R52 round pays it.)*
+
+- **THE FIFTEENTH AUTOPSY — THE NO-WIN LANDING**: the lift-2 boarding's
+  dirty secret, found by re-reading tour_fail_1789781046's telemetry with
+  the engine's own constants (RUN_ACCEL 2300, AIR_FRICTION 220, JUMP_VY
+  -620 — the wjump's flight bled its 330 launch to 108-185 by landing):
+  the ground truth is the MISSED FIRE, not the landing. The [1205,1232]
+  fire band is 1-2 telemetry samples wide; one missed sample slides the
+  run past 1230 at 250-267px/s, and the ground reverse's 44-49px brake
+  ends at 1274-1279 — box-right >= 1308 inside the watcher spike's box
+  (1290). No ground brake from any overshoot point survives (290px/s
+  alone slides 61px from the leftmost landing). The debt's "lands at
+  vx=330" was the wrong premise; the geometry is honest now.
+- **THE JUMP-BRAKE** — the escape is AIRBORNE: the overshoot fires 'wa'
+  (x > 1230, vx > 150; hot wjump landings at x > 1215, vx > 140) and the
+  flight holds 'a' until vx <= -0.4 x vx_at_fire — answer-driven, the
+  back-drift cancels the out-drift, and the landing settles 2-20px LEFT
+  of the launch inside the park zone. The arc's x-apex never passes
+  launch+27 (the watcher's box-left is 1290) and the rise clears the
+  spike's top (162) at t=47ms, so the continuous trajectory holds no 2D
+  overlap at all; a wall cap hands a starved flight to the flight
+  silence. Three solo greens after the fix (45.7s/1, 47.3s/1, 58.8s/5
+  honest deaths — all recoverable), 10/10 pins each.
+- **THE MIXED PILL — the multi-select Details grows UE5's per-property
+  bulk edit**: the multi panel's new Properties grid renders every
+  property of the selection as a row (x, y, w, h, alpha, color, shape,
+  solid) — values every actor shares edit in place; values that differ
+  wear the italic dashed "Multiple Values" pill, and one click adopts
+  the first actor's value into a real editor whose edit writes the
+  WHOLE selection (num rows keep the scrub, the select and the check
+  ride the same law). The Appearance color row is the grid's now.
+- **THE DAWN HUD SKIN** — the map's missing fourth biome frame lands
+  (image gen, mandatory — the JPEG-bytes law's 13th catch, re-encoded
+  to a real PNG, magic verified): rose-gold sunrise filigree corners
+  for the alpine dawn scenes (level-3/5/8), keyed by scene file in
+  HSKINS like its three siblings.
+- ui_editor_probe pins 18 (was 17) — three R52 laws re-pin the pill's
+  cloth, the grid's coverage and the dawn frame's real PNG bytes.
+- Five corners wear 3.1.129; this tag's release must carry
+  dxn3-3.1.129.tar.gz.
+
 ## v3.1.128 — the runner learns GCC 14, and the release train ships steel
 
 *(the 01:00 UTC boundary's tag; the R51 round pays it.)*

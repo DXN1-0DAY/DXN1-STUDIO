@@ -235,6 +235,14 @@ body{background:var(--win); color:var(--text); font:var(--font); user-select:non
   color:var(--text); border-radius:4px; font:inherit; padding:5px 0; cursor:pointer;}
 #det-actions button:hover{background:var(--hover); border-color:var(--hair);}
 #det-actions button.danger{color:var(--bad);}
+/* the mixed-value pill (R52) — UE5's "Multiple Values" pivot: italic,
+   dashed, dim — it promises that one click turns the differing values
+   of the whole selection into one honest editor */
+.det-mixed{flex:1; min-width:0; font-style:italic; font-size:11px; color:var(--dim);
+  background:transparent; border:1px dashed var(--border); border-radius:3px;
+  height:24px; padding:0 8px; cursor:pointer; text-align:left; font-family:inherit;}
+.det-mixed:hover{color:var(--text); border-color:var(--brand); background:var(--panel2);}
+.det-mixed::after{content:" ▾"; float:right; color:var(--faint);}
 
 /* ── bottom dock ─────────────────────────────────────────────── */
 #bottom{height:236px; flex:none; background:var(--panel); border-top:1px solid var(--border);
@@ -529,7 +537,7 @@ body{background:var(--win); color:var(--text); font:var(--font); user-select:non
 /* ================================================================
    DXN1 STUDIO 3 — editor brain. One file, no deps.
    ================================================================ */
-const VERSION = "3.1.128";
+const VERSION = "3.1.129";
 const GATES = "58 probes walked · all green";
 
 const SCENES = [
@@ -876,6 +884,8 @@ const HSKINS={
   "level-1.dxn1.json":"hud-industrial.png", "level-6.dxn1.json":"hud-industrial.png",
   "level-2.dxn1.json":"hud-twilight.png",  "level-7.dxn1.json":"hud-twilight.png",
   "level-12.dxn1.json":"hud-twilight.png",
+  "level-3.dxn1.json":"hud-dawn.png",       "level-5.dxn1.json":"hud-dawn.png",
+  "level-8.dxn1.json":"hud-dawn.png",
   "level-4.dxn1.json":"hud-void.png",       "level-9.dxn1.json":"hud-void.png",
   "level-10.dxn1.json":"hud-void.png",
 };
@@ -1227,6 +1237,43 @@ function colorField(label,get,set){
   inp.addEventListener("change",()=>pushHistory("edit "+label));
   row.appendChild(inp); return row;
 }
+/* THE MIXED PILL (R52) — UE5's multi-select property grid: a property
+   every selected actor shares renders as its normal editor; values that
+   differ render the italic "Multiple Values" pill, and one click adopts
+   the first actor's value into a real editor whose edit applies to
+   EVERY selected actor (the UE5 bulk-edit law — no more choosing
+   between nudges and nothing). kind: num | color | check | select. */
+const MIXED=Symbol("mixed");
+function mixedRow(sel,label,kind,getV,applyV,opts){
+  opts=opts||{};
+  const uniform=new Set(sel.map(e=>JSON.stringify(getV(e)))).size===1;
+  const mkEditor=()=>{
+    if(kind==="num")
+      return numField(label,()=>getV(sel[0]),(v,d)=>sel.forEach(e=>applyV(e,v,d)),opts.step);
+    if(kind==="color")
+      return colorField(label,()=>getV(sel[0]),v=>sel.forEach(e=>applyV(e,v)));
+    if(kind==="check")
+      return checkField(label,()=>getV(sel[0]),v=>sel.forEach(e=>applyV(e,v)));
+    /* select */
+    const row=document.createElement("div"); row.className="det-row";
+    row.innerHTML=`<label>${esc(label)}</label>`;
+    const s=document.createElement("select");
+    for(const [v,t] of opts.choices){
+      const o=document.createElement("option"); o.value=v; o.textContent=t; s.appendChild(o);}
+    s.value=String(getV(sel[0]));
+    s.addEventListener("change",()=>{ sel.forEach(e=>applyV(e,s.value));
+      pushHistory("bulk edit "+label); draw(); renderOutliner(); });
+    row.appendChild(s); return row;
+  };
+  const row=document.createElement("div"); row.className="det-row";
+  const lab=document.createElement("label"); lab.textContent=label; row.appendChild(lab);
+  if(uniform){ row.appendChild(mkEditor()); return row; }
+  const pill=document.createElement("button"); pill.type="button";
+  pill.className="det-mixed"; pill.textContent="Multiple Values";
+  pill.title="Values differ across the selection — click to edit them all at once";
+  pill.addEventListener("click",()=>pill.replaceWith(mkEditor()));
+  row.appendChild(pill); return row;
+}
 function renderDetails(){
   const box=$("details"); box.innerHTML="";
   const sel=[...S.sel].map(byName).filter(Boolean);
@@ -1273,6 +1320,28 @@ function renderDetails(){
     /* scrub-safe: mutate + draw per tick; history rides numField's own pointerup */
     box.appendChild(numField("nudge x",()=>0,(v,d)=>{ sel.forEach(e=>{e.x=S.snap?Math.round((e.x+d)/S.gridStep)*S.gridStep:e.x+d;}); draw(); renderStats(); }));
     box.appendChild(numField("nudge y",()=>0,(v,d)=>{ sel.forEach(e=>{e.y=S.snap?Math.round((e.y+d)/S.gridStep)*S.gridStep:e.y+d;}); draw(); renderStats(); }));
+    cat("Properties");
+    /* THE PROPERTY GRID (R52) — UE5's multi-select Details: every
+       property of the group as a row; shared values edit in place,
+       differing values wear the Multiple Values pill until one click
+       adopts an editor that writes the whole selection at once. */
+    box.appendChild(mixedRow(sel,"x","num",e=>e.x,
+      (e,v,d)=>{e.x=S.snap?Math.round((v+d)/S.gridStep)*S.gridStep:v+d;},{step:1}));
+    box.appendChild(mixedRow(sel,"y","num",e=>e.y,
+      (e,v,d)=>{e.y=S.snap?Math.round((v+d)/S.gridStep)*S.gridStep:v+d;},{step:1}));
+    box.appendChild(mixedRow(sel,"w","num",e=>e.w,
+      (e,v,d)=>{e.w=Math.max(4,(S.snap?Math.round((v+d)/S.gridStep)*S.gridStep:v+d));},{step:1}));
+    box.appendChild(mixedRow(sel,"h","num",e=>e.h,
+      (e,v,d)=>{e.h=Math.max(4,(S.snap?Math.round((v+d)/S.gridStep)*S.gridStep:v+d));},{step:1}));
+    box.appendChild(mixedRow(sel,"alpha","num",e=>e.alpha==null?1:e.alpha,
+      (e,v)=>{e.alpha=Math.min(1,Math.max(0.05,v));},{step:0.05}));
+    box.appendChild(mixedRow(sel,"color","color",e=>e.color||TAGCOLOR[tagOf(e)],
+      (e,v)=>{e.color=v;}));
+    box.appendChild(mixedRow(sel,"shape","select",e=>e.shape||"rect",
+      (e,v)=>{ if(v==="rect") delete e.shape; else e.shape=v; },
+      {choices:[["rect","rect"],["circle","circle"],["triangle","triangle"]]}));
+    box.appendChild(mixedRow(sel,"solid","check",e=>!!e.solid,
+      (e,v)=>{ if(v) e.solid=true; else delete e.solid; }));
     cat("Align & Distribute");
     const mk=(label,fn)=>{ const b=document.createElement("button"); b.textContent=label;
       b.addEventListener("click",()=>all(fn)); return b; };
@@ -1304,9 +1373,8 @@ function renderDetails(){
       );
       box.appendChild(rowD);
     }
-    cat("Appearance");
-    /* scrub-safe: colorField owns its own input/change lifecycle */
-    box.appendChild(colorField("color",()=>sel[0].color||TAGCOLOR[tagOf(sel[0])],v=>sel.forEach(e=>e.color=v)));
+    /* the color row lives in the Properties grid above (the pill shows
+       when the selection's colors differ) */
     cat("Actions");
     const acts=document.createElement("div"); acts.id="det-actions";
     const dup=document.createElement("button"); dup.textContent="Duplicate All"; dup.onclick=()=>dupSel();

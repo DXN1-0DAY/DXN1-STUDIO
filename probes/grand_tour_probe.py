@@ -185,7 +185,8 @@ tail = TraceTail(TRACE)
 class St:
     __slots__ = ("last_x", "stuck", "stuck_w", "last_jump", "py_hist",
                  "last_w", "scan", "load_s", "drive_until", "drive_w",
-                 "drive_s", "coast", "silent", "silentAir")
+                 "drive_s", "coast", "silent", "silentAir", "jbrake",
+                 "jbrake_air", "jbrake_vx", "jbrake_until")
     def __init__(self):
         self.last_x = None; self.stuck = 0; self.stuck_w = None
         self.last_jump = 0.0
@@ -212,6 +213,14 @@ class St:
         self.silent = False                    # THE FLIGHT LATCH: set at the
                                                # fire, cleared at the landing
         self.silentAir = False                 # an airborne sample was seen
+        self.jbrake = False                    # THE JUMP-BRAKE (R52): the
+                                               # airborne escape over the
+                                               # watcher's kill shadow — held
+                                               # 'a' kills the run in the air
+        self.jbrake_air = False                # the flight was witnessed
+        self.jbrake_vx = 0.0                   # the fire's vx — the release
+                                               # dose scales with it
+        self.jbrake_until = 0.0                # the wall cap (starvation)
 
 def ride_check(st, h):
     """THE RIDE LAW: grounded + py carried over ~4 telemetry samples
@@ -256,6 +265,7 @@ def common_reset(st, h):
     if st.last_x is not None and abs(x - st.last_x) > 400:
         st.stuck = 0; st.last_x = None; st.py_hist = []; st.last_w = None
         st.scan = random.uniform(0.0, 5.2); st.coast = False; st.silent = False
+        st.jbrake = False; st.jbrake_air = False
         return True
     return False
 
@@ -503,6 +513,34 @@ def dec_level3(h, st, now):
     grounded = abs(vy) < 1.0
     l1 = tail.movers.get("lift-1")
     l2 = tail.movers.get("lift-2")
+    # THE JUMP-BRAKE (R52, the no-win landing's escape): a hero past the
+    # lift-2 fire band at vx > 150 cannot stop on the ground — the brake
+    # slide from 250 covers 44px and the box-right grazes the watcher
+    # spike's box (1290) at 1274, from ANY overshoot point (the ground
+    # reverse is a death no matter the sample). The escape is AIRBORNE:
+    # the 'wa' fire lifts the arc while held 'a' kills the run in the
+    # air — the x-apex never passes launch+27 (the watcher's box-left
+    # is 1290) and the rise clears the spike's top (162) at t=47ms, so
+    # the continuous trajectory holds no 2D overlap at all. The release
+    # is ANSWER-DRIVEN: hold until vx <= -0.4 * vx_at_fire — the drift
+    # back cancels the drift out — and the landing settles 2-20px LEFT
+    # of the launch, inside the park zone, where the window-wait
+    # resumes. The flight silence carries the rest: b"" until the feet
+    # touch ledge-b again.
+    if st.jbrake:
+        st.last_x = x
+        if not grounded:
+            st.jbrake_air = True
+        if st.jbrake_air and grounded:          # LANDED: the brake is spent
+            st.jbrake = False; st.jbrake_air = False
+        elif now > st.jbrake_until:             # the wall cap: a starved
+            st.jbrake = False                   # flight hands itself to
+            st.silent = True; st.silentAir = True   # the silence
+        elif not grounded and vx <= -0.4 * st.jbrake_vx:
+            st.jbrake = False                   # the dose is in: the
+            st.silent = True; st.silentAir = True   # silence lands it
+        else:
+            return b"a"                         # the airborne left hold
     # THE FLIGHT SILENCE, before every other law: the coast jump's b""
     # must persist until the hero lands — the airborne hero fails
     # ride_check, so a silence living inside the ride branch never ran,
@@ -630,6 +668,20 @@ def dec_level3(h, st, now):
                 dbg3("lift2-board", x, y, vx)
                 st.last_jump = now; st.last_x = x
                 return b"wd"                # the run-jump onto the deck
+            # THE JUMP-BRAKE TRIGGER (R52): a missed fire sample slides
+            # the run past 1232 at 250-267px/s — the ground reverse's
+            # 44px slide ends at 1274, inside the watcher's shadow. The
+            # 'wa' takes the overshoot into the air instead: the arc
+            # clears the spike, the held 'a' kills the run, and the
+            # landing settles back inside the park zone (a missed cycle
+            # is a re-approach, not a death).
+            if x > 1230 and vx > 150 and now - st.last_jump > 0.4:
+                dbg3("jbrake", x, y, vx)
+                st.last_jump = now
+                st.jbrake = True; st.jbrake_air = False
+                st.jbrake_vx = vx; st.jbrake_until = now + 1.2
+                st.py_hist = []; st.last_w = None; st.last_x = x
+                return b"wa"                # the airborne brake
             if vx < 250 and x > 1186:
                 st.last_x = x; return b"a"  # brake back to the run start
             if x < 1186:
@@ -640,6 +692,19 @@ def dec_level3(h, st, now):
                                             # shadow (the box-right 1291
                                             # graze) — flip before 1254
             st.last_x = x; return b""       # brake at the fire line
+        if x > 1215 and vx > 140 and now - st.last_jump > 0.4:
+            # THE HOT-LANDING BRAKE (R52): a wjump landing at 1216..1238
+            # arrives with 108..185px/s of air-bled momentum; the ground
+            # walk-left's slide from 185 ends at 1254 — 2px from the
+            # watcher's shadow. Anything hot jumps instead: the same
+            # airborne escape, launched well left of the shadow, lands
+            # back at launch-2..-7 with the run killed.
+            dbg3("jbrake-land", x, y, vx)
+            st.last_jump = now
+            st.jbrake = True; st.jbrake_air = False
+            st.jbrake_vx = vx; st.jbrake_until = now + 1.2
+            st.py_hist = []; st.last_w = None; st.last_x = x
+            return b"wa"
         if x > 1206:
             st.last_x = x; return b"a"      # walk to the run-up start
         if x < 1177:
