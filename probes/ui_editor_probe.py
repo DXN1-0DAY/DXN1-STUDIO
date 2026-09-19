@@ -256,6 +256,43 @@ R48 = [
 missing = [nm for nm, ok in R48 if not ok]
 pin("all 4 R48 studio laws present", not missing, ", ".join(missing))
 
+# pin 16 — the R50 laws: THE PIE HUD — the game's face during play.
+# The DOM overlay framed by the generated chrome (hud-frame.png +
+# hud-panel.png — both raw JPEG, the JPEG-bytes law's 8th and 9th
+# catches, re-encoded to real PNGs), the stat pills (score with the
+# coin icon, the clock, deaths), the live spark telemetry bars (vx
+# against PIESPEED, vy against gravity's 1500), the grounded/airborne
+# state — switched on by startPlay, off by stopPlay, fed by drawSim at
+# frame rate. Plus the palette's hover polish (the cards lift, the
+# icons glow).
+hud_frame = os.path.join(assets_dir, "hud-frame.png")
+hud_panel = os.path.join(assets_dir, "hud-panel.png")
+hud_magic = b""
+if os.path.isfile(hud_panel):
+    with open(hud_panel, "rb") as fh:
+        hud_magic = fh.read(4)
+R50 = [
+    ("PIE HUD — the overlay exists and PIE switches it",
+        'id="pie-hud"' in html
+        and '$("pie-hud").classList.add("on")' in html
+        and '$("pie-hud").classList.remove("on")' in html),
+    ("PIE HUD — the pills are fed by the sim at frame rate",
+        '$("hud-score").textContent' in html
+        and '$("hud-time").textContent' in html
+        and '$("hud-deaths").textContent' in html
+        and '$("hud-vx").style.width' in html
+        and '"grounded":"airborne"' in html),
+    ("PIE HUD — wears the generated chrome (real PNGs)",
+        "assets/hud-frame.png" in html and "assets/hud-panel.png" in html
+        and os.path.isfile(hud_frame) and os.path.isfile(hud_panel)
+        and hud_magic == b"\x89PNG"),
+    ("palette hover — the cards lift and their icons glow",
+        ".actor:hover .ic{box-shadow:" in html
+        and "transform:translateY(-1px)" in html),
+]
+missing50 = [nm for nm, ok in R50 if not ok]
+pin("all 4 R50 studio laws present", not missing50, ", ".join(missing50))
+
 fails = [n for n, ok in pins if not ok]
 print(f"\nui_editor_probe: {len(pins)-len(fails)}/{len(pins)} pins green "
       f"in {time.time()-t0:.1f}s")

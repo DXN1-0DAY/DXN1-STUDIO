@@ -1,3 +1,76 @@
+## v3.1.126 — the phantom ride is dead, and PIE wears the game's face
+
+*(the 00:00 UTC boundary's tag; the R50 round pays it.)*
+
+- **THE THIRTEENTH AUTOPSY — THE PHANTOM RIDE**: `ride_check`'s
+  carry band (py drifting 1.5-20px across 4 telemetry samples) also
+  fits a LANDING's own decay (371 -> 386 across the same window,
+  d=15) — a phantom ride on solid floor — and the ride laws re-fired
+  their disembark jumps on the ground: level-2's fired at x 1016
+  (benign) and again at 1225, whose arc crossed the goal's x-band
+  100px ABOVE the goal box and dropped the hero past ground-b's edge
+  (the 1640,933 death — a parasite-vs-touch race the greens kept
+  winning by timing luck; run 6 lost it and bled 172s); level-3's
+  fired on ledge-b and lofted the hero past lift-2 (the 1435,937
+  death). The fix is one honest predicate: the ground stands at
+  py 386 and every real deck in the campaign carries its rider at
+  py < 380, so a "ride" at py >= 380 is a landing ghost, never a
+  deck. The phantom is dead at the source, in every scene at once.
+  Two consecutive solo greens after the full fix set: 41.7s with
+  ZERO deaths and 59.3s with 2 — against run 6's 172s/5-deaths red.
+- **THE PARK-AND-RUN BOARDING** (the twelfth autopsy,
+  tour_fail_1789775071): the old coast-through band (783..813, fire
+  at any vx) was a 30px slice crossed at full speed between two
+  probe samples under load; the missed window slid the hero into a
+  brake oscillation whose 67px stopping distance walked it off
+  ledge-a's left edge, and the recovery walk fell off the ground's
+  right edge at 800 — a 133-death loop (the round's first run).
+  Now: the arrival coasts right and brakes only past 845 (an earlier
+  brake slides 79px off the left edge), the idle hero is
+  velocity-damped into the park box [772,784], and the fire is a
+  RUN — on the deck's bottom-turn the hero accelerates and fires
+  b"wd" at the first sample with vx >= 290 inside the launch box
+  [800,845]; the landing = sampled x + lag(8..25px) + the
+  ~205..215px arc ∈ [1013,1085], inside the deck's 990..1120 for
+  every lag. A missed cycle is a safe re-park, not a death.
+- **THE RECOVERY LAWS**: the ground-edge guard (657 < x < 800 walks
+  LEFT back into the ledge-a jump window — a missed window is now a
+  recovery loop), the summit guard (a door arc shifted right by the
+  byte lag that lands past the goal walks LEFT back through the
+  goal box — the 1889,936 void death is recoverable), the wjump is
+  RISE-ONLY (a descent fire launched the arc from a falling deck and
+  landed 57px short — the same bug family as R48's door fix), and
+  the lift-2 sink window tightened to y <= 100 (fires sampled in the
+  100..130 band lagged into a deck already at its bottom — five
+  deaths at x 1372..1434 in the red run).
+- **THE PIE HUD — the game's face during play**: playing in editor
+  now wears a real HUD, not one bare canvas line — the DOM overlay
+  carries the stat pills (SCORE with the coin icon, the clock,
+  DEATHS), the live spark telemetry bars (vx against PIESPEED, vy
+  against gravity's 1500) and the grounded/airborne state, switched
+  on by startPlay, off by stopPlay, fed by drawSim at frame rate
+  (five textContent writes and two bar widths per frame). Live
+  headless-verified: boot -> Play -> the clock ticks, the vx bar
+  pins 100% at run speed, a 'w' flip flips the state airborne with
+  the vy bar riding the rise (9.7% at 145px/s), stop strips the
+  overlay; console clean.
+- **THE GENERATED CHROME** (image gen, mandatory — the JPEG-bytes
+  law's 8th and 9th catches): the HUD wears hud-frame.png (the four
+  glowing corner brackets over the viewport, screen-blended) and
+  hud-panel.png (the carbon-slate pill backdrop); both arrived as
+  raw JPEG and were re-encoded to real PNGs, magic verified. The
+  Place Actors palette's hover states land too — the cards lift and
+  their icons glow.
+- **THE RELEASE TRAIN CARRIES ITS BINARY**: the mint job now builds
+  the zero-dependency binaries on the runner (make, both artifacts
+  test-executed) and uploads dxn3-<tag>.tar.gz (binaries + scenes +
+  ui + README + CHANGELOG) to every tag's release — every release
+  since v3.1.121 minted with notes but zero assets (the API eyes
+  finally looked); the next tag is the first that ships the box.
+  ui_editor_probe pins 16 (was 15) — the four R50 laws re-pin the
+  HUD's cloth, its sim feed, its real-PNG chrome and the palette
+  hover. Five corners wear 3.1.126.
+
 ## v3.1.125 — the summit is crossed, and the selection scales as one
 
 *(the 23:00 UTC boundary's tag; the R49 round pays it.)*

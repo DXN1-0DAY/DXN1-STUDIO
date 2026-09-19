@@ -231,7 +231,19 @@ def ride_check(st, h):
     if abs(vy) >= 1.0 or len(st.py_hist) < 4:
         return False
     d = abs(st.py_hist[-1] - st.py_hist[-4])
-    return 1.5 <= d <= 20.0
+    # THE GROUND GUARD (R50, tour_fail_1789776578): a LANDING's own py
+    # decay (371 -> 386 across 4 telemetry samples, d=15) fits the
+    # carry band — a PHANTOM RIDE on the ground — and the ride laws
+    # re-fired their disembark jumps on solid floor: level-2's fired at
+    # x 1016 (benign) then again at 1225, whose arc crossed the goal's
+    # x-band 100px ABOVE the goal box and dropped the hero past
+    # ground-b's edge (the 1640,933 death — a race the greens kept
+    # winning by timing luck); level-3's fired on ledge-b and lofted
+    # the hero past lift-2 (the 1435,937 death). The ground stands at
+    # py 386; every real deck in the campaign carries its rider at
+    # py < 380 — so a "ride" at py >= 380 is a landing ghost, never a
+    # deck. The phantom is dead at the source, in every scene at once.
+    return 1.5 <= d <= 20.0 and y < 380.0
 
 def common_reset(st, h):
     """teleport (respawn / scene transition) awareness — and every
@@ -557,7 +569,15 @@ def dec_level3(h, st, now):
             # frames, the arc stretched to 190px and landed ON the
             # watcher). The +187px arc lands 1205..1235 on ledge-b's left
             # region. The flight silence (st.silent) starves the rest.
-            if vx >= 290 and x <= 1040 and now - st.last_jump > 0.4:
+            # R50 (the twelfth autopsy, tour_fail_1789772528): the fire
+            # is RISE-ONLY — the y <= 200 window catches the deck's fall
+            # too, and a descent fire launched the arc from a lower,
+            # falling deck: the flight shortened and the hero landed 57px
+            # short (the 1148,931 death) — the same bug family as the
+            # door's descent fire, which R48 already fixed; the wjump
+            # gate just never got the direction check.
+            if vx >= 290 and x <= 1040 and l1 is not None \
+                    and l1[2] == 1 and now - st.last_jump > 0.4:
                 st.silent = True                # the flight silence begins
                 st.silentAir = False
                 dbg3("lift1-wjump", x, y, vx)
@@ -567,6 +587,14 @@ def dec_level3(h, st, now):
                 st.last_x = x; return b"d"      # walk — the gate fires at speed
             st.last_x = x; return b""
         st.last_x = x; return b""
+    # THE SUMMIT GUARD (R50, tour_fail_1789772528): a door arc shifted
+    # right by the byte lag landed on the summit PAST the goal
+    # (x > 1790) and the default walk carried the hero off the
+    # summit's right edge (1840) into the void (the 1889,936 death).
+    # Any grounded hero high up right of the goal walks LEFT back
+    # through the goal box; the touch fires on overlap.
+    if grounded and y <= 30 and x > 1795:
+        st.last_x = x; return b"a"
     # ledge-b's LEFT region (1180..1256 — the watcher's kill shadow
     # starts at box-left 1257): the lift-2 boarding needs a full-speed
     # run-jump (the arc from a standing start still accelerates mid-air
@@ -574,7 +602,14 @@ def dec_level3(h, st, now):
     # band deterministic). Position at the run-up start, then run
     # right and fire mid-run when lift-2 is sinking from its top.
     if grounded and 140 <= y <= 152 and 1180 <= x <= 1256:
-        win = l2 is not None and l2[1] <= 130.0 and l2[2] == 0
+        # R50: the sink window is <= 100 (was 130) — a fire sampled in
+        # the 100..130 band lagged into a deck that reached its BOTTOM
+        # (190) before the arc's 0.805s arrival: the feet crossed the
+        # deck's x-band 17px BELOW its top and the hero fell past into
+        # the pit (five deaths at x 1372..1434 in the red run). Fires
+        # sampled at <= 100 put the deck 13px ABOVE the feet at arrival
+        # for every lag up to 0.3s — a legal landing every time.
+        win = l2 is not None and l2[1] <= 100.0 and l2[2] == 0
         if win:
             if x >= 1205 and vx >= 280 and x <= 1232 \
                     and now - st.last_jump > 0.4:
@@ -594,14 +629,30 @@ def dec_level3(h, st, now):
         if x < 1177:
             st.last_x = x; return b"d"      # nudge right
         st.last_x = x; return b""           # hold at the start
-    # ledge-a (760..940, top 330, standing py 286): position to the
-    # boarding band, then wait for lift-1's bottom turn
+    # ledge-a (760..940, top 330, standing py 286) — THE PARK-AND-RUN
+    # BOARDING (R50, the twelfth autopsy — tour_fail_1789772528): the
+    # old coast-through band (783..813, fire at ANY vx) was a 30px
+    # slice crossed at full speed between two probe samples under
+    # load; the missed window slid the hero into a brake oscillation
+    # whose 67px stopping distance walked it off the ledge's LEFT
+    # edge, and the recovery walk fell off the ground's right edge at
+    # 800 — three deaths per red run. Now: the arrival coasts right
+    # and brakes only past 845 (a brake fired earlier slides 79px off
+    # the left edge), the idle hero is velocity-damped into the park
+    # box [772,784] (position bang-bang alone overshoots by v²/2a),
+    # and the fire is a RUN: on the deck's bottom-turn (y >= 320,
+    # rising) the hero accelerates and fires b"wd" at the first
+    # sample with vx >= 290 inside the launch box [800,845] — the
+    # landing = sampled x + lag(8..25px) + the ~205..215px arc (R48's
+    # own greens) ∈ [1013,1085], inside the deck's 990..1120 for
+    # every lag. A missed cycle is a safe re-park, not a death.
     if grounded and 280 <= y <= 292 and 755 <= x <= 945:
-        if 783 <= x <= 813:
-            if l1 is not None and l1[1] >= 320.0 and l1[2] == 1 \
-                    and now - st.last_jump > 0.5:
+        if l1 is not None and l1[1] >= 320.0 and l1[2] == 1 \
+                and now - st.last_jump > 0.5:
+            if 800 <= x <= 845 and vx >= 290:
                 if _os.environ.get("DXN3_TOUR_DEBUG"):
-                    print(f"[L3-board] x={x:.0f} deck={l1[0]:.0f},{l1[1]:.0f}",
+                    print(f"[L3-board] x={x:.0f} vx={vx:.0f} "
+                          f"deck={l1[0]:.0f},{l1[1]:.0f}",
                           file=sys.stderr, flush=True)
                 st.last_jump = now
                 st.drive_until = now + 0.95    # the boarding flight's 'd'
@@ -609,9 +660,21 @@ def dec_level3(h, st, now):
                 st.drive_s = s
                 st.last_x = x
                 return b"wd"                # board the rising lift
-            st.last_x = x; return b""       # hold; the cycle returns (4.7s)
-        st.last_x = x
-        return b"d" if x < 783 else b"a"
+            if x < 845:                     # the run-up through the box
+                st.last_x = x; return b"d"
+            st.last_x = x; return b"a"      # overshot the box: brake back
+        if vx > 60 and x > 845:             # the arrival brake: the slide
+            st.last_x = x; return b"a"      # from >=845 stops on the ledge
+        if vx > 60:                         # sliding right below 845:
+            st.last_x = x; return b""       # coast (a brake here slides
+                                            # 79px off the LEFT edge)
+        if vx < -60:                        # sliding left: brake NOW
+            st.last_x = x; return b"d"
+        if x < 772:                         # nudge into the park box
+            st.last_x = x; return b"d"
+        if x > 784:
+            st.last_x = x; return b"a"
+        st.last_x = x; return b""           # parked; the cycle returns (4.7s)
     # the ledge-a jump: from the ground, the rising crossing clears the
     # ledge's left edge (box-right x0+83 <= 760) and the landing
     # (x0+249 = 798..906) overlaps the top
@@ -620,6 +683,16 @@ def dec_level3(h, st, now):
         if _os.environ.get("DXN3_TOUR_DEBUG"):
             print(f"[L3-ledgeA] x={x:.0f}", file=sys.stderr, flush=True)
         st.last_jump = now; st.last_x = x; return b"wd"
+    # THE GROUND-EDGE GUARD (R50, tour_fail_1789772528): a hero that
+    # fell off ledge-a's left edge lands on the ground at x 700..760 —
+    # right of the jump window — and the default walk then carried it
+    # off the ground's right edge at 800 into the pit (three deaths
+    # per red run). Walk LEFT back into the window; the ledge-a jump
+    # law re-fires (its cooldown has expired during the walk back) and
+    # the boarding attempt restarts. A missed window is now a
+    # recovery loop, not a death spiral.
+    if grounded and y >= 380 and 657 < x < 800:
+        st.last_x = x; return b"a"
     # the fang (430..464, top 402): THE STANDING FIRE (R49) — the run-up
     # fires raced the byte lag (a load-stretched lag landed the jump at
     # x 395+, INSIDE the kill box). Now the hero brakes at 300 (the

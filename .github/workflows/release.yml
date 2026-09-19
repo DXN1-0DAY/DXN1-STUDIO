@@ -24,6 +24,15 @@ jobs:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
+      - name: build the zero-dependency binaries
+        env:
+          TAG: ${{ github.ref_name }}
+        run: |
+          make -s -C native
+          test -x native/build/dxn3-native
+          test -x native/build/dxn3-selftest
+          tar czf "dxn3-${TAG}.tar.gz" -C native/build dxn3-native dxn3-selftest \
+            -C "$GITHUB_WORKSPACE" scenes ui README.md CHANGELOG.md
       - name: extract the notes and mint
         env:
           GH_TOKEN: ${{ github.token }}
@@ -32,6 +41,7 @@ jobs:
           python3 scripts/release_notes.py "$TAG" > notes.md
           gh release create "$TAG" --title "DXN1 STUDIO $TAG" \
             --notes-file notes.md || gh release edit "$TAG" --notes-file notes.md
+          gh release upload "$TAG" "dxn3-${TAG}.tar.gz" --clobber
 
   sweep:
     name: backfill every tag without a release
