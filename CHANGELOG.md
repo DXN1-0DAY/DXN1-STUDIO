@@ -1,3 +1,43 @@
+## v3.1.137 — the portrait takes the hit: the death flash, the biome-tinted pop, and the climber's face
+
+*(the R59 session: the vault probe holds the summit while the tour's
+level-law phase lottery is measured honestly — a 27-death run every
+death in levels 2-4 settled the HOPS question for another round — the
+PIE HUD gains the death flash and the biome-tinted coin burst, and
+level-6's climber gets a generated face; the 12:00 UTC boundary is
+covered by this tag.)*
+
+- **THE HOPS MEASUREMENT** (the honest negative): the tour grew to
+  level-6 on the post-margin evidence and met the levels' phase lottery
+  — a 27-death red run with EVERY death in levels 2-4 (the 1148 spike
+  family, the 1352 pit) burned the 177s cap before the vault was even
+  reached. The vault law is not the blocker; the level laws' death
+  variance is. HOPS reverted to level-5 (11/11 green 54.9s
+  re-verified); the level-2/3/4 death families are R60's autopsy brief,
+  and only then does the tour grow its sixth receipt.
+- **THE DEATH FLASH**: the PIE portrait takes the hit — every death
+  fires a one-shot red pulse (the frame blooms 1.12x under a red
+  drop-shadow, the HP bar burns #ef4444 before settling back to the
+  brand gradient), fired from `die()` through the reflow-restart trick
+  so consecutive deaths each replay the burst.
+- **THE POP'S TINT**: the coin burst wears the biome's own accent —
+  the keyframe reads `var(--pop)` and the coin row sets it from
+  BIOME_ACC at play start (the same triplet the ambient frame breathes
+  — one map, one truth); verified per scene (level-1's pop is the
+  industrial amber rgba(245,158,11,.95), unmapped scenes keep the gold
+  fallback).
+- **THE ASCENT PORTRAIT**: level-6's PIE bust is generated art (the
+  mandatory image gen, 27.9s; the JPEG-bytes law's 20th catch — the
+  bytes arrived JPEG wearing a .png name, re-encoded to a real
+  1008765-byte PNG, magic verified) — the determined climber in
+  indigo gear under the midnight ascent; PHSKINS remapped.
+- **THE LAW**: `ui_editor_probe` pins 25 (was 24) — the R59 law group
+  pins the death flash's mechanism (the class, the keyframe, the die()
+  fire), the pop's tint (the var, the setProperty), and the ascent
+  portrait's real PNG bytes.
+- five corners wear 3.1.137; the 12:00 UTC boundary is covered by this
+  tag; gates ALL GREEN exit 0, 59 probes walked.
+
 ## v3.1.136 — the vault walks: a dedicated probe crosses the summit, and the coin pops
 
 *(the R58 session: the vault — the tour's unwalked fifth-summit interior

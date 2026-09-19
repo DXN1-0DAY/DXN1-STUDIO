@@ -3,5 +3,5 @@
 #pragma once
 
 namespace dxn3 {
-inline constexpr const char* DXN3_VERSION = "3.1.136";
+inline constexpr const char* DXN3_VERSION = "3.1.137";
 }

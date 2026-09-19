@@ -67,10 +67,14 @@ import os, pty, random, re, select, sys, tempfile, time
 REPO = _HOME
 BIN = os.path.join(REPO, "native", "build", "dxn3-native")
 
-# (the vault law below is PROVEN — dec_vault_probe walks it green —
-#  but HOPS stays at level-5: the levels' 60-150s death variance plus
-#  the vault's 21-26s walk outruns the 180s gate cap on the bad runs.
-#  R59 grows HOPS to level-6 when the budget is reclaimed.)
+# (the vault law below is PROVEN — dec_vault_probe walks it green, and
+#  the 10-step stale-sample margin killed the vault's own deaths — but
+#  R59's growth attempt hit the LEVELS' phase lottery: a 27-death run
+#  (every death in levels 2-4: the 1148 spike family, the 1352 pit)
+#  burned the cap before the vault was even reached. The level laws'
+#  death variance is the structural blocker, not the vault. HOPS holds
+#  at level-5; R60 tames the 1148-spike and 1352-pit families, THEN
+#  HOPS grows.)
 HOPS = ["level-1", "level-2", "level-3", "level-4", "level-5"]  # receipts
 # (R49 pinned the level-4 load; R54 WALKS its interior — the three
 # ferries over the fanged pit, the isle saw, the diagonal ferry-3, the

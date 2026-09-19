@@ -204,7 +204,7 @@ body{background:var(--win); color:var(--text); font:var(--font); user-select:non
 /* THE COIN POP (R58) — the take lands as a burst, not a fade: the
    coin springs to 1.55x under a flash of gold and settles lit. */
 @keyframes coinpop{0%{transform:scale(1.15);}
-  42%{transform:scale(1.55); filter:drop-shadow(0 0 14px rgba(251,191,36,.95)) brightness(1.4);}
+  42%{transform:scale(1.55); filter:drop-shadow(0 0 14px var(--pop,rgba(251,191,36,.95))) brightness(1.4);}
   100%{transform:scale(1.15);}}
 .hud-tc .cr-lab{font-size:10px; color:rgba(255,255,255,.72); margin-left:3px; letter-spacing:.04em;}
 /* THE VAULT CARD (R58) — the About grid's fifth pillar wears the
@@ -217,6 +217,15 @@ body{background:var(--win); color:var(--text); font:var(--font); user-select:non
    chip, studio-flavored. */
 .hud-portrait{position:absolute; left:16px; bottom:64px; display:flex;
   flex-direction:column; align-items:center; gap:5px; pointer-events:none;}
+/* THE DEATH FLASH (R59) — the portrait takes the hit: a one-shot red
+   pulse (the frame blooms, the HP bar burns red) on every death; the
+   bar's own bleed continues underneath. */
+.hud-portrait.hurt{animation:hurtflash .5s ease-out;}
+@keyframes hurtflash{0%{filter:drop-shadow(0 0 12px rgba(239,68,68,.95));
+    transform:scale(1.12);}100%{filter:none; transform:scale(1);}}
+.hud-portrait.hurt .hp>div{animation:hpflash .5s ease-out;}
+@keyframes hpflash{0%{background:#ef4444;}
+  100%{background:linear-gradient(90deg,var(--brand),var(--cyan));}}
 .hud-portrait img{width:64px; height:64px; display:block; object-fit:cover;
   border-radius:10px; border:2px solid rgba(139,92,246,.55);
   box-shadow:0 2px 16px rgba(0,0,0,.55), 0 0 18px rgba(139,92,246,.18);
@@ -632,7 +641,7 @@ body{background:var(--win); color:var(--text); font:var(--font); user-select:non
 /* ================================================================
    DXN1 STUDIO 3 — editor brain. One file, no deps.
    ================================================================ */
-const VERSION = "3.1.136";
+const VERSION = "3.1.137";
 const GATES = "58 probes walked · all green";
 
 const SCENES = [
@@ -1091,7 +1100,7 @@ const HSKINS={
    this round, the JPEG-bytes law's 15th catch, re-encoded real PNGs).
    The generic hero bust stays the honest fallback. */
 const PHSKINS={
-  "level-1.dxn1.json":"portrait-industrial.png", "level-6.dxn1.json":"portrait-industrial.png",
+  "level-1.dxn1.json":"portrait-industrial.png", "level-6.dxn1.json":"portrait-ascent.png",
   "level-2.dxn1.json":"portrait-twilight.png",  "level-7.dxn1.json":"portrait-twilight.png",
   "level-12.dxn1.json":"portrait-twilight.png",
   "level-3.dxn1.json":"portrait-dawn.png",       "level-5.dxn1.json":"portrait-dawn.png",
@@ -2191,6 +2200,11 @@ function overlap(a,b){
 function die(m,what){
   const spawn=m.ents.find(e=>e.tag==="player");
   m.deaths++;
+  /* THE DEATH FLASH (R59): the portrait takes the hit — the class
+     restarts the one-shot pulse through the reflow trick. */
+  const port=document.querySelector(".hud-portrait");
+  if(port){port.classList.remove("hurt"); void port.offsetWidth;
+    port.classList.add("hurt");}
   log("bad","[pie] death by "+(what.name||what.tag)+" — respawn ("+m.deaths+")");
   toast("Died", (what.name||what.tag)+" got you — respawn","bad");
   m.p.x=spawn.x; m.p.y=spawn.y; m.p.vx=0; m.p.vy=0;
@@ -2200,6 +2214,9 @@ function die(m,what){
    collectible ledger; the count label carries scenes with >10 coins. */
 function buildCoinRow(m){
   const row=$("hud-coinrow"); if(!row) return;
+  /* THE POP'S TINT (R59): the burst wears the biome's own accent — the
+     same triplet the ambient frame breathes (one map, one truth). */
+  row.style.setProperty("--pop","rgba("+(BIOME_ACC[HSKINS[S.cur]]||"251,191,36")+",.95)");
   const coins=m.ents.filter(e=>e.tag==="coin");
   row.innerHTML="";
   for(const c of coins.slice(0,10)){

@@ -573,6 +573,31 @@ missing58 = [nm for nm, ok in R58 if not ok]
 pin("all 3 R58 studio laws present", not missing58, ", ".join(missing58))
 
 
+# THE R59 LAW GROUP — THE DEATH FLASH (the portrait takes the hit: a
+# one-shot red pulse on every death, fired from die() through the
+# reflow restart) and THE POP'S TINT (the coin burst wears the biome's
+# own accent from BIOME_ACC — one map, one truth with the ambient
+# frame) and THE ASCENT PORTRAIT (level-6's PIE bust is the generated
+# climber — the JPEG-bytes law's 20th catch, re-encoded real PNG).
+R59 = [
+    ("the death flash — the portrait pulses red on every death",
+        ".hud-portrait.hurt{animation:hurtflash .5s ease-out;}" in html
+        and "@keyframes hurtflash{" in html
+        and 'const port=document.querySelector(".hud-portrait");' in html
+        and 'port.classList.add("hurt");' in html),
+    ("the pop's tint — the coin burst wears the biome accent",
+        "filter:drop-shadow(0 0 14px var(--pop," in html
+        and 'row.style.setProperty("--pop","rgba("+(BIOME_ACC[HSKINS[S.cur]]||"251,191,36")+",.95)");' in html),
+    ("the ascent portrait — level-6's PIE bust is generated art (the "
+     "JPEG-bytes law's 20th catch)",
+        '"level-6.dxn1.json":"portrait-ascent.png"' in html
+        and (_png_magic("portrait-ascent.png") or b"") == b"\x89PNG"
+        and os.path.getsize(os.path.join(assets_dir, "portrait-ascent.png")) > 500000),
+]
+missing59 = [nm for nm, ok in R59 if not ok]
+pin("all 3 R59 studio laws present", not missing59, ", ".join(missing59))
+
+
 fails = [n for n, ok in pins if not ok]
 print(f"\nui_editor_probe: {len(pins)-len(fails)}/{len(pins)} pins green "
       f"in {time.time()-t0:.1f}s")
