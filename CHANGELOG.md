@@ -1,3 +1,60 @@
+## v3.1.133 — the knife edge, the release eyes, and the vault's honest draft
+
+*(the R55 session: the level-3 stall found and fixed at a one-character
+boundary, the release-eyes mystery solved, the campaign tiles wearing
+their own generated banners, and the vault crossing drafted honestly —
+measured, mechanism by mechanism, and LEFT DORMANT rather than shipped
+unproven; the 07:00 UTC boundary is covered by this tag.)*
+
+- **THE KNIFE EDGE (the level-3 stall)**: the R55 first tour run stood
+  at px == 1186.0 for 150 seconds — the lift-2 fire band's walk-left
+  asked `x > 1186` and the run asked `x < 1186`, so a hero whose brake
+  settled on the EXACT boundary matched neither branch and every law
+  returned the hold while the sink window opened and closed forever
+  (the same disease class as R51's 1205.8 stall, one line over). The
+  walk-left now owns the line itself (`x >= 1186`). Two verification
+  runs green (11/11, 64.6s/2 deaths and 112.8s/12).
+- **THE RELEASE EYES RESOLVED**: v3.1.132's tar.gz was 404 at three
+  checks — MY URL BUG: the workflow's asset is named
+  `dxn3-v3.1.132.tar.gz` (the v prefix) and the checks used the bare
+  name. With the right name: 200, 24,869,238 bytes; v3.1.131's asset
+  also 200. DISCOVERY: the repo now redirects — the canonical path is
+  DXN1-0DAY/DXN1-STUDIO (a server-side rename; the SSH push to the old
+  DXN1-termux path resolves through GitHub's redirect). The release
+  train is healthy; no reconcile needed.
+- **THE BIOME HEADERS**: the Content Browser's four campaign tiles wear
+  their own GENERATED wide banners now (twilight dusk, industrial
+  amber, dawn rose-gold, void nebula) instead of slices of the one
+  strip — the mandatory image gen (the JPEG-bytes law's 16th catch,
+  all four arrived as JPEG wearing a .png name, re-encoded to real
+  PNGs, magic verified), and each tile reads as its own world at a
+  glance. The tiles keep the live entity counts, the biome tints and
+  the active-biome glow.
+- **THE VAULT DRAFT — MEASURED, NOT SHIPPED**: dec_vault (level-5's
+  interior: two vertical lifts, the high-deck guard, the drop-ledge
+  fang, the ferry and its guard, the isle, the death-trap stretch and
+  the mid-air goal touch) was built with the same predictor discipline
+  and walked five instrumented runs. The runs taught: the two-cycle
+  phase beat starves the transfer (53s between joint windows — the
+  hero rode the whole cap), the static predictor lies BOTH ways on a
+  moving deck (a rising deck met the hero's ascent and the resolve
+  snapped him below it — the bonk; a sinking deck stole the catch
+  until the drift overshot the span), the high-deck guard's fire
+  window had to move from 695..735 to 565..633 (the arc must EXIT the
+  guard's y-band before the box crosses its x), and the lift-2→deck
+  arc clips the guard unless fired from the deck's right half. HOPS
+  STAYS AT LEVEL-5: the tour is green without the vault, the draft
+  rides in the tree dormant (the break-at-last-hop law never runs it),
+  and R56 continues from the five runs' evidence — the moving-deck
+  catch needs the drift model recalibrated against a real trace before
+  the next walk attempt.
+- ui_editor_probe pins 21 (was 20) — the R55 law group re-pins the
+  header mechanism, the four banners' real PNG bytes, and the vault
+  draft's dormant wiring.
+- five corners wear 3.1.133; this tag's release must carry
+  dxn3-v3.1.133.tar.gz (the v-prefixed name, per the release-eyes
+  finding); gates ALL GREEN exit 0.
+
 ## v3.1.132 — the tour learns the ferries, and every goal door glitters
 
 *(the R54 session: the boarding fall family autopsied and closed, the

@@ -306,8 +306,8 @@ body{background:var(--win); color:var(--text); font:var(--font); user-select:non
 #cb-map .biome{flex:1; position:relative; cursor:pointer; overflow:hidden;
   border-right:1px solid rgba(0,0,0,.35); transition:filter .15s;}
 #cb-map .biome:last-child{border-right:none;}
-#cb-map .biome i{position:absolute; inset:0; background-size:400% 100%;
-  background-repeat:no-repeat; opacity:.9;}
+#cb-map .biome i{position:absolute; inset:0; background-size:cover;
+  background-position:center; opacity:.9;}
 #cb-map .biome b{position:absolute; inset:0; pointer-events:none;}
 #cb-map .biome span{position:absolute; left:8px; bottom:5px; font-size:11px;
   color:#fff; text-shadow:0 1px 3px rgba(0,0,0,.8); letter-spacing:.4px;}
@@ -591,7 +591,7 @@ body{background:var(--win); color:var(--text); font:var(--font); user-select:non
 /* ================================================================
    DXN1 STUDIO 3 — editor brain. One file, no deps.
    ================================================================ */
-const VERSION = "3.1.132";
+const VERSION = "3.1.133";
 const GATES = "58 probes walked · all green";
 
 const SCENES = [
@@ -803,17 +803,18 @@ sel_scene_onchange();
 function sel_scene_onchange(){ $("scenepick").addEventListener("change",e=>loadScene(e.target.value)); }
 
 /* ── content browser ──────────────────────────────────────────── */
-/* THE CAMPAIGN MAP (R54): the banner is the campaign itself — four
-   biome tiles sliced from the generated strip (one background-position
-   per biome), tinted by the biome's sky, the LIVE entity count on
-   each, and the ACTIVE scene's biome glowing brand violet. A click
-   opens the biome's first scene. Rebuilt by renderAll, so the counts
-   follow every edit like the tab thumbnails do. */
+/* THE CAMPAIGN MAP (R54/R55): the banner is the campaign itself — four
+   biome tiles, each wearing its own GENERATED header banner (R55: one
+   wide painting per biome, not slices of the one strip), tinted by the
+   biome's sky, the LIVE entity count on each, and the ACTIVE scene's
+   biome glowing brand violet. A click opens the biome's first scene.
+   Rebuilt by renderAll, so the counts follow every edit like the tab
+   thumbnails do. */
 const BIOMES=[
-  {b:"twilight",   pos:"0% 50%",      tint:"rgba(124,92,255,.20)",  scenes:["level-2.dxn1.json","level-7.dxn1.json","level-12.dxn1.json"]},
-  {b:"industrial", pos:"33.333% 50%", tint:"rgba(245,158,11,.16)",  scenes:["level-1.dxn1.json","level-6.dxn1.json"]},
-  {b:"dawn",       pos:"66.666% 50%", tint:"rgba(251,113,133,.16)", scenes:["level-3.dxn1.json","level-5.dxn1.json","level-8.dxn1.json"]},
-  {b:"void",       pos:"100% 50%",    tint:"rgba(56,189,248,.14)",  scenes:["level-4.dxn1.json","level-9.dxn1.json","level-10.dxn1.json"]},
+  {b:"twilight",   img:"header-twilight.png",   tint:"rgba(124,92,255,.20)",  scenes:["level-2.dxn1.json","level-7.dxn1.json","level-12.dxn1.json"]},
+  {b:"industrial", img:"header-industrial.png", tint:"rgba(245,158,11,.16)",  scenes:["level-1.dxn1.json","level-6.dxn1.json"]},
+  {b:"dawn",       img:"header-dawn.png",       tint:"rgba(251,113,133,.16)", scenes:["level-3.dxn1.json","level-5.dxn1.json","level-8.dxn1.json"]},
+  {b:"void",       img:"header-void.png",       tint:"rgba(56,189,248,.14)",  scenes:["level-4.dxn1.json","level-9.dxn1.json","level-10.dxn1.json"]},
 ];
 function buildCampaignMap(){
   const map=$("cb-map"); if(!map) return;
@@ -824,7 +825,7 @@ function buildCampaignMap(){
     const el=document.createElement("div");
     el.className="biome"+(bm.b===activeBiome?" active":"");
     el.dataset.b=bm.b;
-    el.innerHTML=`<i style="background-image:url('assets/campaign-map.png');background-position:${bm.pos}"></i>
+    el.innerHTML=`<i style="background-image:url('assets/${bm.img}')"></i>
       <b style="background:${bm.tint}"></b><span>${bm.b}</span><em>${n} ents</em>`;
     el.title=bm.b+" — "+(bm.scenes||[]).length+" scenes";
     el.addEventListener("click",()=>{ const f=(bm.scenes||[])[0]; if(f) loadScene(f); });

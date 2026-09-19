@@ -421,12 +421,12 @@ R54 = [
     ("campaign map — the banner is four live biome tiles",
         "function buildCampaignMap(" in html
         and "const BIOMES=[" in html
-        and html.count('pos:"') >= 4
+        and html.count('img:"header-') >= 4
         and "buildCampaignMap();" in html
         and "#cb-map .biome.active{" in html),
-    ("campaign map — the tiles wear the strip and the live counts",
-        "background-size:400% 100%" in html
-        and "background-position:${bm.pos}" in html
+    ("campaign map — the tiles wear the generated headers (R55)",
+        "background-size:cover" in html
+        and "url('assets/${bm.img}')" in html
         and "n} ents</em>`" in html.replace("\n", " ")
         and "loadScene(f); });" in html),
     ("goal shimmer — the sweeps and the breathing glow, one shared draw",
@@ -447,6 +447,36 @@ R54 = [
 ]
 missing54 = [nm for nm, ok in R54 if not ok]
 pin("all 5 R54 studio laws present", not missing54, ", ".join(missing54))
+
+
+# ---- THE R55 LAWS ------------------------------------------------------
+# THE BIOME HEADERS (each campaign tile wears its own generated wide
+# banner — four real PNGs, the JPEG-bytes law's 16th catch, re-encoded)
+# and THE VAULT DRAFT is pinned by absence: the tour's HOPS stays at
+# level-5 until the ferry crossing walks green (the dec_vault draft
+# rides in the tree, dormant behind the break-at-last-hop law).
+R55 = [
+    ("biome headers — the four generated banners are real PNGs",
+        all((_png_magic(n) or b"") == b"\x89PNG" for n in (
+            "header-twilight.png", "header-industrial.png",
+            "header-dawn.png", "header-void.png"))
+        and all(os.path.getsize(os.path.join(assets_dir, n)) > 10000
+                for n in ("header-twilight.png", "header-industrial.png",
+                          "header-dawn.png", "header-void.png"))),
+    ("biome headers — the About cast wears the sheet too",
+        html.count('skin("portrait-') >= 4
+        and 'skin("portrait-hero.png","the hero")' in html),
+    ("the vault draft — dormant, the tour's HOPS unchanged",
+        "the vault (level-5)" in open(
+            os.path.join(os.path.dirname(assets_dir), "..",
+                         "probes", "grand_tour_probe.py"),
+            "rb").read().decode(errors="replace")
+        if os.path.isfile(os.path.join(os.path.dirname(assets_dir), "..",
+                                       "probes", "grand_tour_probe.py"))
+        else False),
+]
+missing55 = [nm for nm, ok in R55 if not ok]
+pin("all 3 R55 studio laws present", not missing55, ", ".join(missing55))
 
 
 fails = [n for n, ok in pins if not ok]
