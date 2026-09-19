@@ -1,3 +1,69 @@
+## v3.1.134 — the frame that breathes, the tour that rides, and the canvas that finally washes
+
+*(the R56 session: the carried biome-mapping debt closed at its root, the
+PIE viewport wears the biome's light and hears the goal call, the About
+splash rides the generated journey, the tab thumbnails wear their
+biome's footline — and the round's real prize was found while verifying
+the glow: PIE had never cleared its canvas, so every moving thing
+smeared; the 08:00 UTC boundary is covered by this tag.)*
+
+- **THE BIOME MAP COMPLETION (the carried debt)**: level-11 — "the
+  return" — was absent from all four biome maps (SKYS, HSKINS, PHSKINS
+  and the campaign tiles' scene lists), so opening it fell back to the
+  generic sky, the generic HUD chrome, the generic portrait, and the
+  campaign map glowed on NO tile. The bg evidence (`#0d1220`, a deep
+  void-blue beside the void pair's `#061014`/`#0a0c12`) and the chapter
+  logic (the return out of the void, before the twilight epilogue) both
+  say void — the return now wears the void in all four maps, its
+  thumbnail tint follows automatically (THUMB_TINTS keys off the sky
+  map), and the campaign map's void tile glows when it opens.
+- **THE PIE AMBIENT FRAME**: the viewport now wears the biome's light —
+  `drawAmbientFrame()` lays a 6px breathing inset glow on all four
+  edges, tinted by the scene's hud skin (BIOME_ACC, the violet brand as
+  the honest fallback), breathing at the goal shimmer's own 2.4 rad/s.
+  The frame LIVES with the run: proximity to the goal (measured over
+  the world's own bounding-box span, squared so the far half of the
+  map stays honest and dark) brightens the glow up to ~2.4× — the door
+  calls you. Verified frame-synchronously: the fills land at the
+  designed alpha (before/after pixels inside the same frame) and the
+  hero-at-goal pass reads the strengthened warm shift.
+- **THE CREDITS TICKER**: the About splash grew UE5's credits-scene
+  ticker — the grand tour's five walked scenes ride a live marquee
+  strip over the generated journey panorama (this round's image gen,
+  the JPEG-bytes law's 17th catch: arrived JPEG wearing a .png name,
+  re-encoded a real PNG, magic verified). Each hop is a REAL
+  thumbScene canvas of its world (the tabs' live-miniature law), the
+  strip doubles itself for the seamless 26s loop, and hovering pauses
+  the ride. Browser-verified: 10 hops, all painted, the panorama
+  behind them, `tourride` running.
+- **THE BIOME FOOT**: every scene tab's thumbnail now wears its
+  biome's accent as a 2px footline (BIOME_FOOT, keyed by the same sky
+  map the tint obeys) — the strip of light the world is lit by,
+  visible in the tab row at a glance.
+- **THE CANVAS THAT FINALLY WASHES (the round's real bug)**: the
+  verification of the ambient frame exposed it — the PIE loop called
+  `drawSim()` directly, and `drawSim` never clears: the only clearRect
+  in the file lives in `draw()`, which PIE never ran. The canvas had
+  accumulated every frame since v3.1.119 — the moving hero smeared a
+  violet streak across the world (proven: the old position still read
+  the hero's `#8b5cf6` 500ms after he left), collected coins NEVER
+  vanished from the screen (their last-drawn pixels persisted
+  forever), and any glow stacked frame-on-frame toward saturation. The
+  loop now renders through `draw()` (clear + bg + sky + world +
+  HUD + frame), and the editor chrome the game should not wear — the
+  grid and the world-origin marker — is hidden in PIE, UE5-style.
+  Pixel-verified: the walked path reads background, the picked coin's
+  pixel goes dark, and the glow breathes without saturating.
+- **THE LAW**: ui_editor_probe pins 22 (was 21) — the R56 law group
+  (six laws): level-11's four maps, the ambient frame's mechanism and
+  its single BIOME_ACC, the footline, the ticker's cloth and mount,
+  the panorama's real PNG bytes, and the wash itself (`simStep(dt);
+  draw();`, the grid and origin gated out of PIE) — the regression
+  that let a smear live for fifteen versions is now gate law.
+- Five corners wear 3.1.134. The 08:00 UTC boundary is covered by this
+  tag. This tag's release must carry dxn3-v3.1.134.tar.gz (the
+  v-prefixed name). Gates ALL GREEN, 58 probes walked.
+
 ## v3.1.133 — the knife edge, the release eyes, and the vault's honest draft
 
 *(the R55 session: the level-3 stall found and fixed at a one-character

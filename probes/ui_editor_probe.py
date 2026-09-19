@@ -479,6 +479,47 @@ missing55 = [nm for nm, ok in R55 if not ok]
 pin("all 3 R55 studio laws present", not missing55, ", ".join(missing55))
 
 
+# ---- THE R56 LAWS ------------------------------------------------------
+# THE BIOME MAP COMPLETION (level-11 — "the return" — wears the void in
+# all four maps: sky, hud, portrait, campaign tile), THE PIE AMBIENT
+# FRAME (the viewport breathes with the biome's light and brightens as
+# the spark nears the goal), THE BIOME FOOT (every tab thumbnail wears
+# its biome's accent edge), and THE CREDITS TICKER (the grand tour's
+# five walked scenes ride the generated journey panorama in the About
+# splash — the JPEG-bytes law's 17th catch, re-encoded real PNG).
+R56 = [
+    ("level-11 mapped — the return wears the void in all four maps",
+        '"level-11.dxn1.json":"sky-void.png"' in html
+        and '"level-11.dxn1.json":"hud-void.png"' in html
+        and '"level-11.dxn1.json":"portrait-void.png"' in html
+        and 'level-10.dxn1.json","level-11.dxn1.json"]' in html),
+    ("the PIE ambient frame — the biome's breath, the goal's call",
+        "function drawAmbientFrame(" in html
+        and "drawAmbientFrame();" in html
+        and "const BIOME_ACC={" in html
+        and html.count('const BIOME_ACC={') == 1
+        and '"hud-void.png":"56,189,248"' in html),
+    ("the biome foot — every tab thumbnail wears its accent edge",
+        "const BIOME_FOOT={" in html
+        and "g.fillStyle=BIOME_FOOT[SKYS[f]||" in html
+        and "g.fillRect(0,H-2,W,2);" in html),
+    ("the credits ticker — the tour rides the generated panorama",
+        ".about-ticker" in html and "@keyframes tourride" in html
+        and "function mountAboutTicker(" in html
+        and "mountAboutTicker();" in html
+        and 'id="about-ticker"' in html),
+    ("the ticker's panorama is a real PNG",
+        (_png_magic("tour-marquee.png") or b"") == b"\x89PNG"
+        and os.path.getsize(os.path.join(assets_dir, "tour-marquee.png")) > 50000),
+    ("PIE clears every frame — the sim loop renders through draw()",
+        "simStep(dt); draw();" in html
+        and "if(S.grid&&!S.sim){" in html.replace(" ", "")
+        and "if(!S.sim){\n  const [ox,oy]=world2scr(0,0);" in html),
+]
+missing56 = [nm for nm, ok in R56 if not ok]
+pin("all 6 R56 studio laws present", not missing56, ", ".join(missing56))
+
+
 fails = [n for n, ok in pins if not ok]
 print(f"\nui_editor_probe: {len(pins)-len(fails)}/{len(pins)} pins green "
       f"in {time.time()-t0:.1f}s")

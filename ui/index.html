@@ -280,6 +280,25 @@ body{background:var(--win); color:var(--text); font:var(--font); user-select:non
 .about-skins img{width:100%; aspect-ratio:1; object-fit:cover; border-radius:4px;
   border:1px solid var(--border); display:block;}
 .about-skins figcaption{font-size:9.5px; color:var(--faint); text-align:center; padding-top:2px;}
+/* THE CREDITS TICKER (R56) — the grand tour as a marquee strip: the
+   five walked scenes ride the generated journey panorama, pausing on
+   hover. UE5's credits splash, wearing its own world. */
+.about-ticker{position:relative; height:64px; border-radius:6px; overflow:hidden;
+  border:1px solid var(--border); margin:2px 0 8px; background:#0b0c10;}
+.about-ticker .strip{position:absolute; inset:0; background:url(assets/tour-marquee.png)
+  center/cover; opacity:.38; pointer-events:none;}
+.about-ticker .ride{position:absolute; top:0; bottom:0; left:0; display:flex;
+  align-items:center; gap:8px; padding:0 5px; width:max-content;
+  animation:tourride 26s linear infinite;}
+.about-ticker:hover .ride{animation-play-state:paused;}
+@keyframes tourride{from{transform:translateX(0)}to{transform:translateX(-50%)}}
+.about-ticker .hop{display:flex; align-items:center; gap:6px; flex:none;
+  background:rgba(10,10,14,.78); border:1px solid var(--border); border-radius:5px;
+  padding:3px 7px 3px 4px;}
+.about-ticker .hop canvas{width:76px; height:44px; border-radius:3px; display:block;}
+.about-ticker .hop b{font-size:10px; color:var(--text); font-weight:600; display:block;}
+.about-ticker .hop i{font-style:normal; font-size:9px; color:var(--faint); display:block;
+  max-width:110px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;}
 
 /* ── bottom dock ─────────────────────────────────────────────── */
 #bottom{height:236px; flex:none; background:var(--panel); border-top:1px solid var(--border);
@@ -591,7 +610,7 @@ body{background:var(--win); color:var(--text); font:var(--font); user-select:non
 /* ================================================================
    DXN1 STUDIO 3 — editor brain. One file, no deps.
    ================================================================ */
-const VERSION = "3.1.133";
+const VERSION = "3.1.134";
 const GATES = "58 probes walked · all green";
 
 const SCENES = [
@@ -814,7 +833,7 @@ const BIOMES=[
   {b:"twilight",   img:"header-twilight.png",   tint:"rgba(124,92,255,.20)",  scenes:["level-2.dxn1.json","level-7.dxn1.json","level-12.dxn1.json"]},
   {b:"industrial", img:"header-industrial.png", tint:"rgba(245,158,11,.16)",  scenes:["level-1.dxn1.json","level-6.dxn1.json"]},
   {b:"dawn",       img:"header-dawn.png",       tint:"rgba(251,113,133,.16)", scenes:["level-3.dxn1.json","level-5.dxn1.json","level-8.dxn1.json"]},
-  {b:"void",       img:"header-void.png",       tint:"rgba(56,189,248,.14)",  scenes:["level-4.dxn1.json","level-9.dxn1.json","level-10.dxn1.json"]},
+  {b:"void",       img:"header-void.png",       tint:"rgba(56,189,248,.14)",  scenes:["level-4.dxn1.json","level-9.dxn1.json","level-10.dxn1.json","level-11.dxn1.json"]},
 ];
 function buildCampaignMap(){
   const map=$("cb-map"); if(!map) return;
@@ -918,6 +937,15 @@ const THUMB_TINTS={
   "sky-dawn.png":["#40302a","#191210"],
   "sky-void.png":["#241b38","#0e0a16"],
 };
+/* THE BIOME FOOT (R56) — the accent a tab's thumbnail wears as a 2px
+   footline: the strip of light the world is lit by, keyed by the same
+   sky map the tint obeys. */
+const BIOME_FOOT={
+  "sky-industrial.png":"#f59e0b",
+  "sky-twilight.png":"#7c5cff",
+  "sky-dawn.png":"#fb7171",
+  "sky-void.png":"#38bdf8",
+};
 function thumbScene(f, cv){
   const g=cv.getContext("2d"); if(!g) return;
   const d=S.scenes[f]; if(!d) return;
@@ -946,6 +974,9 @@ function thumbScene(f, cv){
       g.arc(x+w/2,y+h/2,Math.max(1.5,w/2),0,7); g.fill(); }
     else g.fillRect(x,y,w,h);
   }
+  /* the biome foot — the world's light, worn at the thumb's edge */
+  g.fillStyle=BIOME_FOOT[SKYS[f]||""]||"#8b5cf6";
+  g.fillRect(0,H-2,W,2);
 }
 function renderTabs(){
   const bar=$("tabbar"); bar.innerHTML="";
@@ -1011,7 +1042,7 @@ const SKYS={
   "level-3.dxn1.json":"sky-dawn.png",       "level-5.dxn1.json":"sky-dawn.png",
   "level-8.dxn1.json":"sky-dawn.png",
   "level-4.dxn1.json":"sky-void.png",       "level-9.dxn1.json":"sky-void.png",
-  "level-10.dxn1.json":"sky-void.png",
+  "level-10.dxn1.json":"sky-void.png",      "level-11.dxn1.json":"sky-void.png",
 };
 /* THE HUD SKINS (R51) — the PIE HUD's chrome follows the biome, the
    same law the skies obey: keyed by scene file, the generic frame as
@@ -1023,7 +1054,7 @@ const HSKINS={
   "level-3.dxn1.json":"hud-dawn.png",       "level-5.dxn1.json":"hud-dawn.png",
   "level-8.dxn1.json":"hud-dawn.png",
   "level-4.dxn1.json":"hud-void.png",       "level-9.dxn1.json":"hud-void.png",
-  "level-10.dxn1.json":"hud-void.png",
+  "level-10.dxn1.json":"hud-void.png",      "level-11.dxn1.json":"hud-void.png",
 };
 /* THE PORTRAIT SHEET (R54) — the HUD's bust follows the biome too, the
    frame's law worn by the face: one hero, four lit variants (generated
@@ -1036,7 +1067,15 @@ const PHSKINS={
   "level-3.dxn1.json":"portrait-dawn.png",       "level-5.dxn1.json":"portrait-dawn.png",
   "level-8.dxn1.json":"portrait-dawn.png",
   "level-4.dxn1.json":"portrait-void.png",       "level-9.dxn1.json":"portrait-void.png",
-  "level-10.dxn1.json":"portrait-void.png",
+  "level-10.dxn1.json":"portrait-void.png",      "level-11.dxn1.json":"portrait-void.png",
+};
+/* THE BIOME ACCENTS (R56) — one rgb triplet per hud skin, the light the
+   biome is lit by; the ambient frame and the ticker wear it. */
+const BIOME_ACC={
+  "hud-industrial.png":"245,158,11",
+  "hud-twilight.png":"124,92,255",
+  "hud-dawn.png":"251,113,133",
+  "hud-void.png":"56,189,248",
 };
 const skyCache=new Map();          // src -> Image (one loader per asset)
 function skyFor(cur){
@@ -1071,8 +1110,8 @@ function draw(){
     cx.drawImage(simg,(W-dw)/2,(H-dh)/2,dw,dh);
     cx.globalAlpha=1;
   }
-  /* grid */
-  if(S.grid){
+  /* grid — editor chrome, not PIE's (UE5 hides the grid in play) */
+  if(S.grid&&!S.sim){
     const step=S.gridStep*S.cam.z;
     if(step>7){
       cx.lineWidth=1;
@@ -1085,10 +1124,12 @@ function draw(){
       for(let y=y0%(step*4);y<H;y+=step*4){cx.beginPath();cx.moveTo(0,y);cx.lineTo(W,y);cx.stroke();}
     }
   }
-  /* world origin marker */
+  /* world origin marker — editor chrome, hidden in PIE too */
+  if(!S.sim){
   const [ox,oy]=world2scr(0,0);
   cx.strokeStyle="rgba(255,255,255,0.14)"; cx.lineWidth=1;
   cx.beginPath(); cx.moveTo(ox-7,oy); cx.lineTo(ox+7,oy); cx.moveTo(ox,oy-7); cx.lineTo(ox,oy+7); cx.stroke();
+  }
 
   if(S.sim){ drawSim(); return; }
   /* entities */
@@ -2011,7 +2052,7 @@ function startPlay(){
     const dt=Math.min(0.033,(t-last)/1000); last=t;
     acc+=dt; frames++;
     if(acc>=0.5){ $("st-fps").textContent=Math.round(frames/acc); acc=0; frames=0; }
-    simStep(dt); drawSim();
+    simStep(dt); draw();
     simRAF=requestAnimationFrame(loop);
   };
   simRAF=requestAnimationFrame(loop);
@@ -2157,6 +2198,46 @@ function drawSim(){
     }
     $("hud-state").textContent=(m.p.ground?"grounded":"airborne")+(m.done?" · complete":"");
   }
+  drawAmbientFrame();
+}
+/* THE PIE AMBIENT FRAME (R56): the viewport wears the biome's light —
+   a breathing inset glow around the whole PIE frame, the same 2.4 rad/s
+   breath the goal flag's shimmer uses, tinted by the scene's biome
+   (BIOME_ACC, the violet brand as the honest fallback). The frame LIVES
+   with the run: it brightens as the spark nears the goal — the door
+   calls you — so the glow is telemetry, not decoration. */
+function drawAmbientFrame(){
+  const m=S.sim; if(!m) return;
+  /* 40 is the honest floor — a narrow split still wears its light */
+  const W=cv.clientWidth, H=cv.clientHeight; if(W<40||H<40) return;
+  const t=performance.now()/1000;
+  const acc=BIOME_ACC[HSKINS[S.cur]]||"139,92,246";
+  /* the goal's call — 0 far, 1 at the door, measured over the world's
+     own span (the entities' bounding box, the same measure thumbScene
+     fits); prox² keeps the far half of the run honest and dark. */
+  const goal=m.ents.find(e=>e.tag==="goal");
+  let prox=0;
+  if(goal){
+    let x0=1e9,y0=1e9,x1=-1e9,y1=-1e9;
+    for(const e of m.ents){
+      x0=Math.min(x0,e.x); y0=Math.min(y0,e.y);
+      x1=Math.max(x1,e.x+(e.w||8)); y1=Math.max(y1,e.y+(e.h||8));
+    }
+    const span=Math.hypot(x1-x0,y1-y0)||2000;
+    const dx=m.p.x-(goal.x+goal.w/2), dy=m.p.y-(goal.y+goal.h/2);
+    prox=Math.max(0,1-Math.hypot(dx,dy)/(span*0.55));
+  }
+  const a=0.10+0.07*Math.sin(t*2.4)+0.30*prox*prox;
+  const edge=6;
+  cx.save();
+  const mk=(x0,y0,x1,y1)=>{const gr=cx.createLinearGradient(x0,y0,x1,y1);
+    gr.addColorStop(0,"rgba("+acc+","+a.toFixed(3)+")");
+    gr.addColorStop(1,"rgba("+acc+",0)"); return gr;};
+  cx.fillStyle=mk(0,0,0,edge);   cx.fillRect(0,0,W,edge);
+  cx.fillStyle=mk(0,H,0,H-edge); cx.fillRect(0,H-edge,W,edge);
+  cx.fillStyle=mk(0,0,edge,0);   cx.fillRect(0,0,edge,H);
+  cx.fillStyle=mk(W,0,W-edge,0); cx.fillRect(W-edge,0,edge,H);
+  cx.restore();
 }
 /* THE GOAL FLAG'S SHIMMER (R54): the door glitters — two diagonal
    highlight bands sweep the goal box on staggered periods and the
@@ -2264,6 +2345,7 @@ function aboutHTML(){
       <div class="about-card"><b>The Gates</b><span class="b">${GATES}</span> — a probe
         per law, ALL GREEN before any tag; the release train ships the binary.</div>
     </div>
+    <div class="about-ticker" id="about-ticker"><i class="strip"></i><div class="ride"></div></div>
     <div class="about-skins">
       ${skin("hud-industrial.png","industrial")}
       ${skin("hud-twilight.png","twilight")}
@@ -2282,6 +2364,20 @@ function aboutHTML(){
       <tr><td>zero dependencies · one file · served by any static host</td></tr>
     </table>
   </div>`;
+}
+/* THE CREDITS TICKER'S MOUNT (R56) — the ride is built after the modal
+   is in the DOM: each hop is a real thumbScene canvas of its world (the
+   same live miniature the tabs obey), doubled for the seamless loop. */
+function mountAboutTicker(){
+  const ride=document.querySelector("#about-ticker .ride"); if(!ride) return;
+  const hops=["level-1.dxn1.json","level-2.dxn1.json","level-3.dxn1.json","level-4.dxn1.json","level-5.dxn1.json"];
+  const mk=()=>hops.map((f,i)=>{
+    const d=S.scenes[f];
+    return `<span class="hop"><canvas width="76" height="44" data-f="${f}"></canvas>
+      <span><b>hop ${i+1}</b><i>${esc(d&&d.name||f)}</i></span></span>`;
+  }).join("");
+  ride.innerHTML=mk()+mk();
+  ride.querySelectorAll("canvas").forEach(c=>thumbScene(c.dataset.f,c));
 }
 function keysHTML(){
   return `<table>
@@ -2391,7 +2487,7 @@ function doAct(a){
         out.length?out.map(o=>o[0].toUpperCase()+"  "+o[1]).join("\n"):"clean — no findings");
       toast("Report exported",out.length?out.length+" findings":"clean"); break; }
     case "recenter": S.cam={x:-60,y:-40,z:1}; draw(); renderStats(); break;
-    case "about": modal("About DXN1 STUDIO",aboutHTML()); break;
+    case "about": modal("About DXN1 STUDIO",aboutHTML()); mountAboutTicker(); break;
     case "keys": modal("Editor Shortcuts",keysHTML()); break;
   }
 }
