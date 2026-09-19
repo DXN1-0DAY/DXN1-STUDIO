@@ -1,3 +1,75 @@
+## v3.1.141 — the ascent walk, the partial hold, and the look-sens pill
+
+*(the R63 session: the climb got its own walk, its own biome, and the
+fly-cam got its look governor. The round's engine is a new fire whose
+prediction is NOT the full-hold drift — the air drag owns the tail.)*
+
+### the probes
+
+- **THE ASCENT WALK IS A LAW**: the seventh dedicated walk,
+  `dec_level6_probe.py` (--scene level-6, the 180s gate cap belongs to
+  the climb) — five vertical movers, two saws biting OVER their decks,
+  three fangs on deck tops, and the magnet at 150 collecting the gems.
+  Five straight greens: 25.6s/0, 28.9s/1, 29.3s/0, 46.3s/2, 29.0s/0
+  deaths against the 170 cap.
+- **THE PARTIAL HOLD SOLVER** (the round's engine): the mid-deck's 54px
+  stand zone between saw-2 (x 1500..1538) and fang-2 (x 1630..1664) is
+  unreachable by ANY full-hold fire from lift-2 — the saw's y-band
+  re-entry (the descent's feet-368 crossing, ~0.07s before the
+  touchdown) forces the box past 1542+delta while the fang's shadow
+  caps the landing at 1560: the full-hold window is ~1px wide — a
+  lottery, not a law. The solver searches the release t1 on a 10ms
+  grid: the sustained 'd' releases at t1, the AIR_DRAG 220/s owns the
+  tail (the exact code path — dir==0 -> AIR_FRICTION*dt), the drift
+  loses 110*(t-t1)^2 AND the arrival vx softens to 330-220*(t-t1) —
+  the brake slide shrinks quadratically. Four gates per candidate: the
+  band clearance, the landing window, the slid end, the living vx.
+  Live fire: t1=0.46, the release ate 62px of drift, the arrival 199,
+  the landing 1568, the slid end ~1575 — clear of the fang by 21px.
+- **THE SIGN-CONVENTION CATCH**: arc_t takes the plane-ABOVE rise
+  (feet-plane) — three bands passed plane-feet and the terrace-2 jump
+  starved at rise -80 (the drift 286 vs the honest 196 — a 0-death
+  172s stall, the red that taught the convention).
+- **THE DEAD ZONES, AGAIN** (the vault's abutment lesson, round two):
+  the terrace-1 creep floor (800) stood PAST the fire's reach cap
+  (793) and the lift-3 zone's right edge (1840) could never fire (the
+  land 2087+ vs the gate 2086) — the nudge floors now overlap the
+  fire zones; the lift-2 board's zone moved to [975,1000] and its
+  gate to [1244,1276] against the MEASURED landings (1280-1308 from
+  x=997 — the hand-derived 265-277 drift assumed a shorter flight
+  than the rising deck's catch really takes).
+- **THE RELEASE EYES CLEARED**: the v3.1.139 and v3.1.140 Releases
+  verified live (the HTML expanded_assets pages — the API pool was
+  still 403): both carry their v-prefixed tarballs.
+
+### the studio
+
+- **THE LOOK-SENS PILL** (the fly-cam's pitch/yaw governor): the
+  viewport bar's second fly pill — click cycles [0.5,1,2,4], the wheel
+  fine-tunes in 0.1 steps (clamped 0.2..6), the value rides the prefs,
+  the pill glows while armed; the ARMED LOOK is SCALED by it
+  (const lk=S.fly.active?S.lookSens:1) while the MMB pan and the
+  space-drag stay 1:1. Browser-verified live: the click cycle
+  1.0→2.0→4.0→0.5, the wheel to 0.6, the armed glow on both pills,
+  THE LOOK SCALE EXACT (a movementX 40 drag at sens 0.6, z 1 panned
+  the camera 24px == 40*0.6/1), the prefs persisted.
+- **THE ASCENT'S OWN BIOME**: level-6 stopped wearing the industrial
+  set (borrowed since R48) — the generated indigo-peak sky
+  (sky-ascent.png) and the climb's chrome (hud-ascent.png), the
+  JPEG-bytes law's 24th AND 25th catches (both arrived JPEG wearing
+  .png names, re-encoded real PNGs — 870593 and 693831 bytes, magic
+  verified), the light-indigo accent 129,140,248 wired into
+  BIOME_ACC. The PIE HUD wears the ascent frame + bust live.
+
+### the law
+
+- ui_editor_probe pins 29 (was 28) — the R63 law group pins the
+  look-sens pill's mechanism + prefs ride, the armed look's scaling
+  line, and the ascent biome's wiring with both PNGs' real bytes.
+- Five corners wear 3.1.141; the 18:00 and 19:00 UTC boundaries are
+  covered by this tag (v3.1.140 held 15:00–17:00).
+- Gates ALL GREEN — 60 probes walked.
+
 ## v3.1.140 — the sixth receipt, the fly-cam, and the fourth splash
 
 *(the R62 session: the settle-everywhere plan was executed to the letter

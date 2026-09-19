@@ -682,6 +682,36 @@ R62 = [
 missing62 = [nm for nm, ok in R62 if not ok]
 pin("all 3 R62 studio laws present", not missing62, ", ".join(missing62))
 
+# THE R63 LAW GROUP — THE LOOK-SENS PILL (the fly look's pitch/yaw
+# pairing with the speed pill: click cycles, the wheel fine-tunes, the
+# value rides the prefs, the pill glows while armed, the armed look is
+# scaled — the MMB pan stays 1:1) and THE ASCENT'S OWN BIOME (level-6
+# stops borrowing the industrial set — the generated indigo sky +
+# chrome, the JPEG-bytes law's 24th and 25th catches, re-encoded real
+# PNGs, the light-indigo accent wired).
+R63 = [
+    ("the look-sens pill — the fly look's governor rides the prefs",
+        '<span class="vpill" id="vp-looksen"' in html
+        and 'const LOOKSTEPS=[0.5,1,2,4];' in html
+        and 'function setLookSens(v){ S.lookSens=v; $("looksens").textContent=v.toFixed(1); savePrefs(); }' in html
+        and 'lookSens:S.lookSens,' in html
+        and 'if(p.lookSens>0) S.lookSens=p.lookSens;' in html
+        and '$("vp-looksen").classList.add("on");' in html),
+    ("the armed look is scaled by the Look pill (the MMB pan stays 1:1)",
+        'const lk=S.fly.active?S.lookSens:1;' in html
+        and 'S.cam.x-=ev.movementX*lk/S.cam.z; S.cam.y-=ev.movementY*lk/S.cam.z; draw(); return;' in html),
+    ("the ascent's own biome — level-6 wears its generated sky + chrome",
+        '"level-6.dxn1.json":"sky-ascent.png",' in html
+        and '"level-6.dxn1.json":"hud-ascent.png",' in html
+        and '"hud-ascent.png":"129,140,248",' in html
+        and (_png_magic("sky-ascent.png") or b"") == b"\x89PNG"
+        and os.path.getsize(os.path.join(assets_dir, "sky-ascent.png")) > 400000
+        and (_png_magic("hud-ascent.png") or b"") == b"\x89PNG"
+        and os.path.getsize(os.path.join(assets_dir, "hud-ascent.png")) > 400000),
+]
+missing63 = [nm for nm, ok in R63 if not ok]
+pin("all 3 R63 studio laws present", not missing63, ", ".join(missing63))
+
 
 fails = [n for n, ok in pins if not ok]
 print(f"\nui_editor_probe: {len(pins)-len(fails)}/{len(pins)} pins green "

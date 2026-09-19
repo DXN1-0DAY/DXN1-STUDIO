@@ -583,6 +583,7 @@ body{background:var(--win); color:var(--text); font:var(--font); user-select:non
         <span class="vpill" id="vp-show">Show All ▾</span>
         <span class="vpill" id="vp-bm"><b>1-9</b> ▾</span>
         <span class="vpill" id="vp-camspeed" title="Camera fly speed (world px/s) — click cycles, wheel fine-tunes. Hold RMB in the viewport and fly with WASD + Q/E."><b>Cam</b> <span id="camspd">600</span></span>
+        <span class="vpill" id="vp-looksen" title="Fly look sensitivity — click cycles, wheel fine-tunes. Scales the RMB look while the fly is armed."><b>Look</b> <span id="looksens">1.0</span></span>
         <div id="vp-right">
           <span>FPS <b id="st-fps">—</b></span>
           <span>ENTS <b id="st-ent">—</b></span>
@@ -680,7 +681,7 @@ body{background:var(--win); color:var(--text); font:var(--font); user-select:non
 /* ================================================================
    DXN1 STUDIO 3 — editor brain. One file, no deps.
    ================================================================ */
-const VERSION = "3.1.140";
+const VERSION = "3.1.141";
 const GATES = "58 probes walked · all green";
 /* THE SPLASH ROTATION (R62): every boot wears one of the four generated
    splashes — v4 is the vault-mouth scene, the round's mandatory gen (the
@@ -749,6 +750,7 @@ function savePrefs(){
     v:1, cam:S.cam, snap:S.snap, grid:S.grid, gridStep:S.gridStep,
     tool:S.tool, cur:S.cur, hidden:[...S.hidden],
     camSpeed:S.camSpeed,
+    lookSens:S.lookSens,
     tabs:S.openTabs,
     folds:S.olFolds, bmarks:S.bmarks,
     left:$("left").style.display==="none"?"off":"on",
@@ -768,6 +770,7 @@ function loadPrefs(){
   if(p.folds&&typeof p.folds==="object") S.olFolds=p.folds;   // the folded folders come back
   if(p.bmarks&&typeof p.bmarks==="object") S.bmarks=p.bmarks; // the camera slots come back
   if(p.camSpeed>0) S.camSpeed=p.camSpeed;                     // the fly speed comes back
+  if(p.lookSens>0) S.lookSens=p.lookSens;                     // the look sens comes back (R63)
   if(p.left==="off") $("left").style.display="none";
   if(p.right==="off") $("right").style.display="none";
   if(p.bottom==="min") $("bottom").classList.add("min");
@@ -1123,25 +1126,32 @@ const skyImg=new Image(); skyImg.src="assets/sky.png";
    biome, themed from each scene's own palette; the generic sky.png
    stays the fallback for any scene the map doesn't dress. */
 const SKYS={
-  "level-1.dxn1.json":"sky-industrial.png", "level-6.dxn1.json":"sky-industrial.png",
+  "level-1.dxn1.json":"sky-industrial.png",
   "level-2.dxn1.json":"sky-twilight.png",  "level-7.dxn1.json":"sky-twilight.png",
   "level-12.dxn1.json":"sky-twilight.png",
   "level-3.dxn1.json":"sky-dawn.png",       "level-5.dxn1.json":"sky-dawn.png",
   "level-8.dxn1.json":"sky-dawn.png",
   "level-4.dxn1.json":"sky-void.png",       "level-9.dxn1.json":"sky-void.png",
   "level-10.dxn1.json":"sky-void.png",      "level-11.dxn1.json":"sky-void.png",
+  /* THE ASCENT'S OWN SKY (R63): level-6 wore the industrial sky since
+     R48 — the climb now wears its generated indigo-peak backdrop (the
+     JPEG-bytes law's 24th catch, re-encoded real PNG). */
+  "level-6.dxn1.json":"sky-ascent.png",
 };
 /* THE HUD SKINS (R51) — the PIE HUD's chrome follows the biome, the
    same law the skies obey: keyed by scene file, the generic frame as
    the honest fallback. */
 const HSKINS={
-  "level-1.dxn1.json":"hud-industrial.png", "level-6.dxn1.json":"hud-industrial.png",
+  "level-1.dxn1.json":"hud-industrial.png",
   "level-2.dxn1.json":"hud-twilight.png",  "level-7.dxn1.json":"hud-twilight.png",
   "level-12.dxn1.json":"hud-twilight.png",
   "level-3.dxn1.json":"hud-dawn.png",       "level-5.dxn1.json":"hud-dawn.png",
   "level-8.dxn1.json":"hud-dawn.png",
   "level-4.dxn1.json":"hud-void.png",       "level-9.dxn1.json":"hud-void.png",
   "level-10.dxn1.json":"hud-void.png",      "level-11.dxn1.json":"hud-void.png",
+  /* THE ASCENT'S OWN CHROME (R63): the PIE HUD wears the climb's
+     indigo filigree (the law's 25th catch, re-encoded real PNG). */
+  "level-6.dxn1.json":"hud-ascent.png",
 };
 /* THE PORTRAIT SHEET (R54) — the HUD's bust follows the biome too, the
    frame's law worn by the face: one hero, four lit variants (generated
@@ -1163,6 +1173,7 @@ const BIOME_ACC={
   "hud-twilight.png":"124,92,255",
   "hud-dawn.png":"251,113,133",
   "hud-void.png":"56,189,248",
+  "hud-ascent.png":"129,140,248",   /* the climb's light indigo */
 };
 const skyCache=new Map();          // src -> Image (one loader per asset)
 function skyFor(cur){
@@ -1810,6 +1821,8 @@ let mouse={x:0,y:0,down:false,dragEnt:false,panning:false,start:null,btn:0,marqu
    cycles the UE5 steps, the wheel fine-tunes. The pill glows while the
    fly is armed so the mode is never invisible. */
 S.camSpeed=S.camSpeed||600;
+S.lookSens=S.lookSens||1;   /* THE LOOK SENS (R63): the fly look's
+                               pitch/yaw pairing with the speed pill */
 S.fly={active:false, keys:new Set(), raf:0, last:0};
 function flyTick(t){
   if(!S.fly.active) return;
@@ -1829,12 +1842,14 @@ function flyStart(){
   S.fly.active=true; S.fly.last=performance.now();
   S.fly.raf=requestAnimationFrame(flyTick);
   cv.classList.add("flying"); $("vp-camspeed").classList.add("on");
+  $("vp-looksen").classList.add("on");
   log("evt","[fly] armed — WASD pans, Q/E zooms, speed "+S.camSpeed);
 }
 function flyStop(){
   if(!S.fly.active) return;
   S.fly.active=false; S.fly.keys.clear(); cancelAnimationFrame(S.fly.raf);
   cv.classList.remove("flying"); $("vp-camspeed").classList.remove("on");
+  $("vp-looksen").classList.remove("on");
   savePrefs();
 }
 window.addEventListener("keydown",ev=>{
@@ -1907,7 +1922,11 @@ cv.addEventListener("pointermove",ev=>{
     return;
   }
   if(mouse.panning){
-    S.cam.x-=ev.movementX/S.cam.z; S.cam.y-=ev.movementY/S.cam.z; draw(); return;
+    /* the armed fly's look is SCALED by the Look pill (R63) — the MMB
+       pan and the space-drag stay 1:1, the sensitivity belongs to the
+       fly's look the way UE5's look-rate belongs to the RMB orbit */
+    const lk=S.fly.active?S.lookSens:1;
+    S.cam.x-=ev.movementX*lk/S.cam.z; S.cam.y-=ev.movementY*lk/S.cam.z; draw(); return;
   }
   if(mouse.marquee){ mouse.marquee.x1=wx; mouse.marquee.y1=wy; draw(); return; }
   if(mouse.scale){
@@ -2744,6 +2763,22 @@ $("vp-camspeed").addEventListener("wheel",ev=>{
   setCamSpeed(CAMSTEPS[clamp(i+(ev.deltaY<0?1:-1),0,CAMSTEPS.length-1)]);
 },{passive:false});
 setCamSpeed(S.camSpeed||600);
+/* THE LOOK-SENS PILL (R63): the fly-cam's look governor — the pitch/yaw
+   pairing with the speed pill: click cycles the steps, the wheel
+   fine-tunes in 0.1 steps, the value rides the prefs, the pill glows
+   while the fly is armed. */
+const LOOKSTEPS=[0.5,1,2,4];
+function setLookSens(v){ S.lookSens=v; $("looksens").textContent=v.toFixed(1); savePrefs(); }
+$("vp-looksen").addEventListener("click",()=>{
+  const i=LOOKSTEPS.indexOf(S.lookSens||1);
+  setLookSens(LOOKSTEPS[(i+1)%LOOKSTEPS.length]);
+  toast("Look sensitivity",S.lookSens.toFixed(1)+"x");
+});
+$("vp-looksen").addEventListener("wheel",ev=>{
+  ev.preventDefault();
+  setLookSens(clamp(Math.round(((S.lookSens||1)+(ev.deltaY<0?0.1:-0.1))*10)/10,0.2,6));
+},{passive:false});
+setLookSens(S.lookSens||1);
 $("vp-show").addEventListener("click",()=>{
   const tags=["player","goal","hazard","spike","bouncy","coin","mover","ball","sign"];
   let rows=`<div style="user-select:text">`;
