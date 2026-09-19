@@ -1482,6 +1482,15 @@ if any(not ok for _, ok in pins):
     try:
         _os.system(f"cp {TRACE} {_fail_trace}")
         print(f"(the failed walk's trace kept at {_fail_trace})")
+        # THE TRACE SWEEP (R57): the red-run evidence piled up unbounded
+        # (27 traces by 08:29 UTC) — keep the last 8, sweep the elders.
+        # The newest stay banked for the autopsies that still cite them
+        # (R55's five vault runs are the recalibration evidence).
+        import glob as _glob
+        _olds = sorted(_glob.glob("/tmp/tour_fail_*.trace"))
+        for _o in _olds[:-8]:
+            try: os.unlink(_o)
+            except Exception: pass
     except Exception:
         pass
 try: os.unlink(TRACE)

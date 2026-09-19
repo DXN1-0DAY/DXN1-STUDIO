@@ -520,6 +520,33 @@ missing56 = [nm for nm, ok in R56 if not ok]
 pin("all 6 R56 studio laws present", not missing56, ", ".join(missing56))
 
 
+# ---- THE R57 LAWS ------------------------------------------------------
+# THE COIN ROW (the PIE HUD wears the collectibles themselves — one
+# generated coin per coin entity, dim until taken, a pop of light as it
+# does; the JPEG-bytes law's 18th catch, re-encoded to a real circular
+# PNG) and THE TILE FOOT (the campaign map's four tiles wear the same
+# biome accent the tab thumbnails do — FOOT_BY_BIOME is DERIVED from
+# BIOME_FOOT, so the two wears can never drift apart).
+R57 = [
+    ("the coin row — the PIE HUD's collectible ledger",
+        "function buildCoinRow(" in html
+        and "buildCoinRow(S.sim);" in html
+        and 'id="hud-coinrow"' in html
+        and 'img.classList.toggle("got", m.coins.has(img.dataset.n));' in html
+        and 'lab.textContent="0/"+coins.length;' in html),
+    ("the coin sprite — a real PNG (the JPEG-bytes law's 18th catch)",
+        (_png_magic("coin-glow.png") or b"") == b"\x89PNG"
+        and os.path.getsize(os.path.join(assets_dir, "coin-glow.png")) > 10000),
+    ("the tile foot — the campaign map wears the biome accent",
+        '#cb-map .biome::after{content:"";' in html
+        and 'el.style.setProperty("--foot", FOOT_BY_BIOME[bm.b]||"#8b5cf6");' in html
+        and "const FOOT_BY_BIOME={};" in html
+        and html.count("const BIOME_FOOT={") == 1),
+]
+missing57 = [nm for nm, ok in R57 if not ok]
+pin("all 3 R57 studio laws present", not missing57, ", ".join(missing57))
+
+
 fails = [n for n, ok in pins if not ok]
 print(f"\nui_editor_probe: {len(pins)-len(fails)}/{len(pins)} pins green "
       f"in {time.time()-t0:.1f}s")

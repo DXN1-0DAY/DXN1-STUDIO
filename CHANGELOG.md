@@ -1,3 +1,61 @@
+## v3.1.135 — the ledger of light: the PIE HUD counts its coins, the campaign map wears its feet
+
+*(the R57 session: the collectibles become visible currency — the PIE
+HUD wears a generated coin per coin entity that lights as the spark
+takes it — the campaign map's tiles wear the same biome accent the tab
+thumbnails do, the tour's red-run evidence stops piling up unbounded,
+and R55's five vault runs are mined for the transfer evidence R58's
+dedicated vault probe will walk on; the 09:00 UTC boundary is covered
+by this tag.)*
+
+- **THE COIN ROW**: the PIE HUD's top-center pill is now the run's
+  collectible ledger — one coin per coin entity in the scene, each a
+  GENERATED sprite (the mandatory image gen, 67.8s; the JPEG-bytes
+  law's 18th catch — the bytes arrived JPEG wearing a .png name and
+  were re-encoded to a real 128x128 PNG with an antialiased circular
+  alpha mask: corner alpha 0, edge alpha 252, the gold center
+  verified), dim (grayscale, brightness .4) until the spark takes it,
+  then a pop of gold light (drop-shadow, scale 1.15) with a count
+  label for scenes with more than ten coins; `buildCoinRow()` builds
+  the row at play start from the sim's own entities and `drawSim()`
+  toggles the lit class per frame — browser-verified end to end (the
+  teleport-collection test: coins 0→1, score 1, the gem's class lit,
+  the label 1/5).
+- **THE TILE FOOT**: the campaign map's four biome tiles wear the same
+  2px accent footline the tab thumbnails have worn since R56 — fed by
+  a `::after` whose color comes from the new `FOOT_BY_BIOME`, which is
+  DERIVED from `BIOME_FOOT` at load, so the two wears can never drift
+  apart; all four feet verified in the live browser at their exact
+  `BIOME_FOOT` colors (twilight #7c5cff, industrial #f59e0b, dawn
+  #fb7171, void #38bdf8).
+- **THE TRACE SWEEP**: the grand tour's red-run evidence no longer
+  piles up unbounded in /tmp — 27 traces had accumulated since R50;
+  the probe's fail path now keeps the last 8 and sweeps the elders,
+  deliberately preserving the five R55 vault runs that R58's
+  recalibration still cites.
+- **THE VAULT EVIDENCE (measured, not walked)**: R55's run-5 trace —
+  the run that reached the vault — mined for the transfer truth: 21
+  deaths, 15 of them at px 410–520 (the lift-1→lift-2 transfer pit),
+  with the two decks commonly moving in OPPOSITE directions at the
+  fall moments (the drive fires into a closing window). R58's brief is
+  banked: a dedicated `dec_vault_probe.py` (the engine takes
+  `--scene`, so the 180s cap belongs to the vault alone), the transfer
+  fire gated on lift-2's APPROACH phase, the moving-deck catch math
+  kept; the scene constants (lift-1 200..400 @80, lift-2 200..420 @95)
+  match the trace's observed ranges.
+- **THE EYEBALL DEBT CLOSED**: level-11's void mapping — pixel-
+  verified in R56 — is now eyeballed in a real screenshot: "the
+  return" wears the void sky in the viewport, the void tab tint with
+  its cyan foot, and the campaign map's active tile is void under the
+  brand-violet ring.
+- **THE LAW**: ui_editor_probe pins 23 (was 22) — the R57 law group
+  re-pins the coin row's mechanism (the builder, the play-start mount,
+  the got toggle), the coin sprite's real PNG bytes, and the tile foot
+  (the ::after, the --foot setProperty, the FOOT_BY_BIOME derivation,
+  and `BIOME_FOOT` defined exactly once — the drift-proof single
+  source). The trace sweep rides in grand_tour_probe's fail path.
+- five corners wear 3.1.135; gates ALL GREEN exit 0, 58 probes walked.
+
 ## v3.1.134 — the frame that breathes, the tour that rides, and the canvas that finally washes
 
 *(the R56 session: the carried biome-mapping debt closed at its root, the

@@ -194,6 +194,13 @@ body{background:var(--win); color:var(--text); font:var(--font); user-select:non
 .hud-tr{top:14px; right:16px;}
 .hud-bl{bottom:14px; left:16px;}
 .hud-br{bottom:14px; right:16px; color:#a5b4fc; letter-spacing:.05em;}
+/* THE COIN ROW (R57) — the collectibles themselves, top-center: one
+   generated coin per coin entity, dim until the spark takes it, a pop
+   of light as it does — the quest-tracker read, not a bare number. */
+.hud-tc{top:14px; left:50%; transform:translateX(-50%); gap:4px; padding:6px 12px;}
+.hud-tc img.cr-coin{filter:grayscale(1) brightness(.4); transition:filter .16s, transform .16s;}
+.hud-tc img.cr-coin.got{filter:drop-shadow(0 0 5px rgba(251,191,36,.75)); transform:scale(1.15);}
+.hud-tc .cr-lab{font-size:10px; color:rgba(255,255,255,.72); margin-left:3px; letter-spacing:.04em;}
 /* THE PLAYER PORTRAIT (R53) — the PIE HUD wears the hero's face: a
    rounded frame (the brand violet ring, the charcoal plate) with the
    generated bust and a live HP bar under it — UE5's PIE portrait
@@ -335,6 +342,10 @@ body{background:var(--win); color:var(--text); font:var(--font); user-select:non
 #cb-map .biome:hover{filter:brightness(1.15);}
 #cb-map .biome.active{box-shadow:inset 0 0 0 2px var(--brand), inset 0 -14px 22px rgba(139,92,246,.25);}
 #cb-map .biome.active span{color:#ddd6fe;}
+/* THE TILE FOOT (R57): the campaign map wears the biome's light too —
+   the same 2px accent the tab thumbnails carry (BIOME_FOOT via --foot). */
+#cb-map .biome::after{content:""; position:absolute; left:0; right:0; bottom:0;
+  height:2px; background:var(--foot,#8b5cf6); opacity:.92; z-index:2;}
 #cardgrid{flex:1; overflow-y:auto; display:flex; flex-wrap:wrap; gap:10px; padding:12px;
   align-content:flex-start;}
 #cardgrid::-webkit-scrollbar{width:10px;}
@@ -529,6 +540,7 @@ body{background:var(--win); color:var(--text); font:var(--font); user-select:non
             <img class="hud-frame" src="assets/hud-frame.png" alt="">
             <div class="hud-portrait"><img src="assets/portrait-hero.png" alt=""><div class="hp"><div id="hud-hp"></div></div></div>
             <div class="hud-pill hud-tl"><img src="assets/icon-coin.png" alt=""> SCORE <b id="hud-score">0</b></div>
+            <div class="hud-pill hud-tc" id="hud-coinrow" title="the collectibles"></div>
             <div class="hud-pill hud-tr">TIME <b id="hud-time">0.0</b>s · DEATHS <b id="hud-deaths">0</b></div>
             <div class="hud-pill hud-bl"><span class="hud-lab">VX</span><div class="hud-bar"><div id="hud-vx"></div></div><span class="hud-lab">VY</span><div class="hud-bar"><div id="hud-vy"></div></div></div>
             <div class="hud-pill hud-br" id="hud-state">grounded</div>
@@ -610,7 +622,7 @@ body{background:var(--win); color:var(--text); font:var(--font); user-select:non
 /* ================================================================
    DXN1 STUDIO 3 — editor brain. One file, no deps.
    ================================================================ */
-const VERSION = "3.1.134";
+const VERSION = "3.1.135";
 const GATES = "58 probes walked · all green";
 
 const SCENES = [
@@ -846,6 +858,10 @@ function buildCampaignMap(){
     el.dataset.b=bm.b;
     el.innerHTML=`<i style="background-image:url('assets/${bm.img}')"></i>
       <b style="background:${bm.tint}"></b><span>${bm.b}</span><em>${n} ents</em>`;
+    /* the biome foot (R57): the tiles wear the same strip of light the
+       tab thumbnails do — FOOT_BY_BIOME derives from BIOME_FOOT, one
+       source of truth. */
+    el.style.setProperty("--foot", FOOT_BY_BIOME[bm.b]||"#8b5cf6");
     el.title=bm.b+" — "+(bm.scenes||[]).length+" scenes";
     el.addEventListener("click",()=>{ const f=(bm.scenes||[])[0]; if(f) loadScene(f); });
     map.appendChild(el);
@@ -946,6 +962,10 @@ const BIOME_FOOT={
   "sky-dawn.png":"#fb7171",
   "sky-void.png":"#38bdf8",
 };
+/* the same feet keyed by biome name — the campaign tiles' wear (R57);
+   derived, so the two wears can never drift apart. */
+const FOOT_BY_BIOME={};
+for(const k in BIOME_FOOT) FOOT_BY_BIOME[k.replace(/^sky-/,"").replace(/\.png$/,"")]=BIOME_FOOT[k];
 function thumbScene(f, cv){
   const g=cv.getContext("2d"); if(!g) return;
   const d=S.scenes[f]; if(!d) return;
@@ -2043,6 +2063,8 @@ function startPlay(){
   /* the bust wears the biome too (R54) — the portrait sheet's variant */
   const hb=document.querySelector("#pie-hud .hud-portrait img");
   if(hb) hb.src="assets/"+(PHSKINS[S.cur]||"portrait-hero.png");
+  /* the collectible ledger (R57) — one generated coin per coin entity */
+  buildCoinRow(S.sim);
   $("sb-sim").innerHTML='<b style="color:var(--warn)">playing</b>';
   log("evt","[pie] playing "+S.cur+" — gravity "+S.sim.grav+" (scene), jump "+JUMP_VY+", P or Esc to stop");
   toast("Play in editor",d.name||S.cur);
@@ -2163,6 +2185,25 @@ function die(m,what){
   toast("Died", (what.name||what.tag)+" got you — respawn","bad");
   m.p.x=spawn.x; m.p.y=spawn.y; m.p.vx=0; m.p.vy=0;
 }
+/* THE COIN ROW (R57): built at play start from the scene's own coins —
+   each a generated sprite, dim until taken. The row is the run's
+   collectible ledger; the count label carries scenes with >10 coins. */
+function buildCoinRow(m){
+  const row=$("hud-coinrow"); if(!row) return;
+  const coins=m.ents.filter(e=>e.tag==="coin");
+  row.innerHTML="";
+  for(const c of coins.slice(0,10)){
+    const img=document.createElement("img");
+    img.src="assets/coin-glow.png"; img.alt="";
+    img.className="cr-coin"; img.dataset.n=c.name||"";
+    row.appendChild(img);
+  }
+  const lab=document.createElement("span");
+  lab.className="cr-lab"; lab.id="hud-coinlab";
+  lab.textContent="0/"+coins.length;
+  row.appendChild(lab);
+  row.dataset.total=coins.length;
+}
 function drawSim(){
   const m=S.sim; if(!m) return;
   for(const e of m.ents){
@@ -2197,6 +2238,12 @@ function drawSim(){
       hp.style.width=(m.done?100:Math.max(10,full))+"%";
     }
     $("hud-state").textContent=(m.p.ground?"grounded":"airborne")+(m.done?" · complete":"");
+    /* THE COIN ROW'S LIGHT (R57): each coin lights as the spark takes it */
+    const crow=$("hud-coinrow");
+    if(crow) for(const img of crow.querySelectorAll("img.cr-coin"))
+      img.classList.toggle("got", m.coins.has(img.dataset.n));
+    const clab=$("hud-coinlab");
+    if(clab) clab.textContent=m.coins.size+"/"+(crow?crow.dataset.total:"0");
   }
   drawAmbientFrame();
 }
