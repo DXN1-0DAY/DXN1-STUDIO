@@ -611,13 +611,29 @@ def dec_level3(h, st, now):
         # for every lag up to 0.3s — a legal landing every time.
         win = l2 is not None and l2[1] <= 100.0 and l2[2] == 0
         if win:
-            if x >= 1205 and vx >= 280 and x <= 1232 \
+            # R51 (the tour_fail_1789781046 stall): the fire asked for
+            # vx >= 280 inside [1205,1232], but NOTHING started the run
+            # — a hero who arrived slow (the wjump's landing momentum
+            # already spent) stood at 1205.8 for 132 seconds while the
+            # window opened 29 times, every branch returning b"" (the
+            # run branch only fired left of 1205, the reverse only
+            # right of 1230, the hold ate everything between). The run
+            # itself cannot reach 280 from ledge-b's edge: 685px/s² of
+            # RUN_ACCEL over the 52px from 1180 tops out at 267. The
+            # floor drops to 250 (reachable with a 46px run from
+            # <= 1186; the landing gains ~30px from the drive's mid-air
+            # accel, so 1225+8+231 = 1464 — still inside the deck), and
+            # a slow hero now BRAKES BACK to the run start instead of
+            # freezing at the fire line.
+            if x >= 1205 and vx >= 250 and x <= 1232 \
                     and now - st.last_jump > 0.4:
                 dbg3("lift2-board", x, y, vx)
                 st.last_jump = now; st.last_x = x
                 return b"wd"                # the run-jump onto the deck
-            if x < 1205:
-                st.last_x = x; return b"d"  # run right through the band
+            if vx < 250 and x > 1186:
+                st.last_x = x; return b"a"  # brake back to the run start
+            if x < 1186:
+                st.last_x = x; return b"d"  # the run: ~46px to reach 250
             if x > 1230:
                 st.last_x = x; return b"a"  # the safe reverse: a walk-past
                                             # slid into the watcher's 1px
@@ -629,27 +645,23 @@ def dec_level3(h, st, now):
         if x < 1177:
             st.last_x = x; return b"d"      # nudge right
         st.last_x = x; return b""           # hold at the start
-    # ledge-a (760..940, top 330, standing py 286) — THE PARK-AND-RUN
-    # BOARDING (R50, the twelfth autopsy — tour_fail_1789772528): the
-    # old coast-through band (783..813, fire at ANY vx) was a 30px
-    # slice crossed at full speed between two probe samples under
-    # load; the missed window slid the hero into a brake oscillation
-    # whose 67px stopping distance walked it off the ledge's LEFT
-    # edge, and the recovery walk fell off the ground's right edge at
-    # 800 — three deaths per red run. Now: the arrival coasts right
-    # and brakes only past 845 (a brake fired earlier slides 79px off
-    # the left edge), the idle hero is velocity-damped into the park
-    # box [772,784] (position bang-bang alone overshoots by v²/2a),
-    # and the fire is a RUN: on the deck's bottom-turn (y >= 320,
-    # rising) the hero accelerates and fires b"wd" at the first
-    # sample with vx >= 290 inside the launch box [800,845] — the
-    # landing = sampled x + lag(8..25px) + the ~205..215px arc (R48's
-    # own greens) ∈ [1013,1085], inside the deck's 990..1120 for
-    # every lag. A missed cycle is a safe re-park, not a death.
+    # ledge-a (760..940, top 330, standing py 286) — THE COAST-THROUGH
+    # BOARDING, RESTORED (R51): R50's park-and-run fired from [800,845]
+    # and its landings (~1062 observed, vx=330) plus the 79px brake
+    # slide walked the hero off the deck's right edge (1120) whenever
+    # the landing passed ~1041 — the tour_fail_1789780375 autopsy: the
+    # hero landed ON the deck, the ride law's own brake could not stop
+    # 330px/s within 58px, and the fall to the pit wore lift-2's
+    # address (1436,939). R48's coast-through fires 17-45px further
+    # LEFT (the hero crosses [783,813] at full speed straight off the
+    # ledge-a jump's landing), the landings stay in R48's proven
+    # ~[995,1040] region, and the brake holds. The missed-window
+    # recovery (the ground-edge guard + the damping below) is kept —
+    # a missed window is a recovery loop, not a death.
     if grounded and 280 <= y <= 292 and 755 <= x <= 945:
-        if l1 is not None and l1[1] >= 320.0 and l1[2] == 1 \
-                and now - st.last_jump > 0.5:
-            if 800 <= x <= 845 and vx >= 290:
+        if 783 <= x <= 813:
+            if l1 is not None and l1[1] >= 320.0 and l1[2] == 1 \
+                    and now - st.last_jump > 0.5:
                 if _os.environ.get("DXN3_TOUR_DEBUG"):
                     print(f"[L3-board] x={x:.0f} vx={vx:.0f} "
                           f"deck={l1[0]:.0f},{l1[1]:.0f}",
@@ -660,21 +672,9 @@ def dec_level3(h, st, now):
                 st.drive_s = s
                 st.last_x = x
                 return b"wd"                # board the rising lift
-            if x < 845:                     # the run-up through the box
-                st.last_x = x; return b"d"
-            st.last_x = x; return b"a"      # overshot the box: brake back
-        if vx > 60 and x > 845:             # the arrival brake: the slide
-            st.last_x = x; return b"a"      # from >=845 stops on the ledge
-        if vx > 60:                         # sliding right below 845:
-            st.last_x = x; return b""       # coast (a brake here slides
-                                            # 79px off the LEFT edge)
-        if vx < -60:                        # sliding left: brake NOW
-            st.last_x = x; return b"d"
-        if x < 772:                         # nudge into the park box
-            st.last_x = x; return b"d"
-        if x > 784:
-            st.last_x = x; return b"a"
-        st.last_x = x; return b""           # parked; the cycle returns (4.7s)
+            st.last_x = x; return b""       # hold; the cycle returns (4.7s)
+        st.last_x = x
+        return b"d" if x < 783 else b"a"
     # the ledge-a jump: from the ground, the rising crossing clears the
     # ledge's left edge (box-right x0+83 <= 760) and the landing
     # (x0+249 = 798..906) overlaps the top

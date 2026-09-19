@@ -16,11 +16,15 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        cxx: [g++, clang++]
+        cxx: [g++-14]
     env:
       CXX: ${{ matrix.cxx }}   # the Makefile honors CXX (?= g++)
     steps:
       - uses: actions/checkout@v4
+      - name: install g++-14 (the runner's 13 lacks C++23's <print>)
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq g++-14
       - name: run the gauntlet
         run: bash scripts/gates.sh
 
@@ -29,6 +33,10 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4   # only to have install.sh locally
+      - name: install g++-14 (the runner's 13 lacks C++23's <print>)
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq g++-14
       - name: install with --dir into a scratch home
         run: bash scripts/install.sh --dir "$RUNNER_TEMP/dxn3-ci"
       - name: the launcher answers from anywhere

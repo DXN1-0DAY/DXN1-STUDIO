@@ -57,19 +57,32 @@ have() { command -v "$1" >/dev/null 2>&1; }
 MISSING=0
 if have git; then ok "git $( git --version 2>&1 | head -1 )"; else bad "git not found"; MISSING=1; fi
 CXX_BIN=""
-if have g++; then CXX_BIN=g++
+if have g++-14; then CXX_BIN=g++-14
+elif have g++; then CXX_BIN=g++
 elif have clang++; then CXX_BIN=clang++
 fi
 if [ -n "$CXX_BIN" ]; then
   ok "$CXX_BIN $( $CXX_BIN --version 2>&1 | head -1 )"
   if printf 'int main(){}' | $CXX_BIN -x c++ -std=c++23 - -o /tmp/dxn3_cxx_probe.$$ 2>/dev/null; then
-    ok "C++23 compiles"
     rm -f /tmp/dxn3_cxx_probe.$$
+    # the honest probe: the engine includes <print>, which only GCC 14+
+    # ships — a compiler that accepts -std=c++23 but lacks the header
+    # would fail the build three steps later (the v3.1.126/127 lesson:
+    # the runner's g++ 13 passed this probe and died on the real source).
+    if printf '#include <print>\nint main(){std::println("probe");}' | $CXX_BIN -x c++ -std=c++23 - -o /tmp/dxn3_cxx_probe.$$ 2>/dev/null; then
+      ok "C++23 compiles (<print> speaks)"
+      rm -f /tmp/dxn3_cxx_probe.$$
+    else
+      bad "$CXX_BIN lacks C++23 <print> — install g++-14 (GCC 14+)"
+      rm -f /tmp/dxn3_cxx_probe.$$
+      MISSING=1
+    fi
   else
-    warn "$CXX_BIN rejects -std=c++23 — the build may fail (needs GCC 12+ / clang 17+)"
+    bad "$CXX_BIN rejects -std=c++23 — the build may fail (needs GCC 14+ / clang 17+)"
+    MISSING=1
   fi
 else
-  bad "no C++ compiler found (need g++ or clang++ with C++23)"
+  bad "no C++ compiler found (need g++ 14+ with C++23 <print>)"
   MISSING=1
 fi
 if [ $MISSING -eq 1 ]; then
@@ -100,7 +113,7 @@ fi
 # --- 3. build + selftest -------------------------------------
 say ""
 say "${C_B}→ building the native core (takes ~10 seconds)${C_D}"
-if ( cd "$INSTALL_DIR" && make -s -C native ) >/tmp/dxn3_install_build.log 2>&1 \
+if ( cd "$INSTALL_DIR" && CXX="$CXX_BIN" make -s -C native ) >/tmp/dxn3_install_build.log 2>&1 \
    && [ -x "$INSTALL_DIR/native/build/dxn3-native" ]; then
   ok "native core built — one binary, zero dependencies"
 else

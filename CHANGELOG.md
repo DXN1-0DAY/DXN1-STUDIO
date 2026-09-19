@@ -1,6 +1,35 @@
-## v3.1.127 — the outliner grows a hierarchy, and the camera keeps slots
+## v3.1.128 — the runner learns GCC 14, and the release train ships steel
 
 *(the 01:00 UTC boundary's tag; the R51 round pays it.)*
+
+- **THE FOURTEENTH AUTOPSY — THE RUNNER'S COMPILER**: every release
+  since v3.1.121 minted with notes but no binary, and the CI badge
+  burned red — the cause was one header: the engine includes C++23's
+  `<print>` (std::println on the wire's welcome mat), which ships
+  with **GCC 14**, while GitHub's ubuntu-latest runner defaults to
+  **GCC 13**. The local Debian g++ is 14.2, so every local gate ran
+  green while the runner's `make` died on the first include — the
+  v3.1.126/127 releases minted via the sweep's notes-only path and
+  the mint's upload had no file to upload. The fix: both workflows
+  install `g++-14` (in ubuntu 24.04's own repos — still zero
+  dependencies of OUR own) and the Makefile's `CXX=` override points
+  the build at it; the CI matrix narrows to `g++-14` (clang's
+  libstdc++ pairing had the same 13-shaped hole).
+- **THE INSTALLER'S HONEST PROBE**: install.sh's tool check accepted
+  any compiler that recognized `-std=c++23` — GCC 13 recognizes the
+  flag and then fails three steps later on the real source. The probe
+  now compiles a literal `#include <print>` one-liner and FAILS the
+  install loudly on a compiler that lacks it, prefers g++-14 when
+  present, and passes its own choice to the Makefile (`CXX=$CXX_BIN`).
+- v3.1.127's release (the first tag after the by-value mint rewrite)
+  still minted asset-less — the compiler was the last lie. This tag's
+  release is the first that must carry dxn3-3.1.128.tar.gz; the run
+  log echoes the asset list it uploaded. Five corners wear 3.1.128.
+
+## v3.1.127 — the outliner grows a hierarchy, and the camera keeps slots
+
+*(the R51 round's first tag; the 01:00 boundary's debt moved to
+v3.1.128 when this landed nine minutes early.)*
 
 - **THE OUTLINER TREE** — UE5's outliner is a hierarchy, not a flat
   list: the entities now group under their tag's folder (player,
