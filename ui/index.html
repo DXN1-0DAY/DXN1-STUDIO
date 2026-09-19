@@ -142,11 +142,15 @@ body{background:var(--win); color:var(--text); font:var(--font); user-select:non
 #tabbar{display:flex; gap:2px; background:var(--head); padding:3px 6px 0;
   border-bottom:1px solid var(--border); flex:none; overflow-x:auto; scrollbar-width:none;}
 #tabbar::-webkit-scrollbar{display:none;}
-.vtab{display:flex; align-items:center; gap:7px; background:var(--panel2); border:1px solid var(--border);
-  border-bottom:0; color:var(--dim); font:inherit; font-size:11px; padding:4px 6px 4px 10px;
-  border-radius:5px 5px 0 0; cursor:pointer; max-width:190px; white-space:nowrap; overflow:hidden; flex:none;}
+.vtab{display:flex; flex-direction:column; align-items:stretch; gap:4px; background:var(--panel2); border:1px solid var(--border);
+  border-bottom:0; color:var(--dim); font:inherit; font-size:11px; padding:4px 5px 4px 5px;
+  border-radius:5px 5px 0 0; cursor:pointer; max-width:110px; flex:none;}
+.vtab .vthumb{width:100%; height:44px; display:block; border-radius:3px;
+  border:1px solid var(--border); background:#0d0c12;}
+.vtab .trow{display:flex; align-items:center; gap:5px; min-width:0;}
 .vtab.active{background:var(--sky); color:var(--text); border-color:var(--hair);}
-.vtab .nm{overflow:hidden; text-overflow:ellipsis;}
+.vtab.active .vthumb{border-color:rgba(139,92,246,.55); box-shadow:0 0 10px rgba(139,92,246,.25);}
+.vtab .nm{overflow:hidden; text-overflow:ellipsis; flex:1;}
 .vtab .x{width:15px; height:15px; display:flex; align-items:center; justify-content:center;
   border-radius:3px; color:var(--faint); font-size:11px; flex:none;}
 .vtab .x:hover{background:var(--bad); color:#fff;}
@@ -190,6 +194,20 @@ body{background:var(--win); color:var(--text); font:var(--font); user-select:non
 .hud-tr{top:14px; right:16px;}
 .hud-bl{bottom:14px; left:16px;}
 .hud-br{bottom:14px; right:16px; color:#a5b4fc; letter-spacing:.05em;}
+/* THE PLAYER PORTRAIT (R53) — the PIE HUD wears the hero's face: a
+   rounded frame (the brand violet ring, the charcoal plate) with the
+   generated bust and a live HP bar under it — UE5's PIE portrait
+   chip, studio-flavored. */
+.hud-portrait{position:absolute; left:16px; bottom:64px; display:flex;
+  flex-direction:column; align-items:center; gap:5px; pointer-events:none;}
+.hud-portrait img{width:64px; height:64px; display:block; object-fit:cover;
+  border-radius:10px; border:2px solid rgba(139,92,246,.55);
+  box-shadow:0 2px 16px rgba(0,0,0,.55), 0 0 18px rgba(139,92,246,.18);
+  background:#191622;}
+.hud-portrait .hp{width:64px; height:5px; background:rgba(0,0,0,.6);
+  border-radius:3px; overflow:hidden; border:1px solid rgba(139,92,246,.4);}
+.hud-portrait .hp>div{height:100%; width:100%;
+  background:linear-gradient(90deg,#8b5cf6,#22d3ee); transition:width .12s linear;}
 .hud-bar{width:90px; height:6px; background:rgba(0,0,0,.55); border-radius:3px;
   overflow:hidden; border:1px solid rgba(56,189,248,.2);}
 .hud-bar>div{height:100%; width:0%; background:linear-gradient(90deg,#22d3ee,#8b5cf6);
@@ -474,6 +492,7 @@ body{background:var(--win); color:var(--text); font:var(--font); user-select:non
           <canvas class="voverlay" id="gizmo" width="128" height="128"></canvas>
           <div id="pie-hud">
             <img class="hud-frame" src="assets/hud-frame.png" alt="">
+            <div class="hud-portrait"><img src="assets/portrait-hero.png" alt=""><div class="hp"><div id="hud-hp"></div></div></div>
             <div class="hud-pill hud-tl"><img src="assets/icon-coin.png" alt=""> SCORE <b id="hud-score">0</b></div>
             <div class="hud-pill hud-tr">TIME <b id="hud-time">0.0</b>s · DEATHS <b id="hud-deaths">0</b></div>
             <div class="hud-pill hud-bl"><span class="hud-lab">VX</span><div class="hud-bar"><div id="hud-vx"></div></div><span class="hud-lab">VY</span><div class="hud-bar"><div id="hud-vy"></div></div></div>
@@ -556,7 +575,7 @@ body{background:var(--win); color:var(--text); font:var(--font); user-select:non
 /* ================================================================
    DXN1 STUDIO 3 — editor brain. One file, no deps.
    ================================================================ */
-const VERSION = "3.1.130";
+const VERSION = "3.1.131";
 const GATES = "58 probes walked · all green";
 
 const SCENES = [
@@ -842,15 +861,61 @@ function newScene(){
 }
 
 /* ── editor tabs — the viewport wears its open scenes (UE5-style) ── */
+/* THE TAB THUMBNAILS (R53): every scene tab wears a live miniature of
+   its own map — the biome sky tint, the platforms, the movers, the
+   spikes, the coins and the goal fitted into a 72x44 frame, redrawn
+   from the scene's own geometry every time the tab bar renders and on
+   every edit of the active scene. The real thing's level tiles, born
+   from the data, not pasted art. */
+const THUMB_TINTS={
+  "sky-industrial.png":["#3b2f1e","#171310"],
+  "sky-twilight.png":["#2e2440","#120f1a"],
+  "sky-dawn.png":["#40302a","#191210"],
+  "sky-void.png":["#241b38","#0e0a16"],
+};
+function thumbScene(f, cv){
+  const g=cv.getContext("2d"); if(!g) return;
+  const d=S.scenes[f]; if(!d) return;
+  const W=cv.width, H=cv.height;
+  const t=THUMB_TINTS[SKYS[f]||""]||["#252130","#101017"];
+  const grad=g.createLinearGradient(0,0,0,H);
+  grad.addColorStop(0,t[0]); grad.addColorStop(1,t[1]);
+  g.fillStyle=grad; g.fillRect(0,0,W,H);
+  const es=d.entities||[];
+  if(!es.length) return;
+  let x0=1e9,y0=1e9,x1=-1e9,y1=-1e9;
+  for(const e of es){
+    x0=Math.min(x0,e.x); y0=Math.min(y0,e.y);
+    x1=Math.max(x1,e.x+(e.w||8)); y1=Math.max(y1,e.y+(e.h||8));
+  }
+  const pad=5, z=Math.min((W-pad*2)/Math.max(1,x1-x0),(H-pad*2)/Math.max(1,y1-y0));
+  const ox=(W-(x1-x0)*z)/2-x0*z, oy=(H-(y1-y0)*z)/2-y0*z;
+  const COL={"mover":"#38bdf8","spike":"#f87171","coin":"#fbbf24",
+             "goal":"#a78bfa","sign":"#94a3b8","player":"#4ade80"};
+  for(const e of es){
+    const x=ox+e.x*z, y=oy+e.y*z, w=Math.max(1.5,(e.w||8)*z), h=Math.max(1.5,(e.h||8)*z);
+    g.fillStyle=COL[e.tag]||"#64748b";
+    if(e.tag==="spike"){ g.beginPath(); g.moveTo(x,y+h); g.lineTo(x+w/2,y);
+      g.lineTo(x+w,y+h); g.closePath(); g.fill(); }
+    else if(e.tag==="coin"||e.tag==="ball"){ g.beginPath();
+      g.arc(x+w/2,y+h/2,Math.max(1.5,w/2),0,7); g.fill(); }
+    else g.fillRect(x,y,w,h);
+  }
+}
 function renderTabs(){
   const bar=$("tabbar"); bar.innerHTML="";
   for(const f of S.openTabs){
     const d=S.scenes[f]; if(!d) continue;
     const t=document.createElement("div");
     t.className="vtab"+(f===S.cur?" active":"");
-    t.innerHTML=`<span class="nm">${esc(d.name||f)}</span><span class="x" title="Close tab">✕</span>`;
+    const th=document.createElement("canvas");
+    th.className="vthumb"; th.width=76; th.height=44;
+    thumbScene(f, th);
+    const row=document.createElement("div"); row.className="trow";
+    row.innerHTML=`<span class="nm">${esc(d.name||f)}</span><span class="x" title="Close tab">✕</span>`;
+    t.appendChild(th); t.appendChild(row);
     t.addEventListener("click",ev=>{ if(ev.target.classList.contains("x")) return; loadScene(f); });
-    t.querySelector(".x").addEventListener("click",ev=>{ ev.stopPropagation(); closeTab(f); });
+    row.querySelector(".x").addEventListener("click",ev=>{ ev.stopPropagation(); closeTab(f); });
     t.addEventListener("auxclick",ev=>{ if(ev.button===1) closeTab(f); });
     bar.appendChild(t);
   }
@@ -878,7 +943,12 @@ function uniqName(base){
 function setSel(names){
   S.sel=new Set(names); renderOutliner(); renderDetails(); renderStats(); draw();
 }
-function renderAll(){ renderOutliner(); renderDetails(); renderStats(); draw(); }
+function renderAll(){ renderOutliner(); renderDetails(); renderStats(); draw();
+  /* the active tab's thumbnail follows the edit (R53) — the tile is a
+     live miniature, not a load-time snapshot. */
+  const th=document.querySelector("#tabbar .vtab.active .vthumb");
+  if(th) thumbScene(S.cur, th);
+}
 function tagOf(e){ return e.tag||""; }
 
 /* ── renderer ─────────────────────────────────────────────────── */
@@ -2014,6 +2084,13 @@ function drawSim(){
     $("hud-deaths").textContent=m.deaths;
     $("hud-vx").style.width=Math.min(100,Math.abs(m.p.vx)/PIESPEED*100)+"%";
     $("hud-vy").style.width=Math.min(100,Math.abs(m.p.vy)/1500*100)+"%";
+    /* THE PORTRAIT'S HP (R53): the spark's vitality — 100% grounded and
+       whole, bleeding with every death, restored on the scene load. */
+    const hp=$("hud-hp");
+    if(hp){
+      const full=100-Math.min(90,m.deaths*15);
+      hp.style.width=(m.done?100:Math.max(10,full))+"%";
+    }
     $("hud-state").textContent=(m.p.ground?"grounded":"airborne")+(m.done?" · complete":"");
   }
 }

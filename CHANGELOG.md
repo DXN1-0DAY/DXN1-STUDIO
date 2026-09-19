@@ -1,3 +1,74 @@
+## v3.1.131 — the jump-brake learns its latency, and every tab wears its world
+
+*(the R53 session: four autopsies' worth of telemetry honesty in the
+grand tour, the tab thumbnails, and the hero's own face on the PIE HUD;
+the 03:00 and 04:00 UTC boundaries are covered by this tag — the round
+spent them mid-autopsy and the debt is declared honestly here.)*
+
+- **THE SIXTEENTH AUTOPSY — THE JUMP-BRAKE'S DOSE**: the R52 release
+  (`vx <= -0.4 * vx_at_fire`) was calibrated latency-free, but the dose
+  rides 40Hz sampling plus 1-2 input ticks: the trace shows the release
+  DECIDED at vx=-148 yet the engine still held 'a' to vx=-225, and the
+  arc dumped 111px (launch 1218 -> landing 1106) — off ledge-b onto
+  lift-1's descending deck, where the default walk ran the hero off the
+  deck's edge (11 honest deaths in the red run). Two dose leaks fixed:
+  the hold is AIRBORNE-ONLY (the old branch returned 'a' on the stale
+  grounded ticks and bled the launch 235 -> 158), and the release is
+  the zero-cross at +0.4 * vx_at_fire — the sampled first-below lands
+  ~76 under the threshold, the latency adds ~153, and the cut settles
+  at ~ -90 across the whole 150..330 fire band. The arc now parks
+  launch-9..-41 on ledge-b every time (the honest-launch case measured
+  at launch-12).
+- **THE ELEVATOR TURNAROUND WALK-OFF (level-1)**: at the elevator's
+  bottom turnaround the deck's carry wobbles (py 325.2 -> 327.9 ->
+  327.1 -> 324.3) and the 4-sample delta dips below ride_check's 1.5
+  floor — the law read "not a carry", fell through to the default
+  b"d", and a hero parked at 1448 (the board arc lands up to 1448; the
+  deck's edge is 1450) walked off at full run accel — five falls
+  (1585..1728, the drift of a 330px/s fall from py 324). The elevator
+  re-acquisition guard now owns the deck's travel band (x 1330..1449,
+  standing 215..340): a non-riding hero walks back into the interior
+  and holds until the carry is witnessed; the top turnaround stays
+  unguarded because there the default IS the disembark.
+- **THE GAP-DECK TRIPLE MISS (level-1)**: the disembark's fixed band
+  (830..910) assumed the deck parked at its right extreme — but the
+  deck ping-pongs, a hero who arrives while it retreats meets its edge
+  at 835, the fall ate both windows, and the landing at 896.6 missed
+  the ground window by 1.6px (the box-right 941 grazed the spike's
+  940; four deaths at 907..909). Three layers now: the disembark is
+  PHASE-AWARE (it reads the deck's live left edge and fires near
+  whatever the right edge is), a falling hero in the approach corridor
+  holds 'a' so the byte lag can't eat the pull (the air brake cuts the
+  fall's drift from +61px to +22px), and a past-window landing walks
+  back into the window.
+- **THE FIRE-BAND CRAWL (level-3)**: every leftward walk in the lift-2
+  fire band accelerated at the FULL RUN_ACCEL — a hero pulsed to -330
+  cannot stop before ledge-b's left edge (the stop needs ~85px, the
+  balance sits at px 1146: the trace's stand at 1205.7 walked off
+  EXACTLY there and fell to the 1345..1356 pit). All three leftward
+  laws pulse to -150 and coast — the stop is ~18px, the overshoot
+  holds 13px of ledge.
+- **THE BOARDING GATE THAT WASN'T**: a boarding vx gate + a park/run-up
+  was built to block the low-vx pit falls (954..1016) — measured 2/4
+  red (the bounce/park cycles tripled the boarding time against the
+  170s cap) and REVERTED by evidence; the R51 coast-through stands and
+  the residual full-speed-crossing family (1002..1021) is R54's first
+  declared debt.
+- **THE UI MARQUEE — THE TAB THUMBNAILS**: every scene tab now wears a
+  live miniature of its own map — the biome sky tint, the platforms,
+  the movers, the spikes, the coins and the goal fitted into a 76x44
+  canvas, redrawn from the scene's own geometry on every tab render
+  AND on every edit of the active scene; the active tile wears the
+  brand-violet glow. **THE PLAYER PORTRAIT**: the PIE HUD wears the
+  generated hero bust (image gen, mandatory — the JPEG-bytes law's
+  14th catch, re-encoded to a real PNG, magic verified) in a rounded
+  brand-violet frame with a live HP bar that bleeds with every death
+  and is restored on the load.
+- ui_editor_probe pins 19 (was 18) — the R53 law group re-pins the
+  thumbnails' render, the edit-follow, the portrait's real PNG bytes
+  and the HP bleed. Five corners wear 3.1.131; this tag's release must
+  carry dxn3-3.1.131.tar.gz.
+
 ## v3.1.130 — the About modal becomes a credits splash
 
 *(the same R52 session, one increment later — push often.)*

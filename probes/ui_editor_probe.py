@@ -365,6 +365,43 @@ R52 = [
 missing52 = [nm for nm, ok in R52 if not ok]
 pin("all 4 R52 studio laws present", not missing52, ", ".join(missing52))
 
+
+# ---- THE R53 LAWS ------------------------------------------------------
+# THE TAB THUMBNAILS (every scene tab wears a live miniature of its own
+# map — the biome sky tint, the entities fitted into a 76x44 canvas,
+# redrawn from the scene's own geometry on every tab render AND on every
+# edit of the active scene) and THE PLAYER PORTRAIT (the PIE HUD wears
+# the generated hero bust in a rounded brand-violet frame with a live HP
+# bar that bleeds with every death and is restored on the load).
+portrait = os.path.join(assets_dir, "portrait-hero.png")
+portrait_magic = b""
+if os.path.isfile(portrait):
+    with open(portrait, "rb") as fh:
+        portrait_magic = fh.read(4)
+R53 = [
+    ("tab thumbnails — every tab carries a live miniature",
+        "function thumbScene(" in html
+        and 'th.className="vthumb"' in html
+        and "thumbScene(f, th)" in html
+        and ".vtab .vthumb{" in html),
+    ("tab thumbnails — the tile follows the edit",
+        "const THUMB_TINTS={" in html
+        and "thumbScene(S.cur, th)" in html
+        and '.querySelector("#tabbar .vtab.active .vthumb")' in html),
+    ("player portrait — the PIE HUD wears the generated bust (real PNG)",
+        "portrait-hero.png" in html
+        and 'class="hud-portrait"' in html
+        and ".hud-portrait img{" in html
+        and os.path.isfile(portrait) and portrait_magic == b"\x89PNG"),
+    ("player portrait — the HP bar bleeds and restores",
+        'id="hud-hp"' in html
+        and "hp.style.width" in html
+        and "100-Math.min(90,m.deaths*15)" in html),
+]
+missing53 = [nm for nm, ok in R53 if not ok]
+pin("all 4 R53 studio laws present", not missing53, ", ".join(missing53))
+
+
 fails = [n for n, ok in pins if not ok]
 print(f"\nui_editor_probe: {len(pins)-len(fails)}/{len(pins)} pins green "
       f"in {time.time()-t0:.1f}s")

@@ -311,6 +311,28 @@ def dec_level1(h, st, now):
             return b"d"
         st.last_x = x
         return b""                      # hands off, let it carry
+    # THE ELEVATOR RE-ACQUISITION GUARD (R53, the turnaround walk-off):
+    # at the elevator's BOTTOM turnaround the deck's carry wobbles
+    # (py 325.2 -> 327.9 -> 327.1 -> 324.3 in the R53 trace) and the
+    # 4-sample delta dips below ride_check's 1.5 floor — the law reads
+    # "not a carry", falls through to the default b"d", and a hero
+    # parked at 1448 (the board arc lands up to 1448; the deck's edge
+    # is 1450) walked off at full run accel — five falls (1585-1728,
+    # the drift of a 330px/s fall from py 324) and a red run. A
+    # grounded hero inside the deck's travel band (x 1330..1449,
+    # standing py 206..328 — the ground's 356 and every jump window's
+    # x are disjoint) who is NOT riding walks LEFT back into the
+    # deck's interior and holds; ride_check re-acquires on the next
+    # steady carry and the ride law (the y <= 215 walk-off, the hands
+    # -off carry) takes over. The band starts BELOW the walk-off's own
+    # y <= 215: at the TOP turnaround the same wobble kills ride_check
+    # too, and there the default b"d" IS the disembark (walk right
+    # onto the sky-ledge) — guarding it would yank the hero back into
+    # an endless ride loop.
+    if grounded and 215 < y <= 340 and 1330 <= x <= 1449:
+        if x > 1400:
+            st.last_x = x; return b"a"
+        st.last_x = x; return b""
     # THE GAP-DECK DISEMBARK: a horizontal carry never moves py, so
     # ride_check (a vertical law) is blind to the gap deck — and when
     # the pit arc landed on it, the cooldown ate the watcher window
@@ -320,9 +342,50 @@ def dec_level1(h, st, now):
     # 900: the jump from this window lands 1118+ on ground-b, past
     # the spike. The x band excludes the elevator (1330+), whose own
     # ride passes through this py at its bottom.
-    if grounded and 320 <= y <= 336 and 830 <= x <= 910 \
-            and now - st.last_jump > 0.5:
-        st.last_jump = now; st.last_x = x; return b"wd"
+    # R53 (the triple miss): the old fixed band 830..910 assumed the
+    # deck parked at its right extreme (760+140=900) — but the deck
+    # PING-PONGS (left edge 620..760), and a hero who arrives while it
+    # retreats meets its edge at 835: the fixed window opened 5px
+    # ahead, the edge passed under the hero first, the fall ate both
+    # windows, the landing at 896.6 missed the ground window (870..895)
+    # by 1.6px and the box-right (941) grazed the spike's 940. The
+    # window is PHASE-AWARE now: read the deck's live left edge off the
+    # mover telemetry and fire near WHATEVER the right edge is (the
+    # arc from 780+ lands 1053+, past the spike's 984, every time);
+    # the fixed band stays as the fallback for an unread deck.
+    g = tail.movers.get("the-gap")
+    if grounded and 320 <= y <= 336 and now - st.last_jump > 0.5:
+        near_edge = (g is not None and g[0] + 95 <= x <= g[0] + 150) \
+            or (g is None and 830 <= x <= 910)
+        if near_edge:
+            st.last_jump = now; st.last_x = x; return b"wd"
+        st.last_x = x
+        return b"d" if x < (g[0] + 95 if g is not None else 830) else b"a"
+    # THE WATCHER RECOVERY (R53, the triple miss's third miss): a hero
+    # who landed PAST the ground window (870..895 — the deck fall
+    # touched down at 896.6) stood one tick from the spike's box
+    # (x-overlap at 906: box-right 940) with only the default b"d"
+    # ahead — the run-in death at 907. Walk LEFT back into the window;
+    # the jump re-fires (the pit-arc cooldown has expired during the
+    # deck ride and the walk back). The band ends at 930: a hero past
+    # 930 is inside the graze race and the walk-back cannot win it —
+    # but no observed landing ever reached past 910 (the fall drifts
+    # left of the deck's retreat), so the band is the honest margin.
+    # R53 ADDENDUM (the 911 graze): the GROUND recovery cannot save a
+    # hero who lands at 911+ — the box-right (945) overlaps the spike
+    # the instant the feet touch, before any 'a' byte can bite (the
+    # byte lag runs 330px/s for 1-2 ticks = +16px). The pull must
+    # happen AIRBORNE: a falling hero (vy > 0) below the deck band
+    # (y >= 324) in the approach corridor (840..930) holds 'a' NOW —
+    # the air brake (~63-84px per sample) cuts the fall's drift from
+    # +61px to +22px, the touchdown lands 857..906 — inside the
+    # window or the walk-back band, never overlapping the spike's
+    # 940. The watcher jump's own arc is untouched: its falling phase
+    # crosses y=320 at x ~1051, past the corridor's 930.
+    if not grounded and vy > 0 and y >= 324 and 840 <= x <= 930:
+        st.last_x = x; return b"a"
+    if grounded and y >= 340 and 896 <= x <= 930:
+        st.last_x = x; return b"a"
     # the pit arc: one full jump from this window clears the 240px pit
     # (fangs included) and lands far-ledge — the-gap mover is optional
     if 505 <= x <= 545 and grounded and now - st.last_jump > 0.8:
@@ -330,6 +393,8 @@ def dec_level1(h, st, now):
     # the watcher spike (940..984): jump the window, land 1143..1168
     if 870 <= x <= 895 and grounded and now - st.last_jump > 0.8:
         st.last_jump = now; st.last_x = x; return b"wd"
+    # (the y >= 340 recovery above already steered a past-window hero
+    # back left; this window keeps its original shape)
     # the elevator board: from this window the arc lands on the deck
     # WHATEVER its phase (the tip-2 float is cleared or missed clean)
     if 1140 <= x <= 1175 and grounded and now - st.last_jump > 0.8:
@@ -522,11 +587,39 @@ def dec_level3(h, st, now):
     # air — the x-apex never passes launch+27 (the watcher's box-left
     # is 1290) and the rise clears the spike's top (162) at t=47ms, so
     # the continuous trajectory holds no 2D overlap at all. The release
-    # is ANSWER-DRIVEN: hold until vx <= -0.4 * vx_at_fire — the drift
-    # back cancels the drift out — and the landing settles 2-20px LEFT
-    # of the launch, inside the park zone, where the window-wait
-    # resumes. The flight silence carries the rest: b"" until the feet
-    # touch ledge-b again.
+    # is ANSWER-DRIVEN: hold until vx falls back through the ZERO
+    # CROSS (vx <= +8% of vx_at_fire — the crossing IS the answer) and
+    # the landing settles LEFT of the launch, inside the park zone,
+    # where the window-wait resumes. The flight silence carries the
+    # rest: b"" until the feet touch ledge-b again.
+    # R53 AUTOPSY (the sixteenth): the R52 release (vx <= -0.4 *
+    # vx_at_fire) was calibrated latency-free, but the dose rides 40Hz
+    # sampling plus 1-2 input ticks of latency: tour_fail's telemetry
+    # shows the release DECIDED at vx=-148 yet the engine still held
+    # 'a' to vx=-225, and the arc dumped 111px (launch 1218 -> landing
+    # 1106) instead of the designed 2-7 — off ledge-b onto lift-1's
+    # descending deck, where the default walk ran the hero off the
+    # deck's edge (the walk-off death, 11 honest deaths in the red
+    # run). The zero-cross release + the same latency lands the dose
+    # at vx ~ -95: the arc's net displacement is launch-7..-16 across
+    # the whole observed fire band (vx_at_fire 140..267) — on ledge-b,
+    # in the park zone, every time. And the airborne-only hold below
+    # stops the OTHER leak the same trace shows: the fire happens ON
+    # the ground, so ~2 stale grounded ticks returned b"a" and bled
+    # the launch (vx 235 -> 158, px +9 before liftoff).
+    # R53 SECOND DOSE (tour_fail_1789789492): the +0.08 threshold
+    # still over-ran — the release-to-cut latency is a FULL SAMPLE
+    # (the vx falls ~153px per 25ms sample under the dose) and the
+    # first-below sample is a lottery (uniformly 0..153 under the
+    # threshold), so the cut = threshold - ~229: the +0.08 fire cut at
+    # -201 and the arc dumped -74.5 (the 1233.8 -> 1159.3 landing).
+    # The threshold goes to +0.4 * vx_at_fire: the sampled first-below
+    # lands ~76 under it, the latency adds ~153, and the cut settles
+    # at ~ -90 for the whole 150..330 fire band — the net displacement
+    # -9..-41, on ledge-b or the re-acquisition guard's deck band,
+    # every time. The honest-launch case (the fire's sampled vx is the
+    # launch vx) fires the dose on the FIRST airborne sample and lands
+    # launch-12 (the observed 1217.7 landing) — the designed park.
     if st.jbrake:
         st.last_x = x
         if not grounded:
@@ -536,11 +629,15 @@ def dec_level3(h, st, now):
         elif now > st.jbrake_until:             # the wall cap: a starved
             st.jbrake = False                   # flight hands itself to
             st.silent = True; st.silentAir = True   # the silence
-        elif not grounded and vx <= -0.4 * st.jbrake_vx:
+        elif not grounded and vx <= 0.4 * st.jbrake_vx:
             st.jbrake = False                   # the dose is in: the
             st.silent = True; st.silentAir = True   # silence lands it
-        else:
+        elif not grounded:
             return b"a"                         # the airborne left hold
+        else:
+            return b""      # stale grounded tick: the 'wa' is lifting
+                            # off — hold fire (the old b"a" bled the
+                            # launch on the deck: leak #1)
     # THE FLIGHT SILENCE, before every other law: the coast jump's b""
     # must persist until the hero lands — the airborne hero fails
     # ride_check, so a silence living inside the ride branch never ran,
@@ -682,15 +779,27 @@ def dec_level3(h, st, now):
                 st.jbrake_vx = vx; st.jbrake_until = now + 1.2
                 st.py_hist = []; st.last_w = None; st.last_x = x
                 return b"wa"                # the airborne brake
+            # THE CRAWL LAW (R53, tour_fail_1789791239): every leftward
+            # walk in the fire band used to accelerate at the FULL
+            # RUN_ACCEL — a hero pulsed to -330 cannot stop before
+            # ledge-b's left edge: the stop needs ~85px (60px of decel
+            # + the byte lag), the 1186/1177 brake lines leave the
+            # balance at px 1146 (the box-right 1180.6 — the trace's
+            # stand at 1205.7 walked off EXACTLY there and fell to the
+            # 1345-1356 pit). Every pulse now tops at -150 and coasts:
+            # the stop from -150 is ~18px, the nudge line's overshoot
+            # lands px ~1159 — the box-right (1193) holds 13px of
+            # ledge. The crawl still clears the fire band in ~0.5s.
             if vx < 250 and x > 1186:
-                st.last_x = x; return b"a"  # brake back to the run start
+                if vx > -150:
+                    st.last_x = x; return b"a"
+                st.last_x = x; return b""   # the coast bleeds the pulse
             if x < 1186:
                 st.last_x = x; return b"d"  # the run: ~46px to reach 250
             if x > 1230:
-                st.last_x = x; return b"a"  # the safe reverse: a walk-past
-                                            # slid into the watcher's 1px
-                                            # shadow (the box-right 1291
-                                            # graze) — flip before 1254
+                if vx > -150:
+                    st.last_x = x; return b"a"
+                st.last_x = x; return b""
             st.last_x = x; return b""       # brake at the fire line
         if x > 1215 and vx > 140 and now - st.last_jump > 0.4:
             # THE HOT-LANDING BRAKE (R52): a wjump landing at 1216..1238
@@ -706,7 +815,12 @@ def dec_level3(h, st, now):
             st.py_hist = []; st.last_w = None; st.last_x = x
             return b"wa"
         if x > 1206:
-            st.last_x = x; return b"a"      # walk to the run-up start
+            # the crawl (the R53 law above): the old full-accel walk-back
+            # carried a standing hero from 1205.7 to the balance at 1146
+            # and off the ledge — pulse to -150, coast, arrive alive.
+            if vx > -150:
+                st.last_x = x; return b"a"      # walk to the run-up start
+            st.last_x = x; return b""
         if x < 1177:
             st.last_x = x; return b"d"      # nudge right
         st.last_x = x; return b""           # hold at the start
@@ -740,6 +854,11 @@ def dec_level3(h, st, now):
             st.last_x = x; return b""       # hold; the cycle returns (4.7s)
         st.last_x = x
         return b"d" if x < 783 else b"a"
+    # (R53 NOTE: a boarding vx gate + a park/run-up was tried here and
+    # REVERTED — it blocked the low-vx pit falls (954..1016) but the
+    # bounce/park cycles tripled the boarding time and the red rate went
+    # 2/4 against the 170s cap. The coast-through's residual fall family
+    # (the full-speed crossings at 1002..1021) is R54's first debt.)
     # the ledge-a jump: from the ground, the rising crossing clears the
     # ledge's left edge (box-right x0+83 <= 760) and the landing
     # (x0+249 = 798..906) overlaps the top
@@ -794,6 +913,22 @@ def dec_level3(h, st, now):
             st.last_x = x; return b"d"      # through both windows
         if x > 657:
             st.last_x = x; return b"a"      # back to the ledge window
+    # THE RIDE RE-ACQUISITION GUARD (R53, the jbrake walk-off): the
+    # fire clears py_hist, and ride_check's landing guard needs four
+    # CLEAN carry samples to re-acquire — the ~75ms gap fell through
+    # to the default b"d", which ran the landed hero off lift-1's
+    # 1120 edge at full run accel (1106 -> walk-off in the R53 trace:
+    # the ride law DID acquire two samples later, four px too late).
+    # Any grounded hero inside lift-1's deck band (990..1120) who is
+    # NOT riding walks LEFT into the deck's interior and holds; the
+    # ride law (the loopback rescue below 200, the wjump disembark
+    # above) takes over the moment the carry is witnessed. The band
+    # is x-disjoint from ledge-a (ends 940), ledge-b (starts 1180)
+    # and the low ground (y >= 380), so nothing else is shadowed.
+    if grounded and y < 380 and 992 <= x <= 1118:
+        if x > 1044:
+            st.last_x = x; return b"a"
+        st.last_x = x; return b""
     j = stuck_jump(st, h, now)
     if j:
         if _os.environ.get("DXN3_TOUR_DEBUG"):
