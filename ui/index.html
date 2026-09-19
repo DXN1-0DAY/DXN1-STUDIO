@@ -167,6 +167,17 @@ body{background:var(--win); color:var(--text); font:var(--font); user-select:non
 #pie-hud.on{display:block;}
 #pie-hud .hud-frame{position:absolute; inset:0; width:100%; height:100%;
   object-fit:fill; opacity:.42; mix-blend-mode:screen;}
+
+/* ── outliner tree (R51) — the folders and their folded children ── */
+.ol-folder{display:flex; align-items:center; gap:6px; padding:4px 10px;
+  cursor:pointer; user-select:none; font-weight:600; font-size:11px;
+  color:var(--text); border-bottom:1px solid rgba(255,255,255,.04);
+  background:rgba(255,255,255,.025);}
+.ol-folder:hover{background:var(--hover);}
+.ol-folder .fold-a{width:10px; color:var(--faint); font-size:9px;}
+.ol-folder .ol-count{margin-left:auto; font-size:10px; color:var(--faint);
+  background:rgba(255,255,255,.06); border-radius:8px; padding:1px 7px;}
+.olrow.child{padding-left:24px;}
 .hud-pill{position:absolute; display:flex; align-items:center; gap:8px; padding:7px 14px;
   color:#cfeaff; font:600 12px "Segoe UI",sans-serif; letter-spacing:.08em;
   background:url(assets/hud-panel.png) center/cover;
@@ -422,6 +433,7 @@ body{background:var(--win); color:var(--text); font:var(--font); user-select:non
         <span class="vpill" id="vp-mode"><b>Perspective</b> ▾</span>
         <span class="vpill" id="vp-lit"><b>Lit</b> ▾</span>
         <span class="vpill" id="vp-show">Show All ▾</span>
+        <span class="vpill" id="vp-bm"><b>1-9</b> ▾</span>
         <div id="vp-right">
           <span>FPS <b id="st-fps">—</b></span>
           <span>ENTS <b id="st-ent">—</b></span>
@@ -517,7 +529,7 @@ body{background:var(--win); color:var(--text); font:var(--font); user-select:non
 /* ================================================================
    DXN1 STUDIO 3 — editor brain. One file, no deps.
    ================================================================ */
-const VERSION = "3.1.126";
+const VERSION = "3.1.127";
 const GATES = "58 probes walked · all green";
 
 const SCENES = [
@@ -562,6 +574,8 @@ const S = {
   lit:true, filters:new Map(),
   modalFrom:null,
   openTabs:["playground.dxn1.json"],   // the editor's open-scene tabs
+  olFolds:{},                // the outliner's folded tag folders (R51)
+  bmarks:{},                 // the viewport camera bookmarks 1..9 (R51)
 };
 
 /* ── tiny helpers ─────────────────────────────────────────────── */
@@ -577,6 +591,7 @@ function savePrefs(){
     v:1, cam:S.cam, snap:S.snap, grid:S.grid, gridStep:S.gridStep,
     tool:S.tool, cur:S.cur, hidden:[...S.hidden],
     tabs:S.openTabs,
+    folds:S.olFolds, bmarks:S.bmarks,
     left:$("left").style.display==="none"?"off":"on",
     right:$("right").style.display==="none"?"off":"on",
     bottom:$("bottom").classList.contains("min")?"min":"full",
@@ -591,6 +606,8 @@ function loadPrefs(){
   if(p.gridStep>0) S.gridStep=p.gridStep;
   if(["select","pan","zoom"].includes(p.tool)) setTool(p.tool);
   if(Array.isArray(p.hidden)) S.hidden=new Set(p.hidden);
+  if(p.folds&&typeof p.folds==="object") S.olFolds=p.folds;   // the folded folders come back
+  if(p.bmarks&&typeof p.bmarks==="object") S.bmarks=p.bmarks; // the camera slots come back
   if(p.left==="off") $("left").style.display="none";
   if(p.right==="off") $("right").style.display="none";
   if(p.bottom==="min") $("bottom").classList.add("min");
@@ -852,6 +869,16 @@ const SKYS={
   "level-4.dxn1.json":"sky-void.png",       "level-9.dxn1.json":"sky-void.png",
   "level-10.dxn1.json":"sky-void.png",
 };
+/* THE HUD SKINS (R51) — the PIE HUD's chrome follows the biome, the
+   same law the skies obey: keyed by scene file, the generic frame as
+   the honest fallback. */
+const HSKINS={
+  "level-1.dxn1.json":"hud-industrial.png", "level-6.dxn1.json":"hud-industrial.png",
+  "level-2.dxn1.json":"hud-twilight.png",  "level-7.dxn1.json":"hud-twilight.png",
+  "level-12.dxn1.json":"hud-twilight.png",
+  "level-4.dxn1.json":"hud-void.png",       "level-9.dxn1.json":"hud-void.png",
+  "level-10.dxn1.json":"hud-void.png",
+};
 const skyCache=new Map();          // src -> Image (one loader per asset)
 function skyFor(cur){
   const f=SKYS[cur]||"sky.png";
@@ -996,9 +1023,7 @@ function renderOutliner(){
   const q=($("ol-search").value||"").toLowerCase();
   const list=$("ol-list"); list.innerHTML="";
   let shown=0;
-  for(const e of ents()){
-    if(q && !e.name.toLowerCase().includes(q) && !tagOf(e).includes(q)) continue;
-    shown++;
+  const mkRow=e=>{
     const row=document.createElement("div");
     row.className="olrow"+(S.sel.has(e.name)?" sel":"");
     const tg=tagOf(e);
@@ -1019,7 +1044,50 @@ function renderOutliner(){
       S.hidden.has(e.name)?S.hidden.delete(e.name):S.hidden.add(e.name);
       renderOutliner(); draw();
     });
-    list.appendChild(row);
+    return row;
+  };
+  /* THE GROUPED TREE (R51) — UE5's outliner is a hierarchy, not a flat
+     list: the entities group under their tag's folder, the folders fold
+     (the state persists in prefs), and the folder's own eye hides or
+     reveals the whole group. A search flattens the tree — matches
+     reveal themselves the way the real thing reveals filtered actors. */
+  const es=ents().filter(e=>
+    !q || e.name.toLowerCase().includes(q) || tagOf(e).includes(q));
+  if(q){                                     // search: flat, every match
+    for(const e of es){ shown++; list.appendChild(mkRow(e)); }
+  } else {
+    const groups=new Map();                  // tag -> entities, first-seen order
+    for(const e of es){
+      const tg=tagOf(e)||"solid";
+      if(!groups.has(tg)) groups.set(tg,[]);
+      groups.get(tg).push(e);
+    }
+    for(const [tg,members] of groups){
+      shown+=members.length;
+      const folded=!!S.olFolds[tg];
+      const anyVis=members.some(e=>!S.hidden.has(e.name));
+      const head=document.createElement("div");
+      head.className="ol-folder"+(folded?" folded":"");
+      head.innerHTML=`<span class="fold-a">${folded?"▸":"▾"}</span>
+        <span class="chip" style="background:${TAGCOLOR[tg==="solid"?"":tg]||"#6b7280"}"></span>
+        <span class="nm">${esc(tg)}</span>
+        <span class="ol-count">${members.length}</span>
+        <span class="eye ${anyVis?"":"off"}" title="toggle the whole group">${anyVis?"◉":"◌"}</span>`;
+      head.addEventListener("click",ev=>{
+        if(ev.target.classList.contains("eye")) return;
+        S.olFolds[tg]=!S.olFolds[tg]; renderOutliner(); savePrefs();
+      });
+      head.querySelector(".eye").addEventListener("click",ev=>{
+        ev.stopPropagation();
+        if(anyVis) members.forEach(e=>S.hidden.add(e.name));
+        else members.forEach(e=>S.hidden.delete(e.name));
+        renderOutliner(); renderDetails(); draw(); savePrefs();
+      });
+      list.appendChild(head);
+      if(!folded) for(const e of members){
+        const row=mkRow(e); row.classList.add("child"); list.appendChild(row);
+      }
+    }
   }
   if(!shown) list.innerHTML=`<div class="ol-empty">nothing matches “${esc(q)}”</div>`;
 }
@@ -1541,6 +1609,22 @@ window.addEventListener("keydown",ev=>{
   else if(ev.ctrlKey&&k==="d"){ev.preventDefault(); dupSel();}
   else if(ev.ctrlKey&&k==="s"){ev.preventDefault(); saveScene();}
   else if(k==="home"){S.cam={x:-60,y:-40,z:1}; draw(); renderStats();}
+  /* THE CAMERA BOOKMARKS (R51) — UE5's viewport slots: Ctrl+1..9 saves
+     the camera, 1..9 recalls it. The digits are the EDITOR's — during
+     PIE they belong to the game and the slots sleep. */
+  else if(/^[1-9]$/.test(k)&&!S.sim){
+    ev.preventDefault();
+    if(ev.ctrlKey){
+      S.bmarks[k]={x:S.cam.x,y:S.cam.y,z:S.cam.z}; savePrefs();
+      toast("Bookmark "+k,"camera saved"); log("evt","[bookmark] slot "+k+" saved");
+    } else {
+      const b=S.bmarks[k];
+      if(b&&isFinite(b.x)&&isFinite(b.z)){
+        S.cam={x:b.x,y:b.y,z:b.z}; draw(); renderStats();
+        toast("Bookmark "+k,"camera recalled");
+      } else toast("Bookmark "+k,"empty — Ctrl+"+k+" to save","warn");
+    }
+  }
 });
 let spaceDown=false;
 window.addEventListener("keydown",ev=>{if(ev.code==="Space"&&!ev.repeat&&ev.target.tagName!=="INPUT"){spaceDown=true;}});
@@ -1694,6 +1778,9 @@ function startPlay(){
   };
   $("piebar").classList.add("on");
   $("pie-hud").classList.add("on");
+  /* the HUD's chrome follows the biome — the sky's law, worn by the frame */
+  const hf=document.querySelector("#pie-hud .hud-frame");
+  if(hf) hf.src="assets/"+(HSKINS[S.cur]||"hud-frame.png");
   $("sb-sim").innerHTML='<b style="color:var(--warn)">playing</b>';
   log("evt","[pie] playing "+S.cur+" — gravity "+S.sim.grav+" (scene), jump "+JUMP_VY+", P or Esc to stop");
   toast("Play in editor",d.name||S.cur);
@@ -2076,6 +2163,36 @@ $("vp-mode").addEventListener("click",()=>{
   modal("View mode","<div>The stage is a 2D sprite world — Perspective is the honest name "
     +"for what you see. The C++ binary renders the true truecolor frame; this panel "
     +"is the map room.</div>");
+});
+
+/* THE BOOKMARKS DESK (R51) — the modal mirror of Ctrl+1..9: every slot
+   wears its camera, restores on click, saves on its button. */
+$("vp-bm").addEventListener("click",()=>{
+  let rows=`<div style="user-select:text">`;
+  for(let i=1;i<=9;i++){
+    const b=S.bmarks[String(i)];
+    rows+=`<div style="display:flex;align-items:center;gap:8px;padding:3px 0;">
+      <b style="width:16px;color:var(--brand)">${i}</b>
+      <span style="flex:1;font-size:11px;color:var(--dim)">${b?`x ${Math.round(b.x)} · y ${Math.round(b.y)} · z ${b.z.toFixed(2)}`:"— empty —"}</span>
+      <button data-bm-save="${i}" style="padding:2px 8px">Save</button>
+      <button data-bm-go="${i}" style="padding:2px 8px" ${b?"":"disabled"}>Restore</button>
+    </div>`;
+  }
+  modal("Camera bookmarks",rows+`</div><div style="font-size:11px;color:var(--dim);margin-top:6px">Ctrl+1..9 saves the viewport camera · 1..9 recalls it.</div>`);
+  $("modal-body").querySelectorAll("[data-bm-go]").forEach(b=>{
+    b.addEventListener("click",()=>{
+      const k=b.dataset.bmGo, m=S.bmarks[k];
+      if(!m) return;
+      S.cam={x:m.x,y:m.y,z:m.z}; draw(); renderStats(); $("modal").classList.remove("on");
+    });
+  });
+  $("modal-body").querySelectorAll("[data-bm-save]").forEach(b=>{
+    b.addEventListener("click",()=>{
+      const k=b.dataset.bmSave;
+      S.bmarks[k]={x:S.cam.x,y:S.cam.y,z:S.cam.z}; savePrefs();
+      $("vp-bm").click();   // re-render the desk
+    });
+  });
 });
 
 /* boot — with a 9s failsafe that does not ask the wire anything */

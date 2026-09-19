@@ -293,6 +293,43 @@ R50 = [
 missing50 = [nm for nm, ok in R50 if not ok]
 pin("all 4 R50 studio laws present", not missing50, ", ".join(missing50))
 
+# pin 17 — the R51 laws: THE OUTLINER TREE (the entities group under
+# their tag's collapsible folders, the fold state rides the prefs, the
+# folder's own eye hides the whole group, a search flattens), THE
+# CAMERA BOOKMARKS (Ctrl+1..9 saves the viewport camera, 1..9 recalls
+# it, the desk modal mirrors the slots, the slots ride the prefs and
+# sleep during PIE), and THE HUD SKINS (the PIE chrome follows the
+# biome — keyed by scene file like the skies, three generated frames,
+# the generic as fallback; the JPEG-bytes law's 10th-12th catches).
+hud_skins = [f for f in ("hud-twilight.png", "hud-industrial.png",
+                         "hud-void.png")
+             if os.path.isfile(os.path.join(assets_dir, f))]
+skin_magic = b""
+if os.path.isfile(os.path.join(assets_dir, "hud-void.png")):
+    with open(os.path.join(assets_dir, "hud-void.png"), "rb") as fh:
+        skin_magic = fh.read(4)
+R51 = [
+    ("outliner tree — the tag folders fold and remember",
+        "const groups=new Map();" in html
+        and "S.olFolds[tg]=!S.olFolds[tg]" in html
+        and 'folds:S.olFolds' in html
+        and 'className="ol-folder"' in html and ".olrow.child{padding-left" in html),
+    ("outliner tree — the folder eye hides the whole group",
+        "members.forEach(e=>S.hidden.add(e.name))" in html),
+    ("bookmarks — Ctrl+1..9 saves, 1..9 recalls, the desk mirrors",
+        "S.bmarks[k]={x:S.cam.x,y:S.cam.y,z:S.cam.z}" in html
+        and "camera recalled" in html
+        and 'id="vp-bm"' in html and 'data-bm-go' in html
+        and 'bmarks:S.bmarks' in html),
+    ("bookmarks sleep during PIE (the digits are the game's)",
+        "/^[1-9]$/.test(k)&&!S.sim" in html),
+    ("HUD skins — the chrome follows the biome (real PNGs)",
+        "const HSKINS={" in html and "HSKINS[S.cur]" in html
+        and len(hud_skins) == 3 and skin_magic == b"\x89PNG"),
+]
+missing51 = [nm for nm, ok in R51 if not ok]
+pin("all 5 R51 studio laws present", not missing51, ", ".join(missing51))
+
 fails = [n for n, ok in pins if not ok]
 print(f"\nui_editor_probe: {len(pins)-len(fails)}/{len(pins)} pins green "
       f"in {time.time()-t0:.1f}s")

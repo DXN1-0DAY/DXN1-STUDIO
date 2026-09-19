@@ -1,3 +1,43 @@
+## v3.1.127 — the outliner grows a hierarchy, and the camera keeps slots
+
+*(the 01:00 UTC boundary's tag; the R51 round pays it.)*
+
+- **THE OUTLINER TREE** — UE5's outliner is a hierarchy, not a flat
+  list: the entities now group under their tag's folder (player,
+  solid, coin, mover…), every folder wears a live count chip, a fold
+  arrow and its own eye — the eye hides or reveals the WHOLE group in
+  one click (five coins at once, verified). The fold state rides the
+  editor's prefs and survives a reload (fold "solid" → 18 children
+  collapse to 11 → reload → still 11). A search flattens the tree the
+  way the real thing reveals filtered actors. Live headless-verified:
+  7 folders over 18 entities on playground, fold → reload → persist,
+  the group eye on and off.
+- **THE CAMERA BOOKMARKS** — UE5's viewport slots land: Ctrl+1..9
+  saves the camera, 1..9 recalls it, and the "1-9" pill in the
+  viewport bar opens the desk — nine slots wearing their camera
+  coordinates, each with Save and Restore buttons. The slots ride the
+  prefs across reloads and sleep during PIE (the digits belong to the
+  game while it plays). Live headless-verified: Ctrl+1 save → move →
+  1 recall → the camera returns to the saved frame; the desk lists 9
+  slots with slot 1 armed.
+- **THE HUD SKINS** — the PIE HUD's chrome now follows the biome, the
+  same law the skies obey: keyed by scene file with the generic frame
+  as the honest fallback. Three generated frames (image gen,
+  mandatory — the JPEG-bytes law's 10th, 11th and 12th catches, all
+  re-encoded to real PNGs, magic verified): the twilight temple's
+  violet scrollwork (level-2/7/12), the industrial factory's riveted
+  amber hazard plate (level-1/6), the cosmic void's crystalline
+  starlit corners (level-4/9/10). Live headless-verified: level-2
+  wears hud-twilight.png, level-4 wears hud-void.png, the skies and
+  the chrome now agree on the biome.
+- ui_editor_probe pins 17 (was 16) — five R51 laws re-pin the tree's
+  fold law, the group eye, the bookmark save/recall/desk trio, the
+  PIE sleep guard and the skins' real-PNG cloth. Five corners wear
+  3.1.127. This is also the first tag pushed since the mint job was
+  rewritten to take the tag by value — its release is the first that
+  must carry dxn3-3.1.127.tar.gz, and the run log now echoes the
+  asset list it uploaded.
+
 ## v3.1.126 — the phantom ride is dead, and PIE wears the game's face
 
 *(the 00:00 UTC boundary's tag; the R50 round pays it.)*
