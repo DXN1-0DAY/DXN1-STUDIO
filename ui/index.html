@@ -141,6 +141,8 @@ body{background:var(--win); color:var(--text); font:var(--font); user-select:non
   border-bottom:1px solid var(--border); padding:5px 10px; flex:none;}
 .vpill{background:var(--input); border:1px solid var(--border); color:var(--dim);
   font-size:11px; padding:3px 9px; border-radius:3px; cursor:pointer;}
+.vpill.on{border-color:var(--sel); color:var(--text); background:rgba(78,129,199,.12);}
+#viewport.flying{cursor:move;}
 .vpill:hover{color:var(--text); border-color:var(--hair);}
 .vpill b{color:var(--text); font-weight:600;}
 #vp-right{margin-left:auto; display:flex; gap:14px; font-size:11px; color:var(--dim);}
@@ -580,6 +582,7 @@ body{background:var(--win); color:var(--text); font:var(--font); user-select:non
         <span class="vpill" id="vp-lit"><b>Lit</b> ▾</span>
         <span class="vpill" id="vp-show">Show All ▾</span>
         <span class="vpill" id="vp-bm"><b>1-9</b> ▾</span>
+        <span class="vpill" id="vp-camspeed" title="Camera fly speed (world px/s) — click cycles, wheel fine-tunes. Hold RMB in the viewport and fly with WASD + Q/E."><b>Cam</b> <span id="camspd">600</span></span>
         <div id="vp-right">
           <span>FPS <b id="st-fps">—</b></span>
           <span>ENTS <b id="st-ent">—</b></span>
@@ -658,7 +661,7 @@ body{background:var(--win); color:var(--text); font:var(--font); user-select:non
 
 <!-- splash -->
 <div id="splash">
-  <img class="hero" src="assets/splash-v3.png" alt="DXN1 STUDIO splash">
+  <img class="hero" id="splash-hero" src="assets/splash-v3.png" alt="DXN1 STUDIO splash">
   <div class="wordmark"><img src="assets/logo.png" alt=""><div class="wm-t">DXN1 <span>STUDIO</span></div></div>
   <div class="bar"><i id="splash-fill"></i></div>
   <div class="sub" id="splash-msg">waking the spark…</div>
@@ -677,8 +680,14 @@ body{background:var(--win); color:var(--text); font:var(--font); user-select:non
 /* ================================================================
    DXN1 STUDIO 3 — editor brain. One file, no deps.
    ================================================================ */
-const VERSION = "3.1.139";
+const VERSION = "3.1.140";
 const GATES = "58 probes walked · all green";
+/* THE SPLASH ROTATION (R62): every boot wears one of the four generated
+   splashes — v4 is the vault-mouth scene, the round's mandatory gen (the
+   JPEG-bytes law's 23rd catch: arrived JPEG, re-encoded to a real PNG). */
+const SPLASHES=["assets/splash.png","assets/splash-v2.png","assets/splash-v3.png","assets/splash-v4.png"];
+(function(){ const h=document.getElementById("splash-hero");
+  if(h) h.src=SPLASHES[Math.floor(Math.random()*SPLASHES.length)]; })();
 
 const SCENES = [
   {f:"playground.dxn1.json", thumb:"assets/thumb-playground.png"},
@@ -739,6 +748,7 @@ function savePrefs(){
   try{ localStorage.setItem(PREFKEY, JSON.stringify({
     v:1, cam:S.cam, snap:S.snap, grid:S.grid, gridStep:S.gridStep,
     tool:S.tool, cur:S.cur, hidden:[...S.hidden],
+    camSpeed:S.camSpeed,
     tabs:S.openTabs,
     folds:S.olFolds, bmarks:S.bmarks,
     left:$("left").style.display==="none"?"off":"on",
@@ -757,6 +767,7 @@ function loadPrefs(){
   if(Array.isArray(p.hidden)) S.hidden=new Set(p.hidden);
   if(p.folds&&typeof p.folds==="object") S.olFolds=p.folds;   // the folded folders come back
   if(p.bmarks&&typeof p.bmarks==="object") S.bmarks=p.bmarks; // the camera slots come back
+  if(p.camSpeed>0) S.camSpeed=p.camSpeed;                     // the fly speed comes back
   if(p.left==="off") $("left").style.display="none";
   if(p.right==="off") $("right").style.display="none";
   if(p.bottom==="min") $("bottom").classList.add("min");
@@ -1792,6 +1803,48 @@ function makeActor(tag){
 
 /* ── viewport input ───────────────────────────────────────────── */
 let mouse={x:0,y:0,down:false,dragEnt:false,panning:false,start:null,btn:0,marquee:null,gizmoAxis:null,scale:null};
+/* THE FLY-CAM (R62) — UE5's viewport discipline: hold RMB in the
+   viewport and the WASDQE keys fly the camera (WASD pans in world
+   space, Q/E zoom the view), the mouse drag looks. The camera-speed
+   pill in the viewport bar governs the world-units per second — click
+   cycles the UE5 steps, the wheel fine-tunes. The pill glows while the
+   fly is armed so the mode is never invisible. */
+S.camSpeed=S.camSpeed||600;
+S.fly={active:false, keys:new Set(), raf:0, last:0};
+function flyTick(t){
+  if(!S.fly.active) return;
+  const dt=Math.min(0.05,(t-S.fly.last)/1000||0.016); S.fly.last=t;
+  const v=S.camSpeed*dt, k=S.fly.keys;
+  let dx=0, dy=0;
+  if(k.has("a")) dx-=v;  if(k.has("d")) dx+=v;
+  if(k.has("w")) dy-=v;  if(k.has("s")) dy+=v;
+  if(k.has("q")) S.cam.z=clamp(S.cam.z*(1-1.4*dt),0.15,4);
+  if(k.has("e")) S.cam.z=clamp(S.cam.z*(1+1.4*dt),0.15,4);
+  if(dx||dy){ S.cam.x+=dx; S.cam.y+=dy; }
+  if(dx||dy||k.has("q")||k.has("e")){ draw(); renderStats(); }   // zoom-only moves redraw too
+  S.fly.raf=requestAnimationFrame(flyTick);
+}
+function flyStart(){
+  if(S.fly.active) return;
+  S.fly.active=true; S.fly.last=performance.now();
+  S.fly.raf=requestAnimationFrame(flyTick);
+  cv.classList.add("flying"); $("vp-camspeed").classList.add("on");
+  log("evt","[fly] armed — WASD pans, Q/E zooms, speed "+S.camSpeed);
+}
+function flyStop(){
+  if(!S.fly.active) return;
+  S.fly.active=false; S.fly.keys.clear(); cancelAnimationFrame(S.fly.raf);
+  cv.classList.remove("flying"); $("vp-camspeed").classList.remove("on");
+  savePrefs();
+}
+window.addEventListener("keydown",ev=>{
+  if(S.fly.active&&["w","a","s","d","q","e"].includes(ev.key.toLowerCase())){
+    S.fly.keys.add(ev.key.toLowerCase()); ev.preventDefault();
+    ev.stopImmediatePropagation();   // the fly owns WASDQE while RMB is held
+  }
+});
+window.addEventListener("keyup",ev=>{ S.fly.keys.delete(ev.key.toLowerCase()); });
+cv.addEventListener("contextmenu",ev=>ev.preventDefault());  // RMB belongs to the fly
 const entAt=(wx,wy)=>{
   for(let i=ents().length-1;i>=0;i--){
     const e=ents()[i];
@@ -1809,7 +1862,10 @@ cv.addEventListener("pointerdown",ev=>{
   try{ cv.setPointerCapture(ev.pointerId); }catch(e){}
   const [wx,wy]=scr2world(ev.offsetX,ev.offsetY);
   mouse.down=true; mouse.btn=ev.button; mouse.start={x:ev.offsetX,y:ev.offsetY,wx,wy};
-  if(ev.button===1||S.tool==="pan"||(ev.button===0&&spaceDown)){ mouse.panning=true; return; }
+  if(ev.button===1||ev.button===2||S.tool==="pan"||(ev.button===0&&spaceDown)){
+    if(ev.button===2) flyStart();   // RMB arms the fly (WASDQE live while held)
+    mouse.panning=true; return;
+  }
   const hit=entAt(wx,wy);
   if(S.tool==="select"){
     /* the scale handles outrank everything (they live ON the box), the
@@ -1917,6 +1973,7 @@ cv.addEventListener("pointerup",ev=>{
     renderStats(); savePrefs(); }
   mouse.down=false; mouse.panning=false; mouse.dragEnt=null; mouse.marquee=null;
   mouse.gizmoAxis=null; mouse.scale=null;
+  if(ev.button===2) flyStop();   // RMB released: the fly disarms
   savePrefs();
 });
 const wheel={saveT:null};
@@ -2672,6 +2729,21 @@ document.querySelectorAll(".actor").forEach(a=>{
 /* view pills */
 $("vp-lit").addEventListener("click",()=>{ S.lit=!S.lit; draw();
   $("vp-lit").innerHTML=(S.lit?"<b>Lit</b>":"<b>Unlit</b>")+" ▾"; });
+/* THE CAMERA-SPEED PILL (R62): the fly-cam's governor — click cycles
+   the UE5 steps, the wheel fine-tunes; the value rides the prefs. */
+const CAMSTEPS=[150,300,600,1200,2400];
+function setCamSpeed(v){ S.camSpeed=v; $("camspd").textContent=v; savePrefs(); }
+$("vp-camspeed").addEventListener("click",()=>{
+  const i=CAMSTEPS.indexOf(S.camSpeed||600);
+  setCamSpeed(CAMSTEPS[(i+1)%CAMSTEPS.length]);
+  toast("Camera speed",S.camSpeed+" px/s");
+});
+$("vp-camspeed").addEventListener("wheel",ev=>{
+  ev.preventDefault();
+  const i=CAMSTEPS.indexOf(S.camSpeed||600);
+  setCamSpeed(CAMSTEPS[clamp(i+(ev.deltaY<0?1:-1),0,CAMSTEPS.length-1)]);
+},{passive:false});
+setCamSpeed(S.camSpeed||600);
 $("vp-show").addEventListener("click",()=>{
   const tags=["player","goal","hazard","spike","bouncy","coin","mover","ball","sign"];
   let rows=`<div style="user-select:text">`;

@@ -654,6 +654,34 @@ R61 = [
 missing61 = [nm for nm, ok in R61 if not ok]
 pin("all 3 R61 studio laws present", not missing61, ", ".join(missing61))
 
+# THE R62 LAW GROUP — THE FLY-CAM (UE5's viewport discipline: RMB arms,
+# WASDQE flies, the camera-speed pill governs) and THE SPLASH ROTATION
+# (four generated splashes, v4 the vault-mouth scene — the JPEG-bytes
+# law's 23rd catch, re-encoded real PNG).
+R62 = [
+    ("the fly-cam — RMB arms, WASDQE flies, the law owns the keys",
+        'function flyStart(){' in html
+        and 'if(S.fly.active&&["w","a","s","d","q","e"].includes(ev.key.toLowerCase())){' in html
+        and 'ev.stopImmediatePropagation();   // the fly owns WASDQE while RMB is held' in html
+        and 'if(ev.button===2) flyStart();   // RMB arms the fly (WASDQE live while held)' in html
+        and 'if(ev.button===2) flyStop();   // RMB released: the fly disarms' in html
+        and 'cv.addEventListener("contextmenu",ev=>ev.preventDefault());' in html),
+    ("the camera-speed pill — the fly's governor rides the prefs",
+        '<span class="vpill" id="vp-camspeed"' in html
+        and 'const CAMSTEPS=[150,300,600,1200,2400];' in html
+        and 'function setCamSpeed(v){ S.camSpeed=v; $("camspd").textContent=v; savePrefs(); }' in html
+        and 'camSpeed:S.camSpeed,' in html
+        and 'if(p.camSpeed>0) S.camSpeed=p.camSpeed;' in html
+        and '$("vp-camspeed").classList.add("on");' in html),
+    ("the splash rotation — the fourth splash is real PNG bytes",
+        'const SPLASHES=["assets/splash.png","assets/splash-v2.png","assets/splash-v3.png","assets/splash-v4.png"];' in html
+        and 'h.src=SPLASHES[Math.floor(Math.random()*SPLASHES.length)];' in html
+        and (_png_magic("splash-v4.png") or b"") == b"\x89PNG"
+        and os.path.getsize(os.path.join(assets_dir, "splash-v4.png")) > 400000),
+]
+missing62 = [nm for nm, ok in R62 if not ok]
+pin("all 3 R62 studio laws present", not missing62, ", ".join(missing62))
+
 
 fails = [n for n, ok in pins if not ok]
 print(f"\nui_editor_probe: {len(pins)-len(fails)}/{len(pins)} pins green "

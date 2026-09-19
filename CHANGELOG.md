@@ -1,3 +1,72 @@
+## v3.1.140 — the sixth receipt, the fly-cam, and the fourth splash
+
+*(the R62 session: the settle-everywhere plan was executed to the letter
+and it went further — the round found and fixed a dead R60 wiring, corrected
+a two-round mis-diagnosis, and grew the grand tour's SIXTH receipt: the
+tour now walks the vault and touches the ascent. The studio's viewport grew
+UE5's fly-cam discipline and the boot wears its fourth splash.)*
+
+### the probes
+
+- **THE SIXTH RECEIPT IS LIVE**: HOPS grew to level-6 — the grand tour walks
+  playground → level-1 → level-2 → level-3 → level-4 → the vault → the
+  ascent, breaking at "welcome to the ascent (level-6)" off the event wire.
+  Three consecutive greens (85.6s/1, 78.4s/1, 72.9s/0) after four attempts
+  across R59-R61; the vault probe walked 14 greens across the round's
+  verification battery.
+- **THE DRIVE WIRING** (the round's core find): R60 extracted drive_gate()
+  and wrote "called by the main loop before EVERY scene's law" — but the
+  call was wired into dec_level2 ONLY. Level-4's flights held 'd' through
+  the default walk with b"" gaps at every rider-band crossing, the 220
+  air-drag ate 15-25px of every flight, and every prediction landed short:
+  the f1-board into the pit, the f1→f2 into the pit, the f3-board into the
+  void, and the f2-isle's arc into the saw DESPITE its gate. drive_gate is
+  now called at the top of dec_level4; the drift_wd predictions are exact.
+- **THE SAW-ARC GATE** (the R60-R61 mis-diagnosis corrected): the f2-isle
+  "isle-saw loop" deaths at 977..998 were never the arrival slide-off —
+  the jump's own DESCENT crosses the saw's kill line (feet 362) at x ~986
+  for a fire from x ~721, killing the hero mid-flight 20px above his honest
+  landing. The fire now demands the descent's band-entry past the saw
+  (xc >= 1006) plus the landing window [1006, 1030].
+- **THE SETTLE-EVERYWHERE REFACTOR**: every level-4/vault fire demands a
+  settled actor before its prediction — the stand fires at |vx| <= 60, the
+  rider fires from the deck's carry only — and every landing window leaves
+  the measured arrival-slide room (ferry-board offsets capped, transfer ctr
+  capped, start-board ctr re-scoped to [322, 385]).
+- **THE CLOCK RELEASE** (the arrival slide's source): the telemetry lines
+  arrive 6-8 steps apart, so the landing sample's clearance kept 'd' held
+  up to ~130ms past the touchdown — the arrival slide measured 53-58px in
+  the tour. Every vault fire now records its predicted flight time and the
+  flight latch's hold ends at it; the slide is ~36px.
+- **THE STAND ZONE**: the settle refactor made the start-board fire from a
+  stand, so the old run-build only shuttled the hero into the ledge's ~242
+  edge (the coast from 330 needs ~29px; the edge was 13px past the release
+  — the vault segment's 30-death loop, whose "transfer-pit" falls at
+  410..501 were the edge fall's own landing spots). Walk right to 100, then
+  stand: every x in 100..200 owns a phase window.
+- **THE DEAD-ZONE SWEEP**: the high-deck's guard-jump window had three
+  unowned gaps, each proven by a 172s freeze: the left apron [615, 631) —
+  a hero parked at 630.9, 0.1px below the branch floor, hanging off the
+  deck's 640 edge by 25px of box overlap; the hole-walk's uncapped b"a"
+  blasting the hero through the window at -330; and the window brake
+  reversing short arrivals LEFT off the edge. The nudges now OVERLAP the
+  fire zones instead of abutting them (0.1-1.2px dead zones froze three
+  runs), and the guard-jump/edge-jump landing windows carry slide room.
+
+### the studio
+
+- **THE FLY-CAM** (UE5's viewport discipline): hold RMB in the viewport and
+  the WASDQE keys fly the camera — WASD pans in world space, Q/E zooms,
+  the RMB drag looks. The camera-speed pill in the viewport bar governs the
+  world-units per second: click cycles the UE5 steps (150/300/600/1200/2400),
+  the wheel fine-tunes, the value rides the prefs, and the pill glows while
+  the fly is armed so the mode is never invisible.
+- **THE SPLASH ROTATION**: every boot wears one of the four generated
+  splashes — v4 is the vault-mouth scene (a glowing spark at the vault door,
+  indigo and amber), the round's mandatory gen and the JPEG-bytes law's
+  23rd catch: the bytes arrived JPEG wearing a .png name and were re-encoded
+  to a real 941,805-byte PNG, magic verified.
+
 ## v3.1.139 — the type chips, the magnet field, and the four-world pillars
 
 *(the R61 session: the HOPS-to-level-6 question got its third honest
