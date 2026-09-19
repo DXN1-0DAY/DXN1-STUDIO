@@ -402,6 +402,53 @@ missing53 = [nm for nm, ok in R53 if not ok]
 pin("all 4 R53 studio laws present", not missing53, ", ".join(missing53))
 
 
+# ---- THE R54 LAWS ------------------------------------------------------
+# THE CAMPAIGN MAP TILES (the Content Browser's banner is the campaign
+# itself — four biome tiles sliced from the generated strip, tinted, the
+# live entity count on each, the active scene's biome glowing), THE GOAL
+# FLAG'S SHIMMER (two sweep bands + the breathing glow, one draw shared
+# by the editor viewport and PIE), THE PORTRAIT SHEET (the HUD's bust
+# follows the biome — one hero, four lit variants, all real PNGs), and
+# THE ABOUT CAST (the splash wears the whole sheet).
+def _png_magic(name):
+    p = os.path.join(assets_dir, name)
+    if not os.path.isfile(p):
+        return None
+    with open(p, "rb") as fh:
+        return fh.read(4)
+
+R54 = [
+    ("campaign map — the banner is four live biome tiles",
+        "function buildCampaignMap(" in html
+        and "const BIOMES=[" in html
+        and html.count('pos:"') >= 4
+        and "buildCampaignMap();" in html
+        and "#cb-map .biome.active{" in html),
+    ("campaign map — the tiles wear the strip and the live counts",
+        "background-size:400% 100%" in html
+        and "background-position:${bm.pos}" in html
+        and "n} ents</em>`" in html.replace("\n", " ")
+        and "loadScene(f); });" in html),
+    ("goal shimmer — the sweeps and the breathing glow, one shared draw",
+        "function drawGoalShimmer(" in html
+        and 'if(e.tag==="goal") drawGoalShimmer(sx,sy,w,h);' in html
+        and 'if(tagOf(e)==="goal") drawGoalShimmer(sx,sy,w,h);' in html
+        and "cx.shadowColor=" in html),
+    ("portrait sheet — the HUD bust follows the biome (four real PNGs)",
+        "const PHSKINS={" in html
+        and 'PHSKINS[S.cur]||"portrait-hero.png"' in html
+        and all((_png_magic(n) or b"") == b"\x89PNG" for n in (
+            "portrait-industrial.png", "portrait-twilight.png",
+            "portrait-dawn.png", "portrait-void.png"))),
+    ("About cast — the splash wears the whole sheet",
+        'skin("portrait-hero.png","the hero")' in html
+        and html.count('skin("portrait-') >= 4
+        and html.count('class="about-skins"') >= 2),
+]
+missing54 = [nm for nm, ok in R54 if not ok]
+pin("all 5 R54 studio laws present", not missing54, ", ".join(missing54))
+
+
 fails = [n for n, ok in pins if not ok]
 print(f"\nui_editor_probe: {len(pins)-len(fails)}/{len(pins)} pins green "
       f"in {time.time()-t0:.1f}s")

@@ -298,8 +298,24 @@ body{background:var(--win); color:var(--text); font:var(--font); user-select:non
 #cb-search{margin-left:12px; background:var(--input); border:1px solid var(--border);
   color:var(--text); border-radius:4px; height:24px; padding:0 8px; font:inherit; width:170px;}
 #cb-search:focus{outline:1px solid var(--brand);}
-#cb-map{width:100%; height:64px; object-fit:cover; border-radius:8px 8px 0 0;
-  opacity:.85; display:block; border-bottom:1px solid #2a2f45;}
+#cb-map{display:flex; height:64px; border-radius:8px 8px 0 0; overflow:hidden;
+  border-bottom:1px solid #2a2f45;}
+/* THE CAMPAIGN MAP TILES (R54): the Content Browser's banner wears the
+   campaign's four biomes — each tile a slice of the generated strip,
+   tinted by its biome, the active scene's biome glowing brand violet. */
+#cb-map .biome{flex:1; position:relative; cursor:pointer; overflow:hidden;
+  border-right:1px solid rgba(0,0,0,.35); transition:filter .15s;}
+#cb-map .biome:last-child{border-right:none;}
+#cb-map .biome i{position:absolute; inset:0; background-size:400% 100%;
+  background-repeat:no-repeat; opacity:.9;}
+#cb-map .biome b{position:absolute; inset:0; pointer-events:none;}
+#cb-map .biome span{position:absolute; left:8px; bottom:5px; font-size:11px;
+  color:#fff; text-shadow:0 1px 3px rgba(0,0,0,.8); letter-spacing:.4px;}
+#cb-map .biome em{position:absolute; right:8px; top:5px; font-size:10px;
+  font-style:normal; color:rgba(255,255,255,.85); text-shadow:0 1px 3px rgba(0,0,0,.8);}
+#cb-map .biome:hover{filter:brightness(1.15);}
+#cb-map .biome.active{box-shadow:inset 0 0 0 2px var(--brand), inset 0 -14px 22px rgba(139,92,246,.25);}
+#cb-map .biome.active span{color:#ddd6fe;}
 #cardgrid{flex:1; overflow-y:auto; display:flex; flex-wrap:wrap; gap:10px; padding:12px;
   align-content:flex-start;}
 #cardgrid::-webkit-scrollbar{width:10px;}
@@ -522,7 +538,7 @@ body{background:var(--win); color:var(--text); font:var(--font); user-select:non
     </div>
     <div id="dock-body">
       <div class="dockpage active" id="page-content">
-        <img id="cb-map" src="assets/campaign-map.png" alt="the campaign's four biomes" title="the campaign: twilight, industrial, dawn, void">
+        <div id="cb-map" title="the campaign: twilight, industrial, dawn, void"></div>
         <div id="crumb"><span>DXN1</span><span>/</span><b>scenes</b><span>/</span>
           <span id="crumb-filter">all</span>
           <input id="cb-search" placeholder="filter scenes…">
@@ -575,7 +591,7 @@ body{background:var(--win); color:var(--text); font:var(--font); user-select:non
 /* ================================================================
    DXN1 STUDIO 3 — editor brain. One file, no deps.
    ================================================================ */
-const VERSION = "3.1.131";
+const VERSION = "3.1.132";
 const GATES = "58 probes walked · all green";
 
 const SCENES = [
@@ -787,6 +803,34 @@ sel_scene_onchange();
 function sel_scene_onchange(){ $("scenepick").addEventListener("change",e=>loadScene(e.target.value)); }
 
 /* ── content browser ──────────────────────────────────────────── */
+/* THE CAMPAIGN MAP (R54): the banner is the campaign itself — four
+   biome tiles sliced from the generated strip (one background-position
+   per biome), tinted by the biome's sky, the LIVE entity count on
+   each, and the ACTIVE scene's biome glowing brand violet. A click
+   opens the biome's first scene. Rebuilt by renderAll, so the counts
+   follow every edit like the tab thumbnails do. */
+const BIOMES=[
+  {b:"twilight",   pos:"0% 50%",      tint:"rgba(124,92,255,.20)",  scenes:["level-2.dxn1.json","level-7.dxn1.json","level-12.dxn1.json"]},
+  {b:"industrial", pos:"33.333% 50%", tint:"rgba(245,158,11,.16)",  scenes:["level-1.dxn1.json","level-6.dxn1.json"]},
+  {b:"dawn",       pos:"66.666% 50%", tint:"rgba(251,113,133,.16)", scenes:["level-3.dxn1.json","level-5.dxn1.json","level-8.dxn1.json"]},
+  {b:"void",       pos:"100% 50%",    tint:"rgba(56,189,248,.14)",  scenes:["level-4.dxn1.json","level-9.dxn1.json","level-10.dxn1.json"]},
+];
+function buildCampaignMap(){
+  const map=$("cb-map"); if(!map) return;
+  map.innerHTML="";
+  const activeBiome=(HSKINS[S.cur]||"").replace("hud-","").replace(".png","");
+  for(const bm of BIOMES){
+    const n=(bm.scenes||[]).reduce((a,f)=>a+((S.scenes[f]&&S.scenes[f].entities)||[]).length,0);
+    const el=document.createElement("div");
+    el.className="biome"+(bm.b===activeBiome?" active":"");
+    el.dataset.b=bm.b;
+    el.innerHTML=`<i style="background-image:url('assets/campaign-map.png');background-position:${bm.pos}"></i>
+      <b style="background:${bm.tint}"></b><span>${bm.b}</span><em>${n} ents</em>`;
+    el.title=bm.b+" — "+(bm.scenes||[]).length+" scenes";
+    el.addEventListener("click",()=>{ const f=(bm.scenes||[])[0]; if(f) loadScene(f); });
+    map.appendChild(el);
+  }
+}
 function buildContent(){
   const grid=$("cardgrid"); grid.innerHTML="";
   const q=($("cb-search")&&$("cb-search").value||"").toLowerCase();
@@ -948,6 +992,8 @@ function renderAll(){ renderOutliner(); renderDetails(); renderStats(); draw();
      live miniature, not a load-time snapshot. */
   const th=document.querySelector("#tabbar .vtab.active .vthumb");
   if(th) thumbScene(S.cur, th);
+  /* the campaign map's counts and active glow follow too (R54) */
+  buildCampaignMap();
 }
 function tagOf(e){ return e.tag||""; }
 
@@ -977,6 +1023,19 @@ const HSKINS={
   "level-8.dxn1.json":"hud-dawn.png",
   "level-4.dxn1.json":"hud-void.png",       "level-9.dxn1.json":"hud-void.png",
   "level-10.dxn1.json":"hud-void.png",
+};
+/* THE PORTRAIT SHEET (R54) — the HUD's bust follows the biome too, the
+   frame's law worn by the face: one hero, four lit variants (generated
+   this round, the JPEG-bytes law's 15th catch, re-encoded real PNGs).
+   The generic hero bust stays the honest fallback. */
+const PHSKINS={
+  "level-1.dxn1.json":"portrait-industrial.png", "level-6.dxn1.json":"portrait-industrial.png",
+  "level-2.dxn1.json":"portrait-twilight.png",  "level-7.dxn1.json":"portrait-twilight.png",
+  "level-12.dxn1.json":"portrait-twilight.png",
+  "level-3.dxn1.json":"portrait-dawn.png",       "level-5.dxn1.json":"portrait-dawn.png",
+  "level-8.dxn1.json":"portrait-dawn.png",
+  "level-4.dxn1.json":"portrait-void.png",       "level-9.dxn1.json":"portrait-void.png",
+  "level-10.dxn1.json":"portrait-void.png",
 };
 const skyCache=new Map();          // src -> Image (one loader per asset)
 function skyFor(cur){
@@ -1058,6 +1117,7 @@ function draw(){
       for(const p of e.path){const[px,py]=world2scr(p.x,p.y);
         cx.fillStyle="#38bdf8"; cx.fillRect(px-3,py-3,6,6);}
     }
+    if(tagOf(e)==="goal") drawGoalShimmer(sx,sy,w,h);
     if(tagOf(e)==="sign"&&e.text){
       const [tx,ty]=world2scr(e.x,e.y-14);
       cx.fillStyle="rgba(226,232,240,.8)"; cx.font=`${Math.max(10,11*S.cam.z)}px Segoe UI`;
@@ -1938,6 +1998,9 @@ function startPlay(){
   /* the HUD's chrome follows the biome — the sky's law, worn by the frame */
   const hf=document.querySelector("#pie-hud .hud-frame");
   if(hf) hf.src="assets/"+(HSKINS[S.cur]||"hud-frame.png");
+  /* the bust wears the biome too (R54) — the portrait sheet's variant */
+  const hb=document.querySelector("#pie-hud .hud-portrait img");
+  if(hb) hb.src="assets/"+(PHSKINS[S.cur]||"portrait-hero.png");
   $("sb-sim").innerHTML='<b style="color:var(--warn)">playing</b>';
   log("evt","[pie] playing "+S.cur+" — gravity "+S.sim.grav+" (scene), jump "+JUMP_VY+", P or Esc to stop");
   toast("Play in editor",d.name||S.cur);
@@ -2094,6 +2157,32 @@ function drawSim(){
     $("hud-state").textContent=(m.p.ground?"grounded":"airborne")+(m.done?" · complete":"");
   }
 }
+/* THE GOAL FLAG'S SHIMMER (R54): the door glitters — two diagonal
+   highlight bands sweep the goal box on staggered periods and the
+   flag's glow breathes. One draw shared by the editor viewport and
+   PIE, clipped to the box so nothing bleeds. */
+function drawGoalShimmer(sx,sy,w,h){
+  const t=performance.now()/1000;
+  cx.save();
+  cx.beginPath(); cx.rect(sx,sy,w,h); cx.clip();
+  for(const [per,off,a] of [[2.2,0,0.30],[3.4,0.47,0.16]]){
+    const ph=((t+off)%per)/per;
+    const bw=Math.max(12,w*0.45);
+    const bx=sx-bw+ph*(w+2*bw);
+    const g=cx.createLinearGradient(bx,0,bx+bw,0);
+    g.addColorStop(0,"rgba(255,255,255,0)");
+    g.addColorStop(0.5,"rgba(255,255,255,"+a+")");
+    g.addColorStop(1,"rgba(255,255,255,0)");
+    cx.fillStyle=g; cx.fillRect(bx,sy,bw,h);
+  }
+  cx.restore();
+  const pulse=0.20+0.12*Math.sin(t*2.4);
+  cx.save();
+  cx.shadowColor="rgba(34,197,94,"+pulse.toFixed(3)+")"; cx.shadowBlur=14;
+  cx.strokeStyle="rgba(74,222,128,0.6)"; cx.lineWidth=1.5;
+  cx.strokeRect(sx+0.5,sy+0.5,w-1,h-1);
+  cx.restore();
+}
 function drawEnt(e,col,alpha,hero){
   const [sx,sy]=world2scr(e.x,e.y), w=e.w*S.cam.z, h=e.h*S.cam.z;
   cx.globalAlpha=alpha; cx.fillStyle=col; cx.strokeStyle=col;
@@ -2102,6 +2191,7 @@ function drawEnt(e,col,alpha,hero){
     cx.beginPath(); cx.moveTo(sx,sy+h); cx.lineTo(sx+w/2,sy); cx.lineTo(sx+w,sy+h); cx.closePath(); cx.fill();
   } else cx.fillRect(sx,sy,w,h);
   cx.globalAlpha=1;
+  if(e.tag==="goal") drawGoalShimmer(sx,sy,w,h);
   if(hero){ cx.strokeStyle="#fff"; cx.lineWidth=1.4; cx.strokeRect(sx,sy,w,h); }
 }
 
@@ -2178,6 +2268,13 @@ function aboutHTML(){
       ${skin("hud-twilight.png","twilight")}
       ${skin("hud-dawn.png","dawn")}
       ${skin("hud-void.png","void")}
+    </div>
+    <div class="about-skins">
+      ${skin("portrait-hero.png","the hero")}
+      ${skin("portrait-industrial.png","industrial")}
+      ${skin("portrait-twilight.png","twilight")}
+      ${skin("portrait-dawn.png","dawn")}
+      ${skin("portrait-void.png","void")}
     </div>
     <table>
       <tr><td>PIE is an honest approximation — the binary remains the law</td></tr>

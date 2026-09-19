@@ -1,3 +1,74 @@
+## v3.1.132 — the tour learns the ferries, and every goal door glitters
+
+*(the R54 session: the boarding fall family autopsied and closed, the
+grand tour grown to level-5 — it WALKS level-4's three ferries now —
+and the Content Browser's banner becomes the live campaign map; the
+06:00 UTC boundary is covered by this tag, declared honestly here.)*
+
+- **THE SEVENTEENTH AUTOPSY — THE BOARDING FALL FAMILY**: the
+  tour_fail_1789794025 trace held three deaths, and all three shared
+  one root. The ledge-a jump window (549..657) fired on LEFTWARD
+  re-entries — the ground-edge guard's walk-back re-enters the window
+  at vx -330, the +249 landing law assumes a rightward run, the arc
+  barely drifted, hit ledge-a's left wall at 726 and slid to the ground
+  at 754, where THE DRIVE's grounded grace (8 ticks = 66px at full run)
+  walked the hero off the ground's 800 edge into the pit (the 1016 and
+  1004 deaths, twice each). Three fixes: the MOMENTUM GATE (the fire
+  demands vx >= 60; a leftward entrant is turned with 'd' and fires on
+  the rebuilt run), the window shrink (657 -> 630 — the run-landing +
+  the 58px brake slide must stay clear of ledge-a's 940 edge), and the
+  DRIVE'S GROUND-LEVEL KILL (a flight that lands back at y >= 380 is a
+  FAILED boarding — the drive dies at tick 4, the guard laws take the
+  recovery). The third death was the 940 EDGE BOBBLE: a hero braking
+  near ledge-a's right edge flickers the grounded flag (the box hangs
+  past the edge), the flicker fell through to the default 'd' mid-brake
+  (vx was already -90; one bobble tick injected +216) and walked the
+  last 19px off — the band law's brake and hold now run through the
+  bobble (278..312, ground demanded only for the fire). Three solo
+  greens: 44.1s/0 deaths, 39.2s/0, 42.1s/1 honest — the flake family
+  is closed.
+- **THE FERRY CROSSING — HOPS GROWN TO LEVEL-5**: the tour stopped at
+  level-4's receipt for five rounds; dec_level4 WALKS the interior now.
+  Every fire is PREDICTED from the live telemetry and the engine's own
+  constants (level-4's gravity 1500, JUMP_VY -620, RUN_MAX 330 — the
+  arc's descent crossing t = [620+sqrt(384400-3000r)]/1500, and the
+  carry law read from spark.cpp: the deck teleports its rider, no
+  velocity is imparted at launch, so every drift is the held-'d'
+  drift). The ferry-1 board, the ferry-2 hop, the isle jump (the
+  landing window clears the saw's box on its right), the diagonal
+  ferry-3 board, and the ferry-3 disembark (the jump from x >= 1235
+  sweeps the saw-gate's band PAST 1458 — the walk-off would have died
+  inside it). The first red run's crossing: 12.6 seconds, ONE honest
+  death (a short disembark over the 1180..1300 gap), then a clean
+  re-cross. The level-5 receipt is the new end.
+- **THE NAME LAW**: level-5's display name is "the vault (level-5)" —
+  spaces, and the old `\S+` receipt parse read just "the": the tour
+  never recognized its own destination and wandered the vault until
+  the 170s cap (65 honest deaths of vault furniture). WELCOME parses
+  the whole name now and hop_hit matches the display name against the
+  hop key (exact or the trailing parenthesized key).
+- **THE UI MARQUEE**: THE CAMPAIGN MAP TILES — the Content Browser's
+  banner is the campaign itself: four biome tiles sliced from the
+  generated strip (one background-position per biome), tinted by the
+  biome's sky, wearing the LIVE entity count (rebuilt by renderAll, so
+  the counts follow every edit), the active scene's biome glowing
+  brand violet, a click opening the biome's first scene. THE GOAL
+  FLAG'S SHIMMER — the door glitters: two highlight bands sweep the
+  goal box on staggered periods and the glow breathes (a sine pulse),
+  one draw shared by the editor viewport and PIE, clipped to the box.
+  THE PORTRAIT SHEET — the PIE HUD's bust follows the biome (PHSKINS,
+  the frame's law worn by the face), and the About splash wears the
+  whole cast: the hero plus the four lit variants as a second gallery.
+- **THE ART**: four biome variant portraits generated (industrial
+  amber, twilight violet, dawn rose-gold, void cosmic) — the mandatory
+  image gen, and the JPEG-bytes law's 15th catch, all four arrived as
+  JPEG wearing a .png name, re-encoded to real PNGs, magic verified.
+- ui_editor_probe pins 20 (was 19) — the R54 law group re-pins the
+  campaign tiles, the shimmer's shared draw, the portrait sheet's real
+  PNG bytes and the About cast. The tour's hop pins grew to five.
+- five corners wear 3.1.132; this tag's release must carry
+  dxn3-3.1.132.tar.gz; gates ALL GREEN exit 0.
+
 ## v3.1.131 — the jump-brake learns its latency, and every tab wears its world
 
 *(the R53 session: four autopsies' worth of telemetry honesty in the
