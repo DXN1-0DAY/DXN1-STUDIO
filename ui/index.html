@@ -243,6 +243,25 @@ body{background:var(--win); color:var(--text); font:var(--font); user-select:non
   height:24px; padding:0 8px; cursor:pointer; text-align:left; font-family:inherit;}
 .det-mixed:hover{color:var(--text); border-color:var(--brand); background:var(--panel2);}
 .det-mixed::after{content:" ▾"; float:right; color:var(--faint);}
+/* the About modal's chrome (R52) — a credits splash, not a receipt */
+.about-wrap{padding:2px 4px;}
+.about-wrap img.hero{width:100%; border-radius:6px; border:1px solid var(--border); display:block;}
+.about-title{display:flex; align-items:center; gap:8px; padding:10px 2px 4px;}
+.about-title b{font-size:15px; letter-spacing:.5px;}
+.chip{display:inline-block; background:var(--panel2); border:1px solid var(--border);
+  color:var(--dim); border-radius:10px; font-size:10px; padding:1px 8px;}
+.chip.brand{color:var(--brand); border-color:var(--brand);}
+.about-tag{color:var(--dim); font-size:11px; line-height:1.6; padding:0 2px 8px;}
+.about-grid{display:grid; grid-template-columns:1fr 1fr; gap:6px; padding:2px 0 8px;}
+.about-card{background:var(--panel2); border:1px solid var(--border); border-radius:5px;
+  padding:7px 9px; font-size:10.5px; color:var(--dim); line-height:1.5;}
+.about-card b{display:block; color:var(--text); font-size:11px; margin-bottom:2px;}
+.about-card .b{color:var(--brand);}
+.about-skins{display:grid; grid-template-columns:repeat(4,1fr); gap:6px; padding:2px 0 8px;}
+.about-skins figure{margin:0;}
+.about-skins img{width:100%; aspect-ratio:1; object-fit:cover; border-radius:4px;
+  border:1px solid var(--border); display:block;}
+.about-skins figcaption{font-size:9.5px; color:var(--faint); text-align:center; padding-top:2px;}
 
 /* ── bottom dock ─────────────────────────────────────────────── */
 #bottom{height:236px; flex:none; background:var(--panel); border-top:1px solid var(--border);
@@ -537,7 +556,7 @@ body{background:var(--win); color:var(--text); font:var(--font); user-select:non
 /* ================================================================
    DXN1 STUDIO 3 — editor brain. One file, no deps.
    ================================================================ */
-const VERSION = "3.1.129";
+const VERSION = "3.1.130";
 const GATES = "58 probes walked · all green";
 
 const SCENES = [
@@ -2058,16 +2077,36 @@ $("modal-x").addEventListener("click",()=>$("modal").classList.remove("on"));
 $("modal").addEventListener("click",ev=>{ if(ev.target===$("modal")) $("modal").classList.remove("on"); });
 
 function aboutHTML(){
-  return `<img src="assets/about-hero.png" alt="">
-    <b>DXN1 STUDIO</b> <span style="color:var(--faint)">v${VERSION}</span> — the studio wears UE5.<br>
-    One C++23 binary is the engine; this panel cloth is its editor face.
-    Scenes are the same JSON the wire speaks.<br><br>
+  const skin=(f,label)=>`<figure><img src="assets/${f}" alt=""><figcaption>${label}</figcaption></figure>`;
+  return `<div class="about-wrap">
+    <img class="hero" src="assets/about-hero.png" alt="">
+    <div class="about-title"><b>DXN1 STUDIO</b>
+      <span class="chip brand">v${VERSION}</span>
+      <span class="chip">${GATES}</span>
+      <span class="chip">C++23 · zero deps</span></div>
+    <div class="about-tag">One C++23 binary is the engine; this panel cloth is its editor
+    face. Scenes are the same JSON the wire speaks — what PIE previews, the binary laws.</div>
+    <div class="about-grid">
+      <div class="about-card"><b>The Engine</b><span class="b">spark</span> — gravity
+        ${GRAV} px/s², jump ${JUMP_VY} px/s, movers that carry; the trace is the truth.</div>
+      <div class="about-card"><b>The Editor</b><span class="b">UE5's cloth</span> — the
+        outliner tree, camera bookmarks, scale gizmos, the mixed-value pill.</div>
+      <div class="about-card"><b>The Grand Tour</b><span class="b">five scenes walked</span>
+        — the probe plays like a player and never pauses the clock.</div>
+      <div class="about-card"><b>The Gates</b><span class="b">${GATES}</span> — a probe
+        per law, ALL GREEN before any tag; the release train ships the binary.</div>
+    </div>
+    <div class="about-skins">
+      ${skin("hud-industrial.png","industrial")}
+      ${skin("hud-twilight.png","twilight")}
+      ${skin("hud-dawn.png","dawn")}
+      ${skin("hud-void.png","void")}
+    </div>
     <table>
-      <tr><td>${GATES}</td></tr>
-      <tr><td>spark: gravity ${GRAV} px/s² · jump ${JUMP_VY} px/s</td></tr>
       <tr><td>PIE is an honest approximation — the binary remains the law</td></tr>
       <tr><td>zero dependencies · one file · served by any static host</td></tr>
-    </table>`;
+    </table>
+  </div>`;
 }
 function keysHTML(){
   return `<table>

@@ -356,9 +356,14 @@ R52 = [
     ("dawn HUD skin — the fourth biome frame (real PNG)",
         "hud-dawn.png" in html and os.path.isfile(hud_dawn)
         and dawn_magic == b"\x89PNG"),
+    ("About modal — the credits splash wears the chrome and the skins",
+        'class="about-wrap"' in html
+        and 'class="about-skins"' in html
+        and 'skin("hud-dawn.png","dawn")' in html
+        and '.about-grid{' in html),
 ]
 missing52 = [nm for nm, ok in R52 if not ok]
-pin("all 3 R52 studio laws present", not missing52, ", ".join(missing52))
+pin("all 4 R52 studio laws present", not missing52, ", ".join(missing52))
 
 fails = [n for n, ok in pins if not ok]
 print(f"\nui_editor_probe: {len(pins)-len(fails)}/{len(pins)} pins green "

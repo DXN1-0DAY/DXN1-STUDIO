@@ -1,3 +1,23 @@
+## v3.1.130 — the About modal becomes a credits splash
+
+*(the same R52 session, one increment later — push often.)*
+
+- **THE ABOUT MODAL REFRESH** — UE5's credits-splash shape: the hero
+  banner under a chip row (the version in brand violet, the gates'
+  count, the C++23 zero-deps badge), the four pillars as cards (the
+  engine's spark constants, the editor's UE5 cloth, the grand tour's
+  five walked scenes, the gates' ALL GREEN law), and the four biome
+  HUD skins as a thumbnail gallery — industrial, twilight, dawn, void
+  — the studio showing its own generated art off.
+- The drag-drop spawn audit: the Place Actors palette's drag-to-viewport
+  spawn (dragstart sets text/dxn1-actor, the drop spawns snapped at the
+  cursor with history and a toast) was found COMPLETE in the tree —
+  R51's debt list carried it in error; the debt is closed by evidence.
+- ui_editor_probe stays 18 pins — the R52 law group grows to four (the
+  About chrome's cloth, the skins gallery, the dawn frame inside it).
+- Five corners wear 3.1.130; this tag's release must carry
+  dxn3-3.1.130.tar.gz.
+
 ## v3.1.129 — the no-win landing learns to fly, and the selection edits as one
 
 *(the 02:00 UTC boundary's tag; the R52 round pays it.)*
